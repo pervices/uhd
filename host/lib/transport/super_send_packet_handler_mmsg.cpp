@@ -167,6 +167,9 @@ public:
 private:
     bool cached_sob = false;
     uhd::time_spec_t sob_time_cache;
+
+    bool first_ts_set;
+    uhd::time_spec_t first_ts;
 public:
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -174,6 +177,11 @@ public:
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ) {
+        if(!first_ts_set && metadata.has_time_spec) {
+            first_ts_set = true;
+            first_ts = metadata.time_spec;
+        }
+
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
 
@@ -511,13 +519,14 @@ private:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
-            if(metadata_.has_time_spec) {
-                // Sets the timestamp based on what's specified by the user
-                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
-            } else {
-                // Sets the timestamp to follow from the previous send
-                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
-            }
+            // if(metadata_.has_time_spec) {
+            //     // Sets the timestamp based on what's specified by the user
+            //     packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
+            // } else {
+            //     // Sets the timestamp to follow from the previous send
+            //     packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet, _sample_rate)).to_ticks(_TICK_RATE);
+            // }
+            packet_header_infos[n].tsf = first_ts.to_ticks(_TICK_RATE);
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
