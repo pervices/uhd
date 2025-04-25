@@ -47,7 +47,8 @@
 // Packets send to the unit must have a multiple of this many samples
 // A multiple of 12 to avoid loosing up to 7 samples when sending 2 consecutive packets with less than 12 samples in the FPGA
 // A multiple of 4 is required even if the above is fixed since there are up to 4 samples per clock
-#define CYAN_NRNT_PACKET_NSAMP_MULTIPLE 12
+// #define CYAN_NRNT_PACKET_NSAMP_MULTIPLE 12
+#define CYAN_NRNT_PACKET_NSAMP_MULTIPLE 1
 // Amount of the UDP packet used for overhead in data packets
 // 60 bit ipv4 header, 8 bit UDP header
 #define CYAN_NRNT_UDP_OVERHEAD 68
