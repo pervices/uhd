@@ -1,3 +1,10 @@
+uhdpv (4.8.0.6-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing false pass in benchmark_rate when no rx data is received
+  * Make benchmark_rate default to strict pass criteria
+
+ -- Per Vices <packages@pervices.com>  Fri, 25 Apr 2025 15:44:29 -0400
+
 uhdpv (4.8.0.5-0ubuntu1) ubuntu_release; urgency=medium
 
   * Fixing an issue when uhd_find_devices prints incorrect version
