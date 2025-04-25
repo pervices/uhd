@@ -347,7 +347,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::string channel_list, rx_channel_list, tx_channel_list;
     bool random_nsamps = false;
     std::atomic<bool> burst_timer_elapsed(false);
-    size_t overrun_threshold, underrun_threshold, drop_threshold, seq_threshold;
+    size_t overrun_threshold, underrun_threshold, drop_threshold, seq_threshold, late_cmd_threshold, tx_timeout_threshold, rx_timeout_threshold;
     size_t rx_spp, tx_spp, rx_spb, tx_spb, tx_align = 0;
     double tx_delay, rx_delay, adjusted_tx_delay, adjusted_rx_delay;
     bool rx_stream_now = false;
@@ -390,6 +390,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
          "Number of dropped packets (D) which will declare the benchmark a failure.")
         ("seq-threshold", po::value<size_t>(&seq_threshold),
          "Number of dropped packets (D) which will declare the benchmark a failure.")
+        // Start of new args
+        ("late-cmd-threshold", po::value<size_t>(&late_cmd_threshold)->default_value(0),
+         "The maximum number of late commands which if exceeded will declare the benchmark a failure.")
+        ("tx-timeout-threshold", po::value<size_t>(&tx_timeout_threshold)->default_value(0),
+         "The maximum number of late commands which if exceeded will declare the benchmark a failure.")
+        ("rx-timeout-threshold", po::value<size_t>(&rx_timeout_threshold)->default_value(0),
+         "The maximum number of late commands which if exceeded will declare the benchmark a failure.")
+        // End of new args
         // NOTE: tx_delay defaults to 0.25 while rx_delay defaults to 0.05 when left unspecified
         // in multi-channel and multi-streamer configurations.
         ("tx_delay", po::value<double>(&tx_delay)->default_value(5), "delay before starting TX in seconds")
@@ -753,7 +761,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
     // print summary
-    const std::string threshold_err(" ERROR: Exceeds threshold!");
     const bool overrun_threshold_err = vm.count("overrun-threshold")
                                        and num_overruns > overrun_threshold;
     const bool underrun_threshold_err = vm.count("underrun-threshold")
@@ -762,18 +769,21 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                                     and num_seqrx_errors > drop_threshold;
     const bool seq_threshold_err = vm.count("seq-threshold")
                                    and num_seq_errors > seq_threshold;
+    const bool late_command_threshold_err = num_late_commands > late_cmd_threshold;
+    const bool tx_timeout_threshold_err = num_timeouts_tx > tx_timeout_threshold;
+    const bool rx_timeout_threshold_err = num_timeouts_rx > rx_timeout_threshold;
     std::cout << std::endl
               << boost::format("Benchmark rate summary:\n"
                                "  Num received samples:     %u\n"
-                               "  Num dropped samples:      %u\n"
-                               "  Num overruns detected:    %u\n"
+                               "  Num dropped samples:      %u\n" //-- don't need to check because num_seqrx_errors has the same purpsoe but on a packet level instead of samples
+                               "  Num overruns detected:    %u\n" //-- checked -- num_overruns
                                "  Num transmitted samples:  %u\n"
-                               "  Num sequence errors (Tx): %u\n"
-                               "  Num sequence errors (Rx): %u\n"
-                               "  Num underruns detected:   %u\n"
-                               "  Num late commands:        %u\n"
-                               "  Num timeouts (Tx):        %u\n"
-                               "  Num timeouts (Rx):        %u\n")
+                               "  Num sequence errors (Tx): %u\n" //-- checked - num_seq_errors
+                               "  Num sequence errors (Rx): %u\n" //-- checked - num_seqrx_errors
+                               "  Num underruns detected:   %u\n" //-- checked - num_underruns
+                               "  Num late commands:        %u\n" //-- need to check -- late_cmd_threshold
+                               "  Num timeouts (Tx):        %u\n" //-- need to check
+                               "  Num timeouts (Rx):        %u\n") //-- need to check
                      % num_rx_samps % num_dropped_samps % num_overruns % num_tx_samps
                      % num_seq_errors % num_seqrx_errors % num_underruns
                      % num_late_commands % num_timeouts_tx % num_timeouts_rx
@@ -782,7 +792,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 
     if (overrun_threshold_err || underrun_threshold_err || drop_threshold_err
-        || seq_threshold_err) {
+        || seq_threshold_err || tx_timeout_threshold_err || rx_timeout_threshold_err) {
         std::cout << "The following error thresholds were exceeded:\n";
         if (overrun_threshold_err) {
             std::cout << boost::format("  * Overruns (%d/%d)") % num_overruns
@@ -802,6 +812,21 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if (seq_threshold_err) {
             std::cout << boost::format("  * Dropped packets (TX) (%d/%d)")
                              % num_seq_errors % seq_threshold
+                      << std::endl;
+        }
+        if (late_command_threshold_err) {
+            std::cout << boost::format("  * Late commands (RX) (%d/%d)")
+                             % num_late_commands % late_cmd_threshold
+                      << std::endl;
+        }
+        if (tx_timeout_threshold_err) {
+            std::cout << boost::format("  * Timeout (TX) (%d/%d)")
+                             % num_timeouts_tx % tx_timeout_threshold
+                      << std::endl;
+        }
+        if (rx_timeout_threshold_err) {
+            std::cout << boost::format("  * Timeout (RX) (%d/%d)")
+                             % num_timeouts_rx % rx_timeout_threshold
                       << std::endl;
         }
         return EXIT_FAILURE;
