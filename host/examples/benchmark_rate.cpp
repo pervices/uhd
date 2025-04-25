@@ -382,13 +382,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("rx_channels", po::value<std::string>(&rx_channel_list), "which RX channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("tx_channels", po::value<std::string>(&tx_channel_list), "which TX channel(s) to use (specify \"0\", \"1\", \"0,1\", etc)")
-        ("overrun-threshold", po::value<size_t>(&overrun_threshold),
+        ("overrun-threshold", po::value<size_t>(&overrun_threshold)->default_value(0),
          "Number of overruns (O) which will declare the benchmark a failure.")
-        ("underrun-threshold", po::value<size_t>(&underrun_threshold),
+        ("underrun-threshold", po::value<size_t>(&underrun_threshold)->default_value(0),
          "Number of underruns (U) which will declare the benchmark a failure.")
-        ("drop-threshold", po::value<size_t>(&drop_threshold),
+        ("drop-threshold", po::value<size_t>(&drop_threshold)->default_value(0),
          "Number of dropped packets (D) which will declare the benchmark a failure.")
-        ("seq-threshold", po::value<size_t>(&seq_threshold),
+        ("seq-threshold", po::value<size_t>(&seq_threshold)->default_value(0),
          "Number of dropped packets (D) which will declare the benchmark a failure.")
         // Start of new args
         ("late-cmd-threshold", po::value<size_t>(&late_cmd_threshold)->default_value(0),
@@ -761,14 +761,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
     // print summary
-    const bool overrun_threshold_err = vm.count("overrun-threshold")
-                                       and num_overruns > overrun_threshold;
-    const bool underrun_threshold_err = vm.count("underrun-threshold")
-                                        and num_underruns > underrun_threshold;
-    const bool drop_threshold_err = vm.count("drop-threshold")
-                                    and num_seqrx_errors > drop_threshold;
-    const bool seq_threshold_err = vm.count("seq-threshold")
-                                   and num_seq_errors > seq_threshold;
+    const bool overrun_threshold_err = num_overruns > overrun_threshold;
+    const bool underrun_threshold_err = num_underruns > underrun_threshold;
+    const bool drop_threshold_err = num_seqrx_errors > drop_threshold;
+    const bool seq_threshold_err = num_seq_errors > seq_threshold;
     const bool late_command_threshold_err = num_late_commands > late_cmd_threshold;
     const bool tx_timeout_threshold_err = num_timeouts_tx > tx_timeout_threshold;
     const bool rx_timeout_threshold_err = num_timeouts_rx > rx_timeout_threshold;
