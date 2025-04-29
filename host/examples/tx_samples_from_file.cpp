@@ -119,7 +119,7 @@ public:
 
         *nsamps = get_num_samples_in_buffer(buffers_requested);
 
-        samp_type* buffer_start = &sample_buffer[buffers_requested % buffers_storable];
+        samp_type* buffer_start = &sample_buffer[(buffers_requested % buffers_storable) * _spb];
 
         // Waits until buffer to get returned is loaded
         // Loading should be initiated on startup/when clearing
