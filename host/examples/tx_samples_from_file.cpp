@@ -116,7 +116,7 @@ public:
 
         *nsamps = get_num_samples_in_buffer(buffers_requested);
 
-        samp_type* buffer_start = &sample_buffer[buffers_requested % buffers_storable];
+        samp_type* buffer_start = &sample_buffer[(buffers_requested % buffers_storable) * _spb];
 
         // Waits until buffer to get returned is loaded
         // Loading should be initiated on startup/when clearing
@@ -163,7 +163,7 @@ private:
 
         size_t samples_to_load = get_num_samples_in_buffer(buffers_loaded);
         // Offset in the file for where to load samples from
-        size_t sample_offset = samples_loaded % sample_buffer.size();
+        size_t sample_offset = samples_loaded % total_samples;
 
         ssize_t ret = lseek(sample_fd, sample_offset * sizeof(samp_type), SEEK_SET);
         if(ret == -1) {
@@ -171,7 +171,7 @@ private:
             throw std::runtime_error("Sample file not found");
         }
 
-        ret = read(sample_fd, &sample_buffer[buffers_requested % buffers_storable], samples_to_load * sizeof(samp_type));
+        ret = read(sample_fd, &sample_buffer[(buffers_loaded % buffers_storable) * _spb], samples_to_load * sizeof(samp_type));
 
         if(ret == -1) {
             UHD_LOG_ERROR("TX_SAMPLES_FROM_FILE", "Unable to read file, failed with error code: " + std::string(strerror(errno)));
@@ -183,7 +183,7 @@ private:
 
         buffer_status[real_buffer(buffers_loaded)] = 1;
         buffers_loaded++;
-        samples_loaded+=sample_offset;
+        samples_loaded+=samples_to_load;
     }
 
     // buffer_num: The number of the buffer in the sequence (starting at 0)
