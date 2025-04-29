@@ -62,9 +62,11 @@ public:
         size_t max_buffers_storable = max_buffered_samples / spb;
 
         if(buffers_per_file <= max_buffers_storable) {
+            printf("T50A\n");
             _large_file = false;
             buffers_storable = buffers_per_file;
         } else {
+            printf("T50B\n");
             _large_file = true;
             buffers_storable = max_buffers_storable;
         }
@@ -87,7 +89,7 @@ public:
             load();
         }
 
-        printf("&sample_buffer: %lu\n", sample_buffer.data());
+        printf("sample_buffer.data(): %lu\n", sample_buffer.data());
     }
 
     SampleManager() {
@@ -219,8 +221,9 @@ void send_from_file(
         size_t samples_to_send;
         samp_type* sample_buffer = sample_manager->get_samples(&samples_to_send);
 
-        printf("sample_buffer: %lu\n", sample_buffer);
-        printf("sample_buffer p: %p\n", sample_buffer);
+        if(n < 10) {
+            printf("sample_buffer (loop): %lu\n", sample_buffer);
+        }
 
         std::vector<samp_type*> send_buff_ptr(tx_stream->get_num_channels(), sample_buffer);
 
