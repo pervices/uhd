@@ -87,6 +87,7 @@ public:
             load();
         }
 
+        printf("&sample_buffer: %lu\n", sample_buffer.data());
     }
 
     SampleManager() {
@@ -219,7 +220,7 @@ void send_from_file(
         samp_type* sample_buffer = sample_manager->get_samples(&samples_to_send);
 
         printf("sample_buffer: %lu\n", sample_buffer);
-        printf("sample_buffer: %p\n", sample_buffer);
+        printf("sample_buffer p: %p\n", sample_buffer);
 
         std::vector<samp_type*> send_buff_ptr(tx_stream->get_num_channels(), sample_buffer);
 
