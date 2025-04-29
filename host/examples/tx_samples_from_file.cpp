@@ -166,7 +166,7 @@ private:
 
         size_t samples_to_load = get_num_samples_in_buffer(buffers_loaded);
         // Offset in the file for where to load samples from
-        size_t sample_offset = samples_loaded % sample_buffer.size();
+        size_t sample_offset = (samples_loaded % sample_buffer.size()) * _spb;
 
         ssize_t ret = lseek(sample_fd, sample_offset * sizeof(samp_type), SEEK_SET);
         if(ret == -1) {
