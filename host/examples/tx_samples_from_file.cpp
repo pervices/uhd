@@ -174,8 +174,9 @@ private:
             throw std::runtime_error("Sample file not found");
         }
 
-        if(buffers_loaded < 10) {
+        if(buffers_loaded < 4) {
             printf("&sample_buffer[(buffers_loaded %% buffers_storable) * _spb]: %lu\n", &sample_buffer[(buffers_loaded % buffers_storable) * _spb]);
+            printf("sample_offset: %lu\n", sample_offset);
         }
 
         ret = read(sample_fd, &sample_buffer[(buffers_loaded % buffers_storable) * _spb], samples_to_load * sizeof(samp_type));
@@ -225,7 +226,7 @@ void send_from_file(
         size_t samples_to_send;
         samp_type* sample_buffer = sample_manager->get_samples(&samples_to_send);
 
-        if(n < 10) {
+        if(n < 40) {
             printf("sample_buffer (loop): %lu\n", sample_buffer);
         }
 
