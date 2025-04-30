@@ -166,7 +166,7 @@ private:
 
         size_t samples_to_load = get_num_samples_in_buffer(buffers_loaded);
         // Offset in the file for where to load samples from
-        size_t sample_offset = samples_loaded;
+        size_t sample_offset = samples_loaded % total_samples;
 
         ssize_t ret = lseek(sample_fd, sample_offset * sizeof(samp_type), SEEK_SET);
         if(ret == -1) {
@@ -191,7 +191,7 @@ private:
 
         buffer_status[real_buffer(buffers_loaded)] = 1;
         buffers_loaded++;
-        samples_loaded+=sample_offset;
+        samples_loaded+=samples_to_load;
     }
 
     // buffer_num: The number of the buffer in the sequence (starting at 0)
