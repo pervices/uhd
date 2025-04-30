@@ -166,7 +166,7 @@ private:
 
         size_t samples_to_load = get_num_samples_in_buffer(buffers_loaded);
         // Offset in the file for where to load samples from
-        size_t sample_offset = (samples_loaded % sample_buffer.size()) * _spb;
+        size_t sample_offset = samples_loaded;
 
         ssize_t ret = lseek(sample_fd, sample_offset * sizeof(samp_type), SEEK_SET);
         if(ret == -1) {
@@ -175,7 +175,7 @@ private:
         }
 
         if(buffers_loaded < 10) {
-            printf("&sample_buffer[(buffers_loaded \% buffers_storable) * _spb]: %lu\n", &sample_buffer[(buffers_loaded % buffers_storable) * _spb]);
+            printf("&sample_buffer[(buffers_loaded %% buffers_storable) * _spb]: %lu\n", &sample_buffer[(buffers_loaded % buffers_storable) * _spb]);
         }
 
         ret = read(sample_fd, &sample_buffer[(buffers_loaded % buffers_storable) * _spb], samples_to_load * sizeof(samp_type));
