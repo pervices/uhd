@@ -6,10 +6,11 @@ parameters:
 - name: uhdSrcDir
   type: string
 - name: uhdArtifactSource
-  type: string
   default: current
+  type: string
 - name: uhdFpgaArtifactSource
   type: string
+  default: current
 - name: fpga_imgs_source
   type: string
 - name: testDevices

@@ -1,13 +1,10 @@
 parameters:
-- name: testOS
-  type: string
-  values:
-    - ubuntu1804
 - name: uhdArtifactSource
   type: string
   default: current
 - name: uhdFpgaArtifactSource
   type: string
+  default: current
 - name: fpga_imgs_source
   type: string
 - name: extra_rf_test_args
@@ -20,9 +17,9 @@ jobs:
 - template: templates/job-uhd-x4xx-hardware-tests.yml
   parameters:
     suiteName: 'ettus_pebbles_x440'
-    testOS: '${{ parameters.testOS }}'
     toolset: 'make'
     runPyTest: true
+    runPyTestNonRF: false
     runDevTest: false
     runSystemImageTest: false
     uhdArtifactSource: ${{ parameters.uhdArtifactSource }}

@@ -28,8 +28,7 @@ parameters:
   default: current
 - name: uhdFpgaArtifactSource
   type: string
-- name: fpga_imgs_source
-  type: string
+  default: current
 - name: xilinxLocation
   type: string
 - name: dpdkDirs
@@ -67,8 +66,10 @@ jobs:
   - script: |
       if [ "${{ parameters.uhdFpgaArtifactSource }}" = "current" ]; then
         echo '##vso[task.setvariable variable=uhd_fpga_artifact_directory]'$(Agent.BuildDirectory)
+        echo "uhd_fpga_artifact_directory=$(Agent.BuildDirectory)"
       else
         echo '##vso[task.setvariable variable=uhd_fpga_artifact_directory]'$(Agent.BuildDirectory)/${{ parameters.uhdFpgaArtifactSource }}
+        echo "uhd_fpga_artifact_directory=$(Agent.BuildDirectory)/${{ parameters.uhdFpgaArtifactSource }}"
       fi
     displayName: Set uhddev FPGA pipeline artifact location
 
@@ -77,14 +78,6 @@ jobs:
       rm -rf $(uhd_artifact_directory)/uhddev-${{ parameters.testOS }}-${{ parameters.toolset }}
     displayName: Cleanup from prior run
     condition: and(succeeded(), eq(variables.dutFamily, 'x4xx'))
-
-  - script: |
-      if [ ! -z "${{ parameters.uhdFpgaArtifactSource }}" ]; then
-        rm -rf $(Agent.BuildDirectory)/${{ parameters.uhdFpgaArtifactSource }}
-      fi
-      rm -rf $(Agent.BuildDirectory)/uhd-images
-    displayName: Cleanup from prior run
-    condition: in('${{ parameters.fpga_imgs_source }}', 'FPGA Pipeline', 'FPGA Pipeline PR')
 
   - download: ${{ parameters.uhdArtifactSource }}
     artifact: $(dutEmbeddedImagesArtifact)
@@ -103,19 +96,24 @@ jobs:
       echo FPGA_NAME=$FPGA_NAME
       echo '##vso[task.setvariable variable=FPGA_ARTIFACT]'$FPGA_ARTIFACT
       echo FPGA_ARTIFACT=$FPGA_ARTIFACT
-      if [ "${{ parameters.fpga_imgs_source }}" = "FPGA Pipeline" ] || [ "${{ parameters.fpga_imgs_source }}" = "FPGA Pipeline PR"]; then
-        UHD_IMAGES_DIR=$(Agent.BuildDirectory)/${{ parameters.uhdFpgaArtifactSource }}/$FPGA_ARTIFACT
-      else
+      if [ "$(dutGetFpgaImagesMethod)" = "uhd_images_downloader" ]; then
         UHD_IMAGES_DIR=$(Agent.BuildDirectory)/uhd-images
+      else
+        UHD_IMAGES_DIR=$(uhd_fpga_artifact_directory)/$FPGA_ARTIFACT
       fi
       echo '##vso[task.setvariable variable=UHD_IMAGES_DIR]'$UHD_IMAGES_DIR
       echo UHD_IMAGES_DIR=$UHD_IMAGES_DIR
-    displayName: Set variables
+    displayName: Set FPGA variables
+
+  - script: |
+      rm -rf $(UHD_IMAGES_DIR)
+      mkdir -p $(UHD_IMAGES_DIR)
+    displayName: Create empty UHD images directory
 
   - download: ${{ parameters.uhdFpgaArtifactSource }}
     artifact: $(FPGA_ARTIFACT)
-    displayName: Download FPGA artifacts
-    condition: and(in('${{ parameters.fpga_imgs_source }}', 'FPGA Pipeline', 'FPGA Pipeline PR'), not(in(variables.dutType, 'B210')))
+    displayName: Download FPGA images (from artifacts)
+    condition: and(not(or(failed(), canceled())), ne(variables.dutGetFpgaImagesMethod, 'uhd_images_downloader'))
 
   - task: ExtractFiles@1
     inputs:
@@ -138,7 +136,6 @@ jobs:
     displayName: Extract uhddev-${{ parameters.testOS }}-${{ parameters.toolset }} artifact
 
   - script: |
-      mkdir -p $(UHD_IMAGES_DIR)
       DUTTYPE=$(dutType)
       # in the following, "${DUTTYPE,,}" is used as lower case version of "$(dutType)"
       if [ "${DUTTYPE,,}" = "b210" ]; then
@@ -147,8 +144,8 @@ jobs:
       $(Build.BinariesDirectory)/uhddev/build-installed/bin/uhd_images_downloader -t ${DUTTYPE,,} -t fpga
     env:
       UHD_IMAGES_DIR: $(UHD_IMAGES_DIR)
-    displayName: Download FPGA images
-    condition: not(and(in('${{ parameters.fpga_imgs_source }}', 'FPGA Pipeline', 'FPGA Pipeline PR'), not(in(variables.dutType, 'B210'))))
+    displayName: Download FPGA images (uhd_images_downloader)
+    condition: and(succeeded(), eq(variables.dutGetFpgaImagesMethod, 'uhd_images_downloader'))
 
   - script: |
       cd $(Agent.TempDirectory)
@@ -197,8 +194,9 @@ jobs:
         scp -o StrictHostKeyChecking=no $UHD_IMAGES_DIR/$FPGA_NAME.* root@$USRP_EMB_TARGET_IP:/usr/share/uhd/images/
         ssh -o StrictHostKeyChecking=no -tt root@$USRP_EMB_TARGET_IP "md5sum /usr/share/uhd/images/$FPGA_NAME.bit > /usr/share/uhd/images/$FPGA_NAME.bit.md5"
         ssh -o StrictHostKeyChecking=no -tt root@$USRP_EMB_TARGET_IP "md5sum /usr/share/uhd/images/$FPGA_NAME.dts > /usr/share/uhd/images/$FPGA_NAME.dts.md5"
+        ssh -o StrictHostKeyChecking=no -tt root@$USRP_EMB_TARGET_IP "rm /lib/firmware/x4*.* && systemctl restart usrp-hwd.service"
     displayName: Copy FPGA pipeline images to device
-    condition: and(succeeded(), eq(variables.dutFamily, 'x4xx'), in('${{ parameters.fpga_imgs_source }}', 'FPGA Pipeline', 'FPGA Pipeline PR'))
+    condition: and(succeeded(), eq(variables.dutFamily, 'x4xx'), ne(variables.dutGetFpgaImagesMethod, 'uhd_images_downloader'))
 
   - script: |
         ssh-keygen -f ~/.ssh/known_hosts -R $USRP_EMB_TARGET_IP
@@ -246,14 +244,15 @@ jobs:
   - script: |
       cd ${{ parameters.uhdSrcDir }}/host/tests/streaming_performance
       if [ "${{ parameters.nicType }}" = "100gbe" ]; then
-        sudo ./setup100gbe.sh --auto
+        sudo ./setup100gbe.sh --auto -v
       else
-        sudo ./setup10gbe.sh --auto
+        sudo ./setup10gbe.sh --auto -v
       fi
       EXITCODE=$?
       sleep 5
       exit $EXITCODE
     displayName: setup interfaces for use without DPDK
+    timeoutInMinutes: 5
 
   - script: |
       echo "##[group]Printing Environment"
@@ -269,7 +268,8 @@ jobs:
       fi
       # Disable creation of __pycache__ files using -B to avoid errors on clean up during next run
       # as using sudo below creates them with root priveleges.
-      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest -s test_streaming.py -m "not dpdk" \
+      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_streaming.py -m "not dpdk" \
+        --capture=tee-sys -o junit_logging=all \
         --dut_type $(dutType) --test_length ${{ parameters.testLength }} \
         --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName).xml \
         --addr $(dutAddr) --second_addr $(dutSecondAddr) --mgmt_addr $USRP_EMB_TARGET_IP --name $(dutNameId) \
@@ -286,12 +286,13 @@ jobs:
   - script: |
       cd ${{ parameters.uhdSrcDir }}/host/tests/streaming_performance
       if [ "${{ parameters.nicType }}" = "100gbe" ]; then
-        sudo ./setup100gbe.sh --ramdisk
+        sudo ./setup100gbe.sh --ramdisk -v
       else
-        sudo ./setup10gbe.sh --ramdisk
+        sudo ./setup10gbe.sh --ramdisk -v
       fi
       sleep 5
     displayName: setup interfaces for use raw udp streaming
+    timeoutInMinutes: 5
 
   - script: |
       export PYTHON_VERSION=$(python3 -c "import sys; print('python'+str(sys.version_info.major) + '.' + str(sys.version_info.minor))")
@@ -309,7 +310,8 @@ jobs:
       fi
       # Disable creation of __pycache__ files using -B to avoid errors on clean up during next run
       # as using sudo below creates them with root priveleges.
-      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest -s test_raw_udp_streaming.py \
+      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_raw_udp_streaming.py \
+        --capture=tee-sys -o junit_logging=all \
         --dut_type $(dutType) --dut_fpga $(dutFPGA) --test_length ${{ parameters.testLength }} \
         --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build-installed/lib/uhd --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName).xml \
         --addr $(dutAddr) --second_addr $(dutSecondAddr) --mgmt_addr $USRP_EMB_TARGET_IP --name $(dutNameId) \
@@ -322,18 +324,10 @@ jobs:
     displayName: Run raw udp streaming tests on $(dutName)
     condition: and(succeeded(), or(eq(variables.dutFamily, 'x4xx'), eq(variables.dutType, 'X310')))
 
-  - script: |
-      cd ${{ parameters.uhdSrcDir }}/host/tests/streaming_performance
-      if [ "${{ parameters.nicType }}" = "100gbe" ]; then
-        sudo ./setup100gbe.sh --auto --dpdk
-      else
-        sudo ./setup10gbe.sh --auto --dpdk
-      fi
-      EXITCODE=$?
-      sleep 5
-      exit $EXITCODE
-    displayName: setup interfaces for use with DPDK
-    condition: and(succeeded(), not(eq(variables.dutType, 'B210')))
+  - publish: $(Common.TestResultsDirectory)
+    artifact: test-logs-streamingtest-$(dutName)-$(dutFpga)-raw-udp-run$(System.JobAttempt)
+    displayName: Upload Test Logs with raw upd
+    condition: succeededOrFailed()
 
   - task: PublishTestResults@2
     inputs:
@@ -344,6 +338,20 @@ jobs:
       mergeTestResults: true
       failTaskOnFailedTests: false
     displayName: Upload streaming test results
+
+  - script: |
+      cd ${{ parameters.uhdSrcDir }}/host/tests/streaming_performance
+      if [ "${{ parameters.nicType }}" = "100gbe" ]; then
+        sudo ./setup100gbe.sh --auto --dpdk -v
+      else
+        sudo ./setup10gbe.sh --auto --dpdk -v
+      fi
+      EXITCODE=$?
+      sleep 5
+      exit $EXITCODE
+    displayName: setup interfaces for use with DPDK
+    condition: and(succeeded(), not(eq(variables.dutType, 'B210')))
+    timeoutInMinutes: 5
 
   - ${{ each dpdkDir in parameters.dpdkDirs }}:
     - script: |
@@ -409,7 +417,8 @@ jobs:
         cd ${{ parameters.uhdSrcDir }}/host/tests/pytests
         # Disable creation of __pycache__ files using -B to avoid errors on clean up during next run
         # as using sudo below creates them with root priveleges.
-        sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest -s test_streaming.py -m "dpdk" \
+        sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_streaming.py -m "dpdk" \
+          --capture=tee-sys -o junit_logging=all \
           --dut_type $(dutType) --dut_fpga $(dutFPGA) --test_length ${{ parameters.testLength }} \
           --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build \
           --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName)-dpdk-$(DPDK_VERSION_STRING).xml \
@@ -422,6 +431,11 @@ jobs:
       continueOnError: true
       displayName: Run streaming tests with DPDK ${{ dpdkDir }} on $(dutName)
       condition: and(succeeded(), not(eq(variables.dutType, 'B210')))
+
+    - publish: $(Common.TestResultsDirectory)
+      artifact: test-logs-streamingtest-$(dutName)-$(dutFpga)-dpdk$(DPDK_VERSION_STRING)-run$(System.JobAttempt)
+      displayName: Upload Test Logs with DPDK ${{ dpdkDir }}
+      condition: succeededOrFailed()
 
     - task: PublishTestResults@2
       inputs:

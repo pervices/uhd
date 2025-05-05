@@ -118,9 +118,13 @@ if(UHD_FPGA_DIR AND NOT EXISTS ${UHD_FPGA_DIR}/usrp3/top/Makefile.common)
 endif()
 message(STATUS "Using FPGA source directory: ${UHD_FPGA_DIR}")
 
-set(UHD_FPGA_DEFAULT_DEVICE "x310"
+# We make E310 the default device, because this can be programmed with the free
+# tier of Vivado. The other devices require a license.
+set(UHD_FPGA_DEFAULT_DEVICE "e31x"
     CACHE STRING "Default device for testbench execution")
 
+# As above, we set this to a value that works with the free tier of Vivado.
+# Other values require a license (e.g., for ModelSim).
 set(FPGA_SIM_CMD "xsim"
     CACHE STRING "Executable for running testbenches (e.g., xsim, vsim)")
 
@@ -211,7 +215,6 @@ endif(NOT CMAKE_MODULES_DIR)
 ########################################################################
 if(UHD_FPGA_DIR)
     add_subdirectory(rfnoc)
-    add_subdirectory(fpga/gain)
     add_subdirectory(icores)
 endif()
 if(UHD_FOUND)

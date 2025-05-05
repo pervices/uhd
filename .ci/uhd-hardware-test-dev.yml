@@ -42,11 +42,12 @@ parameters:
 - name: fpga_imgs_source
   type: string
   values:
-  - 'Filesytem/Images Downloader'
+  - 'Filesystem/Images Downloader'
+  - 'Mono Pipeline'
+  - 'Mono Pipeline PR'
   - 'FPGA Pipeline'
-  - 'FPGA Pipeline PR'
   displayName: FPGA Images Source
-  default: 'Filesytem/Images Downloader'
+  default: 'Mono Pipeline'
 - name: extra_rf_test_args
   type: string
   displayName: Extra UHD RF ATS Arguments (for N310 and X4x0 runs)
@@ -62,20 +63,84 @@ parameters:
   default:
   - '/opt/dpdk-19.11'
   - '/opt/dpdk-23.11'
+- name: x300_fpga_matrix
+  type: object
+  default:
+    X300_XG:
+      run: true
+    X300_HG:
+      run: true
+- name: x310_fpga_matrix
+  type: object
+  default:
+    X310_XG:
+      run: true
+    X310_HG:
+      run: true
+- name: n310_fpga_matrix
+  type: object
+  default:
+    N310_XG:
+      run: true
+    N310_HG:
+      run: true
+- name: n320_fpga_matrix
+  type: object
+  default:
+    N320_XG:
+      run: true
+    N320_HG:
+      run: true
+    N320_XQ:
+      run: true
+- name: x410_fpga_matrix
+  type: object
+  default:
+    X410_X4_200:
+      run: true
+    X410_CG_400:
+      run: true
+    X410_UC_200:
+      run: true
+- name: x440_fpga_matrix
+  type: object
+  default:
+    X440_X4_400:
+      run: true
+    X440_CG_400:
+      run: true
+    X440_CG_1600:
+      run: true
+
+variables:
+  - name: uhdFpgaArtifactSource
+    ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline') }}:
+      value: uhd_fpga_pipeline
+    ${{ elseif eq(parameters.fpga_imgs_source,  'Mono Pipeline PR') }}:
+      value: uhd_mono_pipeline_pr
+    ${{ else }}:
+      value: uhd_mono_pipeline
+  - name: fpga_imgs_source
+    ${{ if contains(parameters.fpga_imgs_source, 'Pipeline') }}:
+      value: 'Pipeline'
+    ${{ else }}:
+      value: 'Filesystem'
 
 resources:
   pipelines:
   - pipeline: uhd_mono_pipeline
     source: 'uhddev mono pipeline'
     branch: master
+  - pipeline: uhd_mono_pipeline_pr
+    source: 'uhddev mono pipeline PR'
+    branch: master
   - pipeline: usrp-kas-pipeline
     source: 'usrp-kas'
     branch: kirkstone
+  # Keep this for now, but it should be removed once the mono pipeline is
+  # fully populated.
   - pipeline: uhd_fpga_pipeline
     source: 'uhddev fpga pipeline'
-    branch: master
-  - pipeline: uhd_fpga_pr_pipeline
-    source: 'uhddev fpga pipeline PR'
     branch: master
   repositories:
   - repository: meta-ettus
@@ -93,6 +158,10 @@ resources:
     endpoint: EttusResearch
     name: EttusResearch/ettus-rts
     ref: master
+  - repository: hwtools
+    type: git
+    ref: refs/tags/pip/hwsetup/0.1/0.1.3
+    name: DevCentral/hwtools
 
 stages:
 - stage: test_uhd_x410_embedded_stage
@@ -102,13 +171,9 @@ stages:
   jobs:
   - template: templates/tests/job-uhd-x410-hardware-tests-sdr-test0.yml
     parameters:
-      testOS: ubuntu1804
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
 
 - stage: test_uhd_x440_embedded_stage
   displayName: Test X440 Embedded UHD
@@ -117,13 +182,9 @@ stages:
   jobs:
   - template: templates/tests/job-uhd-x440-hardware-tests-sdr-test0.yml
     parameters:
-      testOS: ubuntu1804
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
 
 - stage: test_streaming_stage
   displayName: Test UHD Streaming
@@ -135,11 +196,7 @@ stages:
       testOS: ubuntu2004
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
       testLength: ${{ parameters.testLength }}
       dpdkDirs: '${{ parameters.dpdkDirs }}'
 
@@ -153,11 +210,7 @@ stages:
       testOS: ubuntu2204
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
       testLength: ${{ parameters.testLength }}
       dpdkDirs: '${{ parameters.dpdkDirs }}'
 
@@ -171,11 +224,8 @@ stages:
       testOS: ubuntu2004
       uhdSrcDir: $(Build.SourcesDirectory)
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
 
 - stage: test_n310_rf_tests
   displayName: Run N310 RF tests
@@ -187,11 +237,8 @@ stages:
       testOS: ubuntu1804
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
       extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
 
 - stage: test_x410_rf_tests
@@ -201,13 +248,9 @@ stages:
   jobs:
   - template: templates/tests/job-uhd-x410-hardware-tests-pebbles.yml
     parameters:
-      testOS: ubuntu1804
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
       extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
       testLength: ${{ parameters.testLength }}
 
@@ -219,13 +262,9 @@ stages:
   jobs:
   - template: templates/tests/job-uhd-x440-hardware-tests-pebbles.yml
     parameters:
-      testOS: ubuntu1804
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
       extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
       testLength: ${{ parameters.testLength }}
 
@@ -236,13 +275,9 @@ stages:
   jobs:
   - template: templates/tests/job-uhd-x440-hardware-tests-saison.yml
     parameters:
-      testOS: ubuntu2204
       uhdArtifactSource: uhd_mono_pipeline
-      ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline PR') }}:
-        uhdFpgaArtifactSource: uhd_fpga_pr_pipeline
-      ${{ else }}:
-        uhdFpgaArtifactSource: uhd_fpga_pipeline
-      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
       ${{ if contains(parameters['extra_rf_test_args'],  'test_selector') }}:
         extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
       ${{ else }}:

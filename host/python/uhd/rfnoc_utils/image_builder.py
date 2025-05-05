@@ -25,11 +25,15 @@ from mako import exceptions
 from . import grc, yaml_utils
 from .builder_config import ImageBuilderConfig
 from .template import Template
+from .utils import check_include_paths_backward_compat
 
 ### DATA ######################################################################
 # Directory under the FPGA repo where the device directories are
 
 USRP3_LIB_RFNOC_DIR = os.path.join("usrp3", "lib", "rfnoc")
+
+# Path to the system's bash executable
+BASH_EXECUTABLE = "/bin/bash"  # FIXME this should come from somewhere
 
 # Map device names to the corresponding directory under usrp3/top
 DEVICE_DIR_MAP = {
@@ -83,7 +87,7 @@ def get_vivado_path(fpga_top_dir, args):
         get_viv_path_cmd = '. ./setupenv.sh && echo "VIVADO_PATH=\$VIVADO_PATH"'
         try:
             output = subprocess.check_output(
-                get_viv_path_cmd,
+                f'{BASH_EXECUTABLE} -c "{get_viv_path_cmd}"',
                 shell=True,
                 cwd=fpga_top_dir,
                 text=True,
@@ -287,6 +291,8 @@ def build(fpga_top_dir, device, build_dir, use_secure_netlist, base_dir, **args)
     logging.info(" * Build Artifacts Directory: %s", build_dir)
     logging.info(" * Build Output Directory: %s", build_output_dir)
     logging.info(" * Build IP Directory: %s", build_ip_dir)
+    # Wrap it into a bash call:
+    make_cmd = f'{BASH_EXECUTABLE} -c "{make_cmd}"'
     logging.info("Executing the following command: %s", make_cmd)
     my_env = os.environ.copy()
     ret_val = subprocess.call(make_cmd, shell=True, env=my_env, cwd=fpga_top_dir)
@@ -332,8 +338,7 @@ def load_module_yamls(include_paths):
     def load_module_descs(module_type):
         """Load separate block/module defs."""
         paths = [
-            os.path.abspath(os.path.normpath(os.path.join(x, "rfnoc", module_type)))
-            for x in include_paths
+            os.path.abspath(os.path.normpath(os.path.join(x, module_type))) for x in include_paths
         ]
         logging.debug("Looking for %s descriptors in:", module_type[:-1])
         for path in paths:
@@ -418,9 +423,9 @@ def build_image(repo_fpga_path, config_path, device, **args):
     """
     # We start by loading some core/standard files that are always needed.
     core_config_path = yaml_utils.get_core_config_path(config_path)
-
-    # TODO does this work for both block yamls and HDL sources?
-    include_paths = args.get("include_paths", []) + [config_path]
+    include_paths = check_include_paths_backward_compat(args.get("include_paths", [])) + [
+        os.path.join(config_path, "rfnoc")
+    ]
     logging.debug("Include paths: %s", ";".join(include_paths))
     # A list of all known module descriptors
     known_modules = load_module_yamls(include_paths)
@@ -440,6 +445,10 @@ def build_image(repo_fpga_path, config_path, device, **args):
         args.get("image_core_name"),
         known_modules,
     )
+    # If no target specified on the command line, use the default target from the
+    # yaml configuration file.
+    if args.get("target") is None and target is not None:
+        args["target"] = target
     logging.info("Selected device: %s", device)
     assert image_core_name
     args["image_core_name"] = image_core_name

@@ -3,10 +3,31 @@ Change Log for Releases
 
 ## 004.next
 
+* New Features
+  - X3x0: Add support for the gps_iface feature. This allows sending arbitrary
+    commands to the GPS module.
+  - rfnoc_modtool: Add a new subcommand, `make-yaml`, that generates a block
+    YAML file from some user inputs. When calling `rfnoc_modtool add`  without
+    a valid block YAML file, the tool will now automatically call `make-yaml` to
+    generate a new YAML file.
 * API Changes
   - `uhd::math::gcd` and `uhd::math::lcm` are removed from the public
      headers. Use `std::gcd` and `std::lcm` instead if C++17 is available,
      or `boost::math::gcd` and `boost::math::lcm` if not.
+  - When calling `recv()` on an RX streamer connected to an RFNoC device, we
+    no longer artificially inflate the timeout value. The old behaviour was
+    in some cases abused to detect overruns, but this is not a reliable method
+    and is now explicitly declared unsupported.
+* Bug Fixes
+  - Calling `recv()` on an RX streamer connected to an RFNoC device with a
+    zero timeout value now correctly returns immediately.
+  - rfnoc-gain: Moved the fpga/ subdirectory under rfnoc/. This way, the
+    directory structure inside the OOT module is identical to the directory
+    structure after installation.
+* Removals / Deprecations
+  - Removed tools/uhd_dump. This tool is obsolete, the USRP X3x0 is not even
+    compatible with it any more. Dumps can be recorded and analyzed with wireshark
+    and the UHD dissectors in here.
 
 
 ## 004.008.000.000

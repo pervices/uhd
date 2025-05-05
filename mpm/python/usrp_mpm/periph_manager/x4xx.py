@@ -39,7 +39,7 @@ from usrp_mpm.sys_utils.gpio import Gpio
 from usrp_mpm.sys_utils.udev import dt_symbol_get_spidev
 from usrp_mpm.xports import XportMgrUDP
 
-X400_FPGA_COMPAT = (8, 2)
+X400_FPGA_COMPAT = (10, 0)
 # The compat number at which remote streaming was added:
 X400_REMOTE_STREAMING_COMPAT = (7, 9)
 # The compat number at which DNA support was added:
@@ -175,14 +175,13 @@ class x4xx(ZynqComponents, PeriphManagerBase):
         "fan0": "get_fan0_sensor",
         "fan1": "get_fan1_sensor",
         "temp_fpga": "get_fpga_temp_sensor",
-        "temp_main_power0" : "get_main_power_temp_sensor0",
-        "temp_main_power1" : "get_main_power_temp_sensor1",
+        "temp_main_power0": "get_main_power_temp_sensor0",
+        "temp_main_power1": "get_main_power_temp_sensor1",
         "temp_scu_internal": "get_scu_internal_temp_sensor",
-        "temp_sample_clock_pcb" : "get_sample_clock_pcb_temp_sensor",
-        "temp_dram_pcb" : "get_dram_pcb_temp_sensor",
-        "temp_tmp464_internal" : "get_tmp464_internal_temp_sensor",
-        "temp_power_supply_pcb" : "get_power_supply_pcb_temp_sensor"
-
+        "temp_sample_clock_pcb": "get_sample_clock_pcb_temp_sensor",
+        "temp_dram_pcb": "get_dram_pcb_temp_sensor",
+        "temp_tmp464_internal": "get_tmp464_internal_temp_sensor",
+        "temp_power_supply_pcb": "get_power_supply_pcb_temp_sensor",
     }
     db_iface = X4xxDboardIface
     dboard_eeprom_magic = eeprom_magic
@@ -347,10 +346,8 @@ class x4xx(ZynqComponents, PeriphManagerBase):
         assert_compat_number(
             X400_FPGA_COMPAT, actual_compat, component="FPGA", fail_on_old_minor=False, log=self.log
         )
-        if CompatNumber(actual_compat) >= CompatNumber(X400_REMOTE_STREAMING_COMPAT):
-            self.fpga_features.add("remote_udp_streaming")
-        if CompatNumber(actual_compat) >= CompatNumber(X400_DEVICE_DNA_COMPAT):
-            self.fpga_features.add("device_dna")
+        self.fpga_features.add("remote_udp_streaming")
+        self.fpga_features.add("device_dna")
         self.log.debug(f"FPGA supports the following features: {', '.join(self.fpga_features)}")
 
     def _init_gps_mgr(self):
@@ -1053,25 +1050,25 @@ class x4xx(ZynqComponents, PeriphManagerBase):
     def get_scu_internal_temp_sensor(self):
         """Get temperature sensor reading of STM32 SCU's internal sensor."""
         self.log.trace("Reading SCU internal temperature.")
-        return get_temp_sensor(["EC Internal"], log=self.log)    
-        
+        return get_temp_sensor(["EC Internal"], log=self.log)
+
     def get_sample_clock_pcb_temp_sensor(self):
-        """ Get temperature sensor reading of the SPLL. """
+        """Get temperature sensor reading of the SPLL."""
         self.log.trace("Reading Sample Clock PCB temperature.")
         return get_temp_sensor(["Sample Clock PCB"], log=self.log)
-    
+
     def get_dram_pcb_temp_sensor(self):
-        """ Get temperature sensor reading of the DRAM. """
+        """Get temperature sensor reading of the DRAM."""
         self.log.trace("Reading DRAM PCB temperature.")
         return get_temp_sensor(["DRAM PCB"], log=self.log)
-    
+
     def get_tmp464_internal_temp_sensor(self):
-        """ Get temperature sensor reading of the internal TMP464 sensor. """
+        """Get temperature sensor reading of the internal TMP464 sensor."""
         self.log.trace("Reading TMP464 Internal temperature.")
         return get_temp_sensor(["TMP464 Internal"], log=self.log)
-    
+
     def get_power_supply_pcb_temp_sensor(self):
-        """ Get temperature sensor reading of the Power Supply PCB sensor. """
+        """Get temperature sensor reading of the Power Supply PCB sensor."""
         self.log.trace("Reading Power Supply PCB temperature.")
         return get_temp_sensor(["Power Supply PCB"], log=self.log)
 

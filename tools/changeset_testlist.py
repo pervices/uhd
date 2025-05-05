@@ -51,12 +51,28 @@ def parse_args():
         help="Endpoint to use for GitHub API requests read back labels.",
     )
     parser.add_argument("--github-token", help="GitHub token to use for API requests.")
+    parser.add_argument(
+        "--remove-test", nargs="*", help="Remove a test from the list of tests.", default=[]
+    )
+    parser.add_argument(
+        "--add-test", nargs="*", help="Add a test to the list of tests.", default=[]
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     return parser.parse_args()
 
 
+def get_git_commit_range(target_branch, source_branch=None, include_target=False):
+    """Return the commit range arguments for git diff."""
+    assert target_branch, "target_branch must be specified"
+    separator = ".." if include_target else "..."
+    if source_branch:
+        return f"{target_branch}{separator}{source_branch}"
+    else:
+        return f"{target_branch}{separator}"
+
+
 def check_changeset_content(file, **kwargs):
-    """Check changeset content for code and/or comments changes
+    """Check changeset content for code and/or comments changes.
 
     For example, if a .cpp file only has a comment change, we can use this to
     remove it from the "changed files" list. This is useful when we only want to
@@ -109,9 +125,11 @@ def check_changeset_content(file, **kwargs):
     else:
         raise ValueError(f"Unsupported argument: include_content={include_content}")
 
-    target_branch = kwargs["target_branch"]
-    if kwargs.get("include_target"):
-        target_branch += "..."
+    git_commit_range = get_git_commit_range(
+        kwargs["target_branch"],
+        kwargs.get("source_branch", None),
+        kwargs.get("include_target", False)
+    )
     get_diff_args = [
         shutil.which("git"),
         "-C",
@@ -119,7 +137,7 @@ def check_changeset_content(file, **kwargs):
         "diff",
         "--no-color",
         "--unified=0",
-        target_branch,
+        git_commit_range,
         "--",
     ]
 
@@ -130,7 +148,9 @@ def check_changeset_content(file, **kwargs):
     diff_lines = (
         subprocess.check_output(get_diff_args + [file], encoding="utf-8").strip().split("\n")[4:]
     )
-    line_matches = [comment_identifer[ext](line[1:])^invert for line in diff_lines if line[0] in ("-", "+")]
+    line_matches = [
+        comment_identifer[ext](line[1:]) ^ invert for line in diff_lines if line[0] in ("-", "+")
+    ]
     if include_content.endswith("-only"):
         return all(line_matches)
     else:
@@ -146,16 +166,9 @@ def get_changed_files(repo_path, target_branch, source_branch, include_target):
     source_branch: Branch to compare from. Defaults to the current branch.
     include_target: Include changes that originate from the target branch.
     """
-    assert target_branch
-    # If include_target is false, then current (unstaged/uncommited) changes are
-    # not included. If we want to change this, then couple this with
-    # git diff --name-only (no further arguments)
-    if not include_target:
-        target_branch += "..."
+    git_commit_range = get_git_commit_range(target_branch, source_branch, include_target)
     git_cmd = shutil.which("git")
-    get_diff_args = [git_cmd, "diff", "--name-only", target_branch]
-    if source_branch:
-        get_diff_args.append(source_branch)
+    get_diff_args = [git_cmd, "diff", "--name-only", git_commit_range]
     files = subprocess.check_output(get_diff_args, cwd=repo_path, encoding="utf-8")
     return files.strip().split("\n")
 
@@ -170,17 +183,18 @@ def load_rules(rule_file):
 class RuleApplier:
     """Helper class to update an internal test list based on a set of rules."""
 
-    def __init__(self, rules, labels, **kwargs):
+    def __init__(self, rules, labels, initial_list=[], **kwargs):
         """Initialize.
 
         Arguments:
         rules: List of rules to apply.
         labels: List of labels relevant to the current changeset.
+        initial_list: Initial list of tests to apply rules against.
         """
         self.rules = rules
         self.labels = labels
         self.args = kwargs
-        self.test_list = set()
+        self.test_list = set(initial_list)
 
     def apply(self, filename, verbose=False):
         """Apply rules against a file."""
@@ -224,9 +238,7 @@ class RuleApplier:
         if "label" in rule and verbose:
             sys.stderr.write(f"Label {rule['label']} found\n")
         include_content = rule.get("include_content", "code")
-        if not check_changeset_content(
-            filename, **self.args, include_content=include_content
-        ):
+        if not check_changeset_content(filename, **self.args, include_content=include_content):
             if verbose:
                 sys.stderr.write(
                     f"Skipping {filename} based on content rule: include_content='{include_content}'\n"
@@ -241,6 +253,18 @@ class RuleApplier:
             return False
         return True
 
+    def remove_tests(self, test_patterns, verbose=False):
+        """Remove tests from the test list."""
+        if verbose:
+            sys.stderr.write(f"Removing tests based on patterns: {test_patterns}\n")
+            sys.stderr.write(f"Before: {self.test_list}\n")
+        for test_pattern in test_patterns:
+            self.test_list = set(
+                [test for test in self.test_list if not re.search(test_pattern, test)]
+            )
+        if verbose:
+            sys.stderr.write(f"After: {self.test_list}\n")
+
 
 def get_labels(api_endpoint, token):
     """Get a list of labels from the GitHub API."""
@@ -251,7 +275,11 @@ def get_labels(api_endpoint, token):
     else:
         headers = {}
     data = requests.get(api_endpoint, headers=headers).json()
-    labels = [label["name"] for label in data]
+    try:
+        labels = [label["name"] for label in data]
+    except (KeyError, TypeError):
+        print("WARNING: Could not get labels from API. Return data: ", data)
+        return []
     print("Labels:", ", ".join(labels))
     return labels
 
@@ -272,6 +300,7 @@ def main():
     rule_applier = RuleApplier(
         load_rules(rule_file),
         labels,
+        initial_list=args.add_test,
         repo_path=args.repo_path,
         target_branch=args.target_branch,
         source_branch=args.source_branch,
@@ -281,6 +310,8 @@ def main():
     for filename in file_list:
         rule_applier.apply(filename, args.verbose)
     rule_applier.apply_labels()
+    if args.remove_test:
+        rule_applier.remove_tests(args.remove_test, args.verbose)
     if args.set_azdo_var:
         print(
             f"##vso[task.setvariable variable={args.set_azdo_var};isoutput=true]"

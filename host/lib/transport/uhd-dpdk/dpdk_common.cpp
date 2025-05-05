@@ -13,6 +13,7 @@
 #include <uhdlib/utils/prefs.hpp>
 #include <arpa/inet.h>
 #include <rte_arp.h>
+#include <rte_errno.h>
 #include <boost/algorithm/string.hpp>
 
 namespace uhd { namespace transport { namespace dpdk {
@@ -92,7 +93,12 @@ dpdk_port::dpdk_port(port_id_t port,
 
     /* Set hardware offloads */
     struct rte_eth_dev_info dev_info;
-    rte_eth_dev_info_get(_port, &dev_info);
+    if (rte_eth_dev_info_get(_port, &dev_info)) {
+        UHD_LOG_THROW(uhd::runtime_error,
+            "DPDK",
+            "Could not get device info for port " << _port << ": "
+                                                  << rte_strerror(rte_errno));
+    }
 #ifdef RTE_ETH_RX_OFFLOAD_IPV4_CKSUM
     uint64_t rx_offloads = RTE_ETH_RX_OFFLOAD_IPV4_CKSUM;
     uint64_t tx_offloads = RTE_ETH_TX_OFFLOAD_IPV4_CKSUM;
@@ -509,6 +515,31 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             }
         }
 
+        /* Checking if dpdk_lcore values are listed in dpdk_corelist.
+        If not, then throw run time error to avoid application to freeze.
+        Note: The check is encapsulated under 2 nested ifs. This is to
+        make sure that keys "dpdk_corelist and dpdk_lcore are available
+        in uhd config file before checking for invalid condition. */
+        if (dpdk_args.has_key("dpdk_corelist")) {
+            auto dpdk_args_corelists_value = dpdk_args.get("dpdk_corelist");
+            RTE_ETH_FOREACH_DEV(i)
+            {
+                auto& nic = nics.at(i);
+                if (nic.has_key("dpdk_lcore")) {
+                    auto nic_args_lcore_value = nic.get("dpdk_lcore");
+                    if (!uhd::has(uhd::device_addr_t(dpdk_args_corelists_value).keys(),
+                            nic.get("dpdk_lcore"))) {
+                        UHD_LOG_THROW(uhd::runtime_error,
+                            "DPDK",
+                            "CONFIG: NIC(" << i << ") references dpdk_lcore value ["
+                                           << nic_args_lcore_value
+                                           << "] which is not found in dpdk_corelist ["
+                                           << dpdk_args_corelists_value << "] !");
+                    }
+                }
+            }
+        }
+
         std::map<size_t, std::vector<size_t>> lcore_to_port_id_map;
         RTE_ETH_FOREACH_DEV(i)
         {
@@ -563,7 +594,12 @@ void dpdk_ctx::init(const device_addr_t& user_args)
             for (auto& port : _ports) {
                 struct rte_eth_link link;
                 auto portid = port.second->get_port_id();
-                rte_eth_link_get(portid, &link);
+                if (rte_eth_link_get(portid, &link)) {
+                    UHD_LOG_THROW(uhd::runtime_error,
+                        "DPDK",
+                        "Could not get link status for port "
+                            << portid << ". Error: " << rte_strerror(rte_errno));
+                }
                 unsigned int link_status = link.link_status;
                 unsigned int link_speed  = link.link_speed;
                 UHD_LOGGER_TRACE("DPDK") << boost::format("Port %u UP: %d, %u Mbps")
@@ -648,7 +684,12 @@ int dpdk_ctx::get_port_queue_count(port_id_t portid)
 int dpdk_ctx::get_port_link_status(port_id_t portid) const
 {
     struct rte_eth_link link;
-    rte_eth_link_get_nowait(portid, &link);
+    if (rte_eth_link_get_nowait(portid, &link)) {
+        UHD_LOG_THROW(uhd::runtime_error,
+            "DPDK",
+            "Could not get link status for port "
+                << portid << ". Error: " << rte_strerror(rte_errno));
+    }
     return link.link_status;
 }
 

@@ -6,12 +6,11 @@ parameters:
 - name: uhdSrcDir
   type: string
 - name: uhdArtifactSource
-  type: string
   default: current
+  type: string
 - name: uhdFpgaArtifactSource
   type: string
-- name: fpga_imgs_source
-  type: string
+  default: current
 - name: testLength
   type: string
 - name: dpdkDirs
@@ -30,8 +29,7 @@ jobs:
     nicType: '100gbe'
     uhdSrcDir: '${{ parameters.uhdSrcDir }}'
     uhdArtifactSource: ${{ parameters.uhdArtifactSource }}
-    uhdFpgaArtifactSource: ${{ parameters.uhdFpgaArtifactSource }}
-    fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+    uhdFpgaArtifactSource: '${{ parameters.uhdFpgaArtifactSource }}'
     xilinxLocation: /opt/Xilinx/Vivado_Lab/2023.2
     dpdkDirs: '${{ parameters.dpdkDirs }}'
     dutMatrix:
