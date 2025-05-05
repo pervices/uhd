@@ -15,6 +15,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 namespace uhd { namespace usrp { namespace fbx {
 

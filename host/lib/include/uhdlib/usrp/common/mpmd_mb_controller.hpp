@@ -16,6 +16,7 @@
 #include <uhdlib/utils/rpc.hpp>
 #include <map>
 #include <memory>
+#include <cstdint>
 
 namespace uhd { namespace rfnoc {
 
