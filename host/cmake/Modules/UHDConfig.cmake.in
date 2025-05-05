@@ -88,17 +88,17 @@ get_filename_component(UHD_LIB_PATH ${UHD_LIBRARIES} PATH)
 get_filename_component(UHD_BASE_PATH ${UHD_LIB_PATH} PATH)
 get_filename_component(UHD_MODULE_PATH ${UHD_BASE_PATH}/share/uhd/modules ABSOLUTE)
 
-# Set up linker flags for static linking:
-if(UHD_USE_STATIC_LIBS)
-    if(WIN32)
-        message(FATAL_ERROR "Static linking not available on Windows")
-    else(WIN32)
-        # This works for gcc and Clang:
-        set(UHD_STATIC_LIB_LINK_FLAG "-Wl,-whole-archive ${UHD_LIBRARIES} -Wl,-no-whole-archive")
-    endif(WIN32)
-    # Restore the library suffixes, if we changed them:
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ${_UHD_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
-endif(UHD_USE_STATIC_LIBS)
+# # Set up linker flags for static linking:
+# if(UHD_USE_STATIC_LIBS)
+#     if(WIN32)
+#         message(FATAL_ERROR "Static linking not available on Windows")
+#     else(WIN32)
+#         # This works for gcc and Clang:
+#         set(UHD_STATIC_LIB_LINK_FLAG "-Wl,-whole-archive ${UHD_LIBRARIES} -Wl,-no-whole-archive")
+#     endif(WIN32)
+#     # Restore the library suffixes, if we changed them:
+#     set(CMAKE_FIND_LIBRARY_SUFFIXES ${_UHD_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
+# endif(UHD_USE_STATIC_LIBS)
 
 if(UHD_LIBRARIES AND UHD_INCLUDE_DIRS)
   include(FindPackageHandleStandardArgs)
