@@ -89,6 +89,7 @@ message(STATUS "Python interpreter: ${PYTHON_EXECUTABLE} Version: ${PYTHON_VERSI
 message(STATUS "Override with: -DPYTHON_EXECUTABLE=<path-to-python>")
 
 #this allows the user to override RUNTIME_PYTHON_EXECUTABLE
+set(RUNTIME_PYTHON_EXECUTABLE True)
 if(NOT RUNTIME_PYTHON_EXECUTABLE)
     if(CMAKE_CROSSCOMPILING)
         message(STATUS "Cross compiling, setting python runtime to /usr/bin/python3")

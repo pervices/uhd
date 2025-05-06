@@ -590,6 +590,7 @@ string(REPLACE ";" " " UHD_PC_CFLAGS "${UHD_PC_CFLAGS}")
 string(REPLACE ";" " " UHD_PC_LIBS "${UHD_PC_LIBS}")
 
 # Unset these vars to avoid hard-coded paths to cross environment
+set(CMAKE_CROSSCOMPILING TRUE)
 if(CMAKE_CROSSCOMPILING)
     set(UHD_PC_CFLAGS)
     set(UHD_PC_LIBS)
