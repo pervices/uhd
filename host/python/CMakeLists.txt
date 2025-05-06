@@ -151,9 +151,9 @@ else()
     # for extension module, proper to NOT link against python library and instead
     # add dynamic lookup link option on OSX
     target_link_libraries(pyuhd ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} uhd)
-    if(APPLE)
+    # if(APPLE)
         target_link_options(pyuhd PRIVATE "LINKER:-undefined,dynamic_lookup")
-    endif(APPLE)
+    # endif(APPLE)
 endif(WIN32)
 # Copy pyuhd library to the staging directory
 add_custom_command(TARGET pyuhd
