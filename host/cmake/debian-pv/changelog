@@ -1,3 +1,9 @@
+uhdpv (4.8.0.9-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Support boost 1.88
+
+ -- Per Vices <packages@pervices.com>  Tue, 06 May 2025 11:05:22 -0400
+
 uhdpv (4.8.0.8-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing tx_samples_from_file not using the correct samples
