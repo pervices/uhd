@@ -29,6 +29,7 @@ endif()
 message(STATUS "")
 message(STATUS "Configuring the Python interpreter...")
 #this allows the user to override PYTHON_EXECUTABLE
+set(PYTHON_EXECUTABLE "python3")
 if(PYTHON_EXECUTABLE)
     set(PYTHONINTERP_FOUND TRUE)
 endif(PYTHON_EXECUTABLE)
