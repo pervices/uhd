@@ -90,6 +90,7 @@ message(STATUS "Override with: -DPYTHON_EXECUTABLE=<path-to-python>")
 
 #this allows the user to override RUNTIME_PYTHON_EXECUTABLE
 set(RUNTIME_PYTHON_EXECUTABLE FALSE)
+set(CMAKE_CROSSCOMPILING TRUE)
 if(NOT RUNTIME_PYTHON_EXECUTABLE)
     if(CMAKE_CROSSCOMPILING)
         message(STATUS "Cross compiling, setting python runtime to /usr/bin/python3")
