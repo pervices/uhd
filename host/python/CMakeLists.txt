@@ -43,6 +43,7 @@ file(COPY "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}
 # If we're not in a virtual environment, then we need to figure out where to
 # install the Python module. Do this here so we can use the value for UHD_PYTHON_DIR
 # in the simulator.
+set(UHD_PYTHON_DIR "lib/python3.13/site-packages")
 if(NOT DEFINED UHD_PYTHON_DIR)
     execute_process(COMMAND ${PYTHON_EXECUTABLE} -c
         # Avoid the posix_local install scheme
