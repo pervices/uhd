@@ -46,6 +46,8 @@ if(ENABLE_PYMOD_UTILS)
         ${CMAKE_CURRENT_SOURCE_DIR}/../examples/rfnoc-gain/rfnoc/blocks/CMakeLists.txt
         )
 
+    set(PYTHON_EXECUTABLE "python3")
+
     add_custom_target(
         rfnoc_newmod ALL
         DEPENDS ${RFNOC_GAIN_OOT_FILES}
