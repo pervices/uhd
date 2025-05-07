@@ -39,7 +39,7 @@ setup(
         "uhd.rfnoc_utils.templates.modules": ["*.mako"],
         "uhd.rfnoc_utils.modtool_commands": ["*.yml"],
     },
-    zip_safe=False,
+    zip_safe=True,
     packages=packages,
     install_requires=["numpy", "ruamel.yaml", "mako"],
     entry_points={"console_scripts": ["rfnoc_modtool = uhd.rfnoc_utils.rfnoc_modtool:main"]},
