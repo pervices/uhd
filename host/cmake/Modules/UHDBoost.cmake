@@ -79,6 +79,8 @@ endif()
 # set this for verbosity during 'find'
 # set(Boost_DEBUG TRUE)
 
+message(STATUS "T20: Boost ${UHD_BOOST_MIN_VERSION} QUIET ${UHD_BOOST_REQUIRED}")
+
 # verify we're looking for something
 list(LENGTH UHD_BOOST_OPTIONAL_COMPONENTS UHD_BOOST_OPTIONAL_COMPONENTS_LEN)
 list(LENGTH UHD_BOOST_REQUIRED_COMPONENTS UHD_BOOST_REQUIRED_COMPONENTS_LEN)
@@ -160,6 +162,7 @@ endif()
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 14)
   message(WARNING "\nC++ standard not yet set; setting to C++14.\n")
+  message(FATAL_ERROR "T2")
 endif()
 
 # tell boost the linkage required
@@ -185,11 +188,13 @@ if(${UHD_BOOST_OPTIONAL_COMPONENTS_LEN} GREATER 0)
         OPTIONAL_COMPONENTS ${UHD_BOOST_OPTIONAL_COMPONENTS})
 endif()
 
+message(STATUS "T100")
 if(${UHD_BOOST_REQUIRED_COMPONENTS_LEN} GREATER 0)
     message(STATUS "  Looking for required Boost components...")
     find_package(Boost ${UHD_BOOST_MIN_VERSION} QUIET
         COMPONENTS ${UHD_BOOST_REQUIRED_COMPONENTS} ${UHD_BOOST_REQUIRED})
 endif()
+message(STATUS "T100")
 
 # restore BUILD_SHARED_LIBS, if set
 if(BUILD_SHARED_LIBS_SET)
