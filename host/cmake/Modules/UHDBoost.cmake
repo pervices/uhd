@@ -57,6 +57,8 @@
 message(STATUS "")
 message(STATUS "Checking for Boost version ${UHD_BOOST_MIN_VERSION} or greater")
 
+cmake_policy(SET CMP0048 NEW)
+
 # unset return variables
 unset(Boost_FOUND)
 unset(Boost_INCLUDE_DIRS)
