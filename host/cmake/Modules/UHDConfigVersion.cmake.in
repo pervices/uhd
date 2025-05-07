@@ -36,7 +36,7 @@ set(ENV{UHD_PACKAGE_VERSION} ${PACKAGE_VERSION})
 
 if(NOT PACKAGE_FIND_VERSION)
   set(PACKAGE_VERSION_COMPATIBLE TRUE)
-  set(PACKAGE_VERSION_EXACT TRUE)
+  set(PACKAGE_VERSION_EXACT FALSE)
   return()
 endif(NOT PACKAGE_FIND_VERSION)
 
@@ -161,7 +161,7 @@ endif(UHD_USE_ABI)
 # check for exact version
 
 if(${PACKAGE_FIND_VERSION} VERSION_EQUAL ${PACKAGE_VERSION})
-  set(PACKAGE_VERSION_EXACT TRUE)
+  set(PACKAGE_VERSION_EXACT FALSE)
 endif()
 
 # Undo our patch-version-number hack. Careful when changing this line, we use it
