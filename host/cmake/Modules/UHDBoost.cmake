@@ -57,8 +57,6 @@
 message(STATUS "")
 message(STATUS "Checking for Boost version ${UHD_BOOST_MIN_VERSION} or greater")
 
-cmake_policy(SET CMP0048 NEW)
-
 # unset return variables
 unset(Boost_FOUND)
 unset(Boost_INCLUDE_DIRS)
@@ -190,7 +188,11 @@ if(${UHD_BOOST_OPTIONAL_COMPONENTS_LEN} GREATER 0)
         OPTIONAL_COMPONENTS ${UHD_BOOST_OPTIONAL_COMPONENTS})
 endif()
 
-message(STATUS "T100")
+message(STATUS "T90")
+# TODO: see if this replaces the above CMP0093
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
 if(${UHD_BOOST_REQUIRED_COMPONENTS_LEN} GREATER 0)
     message(STATUS "  Looking for required Boost components...")
     find_package(Boost ${UHD_BOOST_MIN_VERSION} QUIET
