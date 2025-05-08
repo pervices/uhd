@@ -185,6 +185,9 @@ if(${UHD_BOOST_OPTIONAL_COMPONENTS_LEN} GREATER 0)
         OPTIONAL_COMPONENTS ${UHD_BOOST_OPTIONAL_COMPONENTS})
 endif()
 
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW) # Suppress Version warnings
+endif(POLICY CMP0167)
 if(${UHD_BOOST_REQUIRED_COMPONENTS_LEN} GREATER 0)
     message(STATUS "  Looking for required Boost components...")
     find_package(Boost ${UHD_BOOST_MIN_VERSION} QUIET
