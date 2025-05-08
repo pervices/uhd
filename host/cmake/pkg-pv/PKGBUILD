@@ -7,7 +7,7 @@ pkgdesc="Official Per Vices libuhdpv build script supporting all Per Vices SDR p
 arch=('x86_64')
 url="https://www.support.pervices.com"
 license=('GPL')
-makedepends=('cmake' 'glibc' 'git' 'orc' 'libusb' 'boost' 'boost-libs' 'icu' 'python-mako' 'python-requests' 'lapack' 'python-numpy' 'python-retrying' 'python-scipy' 'doxygen' 'gpsd' 'python-setuptools' 'gtk3')
+makedepends=('cmake' 'glibc' 'git' 'orc' 'libusb' 'boost' 'boost-libs' 'icu' 'python-mako' 'python-requests' 'lapack' 'python-numpy' 'python-retrying' 'python-scipy' 'doxygen' 'gpsd' 'python-setuptools' 'gtk3' 'libboost-all-dev')
 
 provides=('libuhdpv')
 conflicts=('libuhd')
@@ -68,7 +68,7 @@ check() {
 }
 
 package() {
-    depends=('python' 'python-numpy' 'boost-libs' 'glibc' 'gcc-libs' 'libusb')
+    depends=('python' 'python-numpy' 'glibc' 'gcc-libs' 'libusb')
     cd "$srcdir/$_gitname/host/build"
     make DESTDIR="$pkgdir" install
     install -Dm644 "../utils/uhd-usrp.rules" "$pkgdir/usr/lib/udev/rules.d/10-uhd-usrp.rules"
