@@ -57,6 +57,7 @@ build() {
        -DENABLE_USB=OFF \
        -DENABLE_LIBURING=OFF \
        -DENABLE_PYTHON_API=ON \
+       -DENABLE_STATIC_LIBS=ON
        ..
     make -j$(nproc)
 }
