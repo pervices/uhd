@@ -106,6 +106,7 @@ protected:
      * @param recv_sockets Vector containing the file descriptor for all sockets
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
+     * @param manager_variant which manager implementation is being used
      */
     async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
@@ -128,6 +129,22 @@ public:
      * @param ch
      */
     virtual void advance_packet(const size_t ch) = 0;
+
+/**
+     * Determines which manager to use and creates an instance of it
+     * You must call auto_unmake when done
+     * @param total_rx_channels Number of rx channels on the device. Used for calculating how many threads and RAM to use
+     * @param recv_sockets Vector containing the file descriptor for all sockets
+     * @param header_size Size of the Vita header in bytes
+     * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
+     */
+    static async_recv_manager* auto_make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
+
+    /**
+     * Destructs and frees an io_uring_recv_manager
+     * @param recv_manager* The instance to destruct and free
+     */
+    static void auto_unmake( async_recv_manager* recv_manager );
 
 protected:
 
