@@ -14,6 +14,12 @@
 #include <sys/resource.h>
 #include <atomic>
 
+// Include all children for use by autoselect
+#include <uhd/transport/user_recv_manager.hpp>
+#ifdef HAVE_LIBURING
+    #include <uhd/transport/io_uring_recv_manager.hpp>
+#endif
+
 namespace uhd { namespace transport {
 
 async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
