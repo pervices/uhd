@@ -69,11 +69,6 @@ namespace uhd { namespace transport { namespace sph {
 class recv_packet_handler_mmsg
 {
 public:
-#ifdef HAVE_LIBURING
-    typedef io_uring_recv_manager recv_manager_mode;
-#else
-    typedef user_recv_manager recv_manager_mode;
-#endif
 
     /*!
      * Make a new packet handler for receive
@@ -171,12 +166,12 @@ public:
         check_if_only_using_governor();
 
         // Create manager for receive threads and access to buffer recv data
-        recv_manager = recv_manager_mode::make(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+        recv_manager = async_recv_manager::auto_make(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
     }
 
     ~recv_packet_handler_mmsg(void)
     {
-        recv_manager_mode::unmake(recv_manager);
+        async_recv_manager::auto_unmake(recv_manager);
         // recv_manager must be deleted before closing sockets
         for(size_t n = 0; n < _recv_sockets.size(); n++) {
             int r = close(_recv_sockets[n]);
@@ -487,7 +482,7 @@ private:
     // Sample rate in samples per second
     double _sample_rate = 0;
 
-    recv_manager_mode* recv_manager;
+    async_recv_manager* recv_manager;
 
     // Cache of samples from packets that are leftover and stored until the next packet
     // _sample_cache in wire format
