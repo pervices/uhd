@@ -101,4 +101,25 @@ void* async_recv_manager::allocate_buffer(size_t size) {
     }
 }
 
+async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet ) {
+        // // Give the manager it's own cache line to avoid false sharing
+        // size_t recv_manager_size = (size_t) ceil(sizeof(io_uring_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+        // // Use placement new to avoid false sharing
+        // io_uring_recv_manager* recv_manager = (io_uring_recv_manager*) aligned_alloc(CACHE_LINE_SIZE, recv_manager_size);
+        //
+        // new (recv_manager) io_uring_recv_manager(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+        //
+        // return recv_manager;
+}
+
+void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
+    if(recv_manager->manager_variant == manager_impl::user) {
+        io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
+    // } else if (manager_variant == manager_impl::io_uring) {
+    //     user_recv_manager::unmake((user_recv_manager*) recv_manager);
+    } else {
+        throw std::invalid_argument("Invalid recv manager type. This should be unreachable.");
+    }
+}
+
 }}
