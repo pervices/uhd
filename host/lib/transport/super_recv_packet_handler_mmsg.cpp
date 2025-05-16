@@ -9,6 +9,7 @@
 #ifndef INCLUDED_LIBUHD_TRANSPORT_SUPER_RECV_PACKET_HANDLER_MMSG_HPP
 #define INCLUDED_LIBUHD_TRANSPORT_SUPER_RECV_PACKET_HANDLER_MMSG_HPP
 
+// TODO: remove any dependency on the old super_recv_packet_handler
 #include "../../transport/super_recv_packet_handler.hpp"
 #include <uhd/config.hpp>
 #include <uhd/convert.hpp>
