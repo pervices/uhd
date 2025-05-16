@@ -99,7 +99,7 @@ protected:
 
 private:
     // Enum for identifying a manager implementation (such as user_recv_manager)
-    enum manager_impl { none, user };
+    enum manager_impl { none, user_m, io_uring_m };
     // Set by auto make so the correct unmake can be used
     manager_impl manager_variant = manager_impl::none;
 

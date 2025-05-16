@@ -113,10 +113,10 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
 }
 
 void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
-    if(recv_manager->manager_variant == manager_impl::user) {
+    if(recv_manager->manager_variant == manager_impl::user_m) {
         io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
-    // } else if (manager_variant == manager_impl::io_uring) {
-    //     user_recv_manager::unmake((user_recv_manager*) recv_manager);
+    } else if (recv_manager->manager_variant == manager_impl::io_uring_m) {
+        user_recv_manager::unmake((user_recv_manager*) recv_manager);
     } else {
         throw std::invalid_argument("Invalid recv manager type. This should be unreachable.");
     }
