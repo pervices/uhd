@@ -139,11 +139,11 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
 
 void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
     printf("T1\n");
-    if(recv_manager->_manager_variant == manager_impl::user_m) {
+    if(typeid(*recv_manager) == typeid(user_recv_manager)) {
         printf("T2\n");
         user_recv_manager::unmake((user_recv_manager*) recv_manager);
         printf("T3\n");
-    } else if (recv_manager->_manager_variant == manager_impl::io_uring_m) {
+    } else if (typeid(*recv_manager) == typeid(io_uring_recv_manager)) {
         printf("T4\n");
         io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
         printf("T5\n");
