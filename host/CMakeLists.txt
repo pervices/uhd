@@ -499,14 +499,6 @@ LIBUHD_REGISTER_COMPONENT("LibUHD - C API" ENABLE_C_API ON "ENABLE_LIBUHD" OFF O
 # TODO: figure out if req fail is correct
 LIBUHD_REGISTER_COMPONENT("LibUringUHD" ENABLE_LIBURING OFF "ENABLE_LIBUHD;LIBURING_FOUND" OFF OFF)
 
-if(ENABLE_LIBURING)
-    # Flag that gets passed to source and header files so they can know if ENABLE_LIBUHD is set
-    add_definitions(-DHAVE_LIBURING)
-    # Adds linking to liburing
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -luring")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -luring")
-endif()
-
 if(WIN32)
   LIBUHD_REGISTER_COMPONENT(
 	"LibUHD - Python API"
