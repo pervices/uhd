@@ -17,7 +17,10 @@
 // Include all children for use by autoselect
 #include <uhd/transport/user_recv_manager.hpp>
 #ifdef HAVE_LIBURING
+    // Recv manager relying on liburing
     #include <uhd/transport/io_uring_recv_manager.hpp>
+    // uname for checking if the kernel is recent enough for liburing
+    #include <sys/utsname.h>
 #endif
 
 namespace uhd { namespace transport {
@@ -102,14 +105,34 @@ void* async_recv_manager::allocate_buffer(size_t size) {
 }
 
 async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet ) {
-        // // Give the manager it's own cache line to avoid false sharing
-        // size_t recv_manager_size = (size_t) ceil(sizeof(io_uring_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-        // // Use placement new to avoid false sharing
-        // io_uring_recv_manager* recv_manager = (io_uring_recv_manager*) aligned_alloc(CACHE_LINE_SIZE, recv_manager_size);
-        //
-        // new (recv_manager) io_uring_recv_manager(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
-        //
-        // return recv_manager;
+// If liburing is not enable at compile time use user_recv_manager
+#ifndef HAVE_LIBURING
+    return user_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+#else
+    // TODO check if the kernel supports liburing (6.0 or later)
+    bool io_uring_supported = true;
+
+    utsname uname_info;
+
+    int r = uname(&uname_info);
+
+    if(r == -1) {
+        // TODO throw error, uname was unable to get info
+    }
+
+    printf("system name = %s\n", uname_info.sysname);
+    printf("node name   = %s\n", uname_info.nodename);
+    printf("release     = %s\n", uname_info.release);
+    printf("version     = %s\n", uname_info.version);
+    printf("machine     = %s\n", uname_info.machine);
+
+    if(io_uring_supported) {
+        return io_uring_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+    } else {
+        return user_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+    }
+
+#endif
 }
 
 void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
