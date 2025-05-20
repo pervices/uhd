@@ -405,7 +405,7 @@ UHD_PYTHON_CHECK_MODULE_VERSION(
 # PkgConfig is used to find and get version info for liburing
 find_package(PkgConfig)
 if(PkgConfig_FOUND)
-    pkg_check_modules(LIBURING liburing>=2.6)
+    pkg_check_modules(LIBURING liburing>=2.2)
 else()
     message(WARNING "Unable to find PkgConfig which is required for detecting liburing configuration. liburing cannot be enabled")
 endif()
