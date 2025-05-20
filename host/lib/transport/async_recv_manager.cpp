@@ -141,11 +141,11 @@ void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
     printf("T1\n");
     if(recv_manager->_manager_variant == manager_impl::user_m) {
         printf("T2\n");
-        io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
+        user_recv_manager::unmake((user_recv_manager*) recv_manager);
         printf("T3\n");
     } else if (recv_manager->_manager_variant == manager_impl::io_uring_m) {
         printf("T4\n");
-        user_recv_manager::unmake((user_recv_manager*) recv_manager);
+        io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
         printf("T5\n");
     } else {
         printf("T6\n");
