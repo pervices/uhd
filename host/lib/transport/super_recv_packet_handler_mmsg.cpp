@@ -185,7 +185,7 @@ public:
         }
     }
 
-    UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
+     size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
@@ -512,7 +512,7 @@ private:
      * \param wire_format datatype of samples in the packets (only sc16 or sc12)
      * \param wire_little_endian data format in packets is little endian
      */
-    UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
+     void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
 
         //set the converter
         uhd::convert::id_type converter_id;
@@ -562,7 +562,7 @@ private:
      * @param src the source to copy to. Must be at least src sample size * num_samples
      * @param num_samples the number of samples to copy
      */
-    UHD_INLINE void convert_samples(void* dst, void* src, size_t num_samples) {
+     void convert_samples(void* dst, void* src, size_t num_samples) {
         // TODO: investigate if this be optimized to reduce branching
         _converter->conv(src, dst, num_samples);
     }
@@ -727,7 +727,7 @@ public:
 
     //Consider merging recv_packet_streamer_mmsg and recv_packet_handler_mmsg
     //This is here to implement a virtual function from rx_streamer
-    UHD_INLINE size_t recv(const rx_streamer::buffs_type& buffs,
+     size_t recv(const rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
         uhd::rx_metadata_t& metadata,
         const double timeout,
@@ -738,17 +738,17 @@ public:
             buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
-    UHD_INLINE size_t get_num_channels(void) const{
+     size_t get_num_channels(void) const{
         return _NUM_CHANNELS;
     }
 
     // Gets the maximum number of samples per packet
-    UHD_INLINE size_t get_max_num_samps(void) const{
+     size_t get_max_num_samps(void) const{
         return _MAX_SAMPLE_BYTES_PER_PACKET/_BYTES_PER_SAMPLE;
     }
 
     // Issues the stream command
-    UHD_INLINE void issue_stream_cmd(const stream_cmd_t& stream_cmd) {
+     void issue_stream_cmd(const stream_cmd_t& stream_cmd) {
         recv_packet_handler_mmsg::issue_stream_cmd(stream_cmd);
     }
 
