@@ -117,9 +117,8 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
     utsname uname_info;
     int r = uname(&uname_info);
 
-    r = -1;
     if(r == -1) {
-        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "uname failed to get kernel version info. Assuming the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "uname failed to get kernel version info. UHD will assume that the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
 
         // Support is known, assume it will work
         io_uring_supported = true;
@@ -129,17 +128,17 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
         int versions_extracted = sscanf(uname_info.release, "%i", &major_version);
 
         if(versions_extracted != 1) {
-            UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to extract kernel major version number from \"" + std::string(uname_info.release) + "\". Assuming the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
+            UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to extract kernel major version number from \"" + std::string(uname_info.release) + "\". UHD will assume that the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
 
             // Support is unknown, assume it will work
             io_uring_supported = true;
 
-        } else if (major_version >= 6) {
+        } else if (0/*major_version >= 6*/) {
             // recv_multishot was added in 6.0, it should work
             io_uring_supported = true;
         } else {
             // The kernel is to old for our io_uring implementation
-            UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "UHD was compiled with io_uring but the kernel is version \"" + std::string(uname_info.release) + "\" which is less than 6.0 required by recv_multishot. Falling back to non liburing recv");
+            UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "UHD was compiled with io_uring but the kernel is version \"" + std::string(uname_info.release) + "\" which is less than 6.0 required by recv_multishot. Falling back to non io_uring recv");
             io_uring_supported = false;
         }
     }
