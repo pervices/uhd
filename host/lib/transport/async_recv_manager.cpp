@@ -25,7 +25,7 @@
 
 namespace uhd { namespace transport {
 
-async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
+async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, manager_impl manager_variant)
 :
 _num_ch(recv_sockets.size()),
 _recv_sockets(recv_sockets),
@@ -35,7 +35,9 @@ _packet_data_size(max_sample_bytes_per_packet),
 _vita_header_offset(SIMD_ALIGNMENT - _header_size),
 _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)SIMD_ALIGNMENT) * SIMD_ALIGNMENT) + /* Vita header + padding */ _header_size + _vita_header_offset),
 
-_all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size))
+_all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size)),
+
+_manager_variant(manager_variant)
 
 // Create buffer for flush complete flag in seperate cache lines
 {
@@ -136,9 +138,9 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
 }
 
 void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
-    if(recv_manager->manager_variant == manager_impl::user_m) {
+    if(recv_manager->_manager_variant == manager_impl::user_m) {
         io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
-    } else if (recv_manager->manager_variant == manager_impl::io_uring_m) {
+    } else if (recv_manager->_manager_variant == manager_impl::io_uring_m) {
         user_recv_manager::unmake((user_recv_manager*) recv_manager);
     } else {
         throw std::invalid_argument("Invalid recv manager type. This should be unreachable.");

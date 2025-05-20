@@ -97,11 +97,12 @@ protected:
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 
-private:
+protected:
     // Enum for identifying a manager implementation (such as user_recv_manager)
     enum manager_impl { none, user_m, io_uring_m };
+private:
     // Set by auto make so the correct unmake can be used
-    manager_impl manager_variant = manager_impl::none;
+    const manager_impl _manager_variant;
 
 // The constructor is protected since this class should never be instantiated on it's own, and should be created through subclasses
 protected:
@@ -112,8 +113,9 @@ protected:
      * @param recv_sockets Vector containing the file descriptor for all sockets
      * @param header_size Size of the Vita header in bytes
      * @param max_sample_bytes_per_packet Maximum size of the sample data in bytes
+     * @param manager_variant which manager implementation is being used
      */
-    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
+    async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet, manager_impl manager_variant );
 
     ~async_recv_manager();
 
@@ -145,6 +147,7 @@ public:
      */
     static async_recv_manager* auto_make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
+    // TODO: replace with C++ style instead of C
     /**
      * Destructs and frees an io_uring_recv_manager
      * @param recv_manager* The instance to destruct and free
