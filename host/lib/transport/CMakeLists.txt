@@ -8,6 +8,8 @@
 ########################################################################
 # This file included, use CMake directory variables
 ########################################################################
+set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
+set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
 
 ########################################################################
 # Include subdirectories (different than add)
