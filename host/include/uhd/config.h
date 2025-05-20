@@ -26,7 +26,7 @@ typedef SSIZE_T ssize_t;
 #    define UHD_IMPORT __declspec(dllimport)
 #    define UHD_EXPORT_HEADER
 #    define UHD_IMPORT_HEADER
-#    define UHD_INLINE     __forceinline
+#    define UHD_INLINE
 #    define UHD_DEPRECATED __declspec(deprecated)
 #    define UHD_ALIGNED(x) __declspec(align(x))
 #    define UHD_UNUSED(x)  x
