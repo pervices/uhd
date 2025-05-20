@@ -5,6 +5,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
+set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
+set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
+
 ########################################################################
 # example applications
 ########################################################################
