@@ -133,7 +133,7 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
             // Support is unknown, assume it will work
             io_uring_supported = true;
 
-        } else if (0/*major_version >= 6*/) {
+        } else if (major_version >= 6) {
             // recv_multishot was added in 6.0, it should work
             io_uring_supported = true;
         } else {
