@@ -34,8 +34,8 @@ set(UHD_RELEASE_MODE "${UHD_RELEASE_MODE}" CACHE STRING "UHD Release Mode")
 project(UHD CXX C)
 enable_testing()
 
-set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra")
-set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra")
+set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
+set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
 
 # Make sure our local CMake Modules path comes first
 list(INSERT CMAKE_MODULE_PATH 0 ${UHD_SOURCE_DIR}/cmake/Modules)
