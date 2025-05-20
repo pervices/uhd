@@ -17,7 +17,7 @@
 namespace uhd { namespace transport {
 
 user_recv_manager::user_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet)
-: async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet, manager_impl::user_m),
+: async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet ),
 _mmsghdr_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(mmghdr_buffer_size())),
 _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size())),
 _call_buffer_heads((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
