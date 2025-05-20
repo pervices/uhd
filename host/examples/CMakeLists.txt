@@ -8,6 +8,9 @@
 set(CMAKE_C_FLAGS "-fPIC -Wall -Wextra -luring")
 set(CMAKE_CXX_FLAGS "-fPIC -Wall -Wextra -luring")
 
+set(CMAKE_EXE_LINKER_FLAGS "-luring ${CMAKE_EXE_LINKER_FLAGS}")
+
+
 ########################################################################
 # example applications
 ########################################################################
