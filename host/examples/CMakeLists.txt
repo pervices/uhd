@@ -15,49 +15,49 @@ set(CMAKE_EXE_LINKER_FLAGS "-luring ${CMAKE_EXE_LINKER_FLAGS}")
 # example applications
 ########################################################################
 set(example_sources
-    benchmark_rate.cpp
-    network_relay.cpp
-    rx_multi_rates_to_file.cpp
-    rx_multi_samples.cpp
-    rx_stream_init.cpp
-    rx_start.cpp
-    rx_stop.cpp
+    # benchmark_rate.cpp
+    # network_relay.cpp
+    # rx_multi_rates_to_file.cpp
+    # rx_multi_samples.cpp
+    # rx_stream_init.cpp
+    # rx_start.cpp
+    # rx_stop.cpp
     rx_samples_to_file.cpp
-    rx_samples_to_file_legacy.cpp
-    rx_samples_to_udp.cpp
-    rx_timed_samples.cpp
-    set_clk_reference.cpp
-    test_dboard_coercion.cpp
-    test_messages.cpp
-    test_pps_input.cpp
-    test_timed_commands.cpp
-    test_stacked_gpio_commands.cpp
-    tx_bursts.cpp
-    tx_samples_from_file.cpp
-    tx_timed_samples.cpp
-    tx_waveforms.cpp
-    tx_ramp_test.cpp
-    txrx_loopback_to_file.cpp
-    usrp_list_sensors.cpp
-    latency_test.cpp
-    gpio.cpp
-    spi.cpp
-    sync_to_gps.cpp
-    rxtx_inline_filter_crimson.cpp
-    rxtx_inter_device_stream.cpp
-    test_set_get_path_value.cpp
-    test_tx_trigger.cpp
-    test_udp_vita_header_send.cpp
-
-    rfnoc_nullsource_ce_rx.cpp
-    rfnoc_rx_to_file.cpp
-    rfnoc_radio_loopback.cpp
-    rfnoc_replay_samples_from_file.cpp
-    txrx_trigger_loopback.cpp
-    txrx_multi_device_loopback.cpp
-    rx_trigger_iterative_test_tool.cpp
-    rx_to_tx_loopback.cpp
-    txrx_burst_streaming.cpp
+    # rx_samples_to_file_legacy.cpp
+    # rx_samples_to_udp.cpp
+    # rx_timed_samples.cpp
+    # set_clk_reference.cpp
+    # test_dboard_coercion.cpp
+    # test_messages.cpp
+    # test_pps_input.cpp
+    # test_timed_commands.cpp
+    # test_stacked_gpio_commands.cpp
+    # tx_bursts.cpp
+    # tx_samples_from_file.cpp
+    # tx_timed_samples.cpp
+    # tx_waveforms.cpp
+    # tx_ramp_test.cpp
+    # txrx_loopback_to_file.cpp
+    # usrp_list_sensors.cpp
+    # latency_test.cpp
+    # gpio.cpp
+    # spi.cpp
+    # sync_to_gps.cpp
+    # rxtx_inline_filter_crimson.cpp
+    # rxtx_inter_device_stream.cpp
+    # test_set_get_path_value.cpp
+    # test_tx_trigger.cpp
+    # test_udp_vita_header_send.cpp
+    #
+    # rfnoc_nullsource_ce_rx.cpp
+    # rfnoc_rx_to_file.cpp
+    # rfnoc_radio_loopback.cpp
+    # rfnoc_replay_samples_from_file.cpp
+    # txrx_trigger_loopback.cpp
+    # txrx_multi_device_loopback.cpp
+    # rx_trigger_iterative_test_tool.cpp
+    # rx_to_tx_loopback.cpp
+    # txrx_burst_streaming.cpp
     #benchmark_streamer.cpp
 )
 
