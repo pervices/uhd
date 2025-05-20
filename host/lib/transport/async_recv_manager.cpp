@@ -117,6 +117,7 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
     utsname uname_info;
     int r = uname(&uname_info);
 
+    r = -1;
     if(r == -1) {
         UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "uname failed to get kernel version info. Assuming the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
 
