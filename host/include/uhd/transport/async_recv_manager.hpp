@@ -78,22 +78,22 @@ protected:
     uint8_t* const _all_ch_packet_buffers;
 
     // Gets a pointer to the start of the buffer containing info for the packet (not the start of the packet)
-    inline __attribute__((always_inline)) uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t p) {
+     uint8_t* access_packet_buffer(size_t ch, size_t ch_offset, size_t p) {
         return _all_ch_packet_buffers + ((((ch + ch_offset) * PACKET_BUFFER_SIZE) + p ) * _padded_individual_packet_size);
     }
 
     // Gets a pointer to the Vita header for a packet (which is also the start of the packet
-    inline __attribute__((always_inline)) uint8_t* access_packet_vita_header(size_t ch, size_t ch_offset, size_t p) {
+     uint8_t* access_packet_vita_header(size_t ch, size_t ch_offset, size_t p) {
         return access_packet_buffer(ch, ch_offset, p) + _vita_header_offset;
     }
 
     // Gets a pointer to the length of a packet
-    inline __attribute__((always_inline)) int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t p) {
+     int64_t* access_packet_length(size_t ch, size_t ch_offset, size_t p) {
         return (int64_t*) (access_packet_buffer(ch, ch_offset, p));
     }
 
     // Gets a pointer to the start of a packet's samples
-    inline __attribute__((always_inline)) uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t p) {
+     uint8_t* access_packet_samples(size_t ch, size_t ch_offset, size_t p) {
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 

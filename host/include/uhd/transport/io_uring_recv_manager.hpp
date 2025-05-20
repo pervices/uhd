@@ -43,12 +43,12 @@ private:
     uint8_t* const _io_uring_control_structs;
 
     // Access the uring for a given channel. (The ring buffer containing submission and completion queues)
-    inline __attribute__((always_inline)) io_uring* access_io_urings(size_t ch, size_t ch_offset = 0) {
+     io_uring* access_io_urings(size_t ch, size_t ch_offset = 0) {
         return (io_uring*) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size));
     }
 
     // Access buf ring for a given channel. (The ring buffer contain the buffers to store received data in)
-    inline __attribute__((always_inline)) io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
+     io_uring_buf_ring** access_io_uring_buf_rings(size_t ch, size_t ch_offset) {
         return (io_uring_buf_ring**) (_io_uring_control_structs + ((ch + ch_offset) * _padded_io_uring_control_struct_size) + sizeof(struct io_uring));
     }
 
@@ -94,7 +94,7 @@ public:
 
     void get_next_async_packet_info(const size_t ch, async_packet_info* info) override;
 
-    inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
+     void advance_packet(const size_t ch) override {
 
         _num_packets_consumed[ch]++;
 
@@ -111,7 +111,7 @@ private:
      * A modified version of io_uring_peek_cqe that peeks at a pseudo head instead of the actual head of the queue.
      * This function exists because we want to minimize updates to variables used by liburing (such the location of the head) and still need to be able to access elements not at the official head.
      */
-    inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
+     int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
     {
         constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
 
@@ -138,7 +138,7 @@ private:
         }
     }
 
-    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
+     unsigned get_packets_advancable(size_t ch) {
         return _num_packets_consumed[ch] - _packets_advanced[ch];
     }
 
@@ -147,7 +147,7 @@ private:
      * @param ch The channel whose packets to mark as clear
      * @param n The number of packets to mark as clear
     */
-    inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
+     void clear_packets(const size_t ch, const unsigned n) {
         io_uring_buf_ring_cq_advance(access_io_urings(ch), *access_io_uring_buf_rings(ch, 0), n);
         _packets_advanced[ch] += n;
     }

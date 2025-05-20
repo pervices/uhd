@@ -40,7 +40,7 @@ private:
     // ((mmsghdr * CALL_BUFFER_SIZE) + padding to cache line) == MMGHDR_CALL_BUFFER_SIZE
     static constexpr size_t MMSGHDR_CALL_BUFFER_SIZE = std::ceil(sizeof(mmsghdr) * CALL_BUFFER_SIZE / (double) CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     static constexpr size_t MMSGHDR_CH_BUFFER_SIZE = MMSGHDR_CALL_BUFFER_SIZE * NUM_CALL_BUFFERS;
-    inline __attribute__((always_inline)) size_t mmghdr_buffer_size() {
+     size_t mmghdr_buffer_size() {
         return MMSGHDR_CH_BUFFER_SIZE * _num_ch;
     }
     uint8_t* const _mmsghdr_buffer;
@@ -50,7 +50,7 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: call buffer
     // p: packet within call buffer
-    inline __attribute__((always_inline)) mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
+     mmsghdr* access_mmsghdr(size_t ch, size_t ch_offset, size_t b, size_t p) {
         return (mmsghdr*) (_mmsghdr_buffer + ((ch + ch_offset) * MMSGHDR_CH_BUFFER_SIZE) + (b * MMSGHDR_CALL_BUFFER_SIZE) + (p * sizeof(mmsghdr)));
     }
 
@@ -59,7 +59,7 @@ private:
     // ((IOVEC * CALL_BUFFER_SIZE) + padding to cache line) == IOVEC_CALL_BUFFER_SIZE
     static constexpr size_t IOVEC_CALL_BUFFER_SIZE = std::ceil(sizeof(mmsghdr) * CALL_BUFFER_SIZE / (double) CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     static constexpr size_t IOVEC_CH_BUFFER_SIZE = IOVEC_CALL_BUFFER_SIZE * NUM_CALL_BUFFERS;
-    inline __attribute__((always_inline)) size_t iovec_buffer_size() {
+     size_t iovec_buffer_size() {
         return IOVEC_CH_BUFFER_SIZE * _num_ch;
     }
     uint8_t* const _iovec_buffer;
@@ -69,28 +69,28 @@ private:
     // ch_offset: channel offset (the first channel of the thread)
     // b: call buffer
     // p: packet within call buffer
-    inline __attribute__((always_inline)) iovec* access_iovec(size_t ch, size_t ch_offset, size_t b, size_t p) {
+     iovec* access_iovec(size_t ch, size_t ch_offset, size_t b, size_t p) {
         return (iovec*) (_iovec_buffer + ((ch + ch_offset) * IOVEC_CH_BUFFER_SIZE) + (b * IOVEC_CALL_BUFFER_SIZE) + (p * sizeof(iovec)));
     }
 
     /**
      * Converts from a location in the call buffer (such as the mmsghdr buffer) into a location in a buffer not splot into call buffers (such as the main data buffer)
      */
-    static inline __attribute__((always_inline)) size_t call_to_consolidated(size_t b, size_t p) {
+    static  size_t call_to_consolidated(size_t b, size_t p) {
         return CALL_BUFFER_SIZE * b + p;
     }
 
     // Stores have many call buffers have been written to for each channel
     // Format: count, padding to next cache line, repeat for every channel
     uint8_t* const _call_buffer_heads;
-    inline __attribute__((always_inline)) uint64_t* access_call_buffer_head(size_t ch, size_t ch_offset = 0) {
+     uint64_t* access_call_buffer_head(size_t ch, size_t ch_offset = 0) {
         return (uint64_t*) (_call_buffer_heads + ((ch + ch_offset) * CACHE_LINE_SIZE));
     }
 
     // Stores have many call buffers have been marked as clear by the consumer thread
     // Format: count, padding to next cache line, repeat for every channel
     uint8_t* const _call_buffer_tails;
-    inline __attribute__((always_inline)) uint64_t* access_call_buffer_tail(size_t ch, size_t ch_offset = 0) {
+     uint64_t* access_call_buffer_tail(size_t ch, size_t ch_offset = 0) {
         return (uint64_t*) (_call_buffer_tails + ((ch + ch_offset) * CACHE_LINE_SIZE));
     }
 
@@ -98,7 +98,7 @@ private:
     // Not cleared after number of packets consumed, use the value of access_call_buffer_head to figure out if this is ready
     // Format: (number of packets in a call buffer, padding to next cache line) repeated for every call buffer, repeat for every channel
     uint8_t* const _packets_in_call_buffer;
-    inline __attribute__((always_inline)) uint64_t* access_packets_in_call_buffer(size_t ch, size_t ch_offset, size_t b) {
+     uint64_t* access_packets_in_call_buffer(size_t ch, size_t ch_offset, size_t b) {
         return (uint64_t*) (_packets_in_call_buffer + ((((ch + ch_offset) * NUM_CALL_BUFFERS) + b) * CACHE_LINE_SIZE));
     }
 
@@ -110,7 +110,7 @@ private:
 
     // Number of packets consumed in the current call buffer
     uint8_t* const _num_packets_consumed_current_buffer;
-    inline __attribute__((always_inline)) uint64_t* access_num_packets_consumed_current_buffer(size_t ch, size_t ch_offset = 0) {
+     uint64_t* access_num_packets_consumed_current_buffer(size_t ch, size_t ch_offset = 0) {
         return (uint64_t*) (_num_packets_consumed_current_buffer + ((ch + ch_offset) * CACHE_LINE_SIZE));
     }
 
@@ -151,7 +151,7 @@ public:
      */
     void get_next_async_packet_info(const size_t ch, async_packet_info* info) override;
 
-    inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
+     void advance_packet(const size_t ch) override {
 
         // Record that this packet has been consumed
         uint64_t* num_packets_consumed = access_num_packets_consumed_current_buffer(ch);
