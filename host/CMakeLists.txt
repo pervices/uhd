@@ -494,6 +494,8 @@ UHD_INSTALL(FILES
 LIBUHD_REGISTER_COMPONENT("LibUHD" ENABLE_LIBUHD ON "Boost_FOUND;HAVE_PYTHON_MODULE_MAKO" OFF ON)
 LIBUHD_REGISTER_COMPONENT("LibUHD - C API" ENABLE_C_API ON "ENABLE_LIBUHD" OFF OFF)
 
+set(ENABLE_LIBURING ON)
+
 # Liburing is off by default since many distros don't support it
 # TODO: clear ENABLE_LIBURING between builds. Currently if you run with it enabled then remove the argument it will stay enabled
 # TODO: figure out if req fail is correct
