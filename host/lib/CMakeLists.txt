@@ -189,7 +189,7 @@ if(ENABLE_MPMD)
     list(APPEND libuhd_sources $<TARGET_OBJECTS:uhd_rpclib>)
 endif()
 add_library(uhd SHARED ${libuhd_sources})
-target_link_libraries(uhd ${Boost_LIBRARIES} ${libuhd_libs})
+target_link_libraries(uhd ${Boost_LIBRARIES} ${libuhd_libs} uring)
 if(ENABLE_DPDK)
     add_definitions(-DHAVE_DPDK)
     # The compile flags DPDK_CFLAGS add the DPDK_INCLUDE_DIRS include
