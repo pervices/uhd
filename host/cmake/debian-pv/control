@@ -18,6 +18,7 @@ Build-Depends: cmake,
                libncurses5-dev,
                libusb-1.0-0-dev [linux-any hurd-i386],
                libusb2-dev [kfreebsd-any],
+               liburing-dev,
                pkg-config,
                python3-dev,
                python3-mako,
@@ -61,7 +62,7 @@ Package: libuhdpv
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
-Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}
+Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}, liburing
 Multi-Arch: same
 Conflicts: libuhd4.1.0, libuhd4.4.0, libuhd4.6.0
 Description: hardware driver for Per Vices SDR products
