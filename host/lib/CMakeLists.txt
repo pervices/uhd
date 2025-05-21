@@ -202,8 +202,10 @@ if(ENABLE_DPDK)
     # undefined references when linking libuhd
     target_link_libraries(uhd ${DPDK_LIBRARIES})
 endif()
-# TODO: continue
 if(ENABLE_LIBURING)
+    # Flag that gets passed to source and header files so they can know if ENABLE_LIBUHD is set
+    add_definitions(-DHAVE_LIBURING)
+    # Adds linking to liburing
     target_link_libraries(uhd uring)
 endif()
 if(APPLE)
