@@ -88,47 +88,47 @@ endif(CURSES_FOUND)
 ########################################################################
 # Examples using C API
 ########################################################################
-if(ENABLE_C_API)
-    #
-    # Check if this particular C99 feature is available with this compiler
-    #
-    include(CheckCSourceCompiles)
-    CHECK_C_SOURCE_COMPILES("
-    typedef struct {
-        int bar;
-        int baz;
-    } foo;
-
-    int main()
-    {
-        foo wat = {
-            .bar = 1,
-            .baz = 2
-        };
-
-        return 0;
-    }
-    " HAVE_C99_STRUCTDECL)
-
-    if(HAVE_C99_STRUCTDECL)
-        add_subdirectory(getopt)
-        include_directories(${CMAKE_CURRENT_SOURCE_DIR}/getopt)
-
-        set(C_API_EXAMPLES
-            rx_samples_c
-            tx_samples_c
-        )
-
-        foreach(example ${C_API_EXAMPLES})
-            add_executable(${example} ${example}.c)
-            target_link_libraries(${example} uhd getopt)
-            if(UNIX)
-                target_link_libraries(${example} m)
-            endif(UNIX)
-            UHD_INSTALL(TARGETS ${example} RUNTIME DESTINATION ${PKG_LIB_DIR}/examples COMPONENT examples)
-        endforeach(example ${C_API_EXAMPLES})
-    endif(HAVE_C99_STRUCTDECL)
-endif(ENABLE_C_API)
+# if(ENABLE_C_API)
+#     #
+#     # Check if this particular C99 feature is available with this compiler
+#     #
+#     include(CheckCSourceCompiles)
+#     CHECK_C_SOURCE_COMPILES("
+#     typedef struct {
+#         int bar;
+#         int baz;
+#     } foo;
+#
+#     int main()
+#     {
+#         foo wat = {
+#             .bar = 1,
+#             .baz = 2
+#         };
+#
+#         return 0;
+#     }
+#     " HAVE_C99_STRUCTDECL)
+#
+#     if(HAVE_C99_STRUCTDECL)
+#         add_subdirectory(getopt)
+#         include_directories(${CMAKE_CURRENT_SOURCE_DIR}/getopt)
+#
+#         set(C_API_EXAMPLES
+#             rx_samples_c
+#             tx_samples_c
+#         )
+#
+#         foreach(example ${C_API_EXAMPLES})
+#             add_executable(${example} ${example}.c)
+#             target_link_libraries(${example} uhd getopt)
+#             if(UNIX)
+#                 target_link_libraries(${example} m)
+#             endif(UNIX)
+#             UHD_INSTALL(TARGETS ${example} RUNTIME DESTINATION ${PKG_LIB_DIR}/examples COMPONENT examples)
+#         endforeach(example ${C_API_EXAMPLES})
+#     endif(HAVE_C99_STRUCTDECL)
+# endif(ENABLE_C_API)
 
 if(ENABLE_PYTHON_API)
     add_subdirectory(python)
