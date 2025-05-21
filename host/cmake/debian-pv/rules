@@ -4,7 +4,7 @@ DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 export DEB_HOST_MULTIARCH
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
 DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
-DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
+DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
                                         -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
                                         -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
                                         -DENABLE_CRIMSON_TNG="ON" \
@@ -27,7 +27,7 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
                                         -DENABLE_PYMOD_UTILS="OFF" \
                                         -DENABLE_PYTHON_API="ON" \
                                         -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-                                        -DUHD_PYTHON_DIR="lib/python3/dist-packages"")
+                                        -DUHD_PYTHON_DIR="lib/python3/dist-packages"')
 
 %:
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
