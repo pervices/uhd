@@ -128,7 +128,7 @@ public:
 
             int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
             if(mtu < MIN_MTU) {
-                fprintf(stderr, "MTU of interface associated with %s is to small. %i required, current value is %i", dst_ips[n].c_str(), MIN_MTU, mtu);
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "MTU of interface associated with " + dst_ips[n] + "is to small. " + std::to_string(MIN_MTU) + "required, the current value is " + std::to_string(mtu) + ".\n");
                 throw uhd::system_error("MTU size to small");
             }
 
