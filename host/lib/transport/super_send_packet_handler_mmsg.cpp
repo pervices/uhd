@@ -123,7 +123,7 @@ public:
 
             // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
             if(_ACTUAL_SEND_BUFFER_SIZE < 2*_DEFAULT_SEND_BUFFER_SIZE) {
-                fprintf(stderr, "Unable to set send buffer size. Performance may be affected\nTarget size %i\nActual size %i\nPlease run \"sudo sysctl -w net.core.wmem_max=%i\"\n", _DEFAULT_SEND_BUFFER_SIZE, _ACTUAL_SEND_BUFFER_SIZE/2, _DEFAULT_SEND_BUFFER_SIZE);
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Unable to set send buffer size. Performance will be negatively affected.\n Target size: " + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\nActual size: " + std::to_string(_ACTUAL_SEND_BUFFER_SIZE/2) + "\nPlease run \"sudo sysctl -w net.core.wmem_max=" + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\"\n");
             }
 
             int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
