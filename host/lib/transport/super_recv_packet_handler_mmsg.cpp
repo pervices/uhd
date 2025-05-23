@@ -692,7 +692,7 @@ private:
         }
 
         if(value.find("(none)") == std::string::npos && value.find("(voluntary)") == std::string::npos) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. It must be run as root user, sudo will not work.");
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. Said command must be run as root user, sudo will not work.");
         }
     }
 
