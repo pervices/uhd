@@ -878,7 +878,7 @@ private:
                     char broadcast_buffer[INET_ADDRSTRLEN] = {0, };
                     auto ret = inet_ntop(AF_INET,  &((struct sockaddr_in*)(iface->ifa_broadaddr))->sin_addr, broadcast_buffer, INET_ADDRSTRLEN);
                     if(ret == nullptr) {
-                        //TODO: throw error if inet_ntop failed
+                        throw uhd::runtime_error("error when converting ip address format");
                     }
 
                     // Converts IP address to byte array
