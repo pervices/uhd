@@ -1,3 +1,12 @@
+uhdpv (4.8.0.11-0ubuntu1) ubuntu_release; urgency=low
+
+  * Improve clarity of performance related warning messages
+  * Downgraded unable to set recv socket size to non fatal error
+  * Corrected liburing linking so it compiles correctly on non-Arch distros
+  * Added runtime check and fallback for liburing support (only relevant when compiled with -DENABLE_LIBURING=ON)
+
+ -- Per Vices <packages@pervices.com>  Mon, 26 May 2025 12:16:48 -0400
+
 uhdpv (4.8.0.10-0ubuntu1) ubuntu_release; urgency=low
 
   * Statically link boost in Arch when using provided PKGBUILD file
