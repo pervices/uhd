@@ -119,9 +119,9 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
     size_t ch_this_thread = sockets.size();
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
-    uhd::set_thread_priority_safe(1, true);
+    // uhd::set_thread_priority_safe(1, true);
     // Sets the affinity to the current core
-    uhd::set_thread_affinity_active_core();
+    // uhd::set_thread_affinity_active_core();
 
     // Set the thread and socket's affinity to the current core, improves speed and reliability
     unsigned int cpu;
