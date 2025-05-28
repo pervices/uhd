@@ -21,8 +21,10 @@ import sys
 import tarfile
 
 supported_ubuntu_releases = ["focal", "jammy", "noble"]
-#tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
-tar_command = "tar --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
+# Command to create compressed source code to ship with the package
+# The command must result in a deterministic checksum for any given commit
+# tar.xz adds the tar.xz format, git archive creates the source code tarball
+archive_command = "git config tar.tar.xz.command 'xz -c' && git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
 copy_command = "cp -r {}/uhdpv_{}.orig.tar.xz {}"
@@ -66,7 +68,7 @@ def main(args):
     if not args.tarfile:
         print("Compressing UHD Source...")
         result = subprocess.run(shlex.split(
-            tar_command.format(args.buildpath, uhd_version)))
+            archive_command.format(args.buildpath, uhd_version)))
         if result.returncode:
             print("Compressing source failed")
             sys.exit(result.returncode)
