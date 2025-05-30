@@ -84,6 +84,16 @@ namespace
         usrp->set_tree_value(path, value);
 
         std::cout << value.get_real_secs() << std::endl;
+
+	// Set/get LED blinky value
+	const std::string blink_path = "/mboards/0/time/blink_enabled";
+	
+	std::string blink_value;
+	
+	usrp->get_tree_value(blink_path, blink_value);
+	usrp->set_tree_value(blink_path, blink_value);	
+
+	std::cout << value << std::endl;
     }
 
     void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
