@@ -324,7 +324,7 @@ public:
             }
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
-                print_overflow_message();
+                // print_overflow_message();
 
                 // Flag to prevent printing the message once per recv call
                 oflow_message_printed = true;
