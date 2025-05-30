@@ -24,7 +24,7 @@ namespace
     void test_ints(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
-        const std::string path = "/mboards/0/blink";
+        const std::string path = "/mboards/0/time/pps_detected";
 
         int value;
 
