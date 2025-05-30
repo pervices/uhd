@@ -983,6 +983,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
 
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "time" / "blinky", "time/board/led_blink_enable",	std::string, string);     
+
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
@@ -997,7 +999,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		const fs_path db_path       = CRIMSON_TNG_MB_PATH / "dboards" / num;
 		const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / dspno;
 		const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / dspno;
-
 		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
 		_tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
 
