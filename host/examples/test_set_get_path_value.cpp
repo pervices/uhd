@@ -93,7 +93,7 @@ namespace
 	usrp->get_tree_value(blink_path, blink_value);
 	usrp->set_tree_value(blink_path, blink_value);	
 
-	std::cout << value << std::endl;
+	std::cout << blink_value << std::endl;
     }
 
     void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
