@@ -755,6 +755,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
 
     // interrupt and join the threads
+    UHD_LOG_ERROR("BENCHMARK_RATE", "DEBUG: reached burst timer");
     burst_timer_elapsed = true;
     thread_group.join_all();
 
