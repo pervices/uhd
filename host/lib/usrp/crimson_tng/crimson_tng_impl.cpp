@@ -986,7 +986,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "blink_enabled", "time/board/led_blink_enable", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "blink_enabled", "time/board/led_blink_enable", std::string, string);
 
     // loop for all RX chains
     for( size_t dspno = 0; dspno < num_rx_channels; dspno++ ) {
