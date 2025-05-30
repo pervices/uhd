@@ -28,6 +28,7 @@
 #include <vector>
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/utils/thread.hpp>
+#include <algorithm>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -656,14 +657,15 @@ private:
             uint64_t oflows_to_print = self->oflows_to_print - oflows_printed;
             // Print a D for every recv command that's had an overflow since the last iteration of this loop
             if(oflows_to_print) {
-                std::string message(oflows_to_print, 'D');
+
+                std::string message(std::min(oflows_to_print, (uint64_t) 50), 'D');
                 // Print without the normal UHD formatting to keep the output format the same as Ettus
                 std::cout << message;
 
                 oflows_printed += oflows_to_print;
             } else {
                 // Sleep until polling again
-                ::usleep(50000);
+                ::usleep(250000);
             }
 
         }
