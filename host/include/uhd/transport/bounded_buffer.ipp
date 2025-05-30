@@ -29,7 +29,7 @@ public:
 
     UHD_INLINE bool push_with_haste(const elem_type& elem)
     {
-        std::unique_lock<std::mutex> lock(_mutex);
+        // std::unique_lock<std::mutex> lock(_mutex);
         if (_buffer.full()) {
             return false;
         }
