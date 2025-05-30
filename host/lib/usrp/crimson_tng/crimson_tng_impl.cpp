@@ -983,7 +983,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
 
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "time" / "blinky", "time/board/led_blink_enable",	std::string, string);     
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "time" / "blinky", "time/board/led_blink_enable",	std::string, string);     
 
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
