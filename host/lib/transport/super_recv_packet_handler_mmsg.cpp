@@ -27,6 +27,8 @@
 #include <memory>
 #include <vector>
 #include <uhdlib/utils/system_time.hpp>
+#include <uhd/utils/thread.hpp>
+#include <algorithm>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -166,10 +168,14 @@ public:
 
         // Create manager for receive threads and access to buffer recv data
         recv_manager = async_recv_manager::auto_make(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+
+        overflow_messenger = std::thread(send_overflow_messages_loop, this);
     }
 
     ~recv_packet_handler_mmsg(void)
     {
+        stop_overflow_loop = true;
+
         async_recv_manager::auto_unmake(recv_manager);
         // recv_manager must be deleted before closing sockets
         for(size_t n = 0; n < _recv_sockets.size(); n++) {
@@ -182,6 +188,8 @@ public:
         if(_overflow_occured && _suboptimal_spb) {
             UHD_LOGGER_WARNING("RECV_PACKET_HANDLER_MMSG") << "An overflow occured during a run where a subopitmal number of samples were requested from recv. To reduce the chance of an overflow in the future ensure nsamps_per_buff is multiple of " << _MAX_SAMPLE_BYTES_PER_PACKET / _BYTES_PER_SAMPLE;
         }
+
+        overflow_messenger.join();
     }
 
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
@@ -624,9 +632,43 @@ private:
         throw uhd::system_error("No interface with subnet matching ip found");
     }
 
-    void print_overflow_message() {
+    // Low priority thread to print D to indicate and overflow
+    std::thread overflow_messenger;
+    // No synchronization is used for the count to avoid any side effects in the main recv loop
+    uint64_t oflows_to_print = 0;
+    bool stop_overflow_loop = false;
+
+    UHD_INLINE void print_overflow_message() {
         // Warn user that an overflow occured
-        UHD_LOG_FASTPATH("D");
+        oflows_to_print++;
+    }
+
+    static void send_overflow_messages_loop(recv_packet_handler_mmsg* self) {
+        // Set priority to the lowest
+        uhd::set_thread_priority_safe(0, false);
+
+        // Number of oflows already printed
+        uint64_t oflows_printed = 0;
+
+        while(!(self->stop_overflow_loop)) {
+            // Load fence to ensure getting oflows_printed from other threads doesn't get optimized out
+            _mm_lfence();
+
+            uint64_t oflows_to_print = self->oflows_to_print - oflows_printed;
+            // Print a D for every recv command that's had an overflow since the last iteration of this loop
+            if(oflows_to_print) {
+                // Only print up to 50 Ds at a time, skip any extra since more will just clog up the logs
+                std::string message(std::min(oflows_to_print, (uint64_t) 50), 'D');
+                // Print without the normal UHD formatting to keep the output format the same as Ettus
+                std::cout << message;
+
+                oflows_printed += oflows_to_print;
+            } else {
+                // Sleep until polling again
+                ::usleep(250000);
+            }
+
+        }
     }
 
     /*
