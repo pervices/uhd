@@ -106,67 +106,67 @@ void* async_recv_manager::allocate_buffer(size_t size) {
 
 async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet ) {
 // If liburing is not enable at compile time use user_recv_manager
-// #ifndef HAVE_LIBURING
+#ifndef HAVE_LIBURING
     return user_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
-// #else
-//
-//     // Flag if io_uring is supported by the kernel
-//     // If io_uring support is unknown assume it will work since the user can force it not to use io_uring with a compiler option but can't force it to use io_uring if this check fails
-//     bool io_uring_supported;
-//
-//     utsname uname_info;
-//     int r = uname(&uname_info);
-//
-//     if(r == -1) {
-//         UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "uname failed to get kernel version info. UHD will assume that the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
-//
-//         // Support is known, assume it will work
-//         io_uring_supported = true;
-//     } else {
-//         // We only need the major version to check for 6.0 or later. If a later version is required we will need to check minor versions as well
-//         int major_version = 0;
-//         int versions_extracted = sscanf(uname_info.release, "%i", &major_version);
-//
-//         if(versions_extracted != 1) {
-//             UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to extract kernel major version number from \"" + std::string(uname_info.release) + "\". UHD will assume that the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
-//
-//             // Support is unknown, assume it will work
-//             io_uring_supported = true;
-//
-//         } else if (major_version >= 6) {
-//             // recv_multishot was added in 6.0, it should work
-//             io_uring_supported = true;
-//         } else {
-//             // The kernel is to old for our io_uring implementation
-//             UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "UHD was compiled with io_uring but the kernel is version \"" + std::string(uname_info.release) + "\" which is less than 6.0 required by recv_multishot. Falling back to non io_uring recv");
-//             io_uring_supported = false;
-//         }
-//     }
-//
-//     if(io_uring_supported) {
-//         // Prefered recv manager using io_uring
-//         return io_uring_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
-//     } else {
-//         // Fallback recv_manager if the kernel doesn't support io_uring
-//         return user_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
-//     }
-//
-// #endif
+#else
+
+    // Flag if io_uring is supported by the kernel
+    // If io_uring support is unknown assume it will work since the user can force it not to use io_uring with a compiler option but can't force it to use io_uring if this check fails
+    bool io_uring_supported;
+
+    utsname uname_info;
+    int r = uname(&uname_info);
+
+    if(r == -1) {
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "uname failed to get kernel version info. UHD will assume that the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
+
+        // Support is known, assume it will work
+        io_uring_supported = true;
+    } else {
+        // We only need the major version to check for 6.0 or later. If a later version is required we will need to check minor versions as well
+        int major_version = 0;
+        int versions_extracted = sscanf(uname_info.release, "%i", &major_version);
+
+        if(versions_extracted != 1) {
+            UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to extract kernel major version number from \"" + std::string(uname_info.release) + "\". UHD will assume that the kernel is new enough for io_uring (>=6.0). If the kernel is older than that recompile with \"-DENABLE_LIBURING=OFF\"");
+
+            // Support is unknown, assume it will work
+            io_uring_supported = true;
+
+        } else if (major_version >= 6) {
+            // recv_multishot was added in 6.0, it should work
+            io_uring_supported = true;
+        } else {
+            // The kernel is to old for our io_uring implementation
+            UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "UHD was compiled with io_uring but the kernel is version \"" + std::string(uname_info.release) + "\" which is less than 6.0 required by recv_multishot. Falling back to non io_uring recv");
+            io_uring_supported = false;
+        }
+    }
+
+    if(io_uring_supported) {
+        // Prefered recv manager using io_uring
+        return io_uring_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+    } else {
+        // Fallback recv_manager if the kernel doesn't support io_uring
+        return user_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+    }
+
+#endif
 }
 
 void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
 
-// #ifndef HAVE_LIBURING
+#ifndef HAVE_LIBURING
     user_recv_manager::unmake((user_recv_manager*) recv_manager);
-// #else
-//     if(typeid(*recv_manager) == typeid(user_recv_manager)) {
-//         user_recv_manager::unmake((user_recv_manager*) recv_manager);
-//     } else if (typeid(*recv_manager) == typeid(io_uring_recv_manager)) {
-//         io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
-//     } else {
-//         throw std::runtime_error("Invalid recv manager type. This should be unreachable.");
-//     }
-// #endif
+#else
+    if(typeid(*recv_manager) == typeid(user_recv_manager)) {
+        user_recv_manager::unmake((user_recv_manager*) recv_manager);
+    } else if (typeid(*recv_manager) == typeid(io_uring_recv_manager)) {
+        io_uring_recv_manager::unmake((io_uring_recv_manager*) recv_manager);
+    } else {
+        throw std::runtime_error("Invalid recv manager type. This should be unreachable.");
+    }
+#endif
 }
 
 }}
