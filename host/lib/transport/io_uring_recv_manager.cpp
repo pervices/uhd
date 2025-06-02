@@ -169,6 +169,10 @@ void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
 }
 
 void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
+    info->length = 0;
+    info->vita_header = nullptr;
+    info->samples = nullptr;
+    return;
 
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
