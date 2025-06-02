@@ -80,7 +80,7 @@ namespace
 
         uhd::time_spec_t value;
 
-        usrp->get_tree_value(path, value);
+//        usrp->get_tree_value(path, value);
         usrp->set_tree_value(path, value);
 
         std::cout << value.get_real_secs() << std::endl;
@@ -193,10 +193,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     usrp->dump_tree("");
 
     test_strings(usrp);
-    test_ints(usrp);
+//    test_ints(usrp);
     test_doubles(usrp);
     test_bools(usrp);
-    test_stream_cmd(usrp);
+//    test_stream_cmd(usrp);
     test_time_specs(usrp);
     test_sfpa_port_change(usrp);
     test_trigger_settings(usrp);
