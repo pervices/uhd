@@ -84,6 +84,16 @@ namespace
         usrp->set_tree_value(path, value);
 
         std::cout << value.get_real_secs() << std::endl;
+
+	const std::string blink_path = "/mboards/0/time/now";
+
+	std::string blink_value;
+
+	usrp->get_tree_value(blink_path, blink_value);
+	usrp->set_tree_value(blink_path, blink_value);
+
+	std::cout << blink_value << std::endl;
+	
     }
 
     void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
