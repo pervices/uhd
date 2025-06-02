@@ -175,6 +175,8 @@ public:
     ~recv_packet_handler_mmsg(void)
     {
         stop_overflow_loop = true;
+        // Ensure stop_overflow_loop is updated in the other thread
+        _mm_sfence();
 
         async_recv_manager::auto_unmake(recv_manager);
         // recv_manager must be deleted before closing sockets
@@ -644,31 +646,31 @@ private:
     }
 
     static void send_overflow_messages_loop(recv_packet_handler_mmsg* self) {
-        // // Set priority to the lowest
-        // uhd::set_thread_priority_safe(0, false);
+        // Set priority to the lowest
+        uhd::set_thread_priority_safe(0, false);
 
-        // // Number of oflows already printed
-        // uint64_t oflows_printed = 0;
+        // Number of oflows already printed
+        uint64_t oflows_printed = 0;
 
-        // while(!(self->stop_overflow_loop)) {
-        //     // Load fence to ensure getting oflows_printed from other threads doesn't get optimized out
-        //     _mm_lfence();
+        while(!(self->stop_overflow_loop)) {
+            // Load fence to ensure getting oflows_printed from other threads doesn't get optimized out
+            _mm_lfence();
 
-        //     uint64_t oflows_to_print = self->oflows_to_print - oflows_printed;
-        //     // Print a D for every recv command that's had an overflow since the last iteration of this loop
-        //     if(oflows_to_print) {
+            uint64_t oflows_to_print = self->oflows_to_print - oflows_printed;
+            // Print a D for every recv command that's had an overflow since the last iteration of this loop
+            if(oflows_to_print) {
 
-        //         std::string message(std::min(oflows_to_print, (uint64_t) 50), 'D');
-        //         // Print without the normal UHD formatting to keep the output format the same as Ettus
-        //         // std::cout << message;
+                std::string message(std::min(oflows_to_print, (uint64_t) 50), 'D');
+                // Print without the normal UHD formatting to keep the output format the same as Ettus
+                // std::cout << message;
 
-        //         oflows_printed += oflows_to_print;
-        //     } else {
-        //         // Sleep until polling again
-        //         ::usleep(250000);
-        //     }
+                oflows_printed += oflows_to_print;
+            } else {
+                // Sleep until polling again
+                ::usleep(250000);
+            }
 
-        // }
+        }
     }
 
     /*
