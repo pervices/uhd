@@ -63,7 +63,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
 
     // Number of entries that can fit in the submission queue
     // Only 1 submission entry is needed since we are using multishot
-    uring_params.sq_entries = NUM_SQ_URING_ENTRIES;
+    uring_params.sq_entries = 1;//NUM_SQ_URING_ENTRIES;
     // Number of entries that can fit in the completion queue
     uring_params.cq_entries = NUM_CQ_URING_ENTRIES;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
