@@ -197,13 +197,14 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         io_uring_cq_advance(ring, 1);
 
         if(!slow_consumer_warning_printed) {
-            UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+            UHD_LOG_WARNING("IO_URING_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
             slow_consumer_warning_printed = true;
         }
         info->length = 0;
         info->vita_header = nullptr;
         info->samples = nullptr;
     } else {
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Unexpected error in recv: " + std::string(strerror(-cqe_ptr->res)));
         throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
     }
 }
