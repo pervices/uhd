@@ -24,7 +24,7 @@ supported_ubuntu_releases = ["focal", "jammy", "noble"]
 # Command to create compressed source code to ship with the package
 # The command must result in a deterministic checksum for any given commit
 # tar.xz adds the tar.xz format, git archive creates the source code tarball
-archive_command = "git config tar.tar.xz.command \"xz -c\" && git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
+archive_command = "git config tar.tar.xz.command 'xz -c' && git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
 copy_command = "cp -r {}/uhdpv_{}.orig.tar.xz {}"
