@@ -31,6 +31,13 @@ copy_command = "cp -r {}/uhdpv_{}.orig.tar.xz {}"
 
 
 def main(args):
+    # Ubuntu requires that the source tarball have the same checksum in each version's package
+    # Previously we used tar directly to create the tarball which resulted in different checksums
+    # As a workaround we would use the tarball from 1 of them for the others
+    # The workaround has been disabled since git archive doesn't have this issue
+    if(args.tarfile):
+        print("Building package using an existing source tarball has been disabled since the new archive command can create determistic tarballs of source code. This argument will be ignored.")
+
     if not pathlib.Path("host").exists():
         print("Check path. This script must be run on uhd base path")
         sys.exit(1)
@@ -65,20 +72,13 @@ def main(args):
     if pathlib.Path(args.buildpath).exists():
         shutil.rmtree(args.buildpath)
     os.mkdir(args.buildpath)
-    if not args.tarfile:
-        print("Compressing UHD Source...")
-        result = subprocess.run(shlex.split(
-            archive_command.format(args.buildpath, uhd_version)))
-        if result.returncode:
-            print("Compressing source failed")
-            sys.exit(result.returncode)
-    else:
-        print("Retrieving existing UHD Source...")
-        result = subprocess.run(shlex.split(
-            copy_command.format(args.tarfile, uhd_version, args.buildpath)))
-        if result.returncode:
-            print("Retrieving source failed")
-            sys.exit(result.returncode)
+
+    print("Compressing UHD Source...")
+    result = subprocess.run(shlex.split(
+        archive_command.format(args.buildpath, uhd_version)))
+    if result.returncode:
+        print("Compressing source failed")
+        sys.exit(result.returncode)
 
     # Extract UHD source to build folder
     print("Extractubg UHD source to build folder...")
@@ -151,7 +151,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tarfile", type=str,
-                        help="Specify existing tar file")
+                        help="Deprecated, ignored")
     parser.add_argument("--repo", type=str, required=True,
                         help="Specify ppa repository")
     parser.add_argument("--nightly", action='store_true',
