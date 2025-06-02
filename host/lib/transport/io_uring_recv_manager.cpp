@@ -189,7 +189,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // If IORING_CQE_F_MORE is not present multishot has stopped and must be restarted
         if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) [[unlikely]] {
             // Issues new multishot request
-            arm_recv_multishot(ch, _recv_sockets[ch]);
+            // arm_recv_multishot(ch, _recv_sockets[ch]);
         }
 
         info->length = cqe_ptr->res;
