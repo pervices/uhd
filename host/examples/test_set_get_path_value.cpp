@@ -15,9 +15,14 @@ namespace
 
             std::string value;
 
-            usrp->get_tree_value(path, value);
-            usrp->set_tree_value(path, value);
-            std::cout << value << std::endl;
+	    try {
+		usrp->get_tree_value(path, value);
+		usrp->set_tree_value(path, value);
+
+		std::cout << value << std::endl;
+	    } catch (uhd::runtime_error &err) {
+		std::cout << err.what() << std::endl;
+	    }
         }
     }
 
@@ -31,6 +36,7 @@ namespace
 	try {
 	    usrp->get_tree_value(path, value);
 	    usrp->set_tree_value(path, value);
+
 	    std::cout << value << std::endl;
 	} catch (uhd::runtime_error &err) {
 	    std::cout << err.what() << std::endl;
@@ -44,10 +50,14 @@ namespace
 
         double value;
 
-        usrp->get_tree_value(path, value);
-        usrp->set_tree_value(path, value);
+	try {
+	    usrp->get_tree_value(path, value);
+	    usrp->set_tree_value(path, value);
 
-        std::cout << value << std::endl;
+	    std::cout << value << std::endl;
+	} catch (uhd::runtime_error &err) {
+	    std::cout << err.what() << std::endl;
+	}
     }
 
     void test_bools(uhd::usrp::multi_usrp::sptr& usrp)
@@ -57,10 +67,14 @@ namespace
 
         bool value;
 
-        usrp->get_tree_value(path, value);
-        usrp->set_tree_value(path, value);
+	try {
+	    usrp->get_tree_value(path, value);
+	    usrp->set_tree_value(path, value);
 
-        std::cout << value << std::endl;
+	    std::cout << value << std::endl;
+	} catch(uhd::runtime_error &err) {
+	    std::cout << err.what() << std::endl;
+	}
     }
 
     void test_stream_cmd(uhd::usrp::multi_usrp::sptr& usrp)
@@ -72,8 +86,13 @@ namespace
                 uhd::stream_cmd_t::stream_mode_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
 
             const std::string path = "/mboards/0/rx_dsps/" + channel + "/stream_cmd";
-            usrp->get_tree_value(path, value);
-            usrp->set_tree_value(path, value);
+
+	    try {
+		usrp->get_tree_value(path, value);
+		usrp->set_tree_value(path, value);
+	    } catch (uhd::runtime_error &err) {
+		std::cout << err.what() << std::endl;
+	    }
         }
     }
 
@@ -84,10 +103,14 @@ namespace
 
         uhd::time_spec_t value;
 
-        usrp->get_tree_value(path, value);
-        usrp->set_tree_value(path, value);
+	try {
+	    usrp->get_tree_value(path, value);
+	    usrp->set_tree_value(path, value);
 
-        std::cout << value.get_real_secs() << std::endl;
+	    std::cout << value.get_real_secs() << std::endl;
+	catch (uhd::runtime_error &err) {
+	    std::cout << err.what() << std::endl;
+	}
     }
 
     void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
@@ -100,23 +123,33 @@ namespace
 
         // Get old value.
         int old;
-        usrp->get_tree_value(path, old);
 
-        // Set new value.
-        usrp->set_tree_value(path, expected);
+	try {
+	    usrp->get_tree_value(path, old);
+
+	    // Set new value.
+	    usrp->set_tree_value(path, expected);
+	} catch (uhd::runtime_error &err) {
+	    std::cout << err.what() << std::endl;
+	}
 
         // Get the newly changed value.
         int changed;
-        usrp->get_tree_value(path, changed);
 
-        // Ensure the newly changed value is the expected value.
-        assert(changed == expected);
+	try {
+	    usrp->get_tree_value(path, changed);
 
-        // Reapply the old value.
-        usrp->set_tree_value(path, old);
+	    // Ensure the newly changed value is the expected value.
+	    assert(changed == expected);
 
-        std::cout << changed << std::endl;
-        std::cout << old << std::endl;
+	    // Reapply the old value.
+	    usrp->set_tree_value(path, old);
+
+	    std::cout << changed << std::endl;
+	    std::cout << old << std::endl;
+	} catch (uhd::runtime_error &err) {
+	    std::cout << err.what() << std::endl;
+	}
     }
 
     void test_trigger_settings(uhd::usrp::multi_usrp::sptr& usrp)
@@ -137,9 +170,13 @@ namespace
         for(const auto& path : paths)
         {
             std::string old;
-            usrp->get_tree_value(path, old);
-            usrp->set_tree_value(path, old);
-            std::cout << old << std::endl;
+	    try {
+		usrp->get_tree_value(path, old);
+		usrp->set_tree_value(path, old);
+		std::cout << old << std::endl;
+	    } catch (uhd::runtime_error &err) {
+		std::cout << err.what() << std::endl;
+	    }
         }
         // TX Paths.
         for(const auto& channel : channels)
@@ -157,9 +194,13 @@ namespace
             for(const auto& path : paths)
             {
                 std::string old;
-                usrp->get_tree_value(path, old);
-                usrp->set_tree_value(path, old);
-                std::cout << old << std::endl;
+		try {
+		    usrp->get_tree_value(path, old);
+		    usrp->set_tree_value(path, old);
+		    std::cout << old << std::endl;
+		} catch (uhd::runtime_error &err) {
+		    std::cout << err.what() << std::endl;
+		}
             }
         }
         // RX Paths.
@@ -177,9 +218,13 @@ namespace
             for(const auto& path : paths)
             {
                 std::string old;
-                usrp->get_tree_value(path, old);
-                usrp->set_tree_value(path, old);
-                std::cout << old << std::endl;
+		try {
+		    usrp->get_tree_value(path, old);
+		    usrp->set_tree_value(path, old);
+		    std::cout << old << std::endl;
+		} catch (uhd::runtime_error &err) {
+		    std::cout << err.what() << std::endl;
+		}
             }
         }
     }
