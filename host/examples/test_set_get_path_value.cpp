@@ -76,14 +76,14 @@ namespace
     void test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
-        const std::string path = "/mboards/0/time/now";
+        //const std::string path = "/mboards/0/time/now";
 
-        uhd::time_spec_t value;
+        //uhd::time_spec_t value;
 
-        usrp->get_tree_value(path, value);
-        usrp->set_tree_value(path, value);
+        //usrp->get_tree_value(path, value);
+        //usrp->set_tree_value(path, value);
 
-        std::cout << value.get_real_secs() << std::endl;
+        //std::cout << value.get_real_secs() << std::endl;
 
 	// Set/get LED blinky value
 	const std::string blink_path = "/mboards/0/time/blink_enabled";
