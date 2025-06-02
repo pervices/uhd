@@ -660,7 +660,7 @@ private:
 
                 std::string message(std::min(oflows_to_print, (uint64_t) 50), 'D');
                 // Print without the normal UHD formatting to keep the output format the same as Ettus
-                std::cout << message;
+                // std::cout << message;
 
                 oflows_printed += oflows_to_print;
             } else {
