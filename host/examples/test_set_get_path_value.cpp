@@ -28,9 +28,13 @@ namespace
 
         int value;
 
-        usrp->get_tree_value(path, value);
-        usrp->set_tree_value(path, value);
-        std::cout << value << std::endl;
+	try {
+	    usrp->get_tree_value(path, value);
+	    usrp->set_tree_value(path, value);
+	    std::cout << value << std::endl;
+	} catch (uhd::runtime_error &err) {
+	    std::cout << err.what() << std::endl;
+	}
     }
 
     void test_doubles(uhd::usrp::multi_usrp::sptr& usrp)
