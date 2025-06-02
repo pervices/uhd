@@ -108,7 +108,7 @@ namespace
 	    usrp->set_tree_value(path, value);
 
 	    std::cout << value.get_real_secs() << std::endl;
-	catch (uhd::runtime_error &err) {
+	} catch (uhd::runtime_error &err) {
 	    std::cout << err.what() << std::endl;
 	}
     }
