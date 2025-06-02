@@ -85,7 +85,7 @@ namespace
 
         std::cout << value.get_real_secs() << std::endl;
 
-	const std::string blink_path = "/mboards/0/time/now";
+	const std::string blink_path = "/mboards/0/time/blink_enabled";
 
 	std::string blink_value;
 
