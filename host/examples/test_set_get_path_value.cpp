@@ -73,6 +73,19 @@ namespace
         }
     }
 
+    void test_blinky(uhd::usrp::multi_usrp::sptr& usrp)
+    {
+	std::cout << __FUNCTION__ << std::endl;
+	const std::string path = "/mboards/0/time/blinky";
+
+	std::string value;
+
+	usrp->get_tree_value(path, value);
+	usrp->set_tree_value(path,value);
+
+	std::cout << value << std::endl;
+    }
+
     void test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
