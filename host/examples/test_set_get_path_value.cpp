@@ -88,7 +88,7 @@ namespace
 	usrp->set_tree_value(path1,value1);
 
       std::cout << value.get_real_secs() << std::endl;
-	std::cout<<value1<<std::endl
+	std::cout<<value1<<std::endl;
     }
 
     void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
