@@ -201,13 +201,13 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
                 // Otherwise, it's an error
             default:
-                // if(!unexpected_error_printed) {
+                if(!unexpected_error_printed) {
                     UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << std::endl;
                     UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
                           << std::endl;
                     unexpected_error_printed = true;
-                // }
+                }
                 break;
         }
     }
