@@ -295,6 +295,8 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
     const start_time_type& start_time,
     std::atomic<bool>& burst_timer_elapsed)
 {
+    return;
+
     // setup variables and allocate buffer
     uhd::async_metadata_t async_md;
     bool exit_flag = false;
