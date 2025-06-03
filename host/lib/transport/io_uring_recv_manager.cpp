@@ -128,6 +128,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
 }
 
 void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
+    UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "arm start");
     struct io_uring* ring = access_io_urings(ch, 0);
 
     // Get submission queue
@@ -166,6 +167,7 @@ void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
         UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
         throw std::runtime_error(message);
     }
+    UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "arm completed");
 }
 
 void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
