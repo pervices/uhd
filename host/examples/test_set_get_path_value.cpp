@@ -76,18 +76,19 @@ namespace
     void test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
-       // const std::string path = "/mboards/0/time/now";
-	const std::string path = "/mboards/0/time/blinky";
-       // uhd::time_spec_t value;
-	std::string value;
+        const std::string path = "/mboards/0/time/now";
+	const std::string path1 = "/mboards/0/time/blinky";
+      	 uhd::time_spec_t value;
+	std::string value1;
 
 //        usrp->get_tree_value(path, value);
-//        usrp->set_tree_value(path, value);
+        usrp->set_tree_value(path, value);
 
-	usrp->get_tree_value(path,value);
-	usrp->set_tree_value(path,value);
+	usrp->get_tree_value(path1,value1);
+	usrp->set_tree_value(path1,value1);
 
-        std::cout << value.get_real_secs() << std::endl;
+      std::cout << value.get_real_secs() << std::endl;
+	std::cout<<value1<<std::endl
     }
 
     void test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
