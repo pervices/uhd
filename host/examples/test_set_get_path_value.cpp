@@ -77,7 +77,7 @@ namespace
     {
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/time/now";
-
+	const std::string path = "/mboards/0/time/blinky";
         uhd::time_spec_t value;
 
 //        usrp->get_tree_value(path, value);
