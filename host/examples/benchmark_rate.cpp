@@ -43,7 +43,7 @@ std::atomic_ullong num_late_commands{0};
 std::atomic_ullong num_timeouts_rx{0};
 std::atomic_ullong num_timeouts_tx{0};
 
-std::atomic<bool> burst_timer_elapsed{false};
+static std::atomic<bool> burst_timer_elapsed{false};
 
 inline auto time_delta(const start_time_type& ref_time)
 {
