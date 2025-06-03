@@ -28,7 +28,7 @@ private:
 
     // Number of call buffers per ch
     // Must be a power of 2 and a constexpr, for some reason having it non constexpr will result in random lag spikes (but only on some runs)
-    static constexpr size_t NUM_CALL_BUFFERS = 8;
+    static constexpr size_t NUM_CALL_BUFFERS = 1024;
 
     static_assert(PACKET_BUFFER_SIZE % NUM_CALL_BUFFERS == 0, "The packet buffer must be able to contain a whole number of call buffers");
 
