@@ -743,13 +743,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     } else {
         duration += adjusted_tx_delay;
     }
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T1");
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
     std::this_thread::sleep_for(
         std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
 
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T2");
+
     // interrupt and join the threads
     burst_timer_elapsed = true;
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T3");
     thread_group.join_all();
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
