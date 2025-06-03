@@ -122,7 +122,9 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     while (true) {
         if (burst_timer_elapsed) {
+            UHD_LOG_ERROR("BENCHMARK_RATE", "R100");
             rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+            UHD_LOG_ERROR("BENCHMARK_RATE", "R200");
             return;
         }
         if (random_nsamps) {
@@ -159,6 +161,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 // Normally if eob then rx has completed
                 // however in random nsamps mode there are repeated bursts and each burst with have eob
                 if (md.end_of_burst && !random_nsamps) {
+                    UHD_LOG_ERROR("BENCHMARK_RATE", "R201");
                     return;
                 }
                 break;
@@ -285,6 +288,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send(buffs, 0, md);
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T100");
 }
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
