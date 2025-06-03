@@ -43,6 +43,8 @@ std::atomic_ullong num_late_commands{0};
 std::atomic_ullong num_timeouts_rx{0};
 std::atomic_ullong num_timeouts_tx{0};
 
+std::atomic<bool> burst_timer_elapsed{false};
+
 inline auto time_delta(const start_time_type& ref_time)
 {
     return std::chrono::steady_clock::now() - ref_time;
@@ -75,7 +77,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     size_t spb,
     bool random_nsamps,
     const start_time_type& start_time,
-    std::atomic<bool>& burst_timer_elapsed,
     bool elevate_priority,
     double adjusted_rx_delay,
     double user_rx_delay,
@@ -218,7 +219,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const std::string& tx_cpu,
     uhd::tx_streamer::sptr tx_stream,
-    std::atomic<bool>& burst_timer_elapsed,
     const start_time_type& start_time,
     const size_t spb,
     const size_t sample_align,
@@ -292,8 +292,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
 }
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
-    const start_time_type& start_time,
-    std::atomic<bool>& burst_timer_elapsed)
+    const start_time_type& start_time)
 {
     return;
 
@@ -352,7 +351,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::string ref, pps;
     std::string channel_list, rx_channel_list, tx_channel_list;
     bool random_nsamps = false;
-    std::atomic<bool> burst_timer_elapsed(false);
     size_t overrun_threshold, underrun_threshold, drop_threshold, seq_threshold, late_cmd_threshold, tx_timeout_threshold, rx_timeout_threshold;
     size_t rx_spp, tx_spp, rx_spb, tx_spb, tx_align = 0;
     double tx_delay, rx_delay, adjusted_tx_delay, adjusted_rx_delay;
@@ -600,14 +598,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 stream_args.channels             = this_streamer_channels;
                 stream_args.args                 = uhd::device_addr_t(rx_stream_args);
                 uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-                auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+                auto rx_thread = thread_group.create_thread([=]() {
                     benchmark_rx_rate(usrp,
                         rx_cpu,
                         rx_stream,
                         spb,
                         random_nsamps,
                         start_time,
-                        burst_timer_elapsed,
                         elevate_priority,
                         adjusted_rx_delay,
                         rx_delay,
@@ -621,14 +618,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             stream_args.channels             = rx_channel_nums;
             stream_args.args                 = uhd::device_addr_t(rx_stream_args);
             uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-            auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+            auto rx_thread = thread_group.create_thread([=]() {
                 benchmark_rx_rate(usrp,
                     rx_cpu,
                     rx_stream,
                     spb,
                     random_nsamps,
                     start_time,
-                    burst_timer_elapsed,
                     elevate_priority,
                     adjusted_rx_delay,
                     rx_delay,
@@ -678,11 +674,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     spb = spb - (spb % tx_align);
                 }
                 std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-                auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+                auto tx_thread = thread_group.create_thread([=]() {
                     benchmark_tx_rate(usrp,
                         tx_cpu,
                         tx_stream,
-                        burst_timer_elapsed,
                         start_time,
                         spb,
                         tx_align,
@@ -692,9 +687,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 });
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
                 auto tx_async_thread =
-                    thread_group.create_thread([=, &burst_timer_elapsed]() {
+                    thread_group.create_thread([=]() {
                         benchmark_tx_rate_async_helper(
-                            tx_stream, start_time, burst_timer_elapsed);
+                            tx_stream, start_time);
                     });
                 uhd::set_thread_name(
                     tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
@@ -722,11 +717,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 spb = spb - (spb % tx_align);
             }
             std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-            auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+            auto tx_thread = thread_group.create_thread([=]() {
                 benchmark_tx_rate(usrp,
                     tx_cpu,
                     tx_stream,
-                    burst_timer_elapsed,
                     start_time,
                     spb,
                     tx_align,
@@ -736,9 +730,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             });
             uhd::set_thread_name(tx_thread, "bmark_tx_stream");
             auto tx_async_thread =
-                thread_group.create_thread([=, &burst_timer_elapsed]() {
+                thread_group.create_thread([=]() {
                     benchmark_tx_rate_async_helper(
-                        tx_stream, start_time, burst_timer_elapsed);
+                        tx_stream, start_time);
                 });
             uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
         }
