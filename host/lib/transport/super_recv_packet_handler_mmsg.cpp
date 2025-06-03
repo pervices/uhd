@@ -249,7 +249,7 @@ public:
         time_spec_t recv_start_time = get_system_time();
 
         // Limit for how many time realignment will be attempted before giving up
-        const size_t max_realignment_attempts = 100;
+        const size_t max_realignment_attempts = 0;
         size_t realignment_attempts = 0;
 
         // Main receive loop
