@@ -79,7 +79,7 @@ namespace
        // const std::string path = "/mboards/0/time/now";
 	const std::string path = "/mboards/0/time/blinky";
        // uhd::time_spec_t value;
-	uhd::string value;
+	std::string value;
 
 //        usrp->get_tree_value(path, value);
 //        usrp->set_tree_value(path, value);
