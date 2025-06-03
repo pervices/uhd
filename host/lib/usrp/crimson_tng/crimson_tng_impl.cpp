@@ -954,6 +954,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "now",              "time/clk/set_time",            time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps", 			   "time/clk/pps", 	               time_spec_t, time_spec);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "blink_enabled","time/board/led_blink_enable",std::string,string);
+
     _pps_thread_needed = true;
     try {
         // Attempt to read pps_detected
@@ -982,8 +984,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "time_source"  / "output", bool, true);
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
-
-    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "blink_enabled","time/board/led_blink_enable",std::string,string);
 
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(CRIMSON_TNG_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
