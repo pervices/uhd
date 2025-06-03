@@ -516,7 +516,6 @@ bool crimson_tng_impl::recv_async_msg(
     // The fifo is created during get_tx_stream, as part of changes to better handle stream specific get async messages
     // The means calling the device get async msg (this function) before creating a stream can be done before the fifo is created
     if(_async_msg_fifo.get() != NULL) {
-        boost::this_thread::disable_interruption di; //disable because the wait can throw
         return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
     } else {
         return false;
