@@ -20,7 +20,7 @@ namespace
 		usrp->set_tree_value(path, value);
 
 		std::cout << value << std::endl;
-	    } catch (uhd::runtime_error &err) {
+	    } catch (...) {
 		std::cout << err.what() << std::endl;
 	    }
         }
@@ -38,7 +38,7 @@ namespace
 	    usrp->set_tree_value(path, value);
 
 	    std::cout << value << std::endl;
-	} catch (uhd::runtime_error &err) {
+	} catch (...) {
 	    std::cout << err.what() << std::endl;
 	}
     }
@@ -55,7 +55,7 @@ namespace
 	    usrp->set_tree_value(path, value);
 
 	    std::cout << value << std::endl;
-	} catch (uhd::runtime_error &err) {
+	} catch (...) {
 	    std::cout << err.what() << std::endl;
 	}
     }
@@ -72,7 +72,7 @@ namespace
 	    usrp->set_tree_value(path, value);
 
 	    std::cout << value << std::endl;
-	} catch(uhd::runtime_error &err) {
+	} catch(...) {
 	    std::cout << err.what() << std::endl;
 	}
     }
@@ -90,7 +90,7 @@ namespace
 	    try {
 		usrp->get_tree_value(path, value);
 		usrp->set_tree_value(path, value);
-	    } catch (uhd::runtime_error &err) {
+	    } catch (...) {
 		std::cout << err.what() << std::endl;
 	    }
         }
@@ -108,7 +108,7 @@ namespace
 	    usrp->set_tree_value(path, value);
 
 	    std::cout << value.get_real_secs() << std::endl;
-	} catch (uhd::runtime_error &err) {
+	} catch (...) {
 	    std::cout << err.what() << std::endl;
 	}
     }
@@ -129,7 +129,7 @@ namespace
 
 	    // Set new value.
 	    usrp->set_tree_value(path, expected);
-	} catch (uhd::runtime_error &err) {
+	} catch (...) {
 	    std::cout << err.what() << std::endl;
 	}
 
@@ -147,7 +147,7 @@ namespace
 
 	    std::cout << changed << std::endl;
 	    std::cout << old << std::endl;
-	} catch (uhd::runtime_error &err) {
+	} catch (...) {
 	    std::cout << err.what() << std::endl;
 	}
     }
@@ -174,7 +174,7 @@ namespace
 		usrp->get_tree_value(path, old);
 		usrp->set_tree_value(path, old);
 		std::cout << old << std::endl;
-	    } catch (uhd::runtime_error &err) {
+	    } catch (...) {
 		std::cout << err.what() << std::endl;
 	    }
         }
@@ -198,7 +198,7 @@ namespace
 		    usrp->get_tree_value(path, old);
 		    usrp->set_tree_value(path, old);
 		    std::cout << old << std::endl;
-		} catch (uhd::runtime_error &err) {
+		} catch (...) {
 		    std::cout << err.what() << std::endl;
 		}
             }
@@ -222,7 +222,7 @@ namespace
 		    usrp->get_tree_value(path, old);
 		    usrp->set_tree_value(path, old);
 		    std::cout << old << std::endl;
-		} catch (uhd::runtime_error &err) {
+		} catch (...) {
 		    std::cout << err.what() << std::endl;
 		}
             }
