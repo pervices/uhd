@@ -138,6 +138,7 @@ cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
 }
 
 void cyan_nrnt_send_packet_streamer::teardown() {
+    UHD_LOG_ERROR("CYAN SEND TEARDOWN", "T1");
     // Waits for all samples sent to be consumed before destructing, times out after 30s
     uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
     while(timeout_time > uhd::get_system_time()) {
@@ -159,14 +160,18 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         }
         usleep(10);
     }
+    UHD_LOG_ERROR("CYAN SEND TEARDOWN", "T2");
 
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
         // Does not actually turn off board
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
     }
+    UHD_LOG_ERROR("CYAN SEND TEARDOWN", "T3");
 
     stop_buffer_monitor_thread();
+
+    UHD_LOG_ERROR("CYAN SEND TEARDOWN", "T4");
     for( auto & ep: _eprops ) {
 
         // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
@@ -177,6 +182,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
             std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
         }
     }
+    UHD_LOG_ERROR("CYAN SEND TEARDOWN", "T5");
     _eprops.clear();
 
     for(size_t n = 0; n < _channels.size(); n++) {
