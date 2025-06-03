@@ -35,7 +35,7 @@ protected:
     // Number of packets that can be stored in the buffer
     // Hard limit: 2^15 from io_uring. Use the same value for user_recv as well to maximize code similarity
     // Must be a power of 2 so the mask workers correctly
-    static constexpr size_t PACKET_BUFFER_SIZE = 32768;
+    static constexpr size_t PACKET_BUFFER_SIZE = 64;//32768;
 
     // Mask used to roll over number of packets
     static constexpr size_t PACKET_BUFFER_MASK = PACKET_BUFFER_SIZE - 1;
