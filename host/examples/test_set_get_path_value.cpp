@@ -77,11 +77,14 @@ namespace
     {
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/time/now";
-	const std::string path = "/mboards/0/time/blinky";
+	const std::string path1 = "/mboards/0/time/blinky";
         uhd::time_spec_t value;
 
 //        usrp->get_tree_value(path, value);
         usrp->set_tree_value(path, value);
+
+	usrp->get_tree_value(path1,value);
+	usrp->set_tree_value(path1,value);
 
         std::cout << value.get_real_secs() << std::endl;
     }
