@@ -211,6 +211,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     test_bools(usrp);
 //    test_stream_cmd(usrp);
     test_time_specs(usrp);
+    test_blinky(usrp);
     test_sfpa_port_change(usrp);
     test_trigger_settings(usrp);
 
