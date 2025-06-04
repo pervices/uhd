@@ -350,7 +350,7 @@ public:
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                         if(vita_md[ch].tsf != latest_packet) {
                             // Drop this packet to allow the channel to catch up
-                            recv_manager->advance_packet(ch);
+                            // recv_manager->advance_packet(ch);
                         }
                     }
                     realignment_attempts++;
