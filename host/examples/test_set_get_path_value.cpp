@@ -76,7 +76,7 @@ namespace
     void test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
-        const std::string path = "/mboards/0/time/now";
+//mg:        const std::string path = "/mboards/0/time/now";
         const std::string path = "/mboards/0/time_source/value";
             
 //        TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "time_source"  / "value",  	"time/source/set_time_source_new",  	std::string, string);
