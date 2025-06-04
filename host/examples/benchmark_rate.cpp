@@ -691,13 +691,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         random_nsamps);
                 });
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
-                auto tx_async_thread =
-                    thread_group.create_thread([=]() {
-                        benchmark_tx_rate_async_helper(
-                            tx_stream, start_time);
-                    });
-                uhd::set_thread_name(
-                    tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
+                // auto tx_async_thread =
+                //     thread_group.create_thread([=]() {
+                //         benchmark_tx_rate_async_helper(
+                //             tx_stream, start_time);
+                //     });
+                // uhd::set_thread_name(
+                //     tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
             }
         } else {
             // create a transmit streamer
@@ -734,12 +734,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     random_nsamps);
             });
             uhd::set_thread_name(tx_thread, "bmark_tx_stream");
-            auto tx_async_thread =
-                thread_group.create_thread([=]() {
-                    benchmark_tx_rate_async_helper(
-                        tx_stream, start_time);
-                });
-            uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
+            // auto tx_async_thread =
+            //     thread_group.create_thread([=]() {
+            //         benchmark_tx_rate_async_helper(
+            //             tx_stream, start_time);
+            //     });
+            // uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
         }
     }
 
