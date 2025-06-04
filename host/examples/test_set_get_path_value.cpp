@@ -76,10 +76,11 @@ namespace
     void test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
-//      const std::string path = "/mboards/0/time/now";             // -- commented out by mg
-        const std::string path = "/mboards/0/time_source/hdlr_time_led_blink_enable";    // -- added by mg
+//      const std::string path = "/mboards/0/time/now";                        // -- commented out by mg
+        const std::string path = "/mboards/0/time_source/led_on_off";          // -- added by mg
             
-        uhd::time_spec_t value;
+//mg    uhd::time_spec_t value;
+        std::string value;
 
         usrp->get_tree_value(path, value);
         usrp->set_tree_value(path, value);
