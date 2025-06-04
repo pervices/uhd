@@ -295,18 +295,16 @@ public:
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
                 vita_md[ch].num_packet_words32 = (next_packet[ch].length + _TRAILER_SIZE) / sizeof(uint32_t);
 
-                // Check for incorrect packet
+                // Check if the packet is smaller than the header size, which should be impossible
                 if(next_packet[ch].length < (int64_t) _HEADER_SIZE) [[unlikely]] {
-                    throw std::runtime_error("Received sample packet smaller than header size");
+                    std::string message = "Packet length of " + std::to_string(next_packet[ch].length) + " on channel " + std::to_string(ch) + " less than the expected Vita header size of " + std::to_string(_HEADER_SIZE);
+                    UHD_LOG_ERROR("RECV_PACKET_HANDLER", message);
+                    throw std::runtime_error(message);
                 }
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                if(vita_md[ch].num_packet_words32 < 100) {
-                    throw std::runtime_error("Packet size error");
-                }if(*next_packet[ch].vita_header == 0) {
-                    printf("Packet not set\n");
-                }
+
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
 
