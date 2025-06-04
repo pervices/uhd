@@ -79,8 +79,8 @@ namespace
 //      const std::string path = "/mboards/0/time/now";                        // -- commented out by mg
         const std::string path = "/mboards/0/time_source/led_on_off";          // -- added by mg
             
-//mg    uhd::time_spec_t value;
-        std::string value;
+        uhd::time_spec_t value;
+    // tried:    std::string value;
 
         usrp->get_tree_value(path, value);
         usrp->set_tree_value(path, value);
