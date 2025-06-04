@@ -119,6 +119,10 @@ private:
         // pseudo_head = real_head + offset
         unsigned head = *ring->cq.khead + get_packets_advancable(ch);
 
+        if(tail < head) {
+            UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "tail is less than head");
+        }
+
         unsigned available = tail - head;
         // There is an event in the completion queue that is ready to be used
         if (available) {
