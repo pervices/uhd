@@ -22,7 +22,7 @@ class io_uring_recv_manager : public async_recv_manager {
 private:
     // Number of packets to receive before marking events as completed/marking buffers as clear
     // Packets are marked as clear in batching to avoid contention between threads
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = 1;//PACKET_BUFFER_SIZE/2;
+    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = PACKET_BUFFER_SIZE/2;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
