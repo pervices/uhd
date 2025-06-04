@@ -81,7 +81,7 @@ async_recv_manager::~async_recv_manager()
 
 void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
     // Allocate buffer using huge pages (MAP_HUGETLB)
-    void* hugeltb_buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    void* hugeltb_buffer = mmap(nullptr, size * 10, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     // If it worked return buffer
     if(hugeltb_buffer != MAP_FAILED) {
         return hugeltb_buffer;
@@ -95,7 +95,7 @@ void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
 
 void* async_recv_manager::allocate_buffer(size_t size) {
     // MMAP is used instead of aligned_alloc since aligned_alloc may have caused inconsistent performance
-    void* buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* buffer = mmap(nullptr, size * 10, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if(buffer != MAP_FAILED) {
         return buffer;
     } else {
