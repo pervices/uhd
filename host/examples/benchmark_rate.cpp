@@ -132,8 +132,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const float burst_pkt_time = std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
 
+    bool error_detected = false;
+
     while (true) {
-        if (burst_timer_elapsed) {
+        if (burst_timer_elapsed || error_detected) {
             rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
             return;
         }
@@ -177,6 +179,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
             // ERROR_CODE_OVERFLOW can indicate overflow or sequence error
             case uhd::rx_metadata_t::ERROR_CODE_OVERFLOW:
+                error_detected = true;
                 last_time       = md.time_spec;
                 had_an_overflow = true;
                 // check out_of_sequence flag to see if it was a sequence error or
@@ -191,6 +194,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
 
             case uhd::rx_metadata_t::ERROR_CODE_LATE_COMMAND:
+                error_detected = true;
                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << ", restart streaming..." << std::endl;
                 num_late_commands++;
@@ -202,6 +206,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
 
             case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
+                error_detected = true;
                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << ", continuing..." << std::endl;
                 num_timeouts_rx++;
@@ -209,6 +214,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
                 // Otherwise, it's an error
             default:
+                error_detected = true;
                 if(!unexpected_error_printed) {
                     UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
                           << std::endl;
