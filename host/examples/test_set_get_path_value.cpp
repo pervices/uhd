@@ -77,7 +77,7 @@ namespace
     {
         std::cout << __FUNCTION__ << std::endl;
 //      const std::string path = "/mboards/0/time/now";             // -- commented out by mg
-        const std::string path = "/mboards/0/time_source/value";    // -- added by mg
+        const std::string path = "/mboards/0/time_source/hdlr_time_led_blink_enable";    // -- added by mg
             
         uhd::time_spec_t value;
 
