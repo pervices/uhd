@@ -20,6 +20,8 @@
 #include <iostream>
 #include <thread>
 
+#include <uhdlib/utils/system_time.hpp>
+
 namespace po = boost::program_options;
 using namespace std::chrono_literals;
 
@@ -744,10 +746,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         duration += adjusted_tx_delay;
     }
     UHD_LOG_ERROR("BENCHMARK_RATE", "T1");
-    const int64_t secs  = int64_t(duration);
-    const int64_t usecs = int64_t((duration - secs) * 1e6);
-    std::this_thread::sleep_for(
-        std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+
+    // Try busy wait since regular wait hangs forever
+    end_time = uhd::get_system_time() + duration;
+    while(uhd::get_system_time() < end_time) {
+
+    }
+    // const int64_t secs  = int64_t(duration);
+    // const int64_t usecs = int64_t((duration - secs) * 1e6);
+    // std::this_thread::sleep_for(
+        // std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
 
     UHD_LOG_ERROR("BENCHMARK_RATE", "T2");
 
