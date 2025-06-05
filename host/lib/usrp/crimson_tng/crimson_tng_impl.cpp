@@ -1208,27 +1208,37 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 
 		// DSPs
-        // Ch B and D operate at a quarter rate
-		switch( dspno + 'A' ) {
-		case 'A':
-		case 'B':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
-			break;
-		case 'C':
-		case 'D':
-			TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_QUARTER, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
-			break;
-		}
+        if(is_full_tx) {
+            // On full tx Crimson all tx channels can operate at the maximum rate
+            TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
+                meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+            TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
+                meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+            TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
+                meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+        } else {
+            // Ch C and D operate at a quarter rate on normal Crimsons
+            switch( dspno + 'A' ) {
+            case 'A':
+            case 'B':
+                TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
+                    meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+                TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
+                    meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+                TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
+                    meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+                break;
+            case 'C':
+            case 'D':
+                TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
+                    meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+                TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
+                    meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+                TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
+                    meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_QUARTER, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+                break;
+            }
+        }
 
         TREE_CREATE_RW(tx_dsp_path / "rate" / "value", "tx_"+lc_num+"/dsp/rate", double, double);
 
