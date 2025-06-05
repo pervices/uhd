@@ -271,9 +271,10 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
+                    usleep(10);
                     // Yield to allow other threads to act since we are caught up
                     // Not yielding may cause external threads to never wake up from sleep_for
-                    std::this_thread::yield();
+                    // std::this_thread::yield();
                 }
             }
 
@@ -347,7 +348,8 @@ public:
 
                     // Never yield may cause sleep_for to never exit
                     // This yield exists because the yield while polling for packets doesn't trigger if we are severely overflowing, but this will
-                    std::this_thread::yield();
+                    usleep(10);
+                    // std::this_thread::yield();
                 } else {
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                         if(vita_md[ch].tsf != latest_packet) {
