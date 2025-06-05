@@ -30,8 +30,9 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         _bgid_storage[ch] = bgid_counter++;
 
         // Initialize control variables to 0
-        _packets_advanced[ch] = 0;
         _num_packets_consumed[ch] = 0;
+        _total_cached_cqe[ch] = 0;
+        cached_cqe_consumed[ch] = 0;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
@@ -174,7 +175,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     struct io_uring_cqe *cqe_ptr;
 
     // Checks if a packet is ready
-    int r = custom_io_uring_peek_cqe(ch, ring, &cqe_ptr);
+    int r = peek_next_cqe(ch, &cqe_ptr);
 
     // The next packet is not ready
     if(r == -EAGAIN) {
