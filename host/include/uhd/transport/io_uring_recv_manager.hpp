@@ -20,9 +20,8 @@ namespace uhd { namespace transport {
 class io_uring_recv_manager : public async_recv_manager {
 
 private:
-    // Number of packets to receive before marking events as completed/marking buffers as clear
-    // Packets are marked as clear in batching to avoid contention between threads
-    static constexpr uint32_t PACKETS_UPDATE_INCREMENT = PACKET_BUFFER_SIZE/2;
+    // Number of completion events to cache
+    static constexpr uint32_t COMPLETION_EVENT_CACHE_SIZE = PACKET_BUFFER_SIZE/8;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
@@ -55,9 +54,6 @@ private:
     // Stores the bgid used by io_uring_setup_buf_ring and io_uring_sqe_set_flags(..., IOSQE_BUFFER_SELECT);
     // Each channel needs a unique bgid
     int64_t _bgid_storage[MAX_CHANNELS];
-
-    // Number of packets io_uring has been told have been consumed
-    uint64_t _packets_advanced[MAX_CHANNELS];
 
     // Number of packets consumed by the recv_packet_handler
     uint64_t _num_packets_consumed[MAX_CHANNELS];
@@ -95,61 +91,59 @@ public:
     void get_next_async_packet_info(const size_t ch, async_packet_info* info) override;
 
     inline __attribute__((always_inline)) void advance_packet(const size_t ch) override {
-
+        // Increment where in the packet buffer we are
         _num_packets_consumed[ch]++;
 
-        unsigned packets_advancable = get_packets_advancable(ch);
-        // Mark packets are clear in batches to improve performance
-        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            clear_packets(ch, packets_advancable);
-        }
+        // Increment where in the cache we are
+        cached_cqe_consumed[ch]++;
     }
 
 private:
 
     /**
-     * A modified version of io_uring_peek_cqe that peeks at a pseudo head instead of the actual head of the queue.
-     * This function exists because we want to minimize updates to variables used by liburing (such the location of the head) and still need to be able to access elements not at the official head.
+     * Gets the next completion event (cqe)
+     *
+     * This function call liburing's io_uring_peek_batch_cqe and invisibly caches the result for future call
+     *
+     * @return On success 0 is returned and cqe_ptr is set to the next event in the cache. Returns -EAGAIN if no events are ready
      */
-    inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
+    inline __attribute__((always_inline)) int peek_next_cqe(size_t ch, struct io_uring_cqe **cqe_ptr)
     {
-        constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
+        // If there are still unused completion events in the cache, grab those
+        if(_total_cached_cqe[ch] > cached_cqe_consumed[ch]) {
+            *cqe_ptr = completion_cache[ch][cached_cqe_consumed[ch]];
+            return 0;
+        }
 
-        unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
-        // pseudo_head = real_head + offset
-        unsigned head = *ring->cq.khead + get_packets_advancable(ch);
+        // Marks all events in the cache as completed
+        io_uring* ring = access_io_urings(ch);
+        if(_total_cached_cqe[ch] > 0) {
+            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
+        }
 
-        unsigned available = tail - head;
-        // There is an event in the completion queue that is ready to be used
-        if (available) {
-            // Tell the user the location of the event
-            *cqe_ptr = &ring->cq.cqes[head & mask];
-            // Return0 to indicate success
+        // Get new completion events
+        int r = io_uring_peek_batch_cqe(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE);
+
+        // If events ready
+        // Not actually likely, just marked as such since it is more important
+        if(r > 0) [[likely]] {
+            // Reset the number of cached events consumed
+            cached_cqe_consumed[ch] = 0;
+            // Update the number of events in the cache
+            _total_cached_cqe[ch] = r;
+            // Provide the first event in the cache to the requester
+            *cqe_ptr = completion_cache[ch][0];
             return 0;
         } else {
+            // If r == 0 or r == -EAGAIN, all other results are impossible
+            // Set cqe_ptr to nullptr to avoid non deterministic behaviour if the return value is checked wrong
             *cqe_ptr = nullptr;
-            unsigned advancable = get_packets_advancable(ch);
-            // Since we are caught up, take the opportunity to mark packets as clear
-            // Putting it inside if might give better performance what advancing with 0
-            if(advancable) {
-                clear_packets(ch, get_packets_advancable(ch));
-            }
+            // Marks the cache as empty and that no samples from it have been consumed since io_uring_peek_batch_cqe cleared it
+            _total_cached_cqe[ch] = 0;
+            cached_cqe_consumed[ch] = 0;
+            // No events are ready, inform the user via returning -EAGAIN
             return -EAGAIN;
         }
-    }
-
-    inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
-        return _num_packets_consumed[ch] - _packets_advanced[ch];
-    }
-
-    /**
-     * Lets liburing know that packets have been consumed
-     * @param ch The channel whose packets to mark as clear
-     * @param n The number of packets to mark as clear
-    */
-    inline __attribute__((always_inline)) void clear_packets(const size_t ch, const unsigned n) {
-        io_uring_buf_ring_cq_advance(access_io_urings(ch), *access_io_uring_buf_rings(ch, 0), n);
-        _packets_advanced[ch] += n;
     }
 
     /**
@@ -165,5 +159,19 @@ private:
      */
     void arm_recv_multishot(size_t ch, int fd);
 
+    /**
+     * Number of completion events in the cache
+     */
+    int _total_cached_cqe[MAX_CHANNELS];
+    /**
+     * Number of completion events in the cache that are full
+     */
+    int cached_cqe_consumed[MAX_CHANNELS];
+
+    /**
+     * Cache completion events to minimize the number of calls of call for getting/clearing completion events
+     * Make sure this is last in the class since it is massive to aviod spreading out all the other variables in the class
+     */
+    io_uring_cqe* completion_cache[MAX_CHANNELS][COMPLETION_EVENT_CACHE_SIZE];
 };
 }}
