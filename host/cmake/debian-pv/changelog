@@ -1,3 +1,9 @@
+uhdpv (4.8.0.12-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Adding support for full tx Crimson
+
+ -- Per Vices <packages@pervices.com>  Thu, 05 Jun 2025 13:47:09 -0400
+
 uhdpv (4.8.0.11-0ubuntu1) ubuntu_release; urgency=low
 
   * Improve clarity of performance related warning messages
