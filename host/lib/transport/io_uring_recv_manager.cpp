@@ -210,7 +210,9 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         info->vita_header = nullptr;
         info->samples = nullptr;
     } else {
-        throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
+        std::string message = "recv failed with: " + std::string(strerror(-cqe_ptr->res));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
+        throw std::runtime_error(message);
     }
 }
 
