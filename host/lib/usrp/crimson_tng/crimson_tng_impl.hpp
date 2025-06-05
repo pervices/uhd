@@ -305,6 +305,10 @@ private:
 
     // Used to rx start/stop stream commands
     std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
+
+    // Full tx is a mode where tx channels C and D operate at full rate, but rx channels C and D are disabled
+    // Update the error message in get_rx_stream if the number of rx channels ever changes
+    bool is_full_tx = false;
 };
 
 }

@@ -787,6 +787,14 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
 
+    // Check if the unit is full tx for later warning messages
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/is_full_tx", "system/is_full_tx", int, int);
+    try {
+        is_full_tx = (bool) (_tree->access<int>(CRIMSON_TNG_MB_PATH / "system/is_full_tx").get());
+    } catch(uhd::lookup_error &e) {
+        is_full_tx = false;
+    }
+
     std::string lc_num;
 
     // Begin FPGA reset at tx chain

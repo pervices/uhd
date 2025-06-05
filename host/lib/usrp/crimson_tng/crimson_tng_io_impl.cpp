@@ -541,7 +541,13 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         const size_t chan = args.channels[chan_i];
         if(chan > num_rx_channels) {
-            throw uhd::index_error("Request rx streamer with channel " + std::to_string(chan) + " but only " + std::to_string(num_rx_channels) + " channels exist");
+            std::string message = "Requested rx streamer with channel " + std::to_string(chan) + " but only " + std::to_string(num_rx_channels) + " channels exist";
+            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
+            throw uhd::index_error(message);
+        } else if(chan > 1 && is_full_tx) {
+            std::string message = "Requested rx streamer with channel " + std::to_string(chan) + " but only rx channels A and B work on a full tx device. Change the rx channel requests or reconfigure Crimson as a non full tx Crimson";
+            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
+            throw uhd::index_error(message);
         }
     }
 
