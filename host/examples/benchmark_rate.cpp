@@ -32,18 +32,19 @@ using start_time_type = std::chrono::time_point<std::chrono::steady_clock>;
 /***********************************************************************
  * Test result variables
  **********************************************************************/
-std::atomic_ullong num_overruns{0};
-std::atomic_ullong num_underruns{0};
-std::atomic_ullong num_rx_samps{0};
-std::atomic_ullong num_tx_samps{0};
-std::atomic_ullong num_dropped_samps{0};
-std::atomic_ullong num_seq_errors{0};
-std::atomic_ullong num_seqrx_errors{0}; // "D"s
-std::atomic_ullong num_late_commands{0};
-std::atomic_ullong num_timeouts_rx{0};
-std::atomic_ullong num_timeouts_tx{0};
+uint64_t num_overruns= 0;
+uint64_t num_underruns= 0;
+uint64_t num_rx_samps= 0;
+uint64_t num_tx_samps= 0;
+uint64_t num_dropped_samps= 0;
+uint64_t num_seq_errors= 0;
+uint64_t num_seqrx_errors= 0; // "D"s
+uint64_t num_late_commands= 0;
+uint64_t num_timeouts_rx= 0;
+uint64_t num_timeouts_tx= 0;
 
-static std::atomic<bool> burst_timer_elapsed{false};
+bool burst_timer_elapsed = false;
+
 
 inline auto time_delta(const start_time_type& ref_time)
 {
@@ -274,7 +275,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
             if (num_tx_samps_sent_now == 0) {
                 num_timeouts_tx++;
                 if ((num_timeouts_tx % 10000) == 1) {
-                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx.load()
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx
                               << std::endl;
                 }
             }
@@ -743,14 +744,19 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     } else {
         duration += adjusted_tx_delay;
     }
+
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T1");
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
     std::this_thread::sleep_for(
         std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T2");
 
     // interrupt and join the threads
     burst_timer_elapsed = true;
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T3");
     thread_group.join_all();
+    UHD_LOG_ERROR("BENCHMARK_RATE", "T4");
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
