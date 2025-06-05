@@ -100,7 +100,6 @@ public:
 
 private:
 
-    // TODO: update comment
     /**
      * Gets the next completion event (cqe)
      *
