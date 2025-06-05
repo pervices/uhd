@@ -121,6 +121,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
 
     while (true) {
+        usleep(10);
         if (burst_timer_elapsed) {
             rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
             return;
@@ -257,6 +258,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     if (random_nsamps) {
         std::srand((unsigned int)time(NULL));
         while (not burst_timer_elapsed) {
+            usleep(10);
             size_t num_samps = (rand() % spb) + 1;
             if (sample_align) {
                 num_samps =
@@ -268,6 +270,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         }
     } else {
         while (not burst_timer_elapsed) {
+            usleep(10);
             const size_t num_tx_samps_sent_now =
                 tx_stream->send(buffs, spb, md, timeout) * tx_stream->get_num_channels();
             num_tx_samps += num_tx_samps_sent_now;
