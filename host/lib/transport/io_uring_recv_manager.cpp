@@ -154,11 +154,17 @@ void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     // Error detection for submit
     // These should all be impossible
     if(ret > 1) {
-        throw std::runtime_error("Multiple requests submitted to io_uring even though only 1 was intended. This should be impossible");
+        std::string message = "Multiple requests submitted to io_uring even though only 1 was intended. This should be impossible";
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
+        throw std::runtime_error(message);
     } else if(ret == 0) {
-        throw std::runtime_error("0 requests submitted to io_uring but success was reported. This should be impossible");
+        std::string message = "0 requests submitted to io_uring but success was reported. This should be impossible";
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
+        throw std::runtime_error(message);
     } else if (ret < 0) {
-        throw std::runtime_error("io_uring submit failed with: " + std::string(strerror(-ret)));
+        std::string message = "io_uring submit failed with: " + std::string(strerror(-ret));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
+        throw std::runtime_error(message);
     }
 }
 
@@ -204,7 +210,9 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         info->vita_header = nullptr;
         info->samples = nullptr;
     } else {
-        throw std::runtime_error("recv failed with: " + std::string(strerror(-cqe_ptr->res)));
+        std::string message = "recv failed with: " + std::string(strerror(-cqe_ptr->res));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
+        throw std::runtime_error(message);
     }
 }
 
