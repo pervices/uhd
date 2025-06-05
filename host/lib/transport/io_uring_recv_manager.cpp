@@ -72,7 +72,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     // IORING_SETUP_CQSIZE: pay attention to cq_entries
     // TODO: confirm if IORING_SETUP_NO_SQARRAY helps
     // IORING_SETUP_NO_SQARRAY: for some reason this fixes dropped packets when streaming multiple channels
-    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE;
+    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ /*IORING_SETUP_SINGLE_ISSUER |*/ IORING_SETUP_CQSIZE;
     // Select the core to bind the kernel thread to
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set.
     //uring_params.sq_thread_cpu;
