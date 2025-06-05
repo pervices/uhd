@@ -1574,6 +1574,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	//------------------------------------------------------------------
 	//-- Tune the RF frontend
 	//------------------------------------------------------------------
+	std::cout << "target_rf_freq: " << target_rf_freq << std::endl;
 	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
 	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
@@ -1605,6 +1606,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 	//------------------------------------------------------------------
 	//-- Tune the DSP
 	//------------------------------------------------------------------
+	std::cout << "target_dsp_freq: " << target_dsp_freq << std::endl;
 	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
 	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
 
