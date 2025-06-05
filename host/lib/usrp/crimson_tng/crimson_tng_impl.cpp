@@ -1518,11 +1518,13 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 
 	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
     double dsp_bw = dsp_range.stop() - dsp_range.start();
+    std::cout << "dsp_bw: " << dsp_bw << std::endl;
 	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 
 	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
     // Bandwidth of the data stream to the user
 	double user_bw = dsp_subtree->access<double>( "/rate/value" ).get();
+    std::cout << "user_bw: " << user_bw << std::endl;
 
 	int band = is_high_band( dsp_range, clipped_requested_freq, dsp_bw ) ? HIGH_BAND : LOW_BAND;
 
