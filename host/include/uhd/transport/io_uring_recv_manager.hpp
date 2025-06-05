@@ -98,11 +98,12 @@ public:
 
         _num_packets_consumed[ch]++;
 
-        unsigned packets_advancable = get_packets_advancable(ch);
-        // Mark packets are clear in batches to improve performance
-        if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
-            clear_packets(ch, packets_advancable);
-        }
+        // unsigned packets_advancable = get_packets_advancable(ch);
+        // // Mark packets are clear in batches to improve performance
+        // if(packets_advancable > PACKETS_UPDATE_INCREMENT) {
+        //     clear_packets(ch, packets_advancable);
+        // }
+        clear_packets(ch, 1);
     }
 
 private:
@@ -113,33 +114,34 @@ private:
      */
     inline __attribute__((always_inline)) int custom_io_uring_peek_cqe(size_t ch, struct io_uring *ring, struct io_uring_cqe **cqe_ptr)
     {
-        constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
-
-        unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
-        // pseudo_head = real_head + offset
-        unsigned head = *ring->cq.khead + get_packets_advancable(ch);
-
-        if(tail < head) {
-            UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "tail is less than head");
-        }
-
-        unsigned available = tail - head;
-        // There is an event in the completion queue that is ready to be used
-        if (available) {
-            // Tell the user the location of the event
-            *cqe_ptr = &ring->cq.cqes[head & mask];
-            // Return0 to indicate success
-            return 0;
-        } else {
-            *cqe_ptr = nullptr;
-            unsigned advancable = get_packets_advancable(ch);
-            // Since we are caught up, take the opportunity to mark packets as clear
-            // Putting it inside if might give better performance what advancing with 0
-            if(advancable) {
-                clear_packets(ch, get_packets_advancable(ch));
-            }
-            return -EAGAIN;
-        }
+        return io_uring_peek_cqe(ring, cqe_ptr);
+        // constexpr unsigned mask = NUM_CQ_URING_ENTRIES - 1;
+        //
+        // unsigned tail = io_uring_smp_load_acquire(ring->cq.ktail);
+        // // pseudo_head = real_head + offset
+        // unsigned head = *ring->cq.khead + get_packets_advancable(ch);
+        //
+        // if(tail < head) {
+        //     UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "tail is less than head");
+        // }
+        //
+        // unsigned available = tail - head;
+        // // There is an event in the completion queue that is ready to be used
+        // if (available) {
+        //     // Tell the user the location of the event
+        //     *cqe_ptr = &ring->cq.cqes[head & mask];
+        //     // Return0 to indicate success
+        //     return 0;
+        // } else {
+        //     *cqe_ptr = nullptr;
+        //     unsigned advancable = get_packets_advancable(ch);
+        //     // Since we are caught up, take the opportunity to mark packets as clear
+        //     // Putting it inside if might give better performance what advancing with 0
+        //     if(advancable) {
+        //         clear_packets(ch, get_packets_advancable(ch));
+        //     }
+        //     return -EAGAIN;
+        // }
     }
 
     inline __attribute__((always_inline)) unsigned get_packets_advancable(size_t ch) {
