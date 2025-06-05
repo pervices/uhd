@@ -271,9 +271,9 @@ public:
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    usleep(10);
-                    // Do nothing
-                    // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
+                    // Yield to allow other threads to act since we are caught up
+                    // Not yielding may cause external threads to never wake up from sleep_for
+                    std::this_thread::yield();
                 }
             }
 
@@ -344,6 +344,10 @@ public:
                     align_message_printed = true;
                     // Override overflow error with alignment error to indicate that UHD was unable to fully recover from the overflow
                     metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
+
+                    // Never yield may cause sleep_for to never exit
+                    // This yield exists because the yield while polling for packets doesn't trigger if we are severely overflowing, but this will
+                    std::this_thread::yield();
                 } else {
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                         if(vita_md[ch].tsf != latest_packet) {
