@@ -309,7 +309,7 @@ public:
                 }
             }
 
-            for(size_t ch = 0; ch < 1 /*_NUM_CHANNELS*/; ch++) {
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
