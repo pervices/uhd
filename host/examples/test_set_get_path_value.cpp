@@ -19,9 +19,9 @@ namespace
 		usrp->get_tree_value(path, value);
 		usrp->set_tree_value(path, value);
 	    } catch (uhd::runtime_error &err) {
-		std::cout << err << std::endl;
+		std::cout << err.what() << std::endl;
 	    } catch(uhd::type_error &err) {
-		std::cout << err << std::endl;
+		std::cout << err.what() << std::endl;
 	    }
 
             std::cout << value << std::endl;
@@ -39,9 +39,9 @@ namespace
 	    usrp->get_tree_value(path, value);
 	    usrp->set_tree_value(path, value);
 	} catch (uhd::runtime_error &err) {
-	    std::cout << err << std::endl;
+	    std::cout << err.what() << std::endl;
 	} catch (uhd::type_error &err) {
-	    std::cout << err << std::endl;
+	    std::cout << err.what() < std::endl;
 	}
 
         std::cout << value << std::endl;
@@ -58,9 +58,9 @@ namespace
 	    usrp->get_tree_value(path, value);
 	    usrp->set_tree_value(path, value);
 	} catch (uhd::runtime_error &err) {
-	    std::cout << err << std::endl;	
+	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
-	    std::cout << err << std::endl;
+	    std::cout << err.what() << std::endl;
 	}
 
         std::cout << value << std::endl;
@@ -77,9 +77,9 @@ namespace
 	    usrp->get_tree_value(path, value);
 	    usrp->set_tree_value(path, value);
 	} catch (uhd::runtime_error &err) {
-	    std::cout << err << std::endl;	
+	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
-	    std::cout << err << std::endl;
+	    std::cout << err.what() << std::endl;
 	}
 
         std::cout << value << std::endl;
@@ -98,9 +98,9 @@ namespace
 		usrp->get_tree_value(path, value);
 		usrp->set_tree_value(path, value);
 	    } catch (uhd::runtime_error &err) {
-		std::cout << err << std::endl;	
+		std::cout << err.what() << std::endl;	
 	    } catch(uhd::type_error &err) {
-		std::cout << err << std::endl;
+		std::cout << err.what() << std::endl;
 	    }
         }
     }
@@ -116,9 +116,9 @@ namespace
 	    usrp->get_tree_value(path, value);
 	    usrp->set_tree_value(path, value);
 	} catch (uhd::runtime_error &err) {
-	    std::cout << err << std::endl;	
+	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
-	    std::cout << err << std::endl;
+	    std::cout << err.what() << std::endl;
 	}
 
         std::cout << value.get_real_secs() << std::endl;
@@ -140,9 +140,9 @@ namespace
 	    // Set new value.
 	    usrp->set_tree_value(path, expected);
 	} catch (uhd::runtime_error &err) {
-	    std::cout << err << std::endl;	
+	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
-	    std::cout << err << std::endl;
+	    std::cout << err.what() << std::endl;
 	}
 
         // Get the newly changed value.
@@ -156,9 +156,9 @@ namespace
 	    // Reapply the old value.
 	    usrp->set_tree_value(path, old);
 	} catch (uhd::runtime_error &err) {
-	    std::cout << err << std::endl;	
+	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
-	    std::cout << err << std::endl;
+	    std::cout << err.what() << std::endl;
 	}
         std::cout << changed << std::endl;
         std::cout << old << std::endl;
@@ -186,9 +186,9 @@ namespace
 		usrp->get_tree_value(path, old);
 		usrp->set_tree_value(path, old);
 	    } catch (uhd::runtime_error &err) {
-		std::cout << err << std::endl;	
+		std::cout << err.what() << std::endl;	
 	    } catch(uhd::type_error &err) {
-		std::cout << err << std::endl;
+		std::cout << err.what() << std::endl;
 	    }
 	    std::cout << old << std::endl;
 	}
@@ -212,9 +212,9 @@ namespace
 		    usrp->get_tree_value(path, old);
 		    usrp->set_tree_value(path, old);
 		} catch (uhd::runtime_error &err) {
-		    std::cout << err << std::endl;	
+		    std::cout << err.what() << std::endl;	
 		} catch(uhd::type_error &err) {
-		    std::cout << err << std::endl;
+		    std::cout << err.what() << std::endl;
 		}
                 std::cout << old << std::endl;
             }
@@ -238,9 +238,9 @@ namespace
 		    usrp->get_tree_value(path, old);
 		    usrp->set_tree_value(path, old);
 		} catch (uhd::runtime_error &err) {
-		    std::cout << err << std::endl;	
+		    std::cout << err.what() << std::endl;	
 		} catch(uhd::type_error &err) {
-		    std::cout << err << std::endl;
+		    std::cout << err.what() << std::endl;
 		}
                 std::cout << old << std::endl;
             }
