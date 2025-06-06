@@ -41,7 +41,7 @@ namespace
 	} catch (uhd::runtime_error &err) {
 	    std::cout << err.what() << std::endl;
 	} catch (uhd::type_error &err) {
-	    std::cout << err.what() < std::endl;
+	    std::cout << err.what() << std::endl;
 	}
 
         std::cout << value << std::endl;
