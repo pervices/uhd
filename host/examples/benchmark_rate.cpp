@@ -123,6 +123,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
 
     while (true) {
+        usleep(10);
         if (burst_timer_elapsed) {
             rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
             return;

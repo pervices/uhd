@@ -292,6 +292,8 @@ public:
                 }
             }
 
+            std::cout << "next_packet[ch].length: " << next_packet[0].length << std::endl;
+
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
                 vita_md[ch].num_packet_words32 = (next_packet[ch].length + _TRAILER_SIZE) / sizeof(uint32_t);
