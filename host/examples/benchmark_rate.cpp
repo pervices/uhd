@@ -82,7 +82,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     bool rx_stream_now)
 {
     if (elevate_priority) {
-        uhd::set_thread_priority_safe();
+        uhd::set_thread_priority_safe(0, false);
         uhd::set_thread_affinity_active_core();
     }
 
