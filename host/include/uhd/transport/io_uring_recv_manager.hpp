@@ -117,8 +117,8 @@ private:
 
         // Marks all events in the cache as completed
         io_uring* ring = access_io_urings(ch);
-        if(cached_cqe_consumed[ch] > 0) {
-            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), cached_cqe_consumed[ch]);
+        if(_total_cached_cqe[ch] > 0) {
+            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
         }
 
         // Get new completion events
@@ -135,10 +135,7 @@ private:
             *cqe_ptr = completion_cache[ch][0];
             return 0;
         } else {
-            if(r != -EAGAIN) {
-                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Unexpected error in peek");
-                std::cout << "r: " << r << std::endl;
-            }
+            // If r == 0 or r == -EAGAIN, all other results are impossible
             // Set cqe_ptr to nullptr to avoid non deterministic behaviour if the return value is checked wrong
             *cqe_ptr = nullptr;
             // Marks the cache as empty and that no samples from it have been consumed since io_uring_peek_batch_cqe cleared it
