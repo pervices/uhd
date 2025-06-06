@@ -22,7 +22,10 @@ namespace
 		std::cout << err.what() << std::endl;
 	    } catch(uhd::type_error &err) {
 		std::cout << err.what() << std::endl;
+	    } catch(uhd::lookup_error &err) {
+		std::cout << err.what() << std::endl;
 	    }
+
 
             std::cout << value << std::endl;
         }
@@ -42,7 +45,10 @@ namespace
 	    std::cout << err.what() << std::endl;
 	} catch (uhd::type_error &err) {
 	    std::cout << err.what() << std::endl;
+	} catch(uhd::lookup_error &err) {
+	    std::cout << err.what() << std::endl;
 	}
+
 
         std::cout << value << std::endl;
     }
@@ -61,7 +67,10 @@ namespace
 	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
 	    std::cout << err.what() << std::endl;
+	} catch(uhd::lookup_error &err) {
+	    std::cout << err.what() << std::endl;
 	}
+
 
         std::cout << value << std::endl;
     }
@@ -80,7 +89,10 @@ namespace
 	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
 	    std::cout << err.what() << std::endl;
+	} catch(uhd::lookup_error &err) {
+	    std::cout << err.what() << std::endl;
 	}
+
 
         std::cout << value << std::endl;
     }
@@ -101,7 +113,10 @@ namespace
 		std::cout << err.what() << std::endl;	
 	    } catch(uhd::type_error &err) {
 		std::cout << err.what() << std::endl;
+	    } catch(uhd::lookup_error &err) {
+		std::cout << err.what() << std::endl;
 	    }
+
         }
     }
 
@@ -118,6 +133,8 @@ namespace
 	} catch (uhd::runtime_error &err) {
 	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
+	    std::cout << err.what() << std::endl;
+	} catch(uhd::lookup_error &err) {
 	    std::cout << err.what() << std::endl;
 	}
 
@@ -143,7 +160,10 @@ namespace
 	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
 	    std::cout << err.what() << std::endl;
+	} catch(uhd::lookup_error &err) {
+	    std::cout << err.what() << std::endl;
 	}
+
 
         // Get the newly changed value.
         int changed;
@@ -159,7 +179,10 @@ namespace
 	    std::cout << err.what() << std::endl;	
 	} catch(uhd::type_error &err) {
 	    std::cout << err.what() << std::endl;
+	} catch(uhd::lookup_error &err) {
+	    std::cout << err.what() << std::endl;
 	}
+
         std::cout << changed << std::endl;
         std::cout << old << std::endl;
     }
@@ -189,7 +212,10 @@ namespace
 		std::cout << err.what() << std::endl;	
 	    } catch(uhd::type_error &err) {
 		std::cout << err.what() << std::endl;
+	    } catch(uhd::lookup_error &err) {
+		std::cout << err.what() << std::endl;
 	    }
+
 	    std::cout << old << std::endl;
 	}
         // TX Paths.
@@ -215,7 +241,10 @@ namespace
 		    std::cout << err.what() << std::endl;	
 		} catch(uhd::type_error &err) {
 		    std::cout << err.what() << std::endl;
+		} catch(uhd::lookup_error &err) {
+		    std::cout << err.what() << std::endl;
 		}
+
                 std::cout << old << std::endl;
             }
         }
@@ -241,7 +270,10 @@ namespace
 		    std::cout << err.what() << std::endl;	
 		} catch(uhd::type_error &err) {
 		    std::cout << err.what() << std::endl;
+		} catch(uhd::lookup_error &err) {
+		    std::cout << err.what() << std::endl;
 		}
+
                 std::cout << old << std::endl;
             }
         }
