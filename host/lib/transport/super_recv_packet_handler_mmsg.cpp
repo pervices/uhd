@@ -678,11 +678,9 @@ private:
                 std::cout << message;
 
                 oflows_printed += oflows_to_print;
-            } else {
-                // Sleep until polling again
-                ::usleep(250000);
             }
-
+            // Sleep until polling again
+            ::usleep(250000);
         }
     }
 
