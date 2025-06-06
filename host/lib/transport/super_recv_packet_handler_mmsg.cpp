@@ -309,7 +309,7 @@ public:
                 }
             }
 
-            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+            for(size_t ch = 0; ch < 1 /*_NUM_CHANNELS*/; ch++) {
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
@@ -342,34 +342,34 @@ public:
                 oflow_message_printed = true;
             }
 
-            if(realignment_required) [[unlikely]] {
-                if(realignment_attempts >= max_realignment_attempts) {
-                    if(!align_message_printed) {
-                        UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
-                    }
-                    align_message_printed = true;
-                    // Override overflow error with alignment error to indicate that UHD was unable to fully recover from the overflow
-                    metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
-
-                    // Never yield may cause sleep_for to never exit
-                    // This yield exists because the yield while polling for packets doesn't trigger if we are severely overflowing, but this will
-                    usleep(10);
-                    // std::this_thread::yield();
-                } else {
-                    for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
-                        if(vita_md[ch].tsf != latest_packet) {
-                            // Drop this packet to allow the channel to catch up
-                            recv_manager->advance_packet(ch);
-                        }
-                    }
-                    realignment_attempts++;
-                    // Start a new iteration of the check to see if the packets are aligned now
-                    continue;
-                }
-            } else {
-                // Reset realignment attempt counter
-                realignment_attempts = 0;
-            }
+            // if(realignment_required) [[unlikely]] {
+            //     if(realignment_attempts >= max_realignment_attempts) {
+            //         if(!align_message_printed) {
+            //             UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
+            //         }
+            //         align_message_printed = true;
+            //         // Override overflow error with alignment error to indicate that UHD was unable to fully recover from the overflow
+            //         metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
+            //
+            //         // Never yield may cause sleep_for to never exit
+            //         // This yield exists because the yield while polling for packets doesn't trigger if we are severely overflowing, but this will
+            //         usleep(10);
+            //         // std::this_thread::yield();
+            //     } else {
+            //         for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+            //             if(vita_md[ch].tsf != latest_packet) {
+            //                 // Drop this packet to allow the channel to catch up
+            //                 recv_manager->advance_packet(ch);
+            //             }
+            //         }
+            //         realignment_attempts++;
+            //         // Start a new iteration of the check to see if the packets are aligned now
+            //         continue;
+            //     }
+            // } else {
+            //     // Reset realignment attempt counter
+            //     realignment_attempts = 0;
+            // }
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
             // Number of samples to copy to return to the user in this packet
