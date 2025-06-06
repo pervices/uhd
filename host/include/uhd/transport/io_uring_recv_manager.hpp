@@ -122,7 +122,11 @@ private:
         }
 
         // Get new completion events
-        int r = io_uring_peek_batch_cqe(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE);
+        struct __kernel_timespec time_limit;
+        memset(&time_limit, 0, sizeof(time_limit));
+        time_limit.tv_sec = 1;
+        time_limit.tv_nsec = 0;
+        int r = io_uring_wait_cqes(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE, &time_limit, 0);
 
         // If events ready
         // Not actually likely, just marked as such since it is more important
