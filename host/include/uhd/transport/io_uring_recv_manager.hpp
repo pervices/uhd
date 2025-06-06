@@ -126,11 +126,11 @@ private:
         memset(&time_limit, 0, sizeof(time_limit));
         time_limit.tv_sec = 0;
         time_limit.tv_nsec = 1000;
-        int r = io_uring_wait_cqes(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE, &time_limit, 0);
+        int r = io_uring_wait_cqes(ring, completion_cache[ch], 1, &time_limit, 0);
 
         // If events ready
         // Not actually likely, just marked as such since it is more important
-        if(r > 0) [[likely]] {
+        if(r == 0) [[likely]] {
             // Reset the number of cached events consumed
             cached_cqe_consumed[ch] = 0;
             // Update the number of events in the cache
