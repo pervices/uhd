@@ -750,6 +750,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     const int64_t usecs = int64_t((duration - secs) * 1e6);
     std::this_thread::sleep_for(
         std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+    sleep(secs);
+    usleep(usecs);
     UHD_LOG_ERROR("BENCHMARK_RATE", "T2");
 
     // interrupt and join the threads
