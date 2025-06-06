@@ -192,7 +192,7 @@ public:
         overflow_messenger.join();
     }
 
-    bool first_packet_received = false;
+    size_t realignment_attempts = 0;
 
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
         const size_t nsamps_per_buff,
@@ -250,7 +250,6 @@ public:
 
         // Limit for how many time realignment will be attempted before giving up
         const size_t max_realignment_attempts = 100;
-        size_t realignment_attempts = 0;
 
         // Main receive loop
         while(samples_received < nsamps_per_buff) [[likely]] {
