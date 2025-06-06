@@ -354,8 +354,8 @@ public:
 
                     // Never yield may cause sleep_for to never exit
                     // This yield exists because the yield while polling for packets doesn't trigger if we are severely overflowing, but this will
-                    usleep(10);
-                    // std::this_thread::yield();
+                    // usleep(10);
+                    std::this_thread::yield();
                 } else {
                     for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                         if(vita_md[ch].tsf != latest_packet) {
