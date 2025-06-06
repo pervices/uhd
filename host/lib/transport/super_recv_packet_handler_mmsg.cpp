@@ -370,7 +370,7 @@ public:
                 }
             } else {
                 // Reset realignment attempt counter
-                // realignment_attempts = 0;
+                realignment_attempts = 0;
             }
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
