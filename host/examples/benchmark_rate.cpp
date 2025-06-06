@@ -748,8 +748,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     UHD_LOG_ERROR("BENCHMARK_RATE", "T1");
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
-    std::this_thread::sleep_for(
-        std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+    // std::this_thread::sleep_for(
+        // std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
     sleep(secs);
     usleep(usecs);
     UHD_LOG_ERROR("BENCHMARK_RATE", "T2");
