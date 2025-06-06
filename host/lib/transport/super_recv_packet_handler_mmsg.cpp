@@ -672,7 +672,7 @@ private:
             // Print a D for every recv command that's had an overflow since the last iteration of this loop
             if(oflows_to_print) {
                 // Only print up to 50 Ds at a time, skip any extra since more will just clog up the logs
-                std::string message(std::min(oflows_to_print, (uint64_t) 50), 'D');
+                std::string message(std::min(oflows_to_print, (uint64_t) 1), 'D');
                 // Print without the normal UHD formatting to keep the output format the same as Ettus
                 std::cout << message;
 
