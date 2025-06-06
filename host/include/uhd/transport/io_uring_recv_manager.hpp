@@ -135,6 +135,10 @@ private:
             *cqe_ptr = completion_cache[ch][0];
             return 0;
         } else {
+            if(r != -EAGAIN) {
+                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Unexpected error in peek");
+                std::cout << "r: " << r << std::endl;
+            }
             // Set cqe_ptr to nullptr to avoid non deterministic behaviour if the return value is checked wrong
             *cqe_ptr = nullptr;
             // Marks the cache as empty and that no samples from it have been consumed since io_uring_peek_batch_cqe cleared it
