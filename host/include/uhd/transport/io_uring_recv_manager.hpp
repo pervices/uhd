@@ -134,7 +134,7 @@ private:
             // Reset the number of cached events consumed
             cached_cqe_consumed[ch] = 0;
             // Update the number of events in the cache
-            _total_cached_cqe[ch] = r;
+            _total_cached_cqe[ch] = 1;
             // Provide the first event in the cache to the requester
             *cqe_ptr = completion_cache[ch][0];
             return 0;
