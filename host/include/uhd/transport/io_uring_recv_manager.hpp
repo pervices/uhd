@@ -107,7 +107,6 @@ private:
      *
      * @return On success 0 is returned and cqe_ptr is set to the next event in the cache. Returns -EAGAIN if no events are ready
      */
-    size_t packet_size = 0;
     inline __attribute__((always_inline)) int peek_next_cqe(size_t ch, struct io_uring_cqe **cqe_ptr)
     {
         // If there are still unused completion events in the cache, grab those
@@ -124,12 +123,7 @@ private:
         }
 
         // Get new completion events
-        int r;
-        if(_total_cached_cqe[ch] == 0) {
-            r = io_uring_peek_batch_cqe(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE);
-        } else {
-            r = _total_cached_cqe[ch];
-        }
+        int r = io_uring_peek_batch_cqe(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE);
 
         // If events ready
         // Not actually likely, just marked as such since it is more important
