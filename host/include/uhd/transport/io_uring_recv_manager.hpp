@@ -158,7 +158,7 @@ private:
      * Arms recv_multishot
      * Must be called after flushing the sockets and after any time the completion queue gets full
      */
-    void arm_recv_multishot(size_t ch, int fd);
+    static void arm_recv_multishot(io_uring_recv_manager* self, size_t ch, int fd);
 
     /**
      * Number of completion events in the cache
