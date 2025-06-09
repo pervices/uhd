@@ -643,7 +643,7 @@ private:
 
     static void send_overflow_messages_loop(recv_packet_handler_mmsg* self) {
         // Set priority to the lowest
-        uhd::set_thread_priority_safe(0, false);
+        uhd::set_thread_priority_safe(-1, false);
 
         // Number of oflows already printed
         uint64_t oflows_printed = 0;
