@@ -355,7 +355,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     usrp->dump_tree("");
 
-    uhd_error return_error;
+    uhd_error return_error = UHD_ERROR_NONE;
 
     return_error = test_strings(usrp);
     return_error = test_ints(usrp);
