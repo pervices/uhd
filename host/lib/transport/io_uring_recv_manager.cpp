@@ -153,8 +153,6 @@ void io_uring_recv_manager::arm_recv_multishot(io_uring_recv_manager* self, size
 
     int ret = io_uring_submit(ring);
 
-    sleep(1);
-
     // Error detection for submit
     // These should all be impossible
     if(ret > 1) {
