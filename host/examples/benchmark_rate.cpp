@@ -71,7 +71,6 @@ bool unexpected_error_printed = false;
 
 void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const std::string& rx_cpu,
-    uhd::rx_streamer::sptr rx_stream,
     size_t spb,
     bool random_nsamps,
     const start_time_type& start_time,
@@ -79,12 +78,14 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     bool elevate_priority,
     double adjusted_rx_delay,
     double user_rx_delay,
-    bool rx_stream_now)
+    bool rx_stream_now,
+    uhd::stream_args_t stream_args)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
         uhd::set_thread_affinity_active_core();
     }
+    uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -592,11 +593,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 uhd::stream_args_t stream_args(rx_cpu, rx_otw);
                 stream_args.channels             = this_streamer_channels;
                 stream_args.args                 = uhd::device_addr_t(rx_stream_args);
-                uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
                 auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
                     benchmark_rx_rate(usrp,
                         rx_cpu,
-                        rx_stream,
                         spb,
                         random_nsamps,
                         start_time,
@@ -604,7 +603,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         elevate_priority,
                         adjusted_rx_delay,
                         rx_delay,
-                        rx_stream_now);
+                        rx_stream_now,
+                        stream_args);
                 });
                 uhd::set_thread_name(rx_thread, "bmark_rx_strm" + std::to_string(count));
             }
@@ -613,11 +613,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             uhd::stream_args_t stream_args(rx_cpu, rx_otw);
             stream_args.channels             = rx_channel_nums;
             stream_args.args                 = uhd::device_addr_t(rx_stream_args);
-            uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
             auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
                 benchmark_rx_rate(usrp,
                     rx_cpu,
-                    rx_stream,
                     spb,
                     random_nsamps,
                     start_time,
@@ -625,7 +623,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     elevate_priority,
                     adjusted_rx_delay,
                     rx_delay,
-                    rx_stream_now);
+                    rx_stream_now,
+                    stream_args);
             });
             uhd::set_thread_name(rx_thread, "bmark_rx_stream");
         }
