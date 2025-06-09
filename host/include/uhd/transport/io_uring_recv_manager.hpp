@@ -114,7 +114,7 @@ private:
             *cqe_ptr = completion_cache[ch][cached_cqe_consumed[ch]];
             return 0;
         }
-        ::usleep(1);
+        ::usleep(10);
 
         // Marks all events in the cache as completed
         io_uring* ring = access_io_urings(ch);
