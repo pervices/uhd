@@ -36,6 +36,7 @@ namespace
 
             std::cout << value << std::endl;
         }
+	return UHD_ERROR_NONE;
     }
 
     uhd_error test_ints(uhd::usrp::multi_usrp::sptr& usrp)
@@ -63,6 +64,7 @@ namespace
 	}
 
         std::cout << value << std::endl;
+	return UHD_ERROR_NONE;
     }
 
     uhd_error test_doubles(uhd::usrp::multi_usrp::sptr& usrp)
@@ -90,6 +92,7 @@ namespace
 	}
 
         std::cout << value << std::endl;
+	return UHD_ERROR_NONE;
     }
 
     uhd_error test_bools(uhd::usrp::multi_usrp::sptr& usrp)
@@ -117,6 +120,7 @@ namespace
 	}
 
         std::cout << value << std::endl;
+	return UHD_ERROR_NONE;
     }
 
     uhd_error test_stream_cmd(uhd::usrp::multi_usrp::sptr& usrp)
@@ -146,6 +150,7 @@ namespace
 	    }
 
         }
+	return UHD_ERROR_NONE;
     }
 
     uhd_error test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
@@ -173,6 +178,7 @@ namespace
 	}
 
         std::cout << value.get_real_secs() << std::endl;
+	return UHD_ERROR_NONE;
     }
 
     uhd_error test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
@@ -231,6 +237,7 @@ namespace
 
         std::cout << changed << std::endl;
         std::cout << old << std::endl;
+	return UHD_ERROR_NONE;
     }
 
     uhd_error test_trigger_settings(uhd::usrp::multi_usrp::sptr& usrp)
@@ -342,6 +349,7 @@ namespace
             }
         }
     }
+    return UHD_ERROR_NONE;
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[])
