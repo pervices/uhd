@@ -764,6 +764,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // interrupt and join the threads
     burst_timer_elapsed = true;
+    std::cout << "Burst timer elapsed\n";
     thread_group.join_all();
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
