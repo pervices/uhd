@@ -119,7 +119,7 @@ private:
         // Marks all events in the cache as completed
         io_uring* ring = access_io_urings(ch);
         if(_total_cached_cqe[ch] > 0) {
-            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
+            // io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
         }
 
         // Get new completion events
