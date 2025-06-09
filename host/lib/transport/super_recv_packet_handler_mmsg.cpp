@@ -248,7 +248,6 @@ public:
 
         // Limit for how many time realignment will be attempted before giving up
         const size_t max_realignment_attempts = 100;
-        size_t realignment_attempts = 0;
 
         // Main receive loop
         while(samples_received < nsamps_per_buff) [[likely]] {
@@ -337,7 +336,7 @@ public:
             }
 
             if(realignment_required) [[unlikely]] {
-                if(realignment_attempts >= max_realignment_attempts) {
+                if(_realignment_attempts >= max_realignment_attempts) {
                     if(!align_message_printed) {
                         UHD_LOGGER_ERROR("STREAMER") << "Failed to re-align channels after overflow";
                     }
@@ -351,13 +350,13 @@ public:
                             recv_manager->advance_packet(ch);
                         }
                     }
-                    realignment_attempts++;
+                    _realignment_attempts++;
                     // Start a new iteration of the check to see if the packets are aligned now
                     continue;
                 }
             } else {
                 // Reset realignment attempt counter
-                realignment_attempts = 0;
+                _realignment_attempts = 0;
             }
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
@@ -506,6 +505,8 @@ private:
     // An spb was requested that was not a multiple of packet length
     uint_fast8_t _suboptimal_spb = false;
 
+    // Number of attempts to realign after the last successfull attempt
+    size_t _realignment_attempts = 0;
     // Only print these messages once per recv call
     bool align_message_printed = false;
 
