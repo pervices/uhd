@@ -109,33 +109,33 @@ private:
      */
     inline __attribute__((always_inline)) int peek_next_cqe(size_t ch, struct io_uring_cqe **cqe_ptr)
     {
-        // If there are still unused completion events in the cache, grab those
-        if(_total_cached_cqe[ch] > cached_cqe_consumed[ch]) {
-            *cqe_ptr = completion_cache[ch][cached_cqe_consumed[ch]];
-            return 0;
-        }
-        ::usleep(10);
-
-        // Marks all events in the cache as completed
-        io_uring* ring = access_io_urings(ch);
-        if(_total_cached_cqe[ch] > 0) {
-            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
-        }
-
-        // Get new completion events
-        int r = io_uring_peek_batch_cqe(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE);
-
-        // If events ready
-        // Not actually likely, just marked as such since it is more important
-        if(r > 0) [[likely]] {
-            // Reset the number of cached events consumed
-            cached_cqe_consumed[ch] = 0;
-            // Update the number of events in the cache
-            _total_cached_cqe[ch] = r;
-            // Provide the first event in the cache to the requester
-            *cqe_ptr = completion_cache[ch][0];
-            return 0;
-        } else {
+        // // If there are still unused completion events in the cache, grab those
+        // if(_total_cached_cqe[ch] > cached_cqe_consumed[ch]) {
+        //     *cqe_ptr = completion_cache[ch][cached_cqe_consumed[ch]];
+        //     return 0;
+        // }
+        // ::usleep(10);
+        //
+        // // Marks all events in the cache as completed
+        // io_uring* ring = access_io_urings(ch);
+        // if(_total_cached_cqe[ch] > 0) {
+        //     io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
+        // }
+        //
+        // // Get new completion events
+        // int r = io_uring_peek_batch_cqe(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE);
+        //
+        // // If events ready
+        // // Not actually likely, just marked as such since it is more important
+        // if(r > 0) [[likely]] {
+        //     // Reset the number of cached events consumed
+        //     cached_cqe_consumed[ch] = 0;
+        //     // Update the number of events in the cache
+        //     _total_cached_cqe[ch] = r;
+        //     // Provide the first event in the cache to the requester
+        //     *cqe_ptr = completion_cache[ch][0];
+        //     return 0;
+        // } else {
             // If r == 0 or r == -EAGAIN, all other results are impossible
             // Set cqe_ptr to nullptr to avoid non deterministic behaviour if the return value is checked wrong
             *cqe_ptr = nullptr;
@@ -144,7 +144,7 @@ private:
             cached_cqe_consumed[ch] = 0;
             // No events are ready, inform the user via returning -EAGAIN
             return -EAGAIN;
-        }
+        // }
     }
 
     /**
