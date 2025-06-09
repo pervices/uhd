@@ -44,8 +44,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
     }
 
     for(size_t ch = 0; ch < _num_ch; ch++) {
-        std::thread tmp(arm_recv_multishot, this, ch, _recv_sockets[ch]);
-        tmp.join();
+        arm_recv_multishot(ch, _recv_sockets[ch]);
     }
 }
 
@@ -74,7 +73,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     // IORING_SETUP_CQSIZE: pay attention to cq_entries
     // TODO: confirm if IORING_SETUP_NO_SQARRAY helps
     // IORING_SETUP_NO_SQARRAY: for some reason this fixes dropped packets when streaming multiple channels
-    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ /*IORING_SETUP_SINGLE_ISSUER |*/ IORING_SETUP_CQSIZE | IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG;
+    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE | IORING_SETUP_COOP_TASKRUN | IORING_SETUP_TASKRUN_FLAG;
     // Select the core to bind the kernel thread to
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set.
     //uring_params.sq_thread_cpu;
@@ -129,8 +128,8 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     io_uring_buf_ring_advance(*buffer_ring, PACKET_BUFFER_SIZE);
 }
 
-void io_uring_recv_manager::arm_recv_multishot(io_uring_recv_manager* self, size_t ch, int fd) {
-    struct io_uring* ring = self->access_io_urings(ch, 0);
+void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
+    struct io_uring* ring = access_io_urings(ch, 0);
 
     // Get submission queue
     struct io_uring_sqe *sqe;
@@ -146,7 +145,7 @@ void io_uring_recv_manager::arm_recv_multishot(io_uring_recv_manager* self, size
     // buf is nullptr and len 0 since the buffer is provided by buffer_ring instead of this function
     io_uring_prep_recv_multishot(sqe, fd, nullptr, 0, 0);
 
-    sqe->buf_group = self->_bgid_storage[ch];
+    sqe->buf_group = _bgid_storage[ch];
 
     // IOSQE_BUFFER_SELECT: indicates to use a registered buffer from io_uring_buf_ring_add
     io_uring_sqe_set_flags(sqe, IOSQE_BUFFER_SELECT);
@@ -191,7 +190,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // If IORING_CQE_F_MORE is not present multishot has stopped and must be restarted
         if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) [[unlikely]] {
             // Issues new multishot request
-            // arm_recv_multishot(ch, _recv_sockets[ch]);
+            arm_recv_multishot(ch, _recv_sockets[ch]);
         }
 
         info->length = cqe_ptr->res;
