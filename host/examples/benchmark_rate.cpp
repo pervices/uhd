@@ -325,7 +325,6 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Event code: " << async_md.event_code
                           << std::endl;
                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "Unexpected event on async recv, continuing..." << std::endl;
-                break;
         }
     }
 }
@@ -749,10 +748,19 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     } else {
         duration += adjusted_tx_delay;
     }
+
+
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
-    std::this_thread::sleep_for(
-        std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+    // std::this_thread::sleep_for(
+        // std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+
+    timespec delay_ts;
+    clock_gettime(CLOCK_BOOTTIME, &delay_ts);
+    delay_ts.tv_sec+=secs;
+    //delay_ts.tv_nsec+=(usecs * 1000);
+
+    clock_nanosleep(CLOCK_BOOTTIME, TIMER_ABSTIME, &delay_ts, nullptr);
 
     // interrupt and join the threads
     burst_timer_elapsed = true;
