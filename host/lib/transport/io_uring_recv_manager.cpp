@@ -194,8 +194,8 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         }
 
         info->length = cqe_ptr->res;
-        info->vita_header = access_packet_vita_header(ch, 0, cached_cqe_consumed[ch] & PACKET_BUFFER_MASK);
-        info->samples = access_packet_samples(ch, 0, cached_cqe_consumed[ch] & PACKET_BUFFER_MASK);
+        info->vita_header = access_packet_vita_header(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+        info->samples = access_packet_samples(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
 
     // All buffers are used (should be unreachable)
     } else if (-cqe_ptr->res == ENOBUFS) {
