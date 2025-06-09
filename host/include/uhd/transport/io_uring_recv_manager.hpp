@@ -9,6 +9,7 @@
 #include <iostream>
 #include <liburing.h>
 #include <uhd/utils/log.hpp>
+#include <uhdlib/utils/system_time.hpp>
 
 #include <immintrin.h>
 
@@ -113,6 +114,12 @@ private:
         if(_total_cached_cqe[ch] > cached_cqe_consumed[ch]) {
             *cqe_ptr = completion_cache[ch][cached_cqe_consumed[ch]];
             return 0;
+        }
+
+        // DEBUG: 10us wait
+        uhd::time_spec_t start = uhd::get_system_time();
+        while(uhd::get_system_time() < start + 0.01) {
+
         }
 
         // Marks all events in the cache as completed
