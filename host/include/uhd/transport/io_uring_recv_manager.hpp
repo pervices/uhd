@@ -118,7 +118,7 @@ private:
 
         // DEBUG: 10us wait
         uhd::time_spec_t start = uhd::get_system_time();
-        while(uhd::get_system_time() < start + 0.01) {
+        while(uhd::get_system_time() < start + 1.0) {
 
         }
 
