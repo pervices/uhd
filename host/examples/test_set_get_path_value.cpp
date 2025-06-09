@@ -233,7 +233,7 @@ namespace
         std::cout << old << std::endl;
     }
 
-    uhd_err test_trigger_settings(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_trigger_settings(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
 
@@ -355,7 +355,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     usrp->dump_tree("");
 
-    uhd_err return_error;
+    uhd_error return_error;
 
     return_error = test_strings(usrp);
     return_error = test_ints(usrp);
