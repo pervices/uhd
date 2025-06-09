@@ -1,12 +1,14 @@
+#include <uhd/error.h>
 #include <uhd/utils/thread.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
+#include <uhd/error.h>
 
 namespace
 {
     const std::vector<std::string> channels = { "0", "1", "2", "3" };
 
-    uhd::uhd_error test_strings(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_strings(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
         for(const auto& channel : channels)
@@ -36,7 +38,7 @@ namespace
         }
     }
 
-    uhd::uhd_error test_ints(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_ints(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/blink";
@@ -63,7 +65,7 @@ namespace
         std::cout << value << std::endl;
     }
 
-    uhd::uhd_error test_doubles(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_doubles(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/link_max_rate";
@@ -90,7 +92,7 @@ namespace
         std::cout << value << std::endl;
     }
 
-    uhd::uhd_error test_bools(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_bools(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/clock_source/output";
@@ -117,7 +119,7 @@ namespace
         std::cout << value << std::endl;
     }
 
-    uhd::uhd_error test_stream_cmd(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_stream_cmd(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
         for(const auto& channel : channels)
@@ -146,7 +148,7 @@ namespace
         }
     }
 
-    uhd::uhd_error test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
         const std::string path = "/mboards/0/time/now";
@@ -173,7 +175,7 @@ namespace
         std::cout << value.get_real_secs() << std::endl;
     }
 
-    uhd::uhd_error test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
+    uhd_error test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
 
