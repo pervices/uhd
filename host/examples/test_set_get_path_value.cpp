@@ -348,8 +348,8 @@ namespace
                 std::cout << old << std::endl;
             }
         }
+	return UHD_ERROR_NONE;
     }
-    return UHD_ERROR_NONE;
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[])
