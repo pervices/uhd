@@ -42,10 +42,6 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
     for(size_t ch = 0; ch < _num_ch; ch++) {
         uring_init(ch);
     }
-
-    // for(size_t ch = 0; ch < _num_ch; ch++) {
-    //     arm_recv_multishot(ch, _recv_sockets[ch]);
-    // }
 }
 
 io_uring_recv_manager::~io_uring_recv_manager()
@@ -172,6 +168,14 @@ void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
 static bool tmp_arm_needed = true;
 
 void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
+    // arm_recv_multishot the first time this is called (which will be part of the first recv)
+    // For unknown reasons arming from a different thread causes sleeps in that thread to hang forever
+    for(size_t ch = 0; ch < _num_ch && io_uring_unarmed; ch++) {
+        arm_recv_multishot(ch, _recv_sockets[ch]);
+    }
+    io_uring_unarmed = false;
+
+
     for(size_t ch = 0; ch < _num_ch && tmp_arm_needed; ch++) {
         arm_recv_multishot(ch, _recv_sockets[ch]);
     }

@@ -97,6 +97,12 @@ protected:
         return access_packet_buffer(ch, ch_offset, p) + /* Vita header ends and samples begin at the first page boundary */ SIMD_ALIGNMENT;
     }
 
+    // Flag to indicate if io_uring needs to be armed
+    bool io_uring_unarmed = true;
+
+    // Flag to determine if a warning tell the user the gaps between recv calls is to long has been set
+    bool slow_consumer_warning_printed = false;
+
 // The constructor is protected since this class should never be instantiated on it's own, and should be created through subclasses
 protected:
 
@@ -111,9 +117,6 @@ protected:
     async_recv_manager( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet );
 
     ~async_recv_manager();
-
-    // Flag to determine if a warning tell the user the gaps between recv calls is to long has been set
-    bool slow_consumer_warning_printed = false;
 
 public:
     /**
