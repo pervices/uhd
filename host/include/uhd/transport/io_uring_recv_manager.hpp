@@ -21,7 +21,7 @@ class io_uring_recv_manager : public async_recv_manager {
 
 private:
     // Number of completion events to cache
-    static constexpr uint32_t COMPLETION_EVENT_CACHE_SIZE = PACKET_BUFFER_SIZE/8;
+    static constexpr uint32_t COMPLETION_EVENT_CACHE_SIZE = PACKET_BUFFER_SIZE;
 
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
