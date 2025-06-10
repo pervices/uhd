@@ -284,6 +284,7 @@ public:
                 } else {
                     // Set timeout if no other error occured and no samples received and no other error code present
                     if(metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
+                        std::cout << "Timeout on ch: " << samples_received << std::endl;
                         metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
                     }
                     return 0;
