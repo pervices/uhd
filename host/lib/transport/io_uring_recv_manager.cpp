@@ -68,18 +68,18 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     // Number of entries that can fit in the completion queue
     uring_params.cq_entries = NUM_CQ_URING_ENTRIES;
     // IORING_SETUP_IOPOLL: use busy poll instead of interrupts - only implemented for storage devices so far
-    // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall
-    // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests
+    // IORING_SETUP_SQ_AFF: Enables binding the kernel thread to a core
+    // IORING_SETUP_SQPOLL: allows io_uring_submit to skip syscall, not relevant since we (ideally) submit 1 event at the start
+    // IORING_SETUP_SINGLE_ISSUER: hint to the kernel that only 1 thread will submit requests, not set since the user may change the thread we are using
     // IORING_SETUP_CQSIZE: pay attention to cq_entries
-    // TODO: confirm if IORING_SETUP_NO_SQARRAY helps
-    // IORING_SETUP_NO_SQARRAY: for some reason this fixes dropped packets when streaming multiple channels
-    uring_params.flags = /*IORING_SETUP_SQ_AFF | */ /*IORING_SETUP_SQPOLL |*/ IORING_SETUP_SINGLE_ISSUER | IORING_SETUP_CQSIZE;
+    // IORING_SETUP_COOP_TASKRUN, IORING_SETUP_TASKRUN_FLAG: theoretically reduces how much io_uring interrupts other threads, experimentally does nothing
+    uring_params.flags = IORING_SETUP_CQSIZE;
     // Select the core to bind the kernel thread to
     // Does nothing unless flag IORING_SETUP_SQ_AFF is set.
     //uring_params.sq_thread_cpu;
     // Ignored if IORING_SETUP_SQPOLL not set
     // How long the Kernel busy wait thread will wait. If this time is exceed the next io_uring_submit will involve a syscall
-    uring_params.sq_thread_idle = 0xfffffff;
+    // uring_params.sq_thread_idle = 0;
     // Kernel sets this according to features supported
     // uring_params.features;
     // Does nothing unless flag IORING_SETUP_ATTACH_WQ is set
