@@ -43,9 +43,9 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         uring_init(ch);
     }
 
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        arm_recv_multishot(ch, _recv_sockets[ch]);
-    }
+    // for(size_t ch = 0; ch < _num_ch; ch++) {
+    //     arm_recv_multishot(ch, _recv_sockets[ch]);
+    // }
 }
 
 io_uring_recv_manager::~io_uring_recv_manager()
@@ -169,7 +169,13 @@ void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
     }
 }
 
+static bool tmp_arm_needed = true;
+
 void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
+    for(size_t ch = 0; ch < _num_ch && tmp_arm_needed; ch++) {
+        arm_recv_multishot(ch, _recv_sockets[ch]);
+    }
+    tmp_arm_needed = false;
 
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
