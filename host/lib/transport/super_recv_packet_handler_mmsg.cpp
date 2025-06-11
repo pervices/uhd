@@ -258,26 +258,33 @@ public:
             // Contains the location and length of the next packet for each channel
             std::vector<async_packet_info> next_packet(_NUM_CHANNELS);
 
-            size_t ch = 0;
+            // Bit field of the channels not ready yet
+            // Bit 0 = 1 when channel 0 hasn't a samples, bit 1 = 0 when channel 1 has received a packet
+            size_t ch_not_ready = (((size_t) 1) << _NUM_CHANNELS) - 1;
             // While not all channels have been obtained and timeout has not been reached
-            while(ch < _NUM_CHANNELS && recv_start_time + timeout > get_system_time()) {
-                recv_manager->get_next_async_packet_info(ch, &next_packet[ch]);
+            do {
+                for(size_t ch = 0; ch < _NUM_CHANNELS; ch ++) {
+                    // Mask blocking everything in ch_not_ready except the channel being checked
+                    size_t ch_not_ready_mask = ((size_t) 1) << ch;
+                    // If this channel doesn't have data
+                    if(ch_not_ready & ch_not_ready_mask) {
+                        recv_manager->get_next_async_packet_info(ch, &next_packet[ch]);
 
-                // Length is 0 if the packet is not ready yet
-                if(next_packet[ch].length != 0) {
-                    if(next_packet[ch].vita_header == nullptr || next_packet[ch].samples == nullptr) [[unlikely]] {
-                        printf("Should be unreachable\n");
+                        // If length is non 0, and vita_header and samples are not nullptr
+                        // All of these should be true or none
+                        // All are checked to make behaviour more predictable if there is an earlier bug
+                        if(next_packet[ch].length && next_packet[ch].vita_header && next_packet[ch].samples) {
+                            ch_not_ready = ch_not_ready & ~ch_not_ready_mask;
+                        } else {
+                            // Do nothing
+                            // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
+                        }
                     }
-                    // Move onto the next channel since this one is ready
-                    ch++;
-                } else {
-                    // Do nothing
-                    // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                 }
-            }
+            } while(ch_not_ready && recv_start_time + timeout > get_system_time());
 
-            // Check if timeout occured
-            if(ch < _NUM_CHANNELS) [[unlikely]] {
+            // Check if timeout occured (Any channels not ready)
+            if(ch_not_ready) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
                     return samples_received;
