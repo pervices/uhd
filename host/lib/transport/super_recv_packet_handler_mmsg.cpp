@@ -265,13 +265,12 @@ public:
 
                 // Length is 0 if the packet is not ready yet
                 if(next_packet[ch].length != 0) {
-                    if(next_packet[ch].vita_header == nullptr || next_packet[ch].samples == nullptr) {
+                    if(next_packet[ch].vita_header == nullptr || next_packet[ch].samples == nullptr) [[unlikely]] {
                         printf("Should be unreachable\n");
                     }
                     // Move onto the next channel since this one is ready
                     ch++;
                 } else {
-                    usleep(10);
                     // Do nothing
                     // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                 }
