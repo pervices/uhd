@@ -26,7 +26,7 @@ private:
     // Number of entries in each uring
     // Should be a power of 2 to avoid confusion since most kernels round this up to the next power of 2
     // Hard limit: 2 ^ 15
-    static constexpr uint32_t NUM_SQ_URING_ENTRIES = 16;
+    static constexpr uint32_t NUM_SQ_URING_ENTRIES = 32768;
     static constexpr uint32_t NUM_CQ_URING_ENTRIES = PACKET_BUFFER_SIZE;
     // These constants must be a power of 2. Documentation says most kernels will automatically rounds up to the next power of 2, experimentally not having them as a power of 2 causes some liburing functions to fail
     static_assert((NUM_SQ_URING_ENTRIES>0 && ((NUM_SQ_URING_ENTRIES & (NUM_SQ_URING_ENTRIES-1)) == 0)), "NUM_SQ_URING_ENTRIES must be a power of 2");
