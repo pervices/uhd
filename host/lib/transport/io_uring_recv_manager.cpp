@@ -192,7 +192,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // IORING_CQE_F_MORE indicates multishot will continue sending messages
         // If IORING_CQE_F_MORE is not present multishot has stopped and must be restarted
         if(! (cqe_ptr->flags & IORING_CQE_F_MORE)) [[unlikely]] {
-            // Issues new multishot request
+            // Issues new multishot request since this flag indicates the multishot stoped
             arm_recv_multishot(ch, _recv_sockets[ch]);
         }
 
@@ -207,9 +207,13 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         io_uring_cq_advance(ring, 1);
 
         if(!slow_consumer_warning_printed) {
-            UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+            UHD_LOG_WARNING("IO_URING_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
             slow_consumer_warning_printed = true;
         }
+
+        // Rearm multishot since it stops when the buffer is full
+        arm_recv_multishot(ch, _recv_sockets[ch]);
+
         info->length = 0;
         info->vita_header = nullptr;
         info->samples = nullptr;
