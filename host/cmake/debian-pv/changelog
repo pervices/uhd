@@ -1,3 +1,10 @@
+uhdpv (4.8.0.13-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Mitigating an issue where sleep commands never wake when creating an rx streamer and receiving from it in different threads
+  * Reducing performance impact of rx overflow message ("D")
+
+ -- Per Vices <packages@pervices.com>  Wed, 11 Jun 2025 12:02:54 -0400
+
 uhdpv (4.8.0.12-0ubuntu1) ubuntu_release; urgency=medium
 
   * Adding support for full tx Crimson
