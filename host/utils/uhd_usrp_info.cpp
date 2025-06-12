@@ -117,7 +117,7 @@ void parse_server_version(std::string server_version) {
     std::cout << "Server " << server_version.substr(branch_start, branch_end-branch_start) << std::endl;
     std::cout << "Server " << server_version.substr(revision_start, revision_end-revision_start) << std::endl;
     std::cout << "Server " << server_version.substr(rtm_start, rtm_end-rtm_start) << std::endl;
-    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, fpga_rev_end - fpga_rev_start);
+    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, fpga_rev_end - fpga_rev_start) << std::endl;
 }
 
 void parse_time_version(std::string time_version) {
@@ -128,6 +128,19 @@ void parse_time_version(std::string time_version) {
     std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start)-branch_start) << std::endl;
 }
 
+void parse_rx_version(std::string rx_version, size_t rx_chan) {
+    size_t rfe_rev_start = rx_version.find("Revision:");
+    
+    std::cout << "RFE" << rx_chan << " MCU Type: Rx" << std::endl;
+    std::cout << "Rx" << rx_chan << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
+}
+
+void parse_tx_version(std::string tx_version, size_t tx_chan) {
+    size_t rfe_rev_start = rx_version.find("Revision:");
+    
+    std::cout << "RFE" << rx_chan << " MCU Type: Tx" << std::endl;
+    std::cout << "Tx" << rx_chan << "MCU " << rx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
+}
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
@@ -228,7 +241,38 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    // FPGA FLAGS HERE
 
 	    parse_time_version(time_version);
-	    std::cout << "Time EEPROM: " << time_eeprom << std::endl;
+	    std::cout << "Time EEPROM: " << time_eeprom << std::endl << std::endl;
+
+            size_t num_tx_channels = dev->get_tx_num_channels();
+            size_t num_rx_channels = dev->get_rx_num_channels();
+
+	    std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
+	    std::cout << "Num Rx RFE: " << num_rx_channels << std::endl;
+	    
+	    for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
+		char path[50];
+		sprintf(path, "rx/%lu/fw_version", rx_chan);
+		std::string rx_version = get_from_tree(tree, i, path);
+		sprintf(path, "rx/%lu/eeprom", rx_chan);
+		std::string rx_eeprom = get_from_tree(tree, i, path);
+
+		parse_rx_version(rx_version, rx_chan);
+		std::cout << "Rx" << rx_chain << " MCU EEPROM: " << rx_eeprom << std::endl;
+	    }
+
+	    for (size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
+		char path[50];
+		sprintf(path, "tx/%lu/fw_version", tx_chan);
+		std::string tx_version = get_from_tree(tree, i, path);
+		sprintf(path, "tx/%lu/eeprom", rx_chan);
+		std::string tx_eeprom = get_from_tree(tree, i, path);
+
+		parse_tx_version(tx_version, tx_chan);
+		std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom << std::endl;
+	    }
+
+
+
 	}
 
         std::cout << "Device Type    : " << device_type << std::endl;
