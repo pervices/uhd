@@ -105,12 +105,14 @@ std::string extract_git_hash(std::string verbose_version) {
 
 void parse_server_version(std::string server_version) {
     size_t branch_start = server_version.find("Branch");
+    size_t branch_end = server_version.find('\n', branch_start);
     size_t revision_start = server_version.find("Revision");
+    size_t revision_end = server_version.find('\n', revision_start);
     size_t rtm_start = server_version.find("RTM");
-
-    std::cout << "Server " << server_version.substr(branch_start, server_version.find('\n', branch_start, revision_start)) << std::endl;
-    std::cout << "Server " << server_version.substr(revision_start, server_version.find('\n', revision_start, rtm_start)) << std::endl;
-    std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start)) << std::endl;
+    size_t rtm_end = server_version.find('\n', rtm_start);
+    std::cout << "Server " << server_version.substr(branch_start, branch_end) << std::endl;
+    std::cout << "Server " << server_version.substr(revision_start, revision_end) << std::endl;
+    std::cout << "Server " << server_version.substr(rtm_start, rtm_end) << std::endl;
 }
 
 
