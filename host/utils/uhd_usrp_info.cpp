@@ -216,7 +216,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    //USER@HOST HERE
 	    std::cout << "\nUHD Library Version: " << uhd::get_version_string() << std::endl; 
 	    std::cout << "Device Type: " << device_type << std::endl;
-	    std::cout << "serial: " << dit->first << std::endl;
+	    std::cout << "Serial: " << dit->first << std::endl;
 
 	    std::string server_version = silent_get_from_tree(tree, i, "server_version");
 	    std::string fpga_version = silent_get_from_tree(tree, i, "fw_version");
@@ -227,7 +227,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
 
 	    if (device_type == "crimson_tng") {
-		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << std::endl;
+		std::cout << "FPGA Flags: " << get_from_tree_double(tree, i, "system/is_full_tx") << std::endl;
 	    } else {
 		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
 		std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
