@@ -104,16 +104,13 @@ std::string extract_git_hash(std::string verbose_version) {
 }
 
 void parse_server_version(std::string server_version) {
-    std::string server_branch = "";
-    std::string server_revision = "";
-    std::string server_rtm = "";
-    sscanf(server_version, "Server Version : Branch: %s", server_branch);
-    sscanf(server_version, "Revision: %s", server_revision);
-    sscanf(server_version, "RTM: %s", server_rtm);
+    size_t branch_start = server_version.find("Branch: ");
+    size_t revision_start = server_version.find("Revision: ");
+    size_t rtm_start = server_version.find("RTM: ");
 
-    std::cout << "Server Branch: " << server_branch << std::endl;
-    std::cout << "Server Revision: " << server_revision << std::endl;
-    std::cout << "Server RTM: " << server_rtm << std::endl;
+    std::cout << "Server " << server_version.substr(branch_start, server_version.find('\n', branch_start)) << std::endl;
+    std::cout << "Server " << server_version.substr(revision_start, server_version.find('\n', revision_start)) << std::endl;
+    std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start)) << std::endl;
 }
 
 
@@ -200,14 +197,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 	if (hw_info) {
 	    std::chrono::time_point<std::chrono::system_clock> timestamp = std::chrono::system_clock::now();
-	    std::cout << std::format("{%Y}{%m}{%d}T{%H}{%M}{%S}") << std::endl;
+	    std::cout << std::format("{%Y}{%m}{%d}T{%H}{%M}{%S}", timestamp) << std::endl;
 	    //USER@HOST HERE
 	    std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl; 
 	    std::cout << "Device Type: " << device_type << std::endl;
 	    std::cout << "serial: " << dit->first << std::endl << std::endl;
 
-	    std::string server_version = get_from_tree(tree, i, "server_version")
-	    parse_server_version(server_version)
+	    std::string server_version = get_from_tree(tree, i, "server_version");
+	    parse_server_version(server_version);
 	}
 
         std::cout << "Device Type    : " << device_type << std::endl;
