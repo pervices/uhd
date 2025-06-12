@@ -110,7 +110,7 @@ void parse_server_version(std::string server_version) {
     size_t revision_end = server_version.find('\n', revision_start);
     size_t rtm_start = server_version.find("RTM");
     size_t rtm_end = server_version.find('\n', rtm_start);
-    size_t fpga_rev_start = server_version.find("FPGA:") + "FPGA:".length();
+    size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
     size_t fpga_rev_end = server_version.find('\n', fpga_rev_start);
 
 
@@ -228,7 +228,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    // FPGA FLAGS HERE
 
 	    parse_time_version(time_version);
-	    std::cout << "Time EEPROM: " << eeprom << std::endl;
+	    std::cout << "Time EEPROM: " << time_eeprom << std::endl;
 	}
 
         std::cout << "Device Type    : " << device_type << std::endl;
