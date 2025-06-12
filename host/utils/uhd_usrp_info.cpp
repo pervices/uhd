@@ -7,6 +7,7 @@
 #include <boost/format.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <chrono>
 namespace po = boost::program_options;
 
 namespace {
@@ -102,6 +103,19 @@ std::string extract_git_hash(std::string verbose_version) {
     return verbose_version;
 }
 
+void parse_server_version(std::string server_version) {
+    std::string server_branch = "";
+    std::string server_revision = "";
+    std::string server_rtm = "";
+    sscanf(server_version, "Server Version : Branch: %s", server_branch);
+    sscanf(server_version, "Revision: %s", server_revision);
+    sscanf(server_version, "RTM: %s", server_rtm);
+
+    std::cout << "Server Branch: " << server_branch << std::endl;
+    std::cout << "Server Revision: " << server_revision << std::endl;
+    std::cout << "Server RTM: " << server_rtm << std::endl;
+}
+
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
@@ -114,6 +128,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     desc.add_options()
         ("help,h", "help message")
         ("all,v", "prints information for all subsystems")
+	("hwinfo,p", "prints formatted versioning info")
         ("git,g", "prints only the git hash instead of full version info for subsystems")
         ("server,s", "prints all information related to the server")
         ("fpga,f", "prints all information related to the fpga")
@@ -139,6 +154,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     bool all_info = vm.count("all");
+    bool hw_info = vm.count("hwinfo");
     bool git_hash_only = vm.count("git");
     bool server_info = all_info || vm.count("server");
     bool fpga_info = all_info || vm.count("fpga");
@@ -181,6 +197,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 }
             }
         }
+
+	if (hw_info) {
+	    std::chrono::time_point<std::chrono::system_clock> timestamp = std::chrono::system_clock::now();
+	    std::cout << std::format("{%Y}{%m}{%d}T{%H}{%M}{%S}") << std::endl;
+	    //USER@HOST HERE
+	    std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl; 
+	    std::cout << "Device Type: " << device_type << std::endl;
+	    std::cout << "serial: " << dit->first << std::endl << std::endl;
+
+	    std::string server_version = get_from_tree(tree, i, "server_version")
+	    parse_server_version(server_version)
+	}
 
         std::cout << "Device Type    : " << device_type << std::endl;
 
