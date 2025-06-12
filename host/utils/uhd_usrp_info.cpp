@@ -108,6 +108,7 @@ void parse_server_version(std::string server_version) {
     size_t revision_start = server_version.find("Revision");
     size_t rtm_start = server_version.find("RTM");
 
+    std::cout << "revision start: " << revision_start << std::endl;
     std::cout << "revision end: " << server_version.find('\n', revision_start) << std::endl;
     std::cout << "rtm start: " << rtm_start << std::endl;
 
