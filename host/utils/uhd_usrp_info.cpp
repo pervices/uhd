@@ -136,10 +136,10 @@ void parse_rx_version(std::string rx_version, size_t rx_chan) {
 }
 
 void parse_tx_version(std::string tx_version, size_t tx_chan) {
-    size_t rfe_rev_start = rx_version.find("Revision:");
+    size_t rfe_rev_start = tx_version.find("Revision:");
     
-    std::cout << "RFE" << rx_chan << " MCU Type: Tx" << std::endl;
-    std::cout << "Tx" << rx_chan << "MCU " << rx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
+    std::cout << "RFE" << tx_chan << " MCU Type: Tx" << std::endl;
+    std::cout << "Tx" << tx_chan << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
