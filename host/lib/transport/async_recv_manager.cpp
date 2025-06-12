@@ -88,7 +88,7 @@ void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
     // Fallback to not using huge pages
     } else {
         // Recomend the user request twice and many huge pages as required in case some are used by other processes
-        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the value of /proc/sys/vm/nr_hugepages, starting with " + std::to_string( 2 * (size_t)std::ceil(size/HUGE_PAGE_SIZE)) + " * number of channels. Reattempting without huge pages, which may harm performance.");
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the value of /proc/sys/vm/nr_hugepages, starting with " + std::to_string( 2 * (size_t)std::ceil(size/HUGE_PAGE_SIZE)) + " * number of channels. Reattempting without huge pages, which may harm performance.");
         return allocate_buffer(size);
     }
 }

@@ -136,7 +136,7 @@ public:
 
             // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
             if(actual_recv_buffer_size < 2*DEFAULT_RECV_BUFFER_SIZE) {
-                UHD_LOG_ERROR("RECV_PACKET_HANDLER", "Unable to set recv buffer size. Performance will be negatively affected.\n Target size: " + std::to_string(DEFAULT_RECV_BUFFER_SIZE) + "\nActual size: " + std::to_string(actual_recv_buffer_size/2) + "\nPlease run \"sudo sysctl -w net.core.rmem_max=" + std::to_string(DEFAULT_RECV_BUFFER_SIZE) + "\"\n");
+                UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Unable to set recv buffer size. Performance will be negatively affected.\n Target size: " + std::to_string(DEFAULT_RECV_BUFFER_SIZE) + "\nActual size: " + std::to_string(actual_recv_buffer_size/2) + "\nPlease run \"sudo sysctl -w net.core.rmem_max=" + std::to_string(DEFAULT_RECV_BUFFER_SIZE) + "\"\n");
             }
 
             // Verify the interface can handle large packets
