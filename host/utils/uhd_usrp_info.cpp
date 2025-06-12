@@ -110,9 +110,9 @@ void parse_server_version(std::string server_version) {
     size_t revision_end = server_version.find('\n', revision_start-1);
     size_t rtm_start = server_version.find("RTM");
     size_t rtm_end = server_version.find('\n', rtm_start-1);
-    std::cout << "Server " << server_version.substr(branch_start, branch_end) << std::endl;
-    std::cout << "Server " << server_version.substr(revision_start, revision_end) << std::endl;
-    std::cout << "Server " << server_version.substr(rtm_start, rtm_end) << std::endl;
+    std::cout << "Server " << server_version.substr(branch_start, branch_end-branch_start) << std::endl;
+    std::cout << "Server " << server_version.substr(revision_start, revision_end-revision_start) << std::endl;
+    std::cout << "Server " << server_version.substr(rtm_start, rtm_end-rtm_start) << std::endl;
 }
 
 
