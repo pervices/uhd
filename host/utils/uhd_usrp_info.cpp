@@ -110,9 +110,22 @@ void parse_server_version(std::string server_version) {
     size_t revision_end = server_version.find('\n', revision_start);
     size_t rtm_start = server_version.find("RTM");
     size_t rtm_end = server_version.find('\n', rtm_start);
+    size_t fpga_rev_start = server_version.find("FPGA:") + "FPGA:".length();
+    size_t fpga_rev_end = server_version.find('\n', fpga_rev_start);
+
+
     std::cout << "Server " << server_version.substr(branch_start, branch_end-branch_start) << std::endl;
     std::cout << "Server " << server_version.substr(revision_start, revision_end-revision_start) << std::endl;
     std::cout << "Server " << server_version.substr(rtm_start, rtm_end-rtm_start) << std::endl;
+    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, fpga_rev_end - fpga_rev_start);
+}
+
+void parse_time_version(std::string time_version) {
+    size_t rev_start = time_version.find("Revision:");
+    size_t branch_start = time_version.find("Branch:");
+    
+    std::cout << "Time MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start)-rev_start) << std::endl;
+    std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start)-branch_start) << std::endl;
 }
 
 
@@ -206,7 +219,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::cout << "serial: " << dit->first << std::endl << std::endl;
 
 	    std::string server_version = get_from_tree(tree, i, "server_version");
+	    std::string fpga_version = get_from_tree(tree, i, "fw_version");
+	    std::string time_version = get_from_tree(tree, i, "time/fw_version");
+	    std::string time_eeprom = get_from_tree(tree, i, "time/eeprom");
+	    
 	    parse_server_version(server_version);
+	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
+	    // FPGA FLAGS HERE
+
+	    parse_time_version(time_version);
+	    std::cout << "Time EEPROM: " << eeprom << std::endl;
 	}
 
         std::cout << "Device Type    : " << device_type << std::endl;
