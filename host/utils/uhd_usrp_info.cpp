@@ -257,14 +257,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::string rx_eeprom = get_from_tree(tree, i, path);
 
 		parse_rx_version(rx_version, rx_chan);
-		std::cout << "Rx" << rx_chain << " MCU EEPROM: " << rx_eeprom << std::endl;
+		std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom << std::endl;
 	    }
 
 	    for (size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
 		char path[50];
 		sprintf(path, "tx/%lu/fw_version", tx_chan);
 		std::string tx_version = get_from_tree(tree, i, path);
-		sprintf(path, "tx/%lu/eeprom", rx_chan);
+		sprintf(path, "tx/%lu/eeprom", tx_chan);
 		std::string tx_eeprom = get_from_tree(tree, i, path);
 
 		parse_tx_version(tx_version, tx_chan);
