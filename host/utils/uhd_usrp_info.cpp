@@ -35,6 +35,13 @@ std::string get_from_tree(
     return tree->access<std::string>(path).get();
 }
 
+std::string silent_get_from_tree(
+    uhd::property_tree::sptr tree, const int device_id, std::string relative_path)
+{
+    std::string path = "/mboards/" + std::to_string(device_id) + "/" + relative_path;
+    return tree->access<std::string>(path).get();
+}
+
 std::string get_from_tree_int(
     uhd::property_tree::sptr tree, const int device_id, std::string relative_path)
 {
@@ -131,7 +138,6 @@ void parse_time_version(std::string time_version) {
 void parse_rx_version(std::string rx_version, size_t rx_chan) {
     size_t rfe_rev_start = rx_version.find("Revision:");
     
-    std::cout << "RFE" << rx_chan << " MCU Type: Rx" << std::endl;
     std::cout << "Rx" << rx_chan << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 }
 
@@ -231,14 +237,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::cout << "Device Type: " << device_type << std::endl;
 	    std::cout << "serial: " << dit->first << std::endl << std::endl;
 
-	    std::string server_version = get_from_tree(tree, i, "server_version");
-	    std::string fpga_version = get_from_tree(tree, i, "fw_version");
-	    std::string time_version = get_from_tree(tree, i, "time/fw_version");
-	    std::string time_eeprom = get_from_tree(tree, i, "time/eeprom");
+	    std::string server_version = silent_get_from_tree(tree, i, "server_version");
+	    std::string fpga_version = silent_get_from_tree(tree, i, "fw_version");
+	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
+	    std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
 	    
 	    parse_server_version(server_version);
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
-	    // FPGA FLAGS HERE
+            std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
+                    std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
 
 	    parse_time_version(time_version);
 	    std::cout << "Time EEPROM: " << time_eeprom << std::endl << std::endl;
@@ -246,9 +253,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
 
-	    std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
-	    std::cout << "Num Rx RFE: " << num_rx_channels << std::endl;
-	    
+	    if (num_tx_channels > 1) {
+		std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
+	    }
+	    if (num_rx_channels > 1) {
+		std::cout << "Num Rx RFE: " << num_rx_channels << std::endl;
+	    }
+
 	    for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
 		char path[50];
 		sprintf(path, "rx/%lu/fw_version", rx_chan);
@@ -256,6 +267,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		sprintf(path, "rx/%lu/eeprom", rx_chan);
 		std::string rx_eeprom = get_from_tree(tree, i, path);
 
+		std::cout << "RFE" << rx_chan << " MCU Type: Rx" << std::endl;
 		parse_rx_version(rx_version, rx_chan);
 		std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom << std::endl;
 	    }
