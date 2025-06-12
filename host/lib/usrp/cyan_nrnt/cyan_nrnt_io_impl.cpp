@@ -144,9 +144,14 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         int64_t buffer_with_samples_i = -1;
         // Checks if any buffers still have samples
         for(size_t n = 0; n < _channels.size(); n++) {
-            if(get_buffer_level_from_device(n) != 0) {
-                buffer_with_samples_i = n;
-                break;
+            try {
+                if(get_buffer_level_from_device(n) != 0) {
+                    buffer_with_samples_i = n;
+                    break;
+                }
+            } catch (io_error&) {
+                // Bugs often result in unreponsive SFP ports
+                // try/catch io_error to handle those issues gracefully
             }
         }
         // If none have samples exit loop
