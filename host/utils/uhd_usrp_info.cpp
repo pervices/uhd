@@ -197,7 +197,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 	if (hw_info) {
 	    std::chrono::time_point<std::chrono::system_clock> timestamp = std::chrono::system_clock::now();
-	    std::cout << std::format("{%Y}{%m}{%d}T{%H}{%M}{%S}", timestamp) << std::endl;
+	    std::cout << timestamp << std::endl;
 	    //USER@HOST HERE
 	    std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl; 
 	    std::cout << "Device Type: " << device_type << std::endl;
