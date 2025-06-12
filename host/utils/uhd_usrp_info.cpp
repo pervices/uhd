@@ -111,42 +111,23 @@ std::string extract_git_hash(std::string verbose_version) {
 }
 
 void parse_server_version(std::string server_version) {
-    size_t branch_start = server_version.find("Branch");
-    size_t branch_end = server_version.find('\n', branch_start);
     size_t revision_start = server_version.find("Revision");
-    size_t revision_end = server_version.find('\n', revision_start);
     size_t rtm_start = server_version.find("RTM");
-    size_t rtm_end = server_version.find('\n', rtm_start);
     size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
-    size_t fpga_rev_end = server_version.find('\n', fpga_rev_start);
 
-
-    std::cout << "Server " << server_version.substr(branch_start, branch_end-branch_start) << std::endl;
-    std::cout << "Server " << server_version.substr(revision_start, revision_end-revision_start) << std::endl;
-    std::cout << "Server " << server_version.substr(rtm_start, rtm_end-rtm_start) << std::endl;
-    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, fpga_rev_end - fpga_rev_start) << std::endl;
+    std::cout << "\nServer " << server_version.substr(revision_start, server_version.find('\n', revision_start) - revision_start) << std::endl;
+    std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start) << std::endl;
+    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
 }
 
 void parse_time_version(std::string time_version) {
     size_t rev_start = time_version.find("Revision:");
     size_t branch_start = time_version.find("Branch:");
     
-    std::cout << "Time MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start)-rev_start) << std::endl;
-    std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start)-branch_start) << std::endl;
+    std::cout << "\nTime MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start) - rev_start) << std::endl;
+    std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start) - branch_start) << std::endl;
 }
 
-void parse_rx_version(std::string rx_version, size_t rx_chan) {
-    size_t rfe_rev_start = rx_version.find("Revision:");
-    
-    std::cout << "Rx" << rx_chan << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
-}
-
-void parse_tx_version(std::string tx_version, size_t tx_chan) {
-    size_t rfe_rev_start = tx_version.find("Revision:");
-    
-    std::cout << "RFE" << tx_chan << " MCU Type: Tx" << std::endl;
-    std::cout << "Tx" << tx_chan << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
-}
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
@@ -231,11 +212,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 	if (hw_info) {
 	    std::time_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	    std::cout << std::put_time(std::gmtime(&timestamp), "%Y%m%dT%H%M%S") << std::endl;
+	    std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
 	    //USER@HOST HERE
-	    std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl; 
+	    std::cout << "\nUHD Library Version: " << uhd::get_version_string() << std::endl; 
 	    std::cout << "Device Type: " << device_type << std::endl;
-	    std::cout << "serial: " << dit->first << std::endl << std::endl;
+	    std::cout << "serial: " << dit->first << std::endl;
 
 	    std::string server_version = silent_get_from_tree(tree, i, "server_version");
 	    std::string fpga_version = silent_get_from_tree(tree, i, "fw_version");
@@ -244,11 +225,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    
 	    parse_server_version(server_version);
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
-            std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
-                    std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
+
+	    if (device_type == "crimson_tng") {
+		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << std::endl;
+	    } else {
+		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
+		std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
+	    }
 
 	    parse_time_version(time_version);
-	    std::cout << "Time EEPROM: " << time_eeprom << std::endl << std::endl;
+	    std::cout << "Time EEPROM: " << time_eeprom << '\n' << std::endl;
 
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
@@ -267,8 +253,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		sprintf(path, "rx/%lu/eeprom", rx_chan);
 		std::string rx_eeprom = get_from_tree(tree, i, path);
 
-		std::cout << "RFE" << rx_chan << " MCU Type: Rx" << std::endl;
-		parse_rx_version(rx_version, rx_chan);
+		size_t rfe_rev_start = rx_version.find("Revision:");
+		
+		std::cout << "Rx" << rx_chan << " MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 		std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom << std::endl;
 	    }
 
@@ -279,7 +266,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		sprintf(path, "tx/%lu/eeprom", tx_chan);
 		std::string tx_eeprom = get_from_tree(tree, i, path);
 
-		parse_tx_version(tx_version, tx_chan);
+		size_t rfe_rev_start = tx_version.find("Revision:");
+		
+		std::cout << "Tx" << tx_chan << " MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 		std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom << std::endl;
 	    }
 
