@@ -234,7 +234,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 	    parse_time_version(time_version);
 	    if (tree->exists("mboards/0/time/eeprom")) {
-		std::cout << "Time EEPROM: " << silent_get_from_tree(tree, i, "time/eeprom") << std::flush;
+		std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
+		std::cout << "Time EEPROM: " << time_eeprom.substr(0, time_eeprom.find('\n')) << std::endl;
 	    }
 
             size_t num_tx_channels = dev->get_tx_num_channels();
@@ -258,7 +259,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		sprintf(path, "rx/%lu/eeprom", rx_chan);
 		if (tree->exists(std::string("mboards/0/") + path)) {
 		    std::string rx_eeprom = silent_get_from_tree(tree, i, path);
-		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::flush;
+		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
 		} 
 	    }
 
@@ -273,12 +274,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		sprintf(path, "tx/%lu/eeprom", tx_chan);
 		if (tree->exists(std::string("mboards/0/") + path)) {
 		    std::string tx_eeprom = silent_get_from_tree(tree, i, path);
-		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::flush;
+		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::endl;
 		}
 	    }
-
-
-
 	}
 
         std::cout << "Device Type    : " << device_type << std::endl;
