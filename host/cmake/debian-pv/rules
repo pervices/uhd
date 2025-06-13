@@ -73,7 +73,9 @@ DEB_NOBLE_UHD_PACKAGE_CONFIGURATION='\
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
-	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)
+	$(warning DEB_COMMON_UHD_PACKAGE_CONFIGURATION is $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION))
+	$(warning DEB_FOCAL_UHD_PACKAGE_CONFIGURATION is $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION))
+	dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)
 
 # The test suite for this package is busted on powerpc.
 override_dh_auto_test:
