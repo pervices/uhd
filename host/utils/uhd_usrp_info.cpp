@@ -232,7 +232,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		size_t fpga_jesd_start = server_version.find("JESD:");
 		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
 		std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
-		std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << '\n' << std::endl;
+		std::cout << "FPGA BP: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << '\n' << std::endl;
 	    }
 
 	    parse_time_version(time_version);
