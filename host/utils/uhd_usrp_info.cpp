@@ -213,9 +213,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	if (hw_info) {
 	    std::time_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	    std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
-	    if (std::string user = std::getenv("LOGNAME"))
+	    if (const char* user = std::getenv("LOGNAME"))
 		std::cout << "USER: " << user << std::endl;
-	    if (std::string host = std::getenv("HOSTNAME")) {
+	    if (const char* host = std::getenv("HOSTNAME")) {
 		std::cout << "HOST: " << host << std::endl;
 	    }
 	    std::cout << std::getenv("LOGNAME") << "@" << std::getenv("HOSTNAME") << std::endl;
