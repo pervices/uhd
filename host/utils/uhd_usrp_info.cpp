@@ -280,9 +280,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::endl;
 		}
 	    }
+	} else {
+	    std::cout << "Device Type    : " << device_type << std::endl;
 	}
 
-        std::cout << "Device Type    : " << device_type << std::endl;
 
         if(server_info) {
             try {
