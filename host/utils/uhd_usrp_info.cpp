@@ -7,6 +7,7 @@
 #include <boost/format.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
 #include <chrono>
 namespace po = boost::program_options;
 
