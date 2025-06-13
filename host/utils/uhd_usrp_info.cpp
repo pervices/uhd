@@ -111,14 +111,24 @@ std::string extract_git_hash(std::string verbose_version) {
     return verbose_version;
 }
 
-void parse_server_version(std::string server_version) {
+void parse_server_version(std::string server_version, std::string device_type) {
     size_t revision_start = server_version.find("Revision");
     size_t rtm_start = server_version.find("RTM");
     size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
+    size_t fpga_jesd_start = server_version.find("JESD:");
 
     std::cout << "\nServer " << server_version.substr(revision_start, server_version.find('\n', revision_start) - revision_start) << std::endl;
     std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start) << std::endl;
     std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
+    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
+
+    if (device_type == "crimson_tng") {
+	std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << '\n' << std::endl;
+    } else {
+	std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
+	std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
+	std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << '\n' << std::endl;
+    }
 }
 
 void parse_time_version(std::string time_version) {
@@ -223,15 +233,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::string fpga_version = silent_get_from_tree(tree, i, "fw_version");
 	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
 	    
-	    parse_server_version(server_version);
-	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
-
-	    if (device_type == "crimson_tng") {
-		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << '\n' << std::endl;
-	    } else {
-		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
-		std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << '\n' << std::endl;
-	    }
+	    parse_server_version(server_version, device_type);
 
 	    parse_time_version(time_version);
 	    if (tree->exists("mboards/0/time/eeprom")) {
