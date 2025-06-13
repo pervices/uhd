@@ -238,6 +238,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Time EEPROM: " << time_eeprom.substr(0, time_eeprom.find('\n')) << std::endl;
 	    }
 
+	    std::cout << "\n";
+
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
 
