@@ -124,7 +124,7 @@ void parse_time_version(std::string time_version) {
     size_t rev_start = time_version.find("Revision:");
     size_t branch_start = time_version.find("Branch:");
     
-    std::cout << "\nTime MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start) - rev_start) << std::endl;
+    std::cout << "Time MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start) - rev_start) << std::endl;
     std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start) - branch_start) << std::endl;
 }
 
@@ -226,10 +226,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
 
 	    if (device_type == "crimson_tng") {
-		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << std::endl;
+		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << '\n' << std::endl;
 	    } else {
 		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
-		std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
+		std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << '\n' << std::endl;
 	    }
 
 	    parse_time_version(time_version);
@@ -237,10 +237,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Time EEPROM: " << silent_get_from_tree(tree, i, "time/eeprom") << std::endl;
 	    }
 
+	    std::cout << '\n';
+
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
-
-	    std::cout << std::endl;
 
 	    if (num_tx_channels > 1) {
 		std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
@@ -259,7 +259,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 		sprintf(path, "rx/%lu/eeprom", rx_chan);
 		if (tree->exists(std::string("mboards/0/") + path)) {
-		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::endl;
+		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::flush;
 		} 
 	    }
 
@@ -273,7 +273,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 		sprintf(path, "tx/%lu/eeprom", tx_chan);
 		if (tree->exists(std::string("mboards/0/") + path)) {
-		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::endl;
+		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::flush;
 		}
 	    }
 
