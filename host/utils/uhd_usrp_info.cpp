@@ -111,25 +111,6 @@ std::string extract_git_hash(std::string verbose_version) {
     return verbose_version;
 }
 
-void parse_server_version(std::string server_version) {
-    size_t revision_start = server_version.find("Revision");
-    size_t rtm_start = server_version.find("RTM");
-    size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
-
-    std::cout << "\nServer " << server_version.substr(revision_start, server_version.find('\n', revision_start) - revision_start) << std::endl;
-    std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start) << std::endl;
-    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
-}
-
-void parse_time_version(std::string time_version) {
-    size_t rev_start = time_version.find("Revision:");
-    size_t branch_start = time_version.find("Branch:");
-    
-    std::cout << "Time MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start) - rev_start) << std::endl;
-    std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start) - branch_start) << std::endl;
-}
-
-
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // uhd::set_thread_priority_safe();
@@ -220,10 +201,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::cout << "Serial: " << dit->first << std::endl;
 
 	    std::string server_version = silent_get_from_tree(tree, i, "server_version");
-	    std::string fpga_version = silent_get_from_tree(tree, i, "fw_version");
-	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
-	    
-	    parse_server_version(server_version);
+	    size_t revision_start = server_version.find("Revision");
+	    size_t rtm_start = server_version.find("RTM");
+	    size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
+
+	    std::cout << "\nServer " << server_version.substr(revision_start, server_version.find('\n', revision_start) - revision_start) << std::endl;
+	    std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start) << std::endl;
+	    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
 
 	    if (device_type == "crimson_tng") {
@@ -235,8 +219,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "FPGA BP: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << '\n' << std::endl;
 	    }
 
-	    parse_time_version(time_version);
-	    if (tree->exists("mboards/0/time/eeprom")) {
+	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
+	    size_t rev_start = time_version.find("Revision:");
+	    size_t branch_start = time_version.find("Branch:");
+	    
+	    std::cout << "Time MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start) - rev_start) << std::endl;
+	    std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start) - branch_start) << std::endl;
+
+	    char device_path[50];
+	    sprintf(device_path, "mboards/%lu/", i);
+	    if (tree->exists(device_path + "time/eeprom")) {
 		std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
 		std::cout << "Time EEPROM: " << time_eeprom.substr(0, time_eeprom.find('\n')) << std::endl;
 	    }
@@ -262,7 +254,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Rx" << rx_chan << " MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 
 		sprintf(path, "rx/%lu/eeprom", rx_chan);
-		if (tree->exists(std::string("mboards/0/") + path)) {
+		if (tree->exists(device_path + path)) {
 		    std::string rx_eeprom = silent_get_from_tree(tree, i, path);
 		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
 		} 
@@ -277,7 +269,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Tx" << tx_chan << " MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 
 		sprintf(path, "tx/%lu/eeprom", tx_chan);
-		if (tree->exists(std::string("mboards/0/") + path)) {
+		if (tree->exists(device_path + path)) {
 		    std::string tx_eeprom = silent_get_from_tree(tree, i, path);
 		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::endl;
 		}
