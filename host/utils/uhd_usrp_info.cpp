@@ -7,7 +7,6 @@
 #include <boost/format.hpp>
 #include <cstdlib>
 #include <iostream>
-#include <fstream>
 #include <chrono>
 namespace po = boost::program_options;
 
@@ -216,7 +215,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
 	    if (const char* user = std::getenv("LOGNAME"))
 		std::cout << "USER: " << user << std::endl;
-	    std::cout << "HOST: " << std::ifstream("/etc/hostname") << std::endl;
+	    std::cout << "HOST: " << std::ifstream("/etc/hostname").rdbuf() << std::endl;
 	    std::cout << std::getenv("LOGNAME") << "@" << std::getenv("HOSTNAME") << std::endl;
 	    std::cout << "\nUHD Library Version: " << uhd::get_version_string() << std::endl; 
 	    std::cout << "Device Type: " << device_type << std::endl;
