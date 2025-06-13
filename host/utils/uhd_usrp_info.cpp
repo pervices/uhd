@@ -221,7 +221,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::string server_version = silent_get_from_tree(tree, i, "server_version");
 	    std::string fpga_version = silent_get_from_tree(tree, i, "fw_version");
 	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
-	    std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
 	    
 	    parse_server_version(server_version);
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
@@ -234,10 +233,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    }
 
 	    parse_time_version(time_version);
-	    std::cout << "Time EEPROM: " << time_eeprom << '\n' << std::endl;
+	    if (tree->exists("mboards/0/time/eeprom")) {
+		std::cout << "Time EEPROM: " << silent_get_from_tree(tree, i, "time/eeprom") << std::endl;
+	    }
 
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
+
+	    std::cout << endl;
 
 	    if (num_tx_channels > 1) {
 		std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
@@ -249,27 +252,30 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
 		char path[50];
 		sprintf(path, "rx/%lu/fw_version", rx_chan);
-		std::string rx_version = get_from_tree(tree, i, path);
-		sprintf(path, "rx/%lu/eeprom", rx_chan);
-		std::string rx_eeprom = get_from_tree(tree, i, path);
-
+		std::string rx_version = silent_get_from_tree(tree, i, path);
 		size_t rfe_rev_start = rx_version.find("Revision:");
 		
 		std::cout << "Rx" << rx_chan << " MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
-		std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom << std::endl;
+
+		sprintf(path, "rx/%lu/eeprom", rx_chan);
+		if (tree->exists("mboards/0/" + path)) {
+		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::endl;
+		} 
+		    
 	    }
 
 	    for (size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
 		char path[50];
 		sprintf(path, "tx/%lu/fw_version", tx_chan);
-		std::string tx_version = get_from_tree(tree, i, path);
-		sprintf(path, "tx/%lu/eeprom", tx_chan);
-		std::string tx_eeprom = get_from_tree(tree, i, path);
-
+		std::string tx_version = silent_get_from_tree(tree, i, path);
 		size_t rfe_rev_start = tx_version.find("Revision:");
 		
 		std::cout << "Tx" << tx_chan << " MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
-		std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom << std::endl;
+
+		sprintf(path, "tx/%lu/eeprom", tx_chan);
+		if (tree->exists("mboards/0/" + path)) {
+		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::endl;
+		}
 	    }
 
 
