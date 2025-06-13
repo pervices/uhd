@@ -228,7 +228,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 	    char device_path[50];
 	    sprintf(device_path, "mboards/%lu/", i);
-	    if (tree->exists(device_path + "time/eeprom")) {
+	    if (tree->exists(std::string(device_path) + "time/eeprom")) {
 		std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
 		std::cout << "Time EEPROM: " << time_eeprom.substr(0, time_eeprom.find('\n')) << std::endl;
 	    }
@@ -247,14 +247,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 	    for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
 		char path[50];
-		sprintf(path, "rx/%lu/fw_version", rx_chan);
+		sprintf(path, "rx/%i/fw_version", rx_chan);
 		std::string rx_version = silent_get_from_tree(tree, i, path);
 		size_t rfe_rev_start = rx_version.find("Revision:");
 		
 		std::cout << "Rx" << rx_chan << " MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 
-		sprintf(path, "rx/%lu/eeprom", rx_chan);
-		if (tree->exists(device_path + path)) {
+		sprintf(path, "rx/%i/eeprom", rx_chan);
+		if (tree->exists(std::string(device_path) + path)) {
 		    std::string rx_eeprom = silent_get_from_tree(tree, i, path);
 		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
 		} 
@@ -269,7 +269,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Tx" << tx_chan << " MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 
 		sprintf(path, "tx/%lu/eeprom", tx_chan);
-		if (tree->exists(device_path + path)) {
+		if (tree->exists(std::string(device_path) + path)) {
 		    std::string tx_eeprom = silent_get_from_tree(tree, i, path);
 		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::endl;
 		}
