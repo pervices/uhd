@@ -215,7 +215,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::time_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	    std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
 	    std::cout << std::getenv("LOGNAME") << "@" << std::ifstream("/etc/hostname").rdbuf() << std::endl;
-	    std::cout << "\nUHD Library Version: " << uhd::get_version_string() << std::endl; 
+	    std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl; 
 	    std::cout << "Device Type: " << device_type << std::endl;
 	    std::cout << "Serial: " << dit->first << std::endl;
 
