@@ -227,8 +227,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
 
 	    if (device_type == "crimson_tng") {
-		//std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << std::endl;
-		std::cout << tree->access<int>("/mboards/0/system/is_full_tx").get() << std::endl;
+		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << std::endl;
 	    } else {
 		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
 		std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
