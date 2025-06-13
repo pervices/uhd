@@ -240,7 +240,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
 
-	    std::cout << endl;
+	    std::cout << std::endl;
 
 	    if (num_tx_channels > 1) {
 		std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
@@ -258,10 +258,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Rx" << rx_chan << " MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 
 		sprintf(path, "rx/%lu/eeprom", rx_chan);
-		if (tree->exists("mboards/0/" + path)) {
+		if (tree->exists(std::string("mboards/0/" + path))) {
 		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::endl;
 		} 
-		    
 	    }
 
 	    for (size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
@@ -273,7 +272,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Tx" << tx_chan << " MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
 
 		sprintf(path, "tx/%lu/eeprom", tx_chan);
-		if (tree->exists("mboards/0/" + path)) {
+		if (tree->exists(std::string("mboards/0/" + path))) {
 		    std::cout << "Tx" << tx_chan << " MCU EEPROM: " << silent_get_from_tree(tree, i, path) << std::endl;
 		}
 	    }
