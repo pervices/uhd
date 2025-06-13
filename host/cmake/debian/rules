@@ -1,5 +1,8 @@
 #!/usr/bin/make -f
 include /usr/share/dpkg/pkg-info.mk
+
+echo "U1"
+echo "DEB_VERSION: $(DEB_VERSION)"
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 export DEB_HOST_MULTIARCH
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
