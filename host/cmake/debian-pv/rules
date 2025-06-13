@@ -1,8 +1,6 @@
 #!/usr/bin/make -f
 include /usr/share/dpkg/pkg-info.mk
 
-echo "A1"
-
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 echo "DEB_HOST_MULTIARCH $(DEB_HOST_MULTIARCH)"
 export DEB_HOST_MULTIARCH
