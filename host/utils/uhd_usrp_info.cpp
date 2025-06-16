@@ -284,11 +284,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		// Want to avoid printing duplicate info for channels on the same board, so make sure serial numbers are different
 		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
 		    for (size_t chan : channel_group) {
-			std::cout << "Rx" << chan << (chan == channel_group.back() ? ": " : ", "); 
+			std::cout << "Rx" << chan << (chan == channel_group.back() ? ":" : ", "); 
 		    } 
 
 		    if (rfe_type_start != std::string::npos)
-			std::cout << rx_version.substr(rfe_type_start, rx_version.find('\n', rfe_type_start) - rfe_type_start) << std::endl;
+			std::cout << rx_version.substr(rfe_type_start+1, rx_version.find('\n', rfe_type_start) - rfe_type_start) << std::endl;
 
 		    if (rfe_rev_start != std::string::npos)
 			std::cout << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
@@ -325,11 +325,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
 		    for (size_t chan : channel_group) {
-			std::cout << "Tx" << chan << (chan == channel_group.back() ? ": " : ", "); 
+			std::cout << "Tx" << chan << (chan == channel_group.back() ? ":" : ", "); 
 		    } 
 
 		    if (rfe_type_start != std::string::npos)
-			std::cout << tx_version.substr(rfe_type_start, tx_version.find('\n', rfe_type_start) - rfe_type_start) << std::endl;
+			std::cout << tx_version.substr(rfe_type_start+1, tx_version.find('\n', rfe_type_start) - rfe_type_start) << std::endl;
 
 		    if (rfe_rev_start != std::string::npos)
 			std::cout << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
