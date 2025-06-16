@@ -657,14 +657,19 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         std::cout << "B60\n";
 
         dev->time_diff_send( crimson_now );
+        std::cout << "B61\n";
         if ( dev->time_diff_recv( tdr ) ) {
+            std::cout << "B62A\n";
             dev->time_diff_process( tdr, now );
+            std::cout << "B63A\n";
         } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
-             UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
-             dropped_recv_message_printed = true;
-         }
+            std::cout << "B62B\n";
+            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
+            dropped_recv_message_printed = true;
+        }
+        std::cout << "B98\n";
         dev->_sfp_control_mutex[0]->unlock();
-            std::cout << "B99\n";
+        std::cout << "B99\n";
 	}
     std::cout << "B100\n";
 	dev->_bm_thread_running = false;
