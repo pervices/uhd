@@ -242,7 +242,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    sprintf(device_path, "mboards/%i/", i);
 	    if (tree->exists(std::string(device_path) + "time/eeprom")) {
 		std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
-		if (time_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") != std::string::npos)
+		if (time_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos)
 		    std::cout << "Time EEPROM: " << time_eeprom.substr(0, time_eeprom.find('\n')) << std::endl;
 	    }
 
@@ -291,7 +291,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		    sprintf(path, "rx/%lu/eeprom", rx_chan);
 		    if (tree->exists(std::string(device_path) + path)) {
 			std::string rx_eeprom = silent_get_from_tree(tree, i, path);
-			if (rx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") != std::string::npos)
+			if (rx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos)
 			    std::cout << "MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
 		    } 
 
@@ -331,7 +331,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		    sprintf(path, "tx/%lu/eeprom", tx_chan);
 		    if (tree->exists(std::string(device_path) + path)) {
 			std::string tx_eeprom = silent_get_from_tree(tree, i, path);
-			if (tx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") != std::string::npos)
+			if (tx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos)
 			    std::cout << "MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::endl;
 		    } 
 
