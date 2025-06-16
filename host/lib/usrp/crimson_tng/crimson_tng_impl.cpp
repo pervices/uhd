@@ -637,6 +637,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
             // Reset PID to clear old values
             dev->reset_time_diff_pid();
         }
+        std::cout << "B20\n";
 
 		dt = then - now;
 		if ( dt > 0.0 ) {
@@ -646,11 +647,14 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		} else {
             continue;
         }
+        std::cout << "B40\n";
 
         time_diff = dev->_time_diff_pidc->get_control_variable();
         dev->_sfp_control_mutex[0]->lock();
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
+
+        std::cout << "B60\n";
 
         dev->time_diff_send( crimson_now );
         if ( dev->time_diff_recv( tdr ) ) {
