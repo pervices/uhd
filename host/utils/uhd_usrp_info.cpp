@@ -113,13 +113,12 @@ std::string extract_git_hash(std::string verbose_version) {
 
 std::string extract_mcu_serial(std::string verbose_version) {
     size_t serial_start = verbose_version.find("MCU Serial Number:");
+    std::string mcu_serial;
 
-    if (serial_start == std::string::npos) {
-	std::cout << "Error when attempting to extract MCU serial number from " << verbose_version << std::endl;
-	return std::string::npos;
+    if (serial_start != std::string::npos) {
+	mcu_serial = verbose_version.substr(verbose_version.find(":", serial_start), verbose_version.find('\n', serial_start) - serial_start);
     }
-
-    return verbose_version.substr(verbose_version.find(":", serial_start), verbose_version.find('\n', serial_start) - serial_start);
+    return mcu_serial;
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
@@ -269,7 +268,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 		std::string current_serial = extract_mcu_serial(rx_version);
 
-		if (current_serial != std::string::npos)
+		if (not current_serial.empty())
 		    channel_group.push_back(rx_chan);
 
 		std::string rx_version_next;
@@ -280,7 +279,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		    next_serial = extract_mcu_serial(rx_version_next);
 		}
 
-		if (current_serial.compare(next_serial) != 0 && current_serial != std::string::npos) {
+		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
 		    for (size_t chan : channel_group) {
 			std::cout << "Rx" << chan << (chan == channel_group.back() ? ": " : ", "); 
 		    } 
@@ -309,7 +308,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 		std::string current_serial = extract_mcu_serial(tx_version);
 
-		if (current_serial != std::string::npos)
+		if (not current_serial.empty())
 		    channel_group.push_back(tx_chan);
 
 		std::string tx_version_next;
@@ -320,7 +319,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		    next_serial = extract_mcu_serial(tx_version_next);
 		}
 
-		if (current_serial.compare(next_serial) != 0 && current_serial != std::string::npos) {
+		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
 		    for (size_t chan : channel_group) {
 			std::cout << "Tx" << chan << (chan == channel_group.back() ? ": " : ", "); 
 		    } 
