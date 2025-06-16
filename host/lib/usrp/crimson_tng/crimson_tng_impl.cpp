@@ -534,14 +534,14 @@ void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd:
         std::cout << "C5\n";
         reset_time_diff_pid();
     }
-    std::cout << "C5\n";
+    std::cout << "C6\n";
 
     // For SoB, record the instantaneous time difference + compensation
     if (time_diff_converged ) {
-        std::cout << "C6\n";
+        std::cout << "C7\n";
         device_clock_sync_info->set_time_diff( cv );
     }
-        std::cout << "C7\n";
+        std::cout << "C8\n";
 }
 
 void crimson_tng_impl::start_bm() {
@@ -668,7 +668,9 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
         dev->time_diff_send( crimson_now );
         std::cout << "B61\n";
-        if ( dev->time_diff_recv( tdr ) ) {
+        bool reply_good =  dev->time_diff_recv( tdr );
+        dev->_sfp_control_mutex[0]->unlock();
+        if (reply_good) {
             std::cout << "B62A\n";
             dev->time_diff_process( tdr, now );
             std::cout << "B63A\n";
@@ -678,7 +680,6 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
             dropped_recv_message_printed = true;
         }
         std::cout << "B98\n";
-        dev->_sfp_control_mutex[0]->unlock();
         std::cout << "B99\n";
 	}
     std::cout << "B100\n";
