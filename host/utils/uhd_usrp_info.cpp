@@ -364,6 +364,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         i++;
     }
+    std::cout << "T1100\n";
 
     std::cout << std::endl;
 

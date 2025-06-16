@@ -2954,6 +2954,7 @@ private:
 
 multi_usrp::~multi_usrp(void)
 {
+    std::cout << "DM1\n";
     /* NOP */
 }
 
