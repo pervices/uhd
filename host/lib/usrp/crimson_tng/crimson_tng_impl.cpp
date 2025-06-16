@@ -554,9 +554,12 @@ void crimson_tng_impl::start_bm() {
 void crimson_tng_impl::stop_bm() {
 
 	if ( _bm_thread_running ) {
+        std::cout << "A1\n";
 
 		_bm_thread_should_exit = true;
+        std::cout << "A2\n";
 		_bm_thread.join();
+        std::cout << "A3\n";
 	}
 }
 
@@ -614,6 +617,8 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
     dev->_sfp_control_mutex[0]->unlock();
     dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
+    std::cout << "B1\n";
+
 	for(
 		now = uhd::get_system_time(),
 			then = now + T
@@ -655,6 +660,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
          }
         dev->_sfp_control_mutex[0]->unlock();
 	}
+    std::cout << "B100\n";
 	dev->_bm_thread_running = false;
 }
 
