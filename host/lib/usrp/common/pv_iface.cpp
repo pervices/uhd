@@ -151,6 +151,7 @@ void pv_iface::set_string(const std::string pre, std::string data) {
 double pv_iface::get_double(std::string req) {
     try { return boost::lexical_cast<double>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
+        std::cout << "failed double req: " << req << std::endl;
         UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get double property: " << e.what();
     }
     return 0;
