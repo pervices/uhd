@@ -630,6 +630,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 		then += T,
 			now = uhd::get_system_time()
 	) {
+        std::cout << "B2\n";
         if(dev->device_clock_sync_info->is_resync_requested()) {
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
             dev->device_clock_sync_info->resync_acknowledge();
@@ -659,6 +660,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
              dropped_recv_message_printed = true;
          }
         dev->_sfp_control_mutex[0]->unlock();
+            std::cout << "B99\n";
 	}
     std::cout << "B100\n";
 	dev->_bm_thread_running = false;
