@@ -513,25 +513,35 @@ void crimson_tng_impl::reset_time_diff_pid() {
 
 /// SoB Time Diff: feed the time diff error back into out control system
 void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
+    std::cout << "C1\n";
 
 	static const double sp = 0.0;
 
 	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
+    std::cout << "C2\n";
+
 	double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
+    std::cout << "C3\n";
+
     bool time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
+    std::cout << "C4\n";
 
     if(reset_advised) {
+        std::cout << "C5\n";
         reset_time_diff_pid();
     }
+    std::cout << "C5\n";
 
     // For SoB, record the instantaneous time difference + compensation
     if (time_diff_converged ) {
+        std::cout << "C6\n";
         device_clock_sync_info->set_time_diff( cv );
     }
+        std::cout << "C7\n";
 }
 
 void crimson_tng_impl::start_bm() {
