@@ -111,6 +111,18 @@ std::string extract_git_hash(std::string verbose_version) {
     return verbose_version;
 }
 
+std::string extract_mcu_serial(std::string verbose_version) {
+    size_t serial_start = verbose_version.find("MCU Serial Number:");
+
+    if (serial_start == std::string::npos) {
+	std::cout << "Error when attempting to extract MCU serial number from " << verbose_version << std::endl;
+	return verbose_version;
+    }
+
+    return verbose_version.substr(verbose_version.find(":", serial_start), verbose_version.find('\n', serial_start) - serial_start)
+
+}
+
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
     // uhd::set_thread_priority_safe();
@@ -245,19 +257,36 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "Num Rx RFE: " << num_rx_channels << std::endl;
 	    }
 
+	     
+	    std::vector<size_t> channel_group;
 	    for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
 		char path[50];
 		sprintf(path, "rx/%lu/fw_version", rx_chan);
 		std::string rx_version = silent_get_from_tree(tree, i, path);
+		sprintf(path, "rx/%lu/fw_version", rx_chan+1);
+		std::string rx_version_next = silent_get_from_tree(tree, i, path);
 		size_t rfe_rev_start = rx_version.find("Revision:");
 		
-		std::cout << "Rx" << rx_chan << " MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start)-rfe_rev_start) << std::endl;
+		std::string current_serial = extract_mcu_serial(rx_version);
+		std::string next_serial = extract_mcu_serial(rx_version_next);
+		channel_group.push_back(rx_chan);
 
-		sprintf(path, "rx/%lu/eeprom", rx_chan);
-		if (tree->exists(std::string(device_path) + path)) {
-		    std::string rx_eeprom = silent_get_from_tree(tree, i, path);
-		    std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
-		} 
+		if (current_serial != next_serial) {
+		    for (size_t chan : channel_group) {
+			std::cout << "Rx" << chan << chan == channel_group.back() ? ": " : ", "; 
+		    } 
+		    std::cout << "Rx Board" << std::endl;
+		    std::cout << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
+
+		    sprintf(path, "rx/%lu/eeprom", rx_chan);
+		    if (tree->exists(std::string(device_path) + path)) {
+			std::string rx_eeprom = silent_get_from_tree(tree, i, path);
+			std::cout << "Rx" << rx_chan << " MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
+		    } 
+
+		    channel_group.clear();
+		}
+
 	    }
 
 	    for (size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
@@ -277,7 +306,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	} else {
 	    std::cout << "Device Type    : " << device_type << std::endl;
 	}
-
 
         if(server_info) {
             try {
