@@ -209,11 +209,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             }
 
             try {
+                std::cout << "T1\n";
                 std::cout << "System sample rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
+                std::cout << "T2\n";
             } catch (const uhd::lookup_error&) {
                 // Should be implemented except on very old servers
                 std::cout << "System sample rate lookup not implemented" << std::endl;
             }
+            std::cout << "T3\n";
 
             if(!git_hash_only) {
                 try {
@@ -357,6 +360,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         } catch (...) {
             std::cout << "Unable to get all time info" << std::endl;
         }
+        std::cout << "T1000\n";
 
         i++;
     }
