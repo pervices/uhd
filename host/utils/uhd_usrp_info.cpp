@@ -367,6 +367,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << "T1100\n";
 
     tree = nullptr;
+    std::cout << "T1150\n";
     dev = nullptr;
 
     std::cout << "T1200\n";
