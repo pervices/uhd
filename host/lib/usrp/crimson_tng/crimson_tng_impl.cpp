@@ -1351,11 +1351,15 @@ crimson_tng_impl::~crimson_tng_impl(void)
 {
     std::cout << "DC1\n";
     stop_bm();
+    std::cout << "DC2\n";
     stop_pps_dtc();
+    std::cout << "DC3\n";
 
     // Manually calling destructor when using placement new is required
     _time_diff_pidc->~pidc();
+    std::cout << "DC4\n";
     free(_time_diff_pidc);
+    std::cout << "DC5\n";
 }
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
