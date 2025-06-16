@@ -263,15 +263,20 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		char path[50];
 		sprintf(path, "rx/%lu/fw_version", rx_chan);
 		std::string rx_version = silent_get_from_tree(tree, i, path);
-		sprintf(path, "rx/%lu/fw_version", rx_chan+1);
-		std::string rx_version_next = silent_get_from_tree(tree, i, path);
 		size_t rfe_rev_start = rx_version.find("Revision:");
 		
 		std::string current_serial = extract_mcu_serial(rx_version);
-		std::string next_serial = extract_mcu_serial(rx_version_next);
+
+		std::string rx_version_next;
+		std::string next_serial; 
+		if (rx_chan+1 < num_rx_channels) {
+		    sprintf(path, "rx/%lu/fw_version", rx_chan+1);
+		    rx_version_next = silent_get_from_tree(tree, i, path);
+		    next_serial = extract_mcu_serial(rx_version_next);
+		}
 		channel_group.push_back(rx_chan);
 
-		if (current_serial != next_serial) {
+		if (current_serial.compare(next_serial) != 0) {
 		    for (size_t chan : channel_group) {
 			std::cout << "Rx" << chan << (chan == channel_group.back() ? ": " : ", "); 
 		    } 
