@@ -1349,6 +1349,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
+    std::cout << "DC1\n";
     stop_bm();
     stop_pps_dtc();
 
