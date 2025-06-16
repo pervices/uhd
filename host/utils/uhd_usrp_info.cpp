@@ -119,7 +119,7 @@ std::string extract_mcu_serial(std::string verbose_version) {
 	return verbose_version;
     }
 
-    return verbose_version.substr(verbose_version.find(":", serial_start), verbose_version.find('\n', serial_start) - serial_start)
+    return verbose_version.substr(verbose_version.find(":", serial_start), verbose_version.find('\n', serial_start) - serial_start);
 
 }
 
@@ -273,7 +273,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 		if (current_serial != next_serial) {
 		    for (size_t chan : channel_group) {
-			std::cout << "Rx" << chan << chan == channel_group.back() ? ": " : ", "; 
+			std::cout << "Rx" << chan << (chan == channel_group.back() ? ": " : ", "); 
 		    } 
 		    std::cout << "Rx Board" << std::endl;
 		    std::cout << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
