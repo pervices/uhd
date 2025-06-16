@@ -669,15 +669,20 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
+        // Send the predicted time
         dev->time_diff_send( crimson_now );
-        if ( dev->time_diff_recv( tdr ) ) [[likely]] {
-            // Skip updating time diff if time_diff_recv returned nothing
+        // Get the difference between the predicted and real time
+        bool reply_good =  dev->time_diff_recv( tdr );
+
+        // Unlock sfp control mutex here
+        // It is no longer needed, and having it will deadlock if time_diff_process triggers a reset
+        dev->_sfp_control_mutex[0]->unlock();
+        if (reply_good) {
             dev->time_diff_process( tdr, now );
          } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
              UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
              dropped_recv_message_printed = true;
          }
-        dev->_sfp_control_mutex[dev->get_which_time_diff_iface()]->unlock();
 	}
 	dev->_bm_thread_running = false;
 }
