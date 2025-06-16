@@ -226,11 +226,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << '\n' << std::endl;
 	    } else {
 		size_t fpga_jesd_start = server_version.find("JESD:");
-		std::string backplane = get_from_tree_int(tree, i, "imgparam/backplane_pinout") == "0" ? "Lily" : ("Tate" + backplane_flag + "G");
+		std::string backplane = get_from_tree_int(tree, i, "imgparam/backplane_pinout");
 		
 		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
 		std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
-		std::cout << "FPGA BP: " << backplane << '\n' << std::endl;
+		std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane_flag + "G")) << '\n' << std::endl;
 	    }
 
 	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
