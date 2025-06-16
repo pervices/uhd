@@ -288,7 +288,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		    } 
 
 		    if (rfe_type_start != std::string::npos)
-			std::cout << rx_version.substr(rfe_type_start+1, rx_version.find('\n', rfe_type_start) - rfe_type_start) << std::endl;
+			std::cout << rx_version.substr(rfe_type_start+1, rx_version.find('\n', rfe_type_start) - rfe_type_start - 1) << std::endl;
 
 		    if (rfe_rev_start != std::string::npos)
 			std::cout << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
@@ -332,7 +332,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 			std::cout << tx_version.substr(rfe_type_start+1, tx_version.find('\n', rfe_type_start) - rfe_type_start - 1) << std::endl;
 
 		    if (rfe_rev_start != std::string::npos)
-			std::cout << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start) - rfe_rev_start - 1) << std::endl;
+			std::cout << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
 
 		    sprintf(path, "tx/%lu/eeprom", tx_chan);
 		    if (tree->exists(std::string(device_path) + path)) {
