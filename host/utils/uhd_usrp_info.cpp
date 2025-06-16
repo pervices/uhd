@@ -218,23 +218,23 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             }
             std::cout << "T3\n";
 
-            if(!git_hash_only) {
-                try {
-                    std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
-
-                    std::cout << "FPGA DDR in use: " << get_from_tree_int(tree, i, "imgparam/ddr_used") << std::endl;
-
-                    std::cout << "FPGA is hps only image: " << get_from_tree_int(tree, i, "imgparam/hps_only") << std::endl;
-
-                    std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
-
-                    std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
-
-                    std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
-                } catch (const uhd::lookup_error&) {
-                    std::cout << "FPGA build parameter lookup not implemented (Only relevant on Cyan)" << std::endl;
-                }
-            }
+        //     if(!git_hash_only) {
+        //         try {
+        //             std::cout << "FPGA backplane pinout: " << get_from_tree_int(tree, i, "imgparam/backplane_pinout") << std::endl;
+        //
+        //             std::cout << "FPGA DDR in use: " << get_from_tree_int(tree, i, "imgparam/ddr_used") << std::endl;
+        //
+        //             std::cout << "FPGA is hps only image: " << get_from_tree_int(tree, i, "imgparam/hps_only") << std::endl;
+        //
+        //             std::cout << "FPGA build number of rx channel: " << get_from_tree_int(tree, i, "imgparam/num_rx") << std::endl;
+        //
+        //             std::cout << "FPGA build number of tx channel: " << get_from_tree_int(tree, i, "imgparam/num_tx") << std::endl;
+        //
+        //             std::cout << "FPGA compiled for rtm: " << get_from_tree_int(tree, i, "imgparam/rtm") << std::endl;
+        //         } catch (const uhd::lookup_error&) {
+        //             std::cout << "FPGA build parameter lookup not implemented (Only relevant on Cyan)" << std::endl;
+        //         }
+        //     }
         }
 
         if(rx_info) {
