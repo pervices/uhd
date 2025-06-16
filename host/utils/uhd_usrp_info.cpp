@@ -215,13 +215,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 	    size_t rtm_start = server_version.find("RTM");
 	    size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
 
+	    // Server/FPGA version info
 	    std::cout << "\nServer " << server_version.substr(revision_start, server_version.find('\n', revision_start) - revision_start) << std::endl;
 	    std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start) << std::endl;
-	    std::cout << "FPGA Revision: " << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
+	    std::cout << "FPGA Revision" << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
 	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
 
 	    if (device_type == "crimson_tng") {
-		std::cout << "FPGA Flags: " << get_from_tree_int(tree, i, "system/is_full_tx") << '\n' << std::endl;
+		std::cout << "FPGA Flags: " << (get_from_tree_int(tree, i, "system/is_full_tx") == "1" ? "Full Tx" : "Production") << '\n' << std::endl;
 	    } else {
 		size_t fpga_jesd_start = server_version.find("JESD:");
 		std::string backplane = get_from_tree_int(tree, i, "imgparam/backplane_pinout");
@@ -231,6 +232,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane + "G")) << '\n' << std::endl;
 	    }
 
+	    // Time board version info
 	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
 	    size_t rev_start = time_version.find("Revision:");
 	    size_t branch_start = time_version.find("Branch:");
@@ -248,6 +250,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 	    std::cout << "\n";
 
+	    // RFE boards info
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
 
@@ -265,25 +268,27 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		sprintf(path, "rx/%lu/fw_version", rx_chan);
 		std::string rx_version = silent_get_from_tree(tree, i, path);
 		size_t rfe_rev_start = rx_version.find("Revision:");
+		size_t rfe_type_start = rx_version.find(":", rx_version.find("Board Version:"));
 
 		std::string current_serial = extract_mcu_serial(rx_version);
 
 		if (not current_serial.empty())
 		    channel_group.push_back(rx_chan);
 
-		std::string rx_version_next;
 		std::string next_serial; 
 		if (rx_chan+1 < num_rx_channels) {
 		    sprintf(path, "rx/%lu/fw_version", rx_chan+1);
-		    rx_version_next = silent_get_from_tree(tree, i, path);
-		    next_serial = extract_mcu_serial(rx_version_next);
+		    next_serial = extract_mcu_serial(silent_get_from_tree(tree, i, path));
 		}
 
+		// Want to avoid printing duplicate info for channels on the same board, so make sure serial numbers are different
 		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
 		    for (size_t chan : channel_group) {
 			std::cout << "Rx" << chan << (chan == channel_group.back() ? ": " : ", "); 
 		    } 
-		    std::cout << "Rx Board" << std::endl;
+
+		    if (rfe_type_start != std::string::npos)
+			std::cout << rx_version.substr(rfe_type_start, rx_version.find('\n', rfe_type_start) - rfe_type_start) << std::endl;
 
 		    if (rfe_rev_start != std::string::npos)
 			std::cout << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
@@ -305,25 +310,26 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 		sprintf(path, "tx/%lu/fw_version", tx_chan);
 		std::string tx_version = silent_get_from_tree(tree, i, path);
 		size_t rfe_rev_start = tx_version.find("Revision:");
+		size_t rfe_type_start = tx_version.find(":", tx_version.find("Board Version:"));
 
 		std::string current_serial = extract_mcu_serial(tx_version);
 
 		if (not current_serial.empty())
 		    channel_group.push_back(tx_chan);
 
-		std::string tx_version_next;
 		std::string next_serial; 
 		if (tx_chan+1 < num_tx_channels) {
 		    sprintf(path, "tx/%lu/fw_version", tx_chan+1);
-		    tx_version_next = silent_get_from_tree(tree, i, path);
-		    next_serial = extract_mcu_serial(tx_version_next);
+		    next_serial = extract_mcu_serial(silent_get_from_tree(tree, i, path));
 		}
 
 		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
 		    for (size_t chan : channel_group) {
 			std::cout << "Tx" << chan << (chan == channel_group.back() ? ": " : ", "); 
 		    } 
-		    std::cout << "Tx Board" << std::endl;
+
+		    if (rfe_type_start != std::string::npos)
+			std::cout << tx_version.substr(rfe_type_start, tx_version.find('\n', rfe_type_start) - rfe_type_start) << std::endl;
 
 		    if (rfe_rev_start != std::string::npos)
 			std::cout << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
