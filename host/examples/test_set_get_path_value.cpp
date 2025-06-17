@@ -16,28 +16,28 @@ namespace
             const std::string path = "/mboards/0/rx/" + channel + "/pwr";
 
             std::string value;
-	    
-	    try {
-		usrp->get_tree_value(path, value);
-		usrp->set_tree_value(path, value);
-	    } catch (uhd::runtime_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_RUNTIME;
-	    } catch(uhd::type_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\"  in function \"" + __FUNCTION__ + "\"with error: " + err.what());
 
-		return UHD_ERROR_TYPE;
-	    } catch(uhd::lookup_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_LOOKUP;
-	    }
+            try {
+                usrp->get_tree_value(path, value);
+                usrp->set_tree_value(path, value);
 
-            std::cout << value << std::endl;
+                std::cout << value << std::endl;
+                return UHD_ERROR_NONE;
+            } catch (uhd::runtime_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                            "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_RUNTIME;
+            } catch(uhd::type_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                            "Failed to get/set tree property \"" + path + "\"  in function \"" + __FUNCTION__ + "\"with error: " + err.what());
+
+                return UHD_ERROR_TYPE;
+            } catch(uhd::lookup_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                            "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_LOOKUP;
+            }
         }
-	return UHD_ERROR_NONE;
     }
 
     uhd_error test_ints(uhd::usrp::multi_usrp::sptr& usrp)
@@ -47,25 +47,25 @@ namespace
 
         int value;
 
-	try {
-	    usrp->get_tree_value(path, value);
-	    usrp->set_tree_value(path, value);
-	} catch (uhd::runtime_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_RUNTIME;
-	} catch (uhd::type_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_TYPE;
-	} catch(uhd::lookup_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_LOOKUP;
-	}
+        try {
+            usrp->get_tree_value(path, value);
+            usrp->set_tree_value(path, value);
 
-        std::cout << value << std::endl;
-	return UHD_ERROR_NONE;
+            std::cout << value << std::endl;
+            return UHD_ERROR_NONE;
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch (uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
+        }
     }
 
     uhd_error test_doubles(uhd::usrp::multi_usrp::sptr& usrp)
@@ -75,25 +75,26 @@ namespace
 
         double value;
 
-	try {
-	    usrp->get_tree_value(path, value);
-	    usrp->set_tree_value(path, value);
-	} catch (uhd::runtime_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_RUNTIME;
-	} catch(uhd::type_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_TYPE;
-	} catch(uhd::lookup_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_LOOKUP;
-	}
+        try {
+            usrp->get_tree_value(path, value);
+            usrp->set_tree_value(path, value);
 
-        std::cout << value << std::endl;
-	return UHD_ERROR_NONE;
+
+            std::cout << value << std::endl;
+            return UHD_ERROR_NONE;
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch(uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
+        }
     }
 
     uhd_error test_bools(uhd::usrp::multi_usrp::sptr& usrp)
@@ -103,25 +104,25 @@ namespace
 
         bool value;
 
-	try {
-	    usrp->get_tree_value(path, value);
-	    usrp->set_tree_value(path, value);
-	} catch (uhd::runtime_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_RUNTIME;
-	} catch(uhd::type_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_TYPE;
-	} catch(uhd::lookup_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_LOOKUP;
-	}
+        try {
+            usrp->get_tree_value(path, value);
+            usrp->set_tree_value(path, value);
 
-        std::cout << value << std::endl;
-	return UHD_ERROR_NONE;
+            std::cout << value << std::endl;
+            return UHD_ERROR_NONE;
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch(uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
+        }
     }
 
     uhd_error test_stream_cmd(uhd::usrp::multi_usrp::sptr& usrp)
@@ -133,25 +134,25 @@ namespace
                 uhd::stream_cmd_t::stream_mode_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
 
             const std::string path = "/mboards/0/rx_dsps/" + channel + "/stream_cmd";
-	    try {
-		usrp->get_tree_value(path, value);
-		usrp->set_tree_value(path, value);
-	    } catch (uhd::runtime_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_RUNTIME;
-	    } catch(uhd::type_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_TYPE;
-	    } catch(uhd::lookup_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_LOOKUP;
-	    }
+            try {
+                usrp->get_tree_value(path, value);
+                usrp->set_tree_value(path, value);
 
+                return UHD_ERROR_NONE;
+            } catch (uhd::runtime_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_RUNTIME;
+            } catch(uhd::type_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_TYPE;
+            } catch(uhd::lookup_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_LOOKUP;
+            }
         }
-	return UHD_ERROR_NONE;
     }
 
     uhd_error test_time_specs(uhd::usrp::multi_usrp::sptr& usrp)
@@ -161,25 +162,25 @@ namespace
 
         uhd::time_spec_t value;
 
-	try {
-	    usrp->get_tree_value(path, value);
-	    usrp->set_tree_value(path, value);
-	} catch (uhd::runtime_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_RUNTIME;
-	} catch(uhd::type_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_TYPE;
-	} catch(uhd::lookup_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_LOOKUP;
-	}
+        try {
+            usrp->get_tree_value(path, value);
+            usrp->set_tree_value(path, value);
 
-        std::cout << value.get_real_secs() << std::endl;
-	return UHD_ERROR_NONE;
+            std::cout << value.get_real_secs() << std::endl;
+            return UHD_ERROR_NONE;
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch(uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
+        }
     }
 
     uhd_error test_sfpa_port_change(uhd::usrp::multi_usrp::sptr& usrp)
@@ -192,53 +193,52 @@ namespace
 
         // Get old value.
         int old;
-	try {
-	    usrp->get_tree_value(path, old);
+        try {
+            usrp->get_tree_value(path, old);
 
-	    // Set new value.
-	    usrp->set_tree_value(path, expected);
-	} catch (uhd::runtime_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_RUNTIME;
-	} catch(uhd::type_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_TYPE;
-	} catch(uhd::lookup_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_LOOKUP;
-	}
-
+            // Set new value.
+            usrp->set_tree_value(path, expected);
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch(uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
+        }
 
         // Get the newly changed value.
         int changed;
-	try {
-	    usrp->get_tree_value(path, changed);
+        try {
+            usrp->get_tree_value(path, changed);
 
-	    // Ensure the newly changed value is the expected value.
-	    assert(changed == expected);
+            // Ensure the newly changed value is the expected value.
+            assert(changed == expected);
 
-	    // Reapply the old value.
-	    usrp->set_tree_value(path, old);
-	} catch (uhd::runtime_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_RUNTIME;
-	} catch(uhd::type_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_TYPE;
-	} catch(uhd::lookup_error &err) {
-	    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-		    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-	    return UHD_ERROR_LOOKUP;
-	}
+            // Reapply the old value.
+            usrp->set_tree_value(path, old);
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch(uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
+        }
 
         std::cout << changed << std::endl;
         std::cout << old << std::endl;
-	return UHD_ERROR_NONE;
+        return UHD_ERROR_NONE;
     }
 
     uhd_error test_trigger_settings(uhd::usrp::multi_usrp::sptr& usrp)
@@ -259,25 +259,25 @@ namespace
         for(const auto& path : paths)
         {
             std::string old;
-	    try {
-		usrp->get_tree_value(path, old);
-		usrp->set_tree_value(path, old);
-	    } catch (uhd::runtime_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_RUNTIME;
-	    } catch(uhd::type_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_TYPE;
-	    } catch(uhd::lookup_error &err) {
-		UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			"Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		return UHD_ERROR_LOOKUP;
-	    }
+            try {
+                usrp->get_tree_value(path, old);
+                usrp->set_tree_value(path, old);
 
-	    std::cout << old << std::endl;
-	}
+                std::cout << old << std::endl;
+            } catch (uhd::runtime_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_RUNTIME;
+            } catch(uhd::type_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_TYPE;
+            } catch(uhd::lookup_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_LOOKUP;
+            }
+        }
         // TX Paths.
         for(const auto& channel : channels)
         {
@@ -294,24 +294,24 @@ namespace
             for(const auto& path : paths)
             {
                 std::string old;
-		try {
-		    usrp->get_tree_value(path, old);
-		    usrp->set_tree_value(path, old);
-		} catch (uhd::runtime_error &err) {
-		    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		    return UHD_ERROR_RUNTIME;
-		} catch(uhd::type_error &err) {
-		    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		    return UHD_ERROR_TYPE;
-		} catch(uhd::lookup_error &err) {
-		    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		    return UHD_ERROR_LOOKUP;
-		}
+                try {
+                    usrp->get_tree_value(path, old);
+                    usrp->set_tree_value(path, old);
 
-                std::cout << old << std::endl;
+                    std::cout << old << std::endl;
+                } catch (uhd::runtime_error &err) {
+                    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                                  "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                    return UHD_ERROR_RUNTIME;
+                } catch(uhd::type_error &err) {
+                    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                                  "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                    return UHD_ERROR_TYPE;
+                } catch(uhd::lookup_error &err) {
+                    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                                  "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                    return UHD_ERROR_LOOKUP;
+                }
             }
         }
         // RX Paths.
@@ -329,27 +329,27 @@ namespace
             for(const auto& path : paths)
             {
                 std::string old;
-		try {
-		    usrp->get_tree_value(path, old);
-		    usrp->set_tree_value(path, old);
-		} catch (uhd::runtime_error &err) {
-		    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		    return UHD_ERROR_RUNTIME;
-		} catch(uhd::type_error &err) {
-		    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		    return UHD_ERROR_TYPE;
-		} catch(uhd::lookup_error &err) {
-		    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE", 
-			    "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-		    return UHD_ERROR_LOOKUP;
-		}
+                try {
+                    usrp->get_tree_value(path, old);
+                    usrp->set_tree_value(path, old);
 
-                std::cout << old << std::endl;
+                    std::cout << old << std::endl;
+                } catch (uhd::runtime_error &err) {
+                    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                                  "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                    return UHD_ERROR_RUNTIME;
+                } catch(uhd::type_error &err) {
+                    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                                  "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                    return UHD_ERROR_TYPE;
+                } catch(uhd::lookup_error &err) {
+                    UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                                  "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                    return UHD_ERROR_LOOKUP;
+                }
             }
         }
-	return UHD_ERROR_NONE;
+        return UHD_ERROR_NONE;
     }
 }
 
