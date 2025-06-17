@@ -22,7 +22,6 @@ namespace
                 usrp->set_tree_value(path, value);
 
                 std::cout << value << std::endl;
-                return UHD_ERROR_NONE;
             } catch (uhd::runtime_error &err) {
                 UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
                             "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
@@ -38,6 +37,8 @@ namespace
                 return UHD_ERROR_LOOKUP;
             }
         }
+
+        return UHD_ERROR_NONE;
     }
 
     uhd_error test_ints(uhd::usrp::multi_usrp::sptr& usrp)
