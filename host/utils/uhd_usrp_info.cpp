@@ -325,7 +325,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
 		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
 		    for (size_t chan : channel_group) {
-			std::cout << "Tx" << chan << (chan == channel_group.back() ? ":" : ", "); 
+			std::cout << "Tx" << chan << (chan == channel_group.back() ? " Type:" : ", "); 
 		    } 
 
 		    if (rfe_type_start != std::string::npos)
