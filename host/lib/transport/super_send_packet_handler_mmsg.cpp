@@ -32,7 +32,7 @@
 
 #include <cmath>
 
-#include <uhd/transport/buffer_tracker.hpp>
+#include <uhdlib/transport/buffer_tracker.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
 #include <uhdlib/utils/system_time.hpp>

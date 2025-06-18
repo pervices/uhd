@@ -11,7 +11,7 @@
 
 #include <immintrin.h>
 
-#include <uhd/transport/async_recv_manager.hpp>
+#include <uhdlib/transport/async_recv_manager.hpp>
 
 namespace uhd { namespace transport {
 

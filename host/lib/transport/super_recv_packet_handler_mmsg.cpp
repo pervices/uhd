@@ -50,7 +50,7 @@
 #ifdef HAVE_LIBURING
     #include <uhd/transport/io_uring_recv_manager.hpp>
 #else
-    #include <uhd/transport/user_recv_manager.hpp>
+    #include <uhdlib/transport/user_recv_manager.hpp>
 #endif
 
 #define MIN_MTU 9000

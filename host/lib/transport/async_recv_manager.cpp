@@ -1,6 +1,6 @@
 // Copyright 2024 Per Vices Corporation
 
-#include <uhd/transport/async_recv_manager.hpp>
+#include <uhdlib/transport/async_recv_manager.hpp>
 
 #include <iostream>
 #include <unistd.h>
@@ -15,7 +15,7 @@
 #include <atomic>
 
 // Include all children for use by autoselect
-#include <uhd/transport/user_recv_manager.hpp>
+#include <uhdlib/transport/user_recv_manager.hpp>
 #ifdef HAVE_LIBURING
     // Recv manager relying on liburing
     #include <uhd/transport/io_uring_recv_manager.hpp>
