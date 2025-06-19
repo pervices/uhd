@@ -76,10 +76,10 @@ override_dh_auto_configure:
 	if [ $(shell lsb_release -cs) == "focal"]; then
 		echo "Autoconfig for focal"
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)
-	elif
+	elif [ $(shell lsb_release -cs) == "jammy"]; then
 		echo "Autoconfig for jammy"
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)
-	elif
+	elif [ $(shell lsb_release -cs) == "noble"]; then
 		echo "Autoconfig for noble"
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)
 	else
