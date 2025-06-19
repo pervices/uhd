@@ -3,6 +3,8 @@ include /usr/share/dpkg/pkg-info.mk
 
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
+$(shell "echo $DEB_VERSION")
+
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
 DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
 
