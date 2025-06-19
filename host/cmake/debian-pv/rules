@@ -50,20 +50,19 @@ DEB_NOBLE_UHD_PACKAGE_CONFIGURATION='\
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
-	$(info "T1")
-	version=$(shell cat /etc/lsb-release)
-	$(info "T2")
-	$(shell "echo $(version)")
-	$(info "T3")
-	if [[ $(DEB_VERSION) == *"focal"* ]]; then
-		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)
-	elif [ $(shell lsb_release -cs) == "jammy"]; then
-		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)
-	elif [ $(shell lsb_release -cs) == "noble"]; then
-		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)
-	else
-		$(error "Distro not supported")
-	fi
+	case "$(DEB_VERSION)" in
+		*focal*)
+			dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)
+		;;
+		*jammy*)
+			dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)
+		;;
+		*noble*)
+			dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)
+		*)
+			$(error "Distro not supported: $(DEB_VERSION)")
+		;;
+	esac
 
 # The test suite for this package is busted on powerpc.
 override_dh_auto_test:
