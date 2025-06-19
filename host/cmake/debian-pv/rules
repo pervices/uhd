@@ -1,35 +1,12 @@
 #!/usr/bin/make -f
 include /usr/share/dpkg/pkg-info.mk
 
+- echo "d3c432dcew"
+
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
-echo "DEB_HOST_MULTIARCH $(DEB_HOST_MULTIARCH)"
-export DEB_HOST_MULTIARCH
+
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
 DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
-DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
-                                        -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
-                                        -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
-                                        -DENABLE_CRIMSON_TNG="ON" \
-                                        -DENABLE_N300="OFF" \
-                                        -DENABLE_E320="OFF" \
-                                        -DENABLE_USRP1="OFF" \
-                                        -DENABLE_USRP2="ON" \
-                                        -DENABLE_B200="OFF" \
-                                        -DENABLE_B100="OFF" \
-                                        -DENABLE_X300="OFF" \
-                                        -DENABLE_OCTOCLOCK="OFF" \
-                                        -DENABLE_DOXYGEN="OFF" \
-                                        -DENABLE_USB="OFF" \
-                                        -DENABLE_TESTS="OFF" \
-                                        -DPKG_LIB_DIR="/usr/lib/uhd" \
-                                        -DENABLE_EXAMPLES="ON" \
-                                        -DENABLE_UTILS="ON" \
-                                        -DENABLE_DPDK="OFF" \
-                                        -DENABLE_LIBURING="OFF" \
-                                        -DENABLE_PYMOD_UTILS="OFF" \
-                                        -DENABLE_PYTHON_API="ON" \
-                                        -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-                                        -DUHD_PYTHON_DIR="lib/python3/dist-packages"')
 
 DEB_COMMON_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
                                         -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
@@ -74,13 +51,10 @@ DEB_NOBLE_UHD_PACKAGE_CONFIGURATION='\
 
 override_dh_auto_configure:
 	if [ $(shell lsb_release -cs) == "focal"]; then
-		echo "Autoconfig for focal"
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)
 	elif [ $(shell lsb_release -cs) == "jammy"]; then
-		echo "Autoconfig for jammy"
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)
 	elif [ $(shell lsb_release -cs) == "noble"]; then
-		echo "Autoconfig for noble"
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)
 	else
 		$(error "Distro not supported")
