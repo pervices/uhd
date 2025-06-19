@@ -55,8 +55,7 @@ override_dh_auto_configure:
 	$(info "T2")
 	$(shell "echo $(version)")
 	$(info "T3")
-	cat /etc/lsb-release
-	if [ $(shell lsb_release -cs) == "focal"]; then
+	if [[ $(DEB_VERSION) == *"focal"* ]]; then
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)
 	elif [ $(shell lsb_release -cs) == "jammy"]; then
 		dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)
