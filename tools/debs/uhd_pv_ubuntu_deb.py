@@ -24,7 +24,8 @@ supported_ubuntu_releases = ["focal", "jammy", "noble"]
 # Command to create compressed source code to ship with the package
 # The command must result in a deterministic checksum for any given commit
 # tar.xz adds the tar.xz format, git archive creates the source code tarball
-archive_command = "git config tar.tar.xz.command xz -c && git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
+prep_command = "git config tar.tar.xz.command 'xz -c'"
+archive_command =  "git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
 
@@ -73,6 +74,10 @@ def main(args):
     os.mkdir(args.buildpath)
 
     print("Compressing UHD Source...")
+    result = subprocess.run(prep_command)
+    if result.returncode:
+        print("Compressing source prep failed")
+        sys.exit(result.returncode)
     result = subprocess.run(shlex.split(
         archive_command.format(args.buildpath, uhd_version)))
     if result.returncode:
