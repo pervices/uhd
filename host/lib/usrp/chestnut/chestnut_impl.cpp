@@ -28,7 +28,6 @@
 #include "chestnut_fw_common.h"
 
 #include "uhd/transport/if_addrs.hpp"
-#include "uhd/transport/udp_stream_zero_copy.hpp"
 #include "uhd/transport/udp_simple.hpp"
 #include "uhd/types/stream_cmd.hpp"
 #include "uhd/utils/static.hpp"
