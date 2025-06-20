@@ -1466,7 +1466,7 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, double user_bw ) {
+double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, double user_bw, bool is_tx ) {
     // Preferences:
     // 1. have entire relevant range below the lo with CRIMSON_TNG_LO_TARGET_SEPERATION of seperation
     // 2. have entire relevant range above the lo with CRIMSON_TNG_LO_TARGET_SEPERATION of seperation
@@ -1483,7 +1483,7 @@ double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, dou
     const freq_range_t below_lo(candidate_1 - dsp_bw / 2.0, candidate_1, 0);
 
     // The relevant range can be fit between a viable lo and the dsp's lower limit
-    if(range_contains(below_lo, relevant_range) && candidate_1 >= _min_lo && candidate_1 <= _max_lo) return candidate_1;
+    if(range_contains(below_lo, relevant_range) && candidate_1 >= _min_lo && candidate_1 <= _max_lo && !is_tx) return candidate_1;
 
     // Attempt to place the lo below the relevant range with CRIMSON_TNG_LO_TARGET_SEPERATION betwen the relevant ranges and the lo
     double b = std::floor((relevant_range.start() - CRIMSON_TNG_LO_TARGET_SEPERATION) / _lo_stepsize );
@@ -1501,7 +1501,7 @@ double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, dou
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_3 = a * _lo_stepsize;
         const freq_range_t below_lo_low_seperation(candidate_3 - dsp_bw / 2.0, candidate_3, 0);
-        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= _min_lo && candidate_3 <= _max_lo) return candidate_3;
+        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= _min_lo && candidate_3 <= _max_lo && !is_tx) return candidate_3;
 
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_4 = b * _lo_stepsize;
@@ -1546,7 +1546,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
 				target_rf_freq = 0;
 				break;
 			case HIGH_BAND:
-                target_rf_freq = choose_lo_shift(clipped_requested_freq, dsp_bw, user_bw);
+                target_rf_freq = choose_lo_shift(clipped_requested_freq, dsp_bw, user_bw, xx_sign == TX_SIGN);
 				break;
 			}
 		break;
