@@ -1475,8 +1475,7 @@ double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, dou
 
     // TX Preferences: 1, 2, 3, 4, 5
     // RX Preferences: 2, 1, 4, 3, 5
-
-    // The different preferences are minimize lo interference between rx and tx
+    // The different preferences between tx and rx are minimize lo interference between rx and tx
 
     const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw * 1.5 / 2.0), 0 );
 
