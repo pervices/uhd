@@ -48,17 +48,7 @@ DEB_NOBLE_UHD_PACKAGE_CONFIGURATION='\
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
-	package_configuration=$(shell\
-		if [[ $(DEB_VERSION) == *"focal"* ]]; then;\
-			echo $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION);\
-		elif [[ $(DEB_VERSION) == *"jammy"* ]]; then;\
-			echo $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION);\
-		elif [[ $(DEB_VERSION) == *"noble"* ]]; then;\
-			echo $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION);\
-		else;\
-			$(error "Distro not supported: $(DEB_VERSION)");\
-		fi)
-	dh_auto_configure -- "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(package_configuration)"
+	dh_auto_configure -- "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)"
 
 # The test suite for this package is busted on powerpc.
 override_dh_auto_test:
