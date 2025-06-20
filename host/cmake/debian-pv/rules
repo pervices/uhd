@@ -33,15 +33,15 @@ DEB_COMMON_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MUL
 
 DEB_FOCAL_UHD_PACKAGE_CONFIGURATION='\
                                         -DENABLE_LIBURING="OFF" \
-				')
+				'
 
 DEB_JAMMY_UHD_PACKAGE_CONFIGURATION='\
                                         -DENABLE_LIBURING="ON" \
-				')
+				'
 
 DEB_NOBLE_UHD_PACKAGE_CONFIGURATION='\
                                         -DENABLE_LIBURING="ON" \
-				')
+				'
 
 
 %:
