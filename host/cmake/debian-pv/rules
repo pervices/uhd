@@ -3,8 +3,6 @@ include /usr/share/dpkg/pkg-info.mk
 
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 
-$(shell "echo $(DEB_VERSION)")
-
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
 DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
 
@@ -50,19 +48,21 @@ DEB_NOBLE_UHD_PACKAGE_CONFIGURATION='\
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
+	package_configuration=$(shell
 	case "$(DEB_VERSION)" in
 		*focal*)
-			dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)
+			echo "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)"
 		;;
 		*jammy*)
-			dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)
+			echo "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)"
 		;;
 		*noble*)
-			dh_auto_configure -- $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)
+			echo $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)
 		*)
 			$(error "Distro not supported: $(DEB_VERSION)")
 		;;
-	esac
+	esac)
+	dh_auto_configure -- $(package_configuration)
 
 # The test suite for this package is busted on powerpc.
 override_dh_auto_test:
