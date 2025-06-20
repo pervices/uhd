@@ -1523,7 +1523,7 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 	return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
-double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign, size_t chan ) {
+double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, bool is_tx, size_t chan ) {
     //lo is unused in low band
     if(band == LOW_BAND) return 0;
 
@@ -1539,13 +1539,17 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
         throw uhd::runtime_error("invalid band");
     }
 
-    // Preferences:
-    // Preferences:
-    // 1. have entire relevant range below the lo with CYAN_NRNT_LO_TARGET_SEPERATION of seperation
-    // 2. have entire relevant range above the lo with CYAN_NRNT_LO_TARGET_SEPERATION of seperation
+    // 1. have entire relevant range below the lo with CRIMSON_TNG_LO_TARGET_SEPERATION of seperation
+    // 2. have entire relevant range above the lo with CRIMSON_TNG_LO_TARGET_SEPERATION of seperation
     // 3/4. have entire relevant range below/above the lo with the largest seperation possible
     // 5. have lo as close to the middle of the relevant range as possible
     // candidate_x corresponds to the above numbers
+
+    // TX Preferences: 1, 2, 3, 4, 5
+    // RX Preferences: 2, 1, 4, 3, 5
+    // Exception for 3G for 1G conversion: never use the negative side band due to issues
+    // TODO: add comment describing issue, and confirm it applies to tx and rx
+    // The different preferences between tx and rx are minimize lo interference between rx and tx
 
     const double sample_rate = dsp_subtree->access<double>("/rate/value").get();
     const double user_bw = sample_rate;
@@ -1562,7 +1566,7 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     // 3G rx has a fixed 250MHz NCO built into it in 1G mode
     // if dsp NCO is not bypassed, try to keep LO 250MHz above the target 
     double compensatory_dsp_shift;
-    if(flag_use_3g_as_1g && RX_SIGN == xx_sign && dsp_bw != 0 && rx_rfe_rate_cache[chan]) {
+    if(flag_use_3g_as_1g && !is_tx && dsp_bw != 0 && rx_rfe_rate_cache[chan]) {
         compensatory_dsp_shift = CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
     } else {
         compensatory_dsp_shift = 0;
@@ -1570,22 +1574,34 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
 
     const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw / 2.0), 0 );
 
+    // Attempt to place the lo above the relevant range with CRIMSON_TNG_LO_TARGET_SEPERATION betwen the relevant ranges and the lo
     double a = std::ceil( (relevant_range.stop() + compensatory_dsp_shift + CYAN_NRNT_LO_TARGET_SEPERATION) / CYAN_NRNT_LO_STEPSIZE );
     double candidate_1 = a * CYAN_NRNT_LO_STEPSIZE;
     // Frequence range observable below the candidate lo; candidate_1
     const freq_range_t below_lo(candidate_1 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_1, 0);
 
-    // The relevant range can be fit between a viable lo and the dsp's lower limit
-    // Due to issues with rx in the 3G to 1G conversion the negative side band cannot be used with it
-    if(range_contains(below_lo, relevant_range) && candidate_1 >= band_min_lo && candidate_1 <= band_max_lo && !flag_use_3g_as_1g && xx_sign != TX_SIGN) return candidate_1;
+    // Flag if the relevant range can be fit between a valid lo and the dsp's lower limit
+    bool candidate_1_is_valid = range_contains(below_lo, relevant_range) && candidate_1 >= band_min_lo && candidate_1 <= band_max_lo && !flag_use_3g_as_1g;
 
+    // Attempt to place the lo below the relevant range with CRIMSON_TNG_LO_TARGET_SEPERATION betwen the relevant ranges and the lo
     double b = std::floor( (relevant_range.start() - compensatory_dsp_shift - CYAN_NRNT_LO_TARGET_SEPERATION) / CYAN_NRNT_LO_STEPSIZE );
     double candidate_2 = b * CYAN_NRNT_LO_STEPSIZE;
     // compensatory_dsp_shift of the dsp bw is needed to complensate for the ADC NCO shift
     const freq_range_t above_lo(candidate_2, candidate_2 + (dsp_bw / 2.0) - std::max(compensatory_dsp_shift, 0.0), 0);
 
-    // The relevant range can be fit between a viable lo and the dsp's upper limit
-    if(range_contains(above_lo, relevant_range) && candidate_2 >= band_min_lo && candidate_2 <= band_max_lo) return candidate_2;
+    // Flag if the revenat range can be fit between a valid lo and the dsp's upper limit
+    bool candidate_2_is_valid = range_contains(above_lo, relevant_range) && candidate_2 >= band_min_lo && candidate_2 <= band_max_lo;
+
+    // Return if a candidate is valid, according to the aformentioned preferences
+    if(is_tx && candidate_1_is_valid) {
+        return candidate_1;
+    } else if(is_tx && candidate_2_is_valid) {
+        return candidate_2;
+    } else if(!is_tx && candidate_2_is_valid) {
+        return candidate_2;
+    } else if(!is_tx && candidate_1_is_valid) {
+        return candidate_1;
+    }
 
     // Test los that are closer to the target band than CYAN_NRNT_LO_TARGET_SEPERATION, but still outside the band
     while(a * CYAN_NRNT_LO_STEPSIZE + ((user_bw / 2.0)) > relevant_range.stop() && b * CYAN_NRNT_LO_STEPSIZE - (user_bw / 2.0) < relevant_range.start()) {
@@ -1595,17 +1611,27 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_3 = a * CYAN_NRNT_LO_STEPSIZE;
         const freq_range_t below_lo_low_seperation(candidate_3 - (dsp_bw / 2.0) + std::min(compensatory_dsp_shift, 0.0), candidate_3, 0);
-        // Due to issues with rx in the 3G to 1G conversion the negative side band cannot be used with it
-        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= band_min_lo && candidate_3 <= band_max_lo && !flag_use_3g_as_1g  && xx_sign != TX_SIGN) return candidate_3;
+        bool candidate_3_is_valid = range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= band_min_lo && candidate_3 <= band_max_lo && !flag_use_3g_as_1g;
 
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_4 = b * CYAN_NRNT_LO_STEPSIZE;
         const freq_range_t above_lo_low_seperation(candidate_4, candidate_4 + (dsp_bw / 2.0) - std::max(compensatory_dsp_shift, 0.0), 0);
-        if(range_contains(above_lo_low_seperation, relevant_range) && candidate_4 >= band_min_lo && candidate_4 <= band_max_lo) return candidate_4;
+        bool candidate_4_is_valid = range_contains(above_lo_low_seperation, relevant_range) && candidate_4 >= band_min_lo && candidate_4 <= band_max_lo;
+
+        // Return if a candidate is valid, according to the aformentioned preferences
+        if(is_tx && candidate_3_is_valid) {
+            return candidate_3;
+        } else if(is_tx && candidate_4_is_valid) {
+            return candidate_4;
+        } else if(!is_tx && candidate_4_is_valid) {
+            return candidate_4;
+        } else if(!is_tx && candidate_3_is_valid) {
+            return candidate_3;
+        }
     }
 
     // Fallback to having the lo centered
-    if(flag_use_3g_as_1g && RX_SIGN == xx_sign) {
+    if(flag_use_3g_as_1g && !is_tx) {
         return std::max(std::min(::round( (target_freq + CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, band_max_lo), (double) band_min_lo);
     } else {
         return std::max(std::min(::round( (target_freq) / CYAN_NRNT_LO_STEPSIZE ) * CYAN_NRNT_LO_STEPSIZE, band_max_lo), (double) band_min_lo);
@@ -1651,7 +1677,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
             //The differences between mid and high band are handled on the server
 			case MID_BAND:
             case HIGH_BAND:
-                target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree, xx_sign, chan );
+                target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree, xx_sign == TX_SIGN, chan );
 				break;
 			}
 		break;
