@@ -1467,12 +1467,16 @@ static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
 }
 
 double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, double user_bw, bool is_tx ) {
-    // Preferences:
     // 1. have entire relevant range below the lo with CRIMSON_TNG_LO_TARGET_SEPERATION of seperation
     // 2. have entire relevant range above the lo with CRIMSON_TNG_LO_TARGET_SEPERATION of seperation
     // 3/4. have entire relevant range below/above the lo with the largest seperation possible
     // 5. have lo as close to the middle of the relevant range as possible
     // candidate_x corresponds to the above numbers
+
+    // TX Preferences: 1, 2, 3, 4, 5
+    // RX Preferences: 2, 1, 4, 3, 5
+
+    // The different preferences are minimize lo interference between rx and tx
 
     const freq_range_t relevant_range( target_freq - (user_bw / 2.0), target_freq + (user_bw * 1.5 / 2.0), 0 );
 
@@ -1482,16 +1486,27 @@ double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, dou
     // Frequence range observable below the candidate lo; candidate_1
     const freq_range_t below_lo(candidate_1 - dsp_bw / 2.0, candidate_1, 0);
 
-    // The relevant range can be fit between a viable lo and the dsp's lower limit
-    if(range_contains(below_lo, relevant_range) && candidate_1 >= _min_lo && candidate_1 <= _max_lo && !is_tx) return candidate_1;
+    // Flag if the relevant range can be fit between a valid lo and the dsp's lower limit
+    bool candidate_1_is_valid = range_contains(below_lo, relevant_range) && candidate_1 >= _min_lo && candidate_1 <= _max_lo;
 
     // Attempt to place the lo below the relevant range with CRIMSON_TNG_LO_TARGET_SEPERATION betwen the relevant ranges and the lo
     double b = std::floor((relevant_range.start() - CRIMSON_TNG_LO_TARGET_SEPERATION) / _lo_stepsize );
     double candidate_2 = b * _lo_stepsize;
     const freq_range_t above_lo(candidate_2, candidate_2 + dsp_bw / 2.0, 0);
 
-    // The relevant range can be fit between a viable lo and the dsp's upper limit
-    if(range_contains(above_lo, relevant_range) && candidate_2 >= _min_lo && candidate_2 <= _max_lo) return candidate_2;
+    // Flag if the revenat range can be fit between a valid lo and the dsp's upper limit
+    bool candidate_2_is_valid = range_contains(above_lo, relevant_range) && candidate_2 >= _min_lo && candidate_2 <= _max_lo;
+
+    // Return if a candidate is valid, according to the aformentioned preferences
+    if(is_tx && candidate_1_is_valid) {
+        return candidate_1;
+    } else if(is_tx && candidate_2_is_valid) {
+        return candidate_2;
+    } else if(!is_tx && candidate_2_is_valid) {
+        return candidate_2;
+    } else if(!is_tx && candidate_1_is_valid) {
+        return candidate_1;
+    }
 
     // Test los that are closer to the target band than CRIMSON_TNG_LO_TARGET_SEPERATION, but still outside the band
     while(a * _lo_stepsize + ((user_bw / 2.0)) > relevant_range.stop() && b * _lo_stepsize - (user_bw / 2.0) < relevant_range.start()) {
@@ -1501,12 +1516,23 @@ double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, dou
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_3 = a * _lo_stepsize;
         const freq_range_t below_lo_low_seperation(candidate_3 - dsp_bw / 2.0, candidate_3, 0);
-        if(range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= _min_lo && candidate_3 <= _max_lo && !is_tx) return candidate_3;
+        bool candidate_3_is_valid = range_contains(below_lo_low_seperation, relevant_range) && candidate_3 >= _min_lo && candidate_3 <= _max_lo;
 
         // Test a new lo that is above the target range and slightly closer than the last check
         double candidate_4 = b * _lo_stepsize;
         const freq_range_t above_lo_low_seperation(candidate_4, candidate_4 + dsp_bw / 2.0, 0);
-        if(range_contains(above_lo_low_seperation, relevant_range) && candidate_4 >= _min_lo && candidate_4 <= _max_lo) return candidate_4;
+        bool candidate_4_is_valid = range_contains(above_lo_low_seperation, relevant_range) && candidate_4 >= _min_lo && candidate_4 <= _max_lo;
+
+        // Return if a candidate is valid, according to the aformentioned preferences
+        if(is_tx && candidate_3_is_valid) {
+            return candidate_3;
+        } else if(is_tx && candidate_4_is_valid) {
+            return candidate_4;
+        } else if(!is_tx && candidate_4_is_valid) {
+            return candidate_4;
+        } else if(!is_tx && candidate_3_is_valid) {
+            return candidate_3;
+        }
     }
 
     // Fallback to having the lo centered
