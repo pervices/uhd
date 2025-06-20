@@ -48,19 +48,19 @@ DEB_NOBLE_UHD_PACKAGE_CONFIGURATION='\
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
-	package_configuration=$(shell
-	case "$(DEB_VERSION)" in
-		*focal*)
-			echo "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)"
-		;;
-		*jammy*)
-			echo "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)"
-		;;
-		*noble*)
-			echo $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION)
-		*)
-			$(error "Distro not supported: $(DEB_VERSION)")
-		;;
+	package_configuration=$(shell\
+		case "$(DEB_VERSION)" in;\
+		*focal*);\
+			echo "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_FOCAL_UHD_PACKAGE_CONFIGURATION)";\
+		;;;\
+		*jammy*);\
+			echo "$(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_JAMMY_UHD_PACKAGE_CONFIGURATION)";\
+		;;;\
+		*noble*);\
+			echo $(DEB_COMMON_UHD_PACKAGE_CONFIGURATION) $(DEB_NOBLE_UHD_PACKAGE_CONFIGURATION);\
+		*);\
+			$(error "Distro not supported: $(DEB_VERSION)");\
+		;;;\
 	esac)
 	dh_auto_configure -- $(package_configuration)
 
