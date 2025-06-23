@@ -915,6 +915,8 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         nsamp_multiple = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx").get();
     }
 
+    UHD_LOG_DEBUG(CYAN_NRNT_DEBUG_NAME_C, "NSAMP MULTIPLE: " + std::to_string(nsamp_multiple) + '\n');
+
     // Each streamer has its own FIFO buffer that can operate independantly
     // However there is a deprecated function in device for reading async message
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
