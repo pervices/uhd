@@ -21,8 +21,6 @@
 #include <iomanip>
 #include <mutex>
 
-#include "../../transport/super_send_packet_handler_mmsg.cpp"
-
 #include "crimson_tng_io_impl.hpp"
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
@@ -43,6 +41,7 @@
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
+#include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
 #include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/utils/log.hpp>

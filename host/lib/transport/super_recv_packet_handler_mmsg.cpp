@@ -6,28 +6,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef INCLUDED_LIBUHD_TRANSPORT_SUPER_RECV_PACKET_HANDLER_MMSG_HPP
-#define INCLUDED_LIBUHD_TRANSPORT_SUPER_RECV_PACKET_HANDLER_MMSG_HPP
-
-// TODO: remove any dependency on the old super_recv_packet_handler
-//#include "../../transport/super_recv_packet_handler.hpp"
-#include <uhd/config.hpp>
-#include <uhd/convert.hpp>
-#include <uhd/exception.hpp>
-#include <uhd/stream.hpp>
-#include <uhd/transport/vrt_if_packet.hpp>
-#include <uhd/types/metadata.hpp>
+#include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhd/utils/tasks.hpp>
 #include <uhdlib/utils/network_config.hpp>
-#include <uhdlib/utils/performance_mode.hpp>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <vector>
-#include <uhdlib/utils/system_time.hpp>
 #include <uhd/utils/thread.hpp>
+#include <uhd/transport/zero_copy.hpp>
 #include <algorithm>
 
 #include <sys/socket.h>
@@ -45,27 +33,18 @@
 
 #include <immintrin.h>
 
-// Manages sending streaming commands
-#include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
-#include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
-#ifdef HAVE_LIBURING
-    #include <uhd/transport/io_uring_recv_manager.hpp>
-#else
-    #include <uhd/transport/user_recv_manager.hpp>
-#endif
-
 namespace uhd { namespace transport { namespace sph {
 
 recv_packet_handler_mmsg:: recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
-:
-_NUM_CHANNELS(recv_sockets.size()),
-_MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
-_HEADER_SIZE(header_size),
-_TRAILER_SIZE(trailer_size),
-_stream_cmd_issuers(cmd_issuers),
-_recv_sockets(recv_sockets),
-_num_cached_samples(_NUM_CHANNELS, 0),
-_sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
+    :
+    _NUM_CHANNELS(recv_sockets.size()),
+    _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
+    _HEADER_SIZE(header_size),
+    _TRAILER_SIZE(trailer_size),
+    _stream_cmd_issuers(cmd_issuers),
+    _recv_sockets(recv_sockets),
+    _num_cached_samples(_NUM_CHANNELS, 0),
+    _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
 {
     if (wire_format=="sc16") {
         _BYTES_PER_SAMPLE = 4;
@@ -165,8 +144,6 @@ recv_packet_handler_mmsg::~recv_packet_handler_mmsg(void)
     overflow_messenger.join();
 }
 
-
-
 void recv_packet_handler_mmsg::set_sample_rate(const double rate)
 {
     _sample_rate = rate;
@@ -185,7 +162,6 @@ void recv_packet_handler_mmsg::issue_stream_cmd(const stream_cmd_t& stream_cmd)
         _stream_cmd_issuers[chan_i].issue_stream_command(stream_cmd);
     }
 }
-
 
 int recv_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
     //Start of linked list containing interface info
@@ -346,9 +322,8 @@ void recv_packet_handler_mmsg::check_rx_ring_buffer_size(std::string ip) {
     }
 }
 
-
 recv_packet_streamer_mmsg::recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
-: recv_packet_handler_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuers)
+    : recv_packet_handler_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuers)
 {
 }
 
@@ -359,4 +334,3 @@ void recv_packet_streamer_mmsg::post_input_action(const std::shared_ptr<uhd::rfn
 
 }}} // namespace uhd::transport::sph
 
-#endif /* INCLUDED_LIBUHD_TRANSPORT_SUPER_RECV_PACKET_HANDLER_MMSG_HPP */

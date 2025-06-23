@@ -14,7 +14,9 @@
 #include <uhd/types/metadata.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhdlib/utils/system_time.hpp>
+#include <uhdlib/utils/performance_mode.hpp>
 
+// Manages sending streaming commands
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #ifdef HAVE_LIBURING
     #include <uhd/transport/io_uring_recv_manager.hpp>
@@ -471,17 +473,17 @@ public:
             buffs, nsamps_per_buff, metadata, timeout, one_packet);
     }
 
-    UHD_INLINE size_t get_num_channels(void) const{
+    UHD_INLINE size_t get_num_channels(void) const override {
         return _NUM_CHANNELS;
     }
 
     // Gets the maximum number of samples per packet
-    UHD_INLINE size_t get_max_num_samps(void) const{
+    UHD_INLINE size_t get_max_num_samps(void) const override {
         return _MAX_SAMPLE_BYTES_PER_PACKET/_BYTES_PER_SAMPLE;
     }
 
     // Issues the stream command
-    UHD_INLINE void issue_stream_cmd(const stream_cmd_t& stream_cmd) {
+    UHD_INLINE void issue_stream_cmd(const stream_cmd_t& stream_cmd) override{
         recv_packet_handler_mmsg::issue_stream_cmd(stream_cmd);
     }
 

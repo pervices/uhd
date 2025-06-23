@@ -22,8 +22,6 @@
 #include <iomanip>
 #include <mutex>
 
-#include "../../transport/super_send_packet_handler_mmsg.cpp"
-
 #include "cyan_nrnt_io_impl.hpp"
 #include "cyan_nrnt_impl.hpp"
 #include "cyan_nrnt_fw_common.h"
@@ -44,6 +42,7 @@
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
+#include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
 #include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/utils/log.hpp>

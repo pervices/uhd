@@ -18,8 +18,7 @@
 #ifndef INCLUDED_CYAN_NRNT_IO_IMPL_HPP
 #define INCLUDED_CYAN_NRNT_IO_IMPL_HPP
 
-#include "../../transport/super_send_packet_handler_mmsg.cpp"
-
+#include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
 #include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
 #include <uhdlib/usrp/common/pv_iface.hpp>
 
