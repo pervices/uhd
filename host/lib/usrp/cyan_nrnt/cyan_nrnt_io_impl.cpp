@@ -910,7 +910,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         _tree->access<double>(tx_dsp_root(chan) + "/rstreq").set(1);
     }
 
-    ssize_t nsamp_multiple = CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
+    size_t nsamp_multiple = CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
     if (_tree->exists(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx")) {
         nsamp_multiple = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx").get();
     }
