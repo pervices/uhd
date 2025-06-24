@@ -811,6 +811,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_rx", "system/nsamps_multiple_rx", int, int);
     nsamps_multiple_rx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_rx").get());
 
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx", "system/nsamps_multiple_tx", int, int);
+
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
