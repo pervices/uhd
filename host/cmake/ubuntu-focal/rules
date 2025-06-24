@@ -1,1 +1,71 @@
-../debian-pv/rules
+#!/usr/bin/make -f
+include /usr/share/dpkg/pkg-info.mk
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+export DEB_HOST_MULTIARCH
+DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
+DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
+DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
+                                        -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
+                                        -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
+                                        -DENABLE_CRIMSON_TNG="ON" \
+                                        -DENABLE_N300="OFF" \
+                                        -DENABLE_E320="OFF" \
+                                        -DENABLE_USRP1="OFF" \
+                                        -DENABLE_USRP2="ON" \
+                                        -DENABLE_B200="OFF" \
+                                        -DENABLE_B100="OFF" \
+                                        -DENABLE_X300="OFF" \
+                                        -DENABLE_OCTOCLOCK="OFF" \
+                                        -DENABLE_DOXYGEN="OFF" \
+                                        -DENABLE_USB="OFF" \
+                                        -DENABLE_TESTS="OFF" \
+                                        -DPKG_LIB_DIR="/usr/lib/uhd" \
+                                        -DENABLE_EXAMPLES="ON" \
+                                        -DENABLE_UTILS="ON" \
+                                        -DENABLE_DPDK="OFF" \
+                                        -DENABLE_LIBURING="OFF" \
+                                        -DENABLE_PYMOD_UTILS="OFF" \
+                                        -DENABLE_PYTHON_API="ON" \
+                                        -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+                                        -DUHD_PYTHON_DIR="lib/python3/dist-packages"')
+
+%:
+	dh $@ --parallel --sourcedirectory=host --builddirectory=build
+
+override_dh_auto_configure:
+	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
+
+# The test suite for this package is busted on powerpc.
+override_dh_auto_test:
+	- if [ $(DEB_BUILD_ARCH) != powerpc ]; then dh_auto_test; fi
+
+override_dh_auto_install-indep:
+	dh_auto_install
+	rm -rf debian/tmp/usr/share/man
+	rm -rf debian/tmp/usr/share/doc/uhd/LICENSE
+	rm -rf debian/tmp/usr/share/doc/uhd/README.md
+# Remove source files used to generate documentation
+	rm -rf debian/tmp/usr/share/doc/uhd/doxygen/latex
+
+override_dh_auto_install-arch:
+	cp debian/uhdpv-host.limits debian/uhdpv-host/etc/security/limits.d/uhd.conf
+	cp debian/uhdpv-host.sysctl debian/uhdpv-host/etc/sysctl.d/uhd-usrp2.conf
+	dh_auto_install
+	#chmod -x debian/tmp/usr/lib/uhd/tests/devtest/*.py
+	#chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/parse_benchmark_rate.py
+	#chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/run_benchmark_rate.py
+	rm -rf debian/tmp/usr/share/man
+	rm -rf debian/tmp/usr/share/doc/uhd/LICENSE
+	rm -rf debian/tmp/usr/share/doc/uhd/README.md
+# Remove source files used to generate documentation
+	rm -rf debian/tmp/usr/share/doc/uhd/doxygen/latex
+
+override_dh_acc:
+	- dh_acc $@
+	- cat logs/libuhdpv-dev/*/log.txt
+
+override_dh_shlibdeps:
+	dh_shlibdeps --package=uhdpv-host --libpackage=libuhdpv
+	dh_shlibdeps --package=libuhdpv --libpackage=libuhdpv
+	dh_shlibdeps --package=libuhdpv-dev --libpackage=libuhdpv
+	dh_shlibdeps --package=python3-uhdpv --libpackage=libuhdpv
