@@ -23,7 +23,7 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
                                         -DENABLE_EXAMPLES="ON" \
                                         -DENABLE_UTILS="ON" \
                                         -DENABLE_DPDK="OFF" \
-                                        -DENABLE_LIBURING="OFF" \
+                                        -DENABLE_LIBURING="ON" \
                                         -DENABLE_PYMOD_UTILS="OFF" \
                                         -DENABLE_PYTHON_API="ON" \
                                         -DPYTHON_EXECUTABLE=/usr/bin/python3 \
