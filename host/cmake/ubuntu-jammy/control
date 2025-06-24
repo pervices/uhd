@@ -24,7 +24,8 @@ Build-Depends: cmake,
                python3-numpy,
                python3-requests,
                python3-ruamel.yaml,
-               python3-setuptools
+               python3-setuptools,
+               liburing-dev
 Build-Depends-Indep: doxygen,
               	     doxygen-latex,
                	     graphviz [!powerpcspe]
@@ -61,7 +62,7 @@ Package: libuhdpv
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
-Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}
+Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}, liburing
 Multi-Arch: same
 Conflicts: libuhd4.1.0, libuhd4.4.0, libuhd4.6.0
 Description: hardware driver for Per Vices SDR products
