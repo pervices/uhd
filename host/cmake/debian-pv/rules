@@ -1,4 +1,9 @@
 #!/usr/bin/make -f
+
+# This file is kept for compatibility with older versions of the build system
+# ../ubuntu-*/ contain the new rules files
+$(warning "Legacy rules file, optimized for compatibiltiy. See ../ubuntu-*/rules for Distro specific rules files")
+
 include /usr/share/dpkg/pkg-info.mk
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 export DEB_HOST_MULTIARCH
