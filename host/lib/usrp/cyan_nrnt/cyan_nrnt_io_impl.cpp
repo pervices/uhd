@@ -22,8 +22,8 @@
 #include <iomanip>
 #include <mutex>
 
-#include "../../transport/super_recv_packet_handler_mmsg.cpp"
-#include "../../transport/super_send_packet_handler_mmsg.cpp"
+#include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
+#include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
 
 #include "cyan_nrnt_io_impl.hpp"
 #include "cyan_nrnt_impl.hpp"
