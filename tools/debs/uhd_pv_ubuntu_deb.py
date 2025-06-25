@@ -102,7 +102,7 @@ def main(args):
         for file in uhd_deb_build_path.glob("host/docs/*.1"):
             man_file.write(os.path.relpath(file, uhd_deb_build_path) + "\n")
         man_file.write("\n")
-    for file in uhd_deb_build_path.glob("debian/*.in")
+    for file in uhd_deb_build_path.glob("debian/*.in"):
         os.remove(file)
 
     # Modify changelog for selected release
