@@ -97,17 +97,17 @@ def main(args):
     print("Copying debian build files to the build folder...")
     shutil.copytree("host/cmake/ubuntu-" + args.release + "", uhd_deb_build_path / "debian")
     shutil.copy2("host/utils/uhd-usrp.rules",
-                 uhd_deb_build_path / ("ubuntu-" + args.release + "uhdpv-host.udev"))
-    with open(uhd_deb_build_path / ("ubuntu-" + args.release + "uhdpv-host.manpages"), "w") as man_file:
+                 uhd_deb_build_path / ("ubuntu-" + args.release + "/uhdpv-host.udev"))
+    with open(uhd_deb_build_path / ("ubuntu-" + args.release + "/uhdpv-host.manpages"), "w") as man_file:
         for file in uhd_deb_build_path.glob("host/docs/*.1"):
             man_file.write(os.path.relpath(file, uhd_deb_build_path) + "\n")
         man_file.write("\n")
-    for file in uhd_deb_build_path.glob("ubuntu-" + args.release + "*.in"):
+    for file in uhd_deb_build_path.glob("ubuntu-" + args.release + "/*.in"):
         os.remove(file)
 
     # Modify changelog for selected release
     print("Modifying changelog for the selected release...")
-    with open(uhd_deb_build_path / ("ubuntu-" + args.release + "changelog"), 'r+') as cl:
+    with open(uhd_deb_build_path / ("ubuntu-" + args.release + "/changelog"), 'r+') as cl:
         cl_text = cl.read()
         cl_text = re.sub(orig_release, args.release, cl_text)
         cl_text = re.sub(
