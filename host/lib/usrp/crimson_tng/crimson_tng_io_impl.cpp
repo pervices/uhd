@@ -21,9 +21,6 @@
 #include <iomanip>
 #include <mutex>
 
-#include "../../transport/super_recv_packet_handler_mmsg.cpp"
-#include "../../transport/super_send_packet_handler_mmsg.cpp"
-
 #include "crimson_tng_io_impl.hpp"
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"

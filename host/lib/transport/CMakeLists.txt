@@ -124,6 +124,8 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/async_recv_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/user_recv_manager.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/super_recv_packet_handler_mmsg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/super_send_packet_handler_mmsg.cpp
 )
 
 if(ENABLE_X300)
