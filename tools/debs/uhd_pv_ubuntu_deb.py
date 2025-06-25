@@ -50,7 +50,7 @@ def main(args):
     print("Determining UHD version number...")
     uhd_version = ""
     orig_release = ""
-    with open("host/cmake/debian-pv/changelog") as cl:
+    with open("host/cmake/ubuntu-noble/changelog") as cl:
         first_line = cl.readline()
         if args.nightly:
             uhd_version = re.search("\(([A-Za-z0-9+]+)", first_line)
@@ -58,13 +58,13 @@ def main(args):
         else:
             uhd_version = re.findall("[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*", first_line)
             if len(uhd_version) != 1:
-                print("uhd_version in changelog malformed. Check host/cmake/debian-pv/changelog")
+                print("uhd_version in changelog malformed. Check host/cmake/ubuntu-noble/changelog")
                 sys.exit(1)
             uhd_version = uhd_version[0]
         orig_release = re.findall("[A-Za-z_]*;", first_line)
         if len(orig_release) != 1:
             print(
-                "orig_release in changelog malformed. Check host/cmake/debian-pv/changelog")
+                "orig_release in changelog malformed. Check host/cmake/ubuntu-noble/changelog")
             sys.exit(1)
         orig_release = orig_release[0].replace(";", "")
 
@@ -95,7 +95,7 @@ def main(args):
 
     # Copy debian build files to build folder
     print("Copying debian build files to the build folder...")
-    shutil.copytree("host/cmake/debian-pv", uhd_deb_build_path / "debian")
+    shutil.copytree("host/cmake/ubuntu-noble", uhd_deb_build_path / "debian")
     shutil.copy2("host/utils/uhd-usrp.rules",
                  uhd_deb_build_path / "debian/uhdpv-host.udev")
     with open(uhd_deb_build_path / "debian/uhdpv-host.manpages", "w") as man_file:
