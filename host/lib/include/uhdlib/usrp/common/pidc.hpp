@@ -260,6 +260,6 @@ namespace uhd {
 
 } // namespace uhd
 
-#include "pidc_tl.hpp"
+#include <uhdlib/usrp/common/pidc_tl.hpp>
 
 #endif /* PIDC_HPP_ */

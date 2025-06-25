@@ -1,7 +1,7 @@
 #ifndef PIDC_TL_HPP_
 #define PIDC_TL_HPP_
 
-#include "pidc.hpp"
+#include <uhdlib/usrp/common/pidc.hpp>
 
 namespace uhd {
 

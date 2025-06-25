@@ -36,7 +36,7 @@
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #include "crimson_tng_io_impl.hpp"
 #include "../../transport/flow_control.hpp"
-#include "pidc.hpp"
+#include <uhdlib/usrp/common/pidc.hpp>
 
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/transport/bounded_buffer.hpp>

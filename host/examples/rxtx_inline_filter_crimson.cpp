@@ -21,8 +21,8 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 
-#include "../lib/usrp/crimson_tng/conv.hpp"
-#include "../lib/usrp/crimson_tng/xlate.hpp"
+#include <uhd/utils/conv.hpp>
+#include <uhd/utils/xlate.hpp>
 
 #ifndef SKIP_DSP
 //#define SKIP_DSP 1

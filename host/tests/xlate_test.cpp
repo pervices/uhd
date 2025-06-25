@@ -3,7 +3,7 @@
 #include <boost/format.hpp>
 #include <boost/test/unit_test.hpp>
 
-#include "../lib/usrp/crimson_tng/xlate.hpp"
+#include <uhd/utils/xlate.hpp>
 
 BOOST_AUTO_TEST_CASE( test_real_to_double_positive ) {
 

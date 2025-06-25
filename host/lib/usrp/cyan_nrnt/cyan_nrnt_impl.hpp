@@ -36,7 +36,7 @@
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #include "cyan_nrnt_io_impl.hpp"
-#include "../crimson_tng/pidc.hpp"
+#include <uhdlib/usrp/common/pidc.hpp>
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <immintrin.h>
