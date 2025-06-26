@@ -30,7 +30,7 @@
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "pv_usrp_fw_common.h"
+#include "pv_usrp_fw_common.hpp"
 #include <uhdlib/usrp/common/pv_iface.hpp>
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
@@ -100,6 +100,7 @@ public:
     bool recv_async_msg(uhd::async_metadata_t &, double);
 
     uhd::device_addr_t device_addr;
+    std::string _pv_usrp_debug_name;
 
     uhd::time_spec_t get_time_now();
 
@@ -192,6 +193,10 @@ private:
 
     time_spec_t _command_time;
 
+    // Tick rate used for Crimson timestamps
+    double _master_tick_rate;
+    double _tick_period_ns;
+
     static void bm_thread_fn( pv_usrp_impl *dev );
 
     struct mb_container_type{
@@ -274,6 +279,10 @@ private:
     std::shared_ptr<std::vector<bool>> rx_channel_in_use;
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
+
+    int64_t ticks_to_nsecs( int64_t tv_tick );
+    int64_t nsecs_to_ticks( int64_t tv_nsec );
+    void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts );
 
     bool clock_sync_desired = false;
 
