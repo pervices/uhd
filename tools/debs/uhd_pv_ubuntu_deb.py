@@ -53,10 +53,10 @@ def main(args):
     with open("host/cmake/debian-pv/changelog") as cl:
         first_line = cl.readline()
         if args.nightly:
-            uhd_version = re.search("\(([A-Za-z0-9+]+)", first_line)
+            uhd_version = re.search("\\(([A-Za-z0-9+]+)", first_line)
             uhd_version = uhd_version[1]
         else:
-            uhd_version = re.findall("[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*", first_line)
+            uhd_version = re.findall("[0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*", first_line)
             if len(uhd_version) != 1:
                 print("uhd_version in changelog malformed. Check host/cmake/debian-pv/changelog")
                 sys.exit(1)
