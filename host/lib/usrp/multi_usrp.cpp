@@ -75,11 +75,27 @@ UHD_INLINE std::string string_vector_to_string(
  * Helper methods
  **********************************************************************/
 
-static void do_freq_warning_message(
+static void freq_error_check(
     double target_freq, double actual_freq, const std::string& xx)
 {
-    static const double max_allowed_error = 1000.0; // Hz
-    if (std::abs(target_freq - actual_freq) > max_allowed_error) {
+    // Threshold to print a warning message
+    static constexpr double warn_threshold = 1000; // 1kHz
+    static constexpr double error_threshold = 250e6; // 100MHz
+
+    const double diff = std::abs(target_freq - actual_freq);
+
+    // The different between the actual and is extreme, through an error
+    // Technically this is different behaviour than upstream, but if someone encounters this they are doing something wrong
+    if(diff > error_threshold) {
+        std::string message = str(boost::format(
+                   "Extreme difference between target and actual when setting %s center frequency:\n"
+                   "Target center frequency: %f MHz\n"
+                   "Actual center frequency: %f MHz\n")
+                   % xx % (target_freq / 1e6) % (actual_freq / 1e6));
+        UHD_LOG_ERROR("MULTI_USRP", message)
+        throw uhd::runtime_error(message);
+
+    } else if (diff > warn_threshold) {
         UHD_LOGGER_WARNING("MULTI_USRP")
             << boost::format(
                    "Error while attempting to set the requested %s center frequency:\n"
@@ -898,7 +914,7 @@ public:
             }
         }
         tune_result_t actual_freq = get_device()->set_rx_freq(tune_request, chan);
-        do_freq_warning_message(tune_request.target_freq, actual_freq.actual_rf_freq - actual_freq.actual_dsp_freq, "RX" + std::to_string(chan));
+        freq_error_check(tune_request.target_freq, actual_freq.actual_rf_freq - actual_freq.actual_dsp_freq, "RX" + std::to_string(chan));
         return actual_freq;
     }
 
@@ -1929,7 +1945,7 @@ public:
     tune_result_t set_tx_freq(const tune_request_t& tune_request, size_t chan) override
     {
         tune_result_t actual_freq = get_device()->set_tx_freq(tune_request, chan);
-        do_freq_warning_message(tune_request.target_freq, actual_freq.actual_rf_freq + actual_freq.actual_dsp_freq, "TX" + std::to_string(chan));
+        freq_error_check(tune_request.target_freq, actual_freq.actual_rf_freq + actual_freq.actual_dsp_freq, "TX" + std::to_string(chan));
         return actual_freq;
     }
 
