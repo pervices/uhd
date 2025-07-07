@@ -156,7 +156,7 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
             std::cout << "PPS flag: " << pps_detected << std::endl;
 #endif
 
-        sleep(1);
+        sleep(2);
     }
     dev->_pps_thread_running = false;
 }

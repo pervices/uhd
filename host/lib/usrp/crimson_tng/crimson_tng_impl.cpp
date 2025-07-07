@@ -144,7 +144,7 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
             std::cout << "PPS flag: " << pps_detected << std::endl;
 #endif
 
-        sleep(1);
+        sleep(2);
     }
     dev->_pps_thread_running = false;
 }
