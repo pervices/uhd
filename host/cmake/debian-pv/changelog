@@ -1,3 +1,9 @@
+uhdpv (4.8.0.16-0ubuntu1) ubuntu_release; urgency=low
+
+  * Throw error if the mistmatch between the target and actual frequency in set_rx_freq and set_tx_freq exceeds 250MHz
+
+ -- Per Vices <packages@pervices.com>  Mon, 07 Jul 2025 18:12:53 -0400
+
 uhdpv (4.8.0.15-0ubuntu1) ubuntu_release; urgency=medium
 
   * Fixing build issue on Ubuntu caused by previous release
