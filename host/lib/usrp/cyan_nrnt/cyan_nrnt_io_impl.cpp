@@ -103,6 +103,7 @@ void cyan_nrnt_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, 
 }
 
 void cyan_nrnt_recv_packet_streamer::teardown() {
+    std::cout << "Begining rx teardown\n";
 
     for(size_t n = 0; n < _channels.size(); n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
@@ -135,6 +136,7 @@ cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
 }
 
 void cyan_nrnt_send_packet_streamer::teardown() {
+    std::cout << "Begining tx teardown\n";
     // Waits for all samples sent to be consumed before destructing, times out after 30s
     uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
     while(timeout_time > uhd::get_system_time()) {
@@ -512,6 +514,7 @@ bool cyan_nrnt_impl::recv_async_msg(
  * Receive streamer
  **********************************************************************/
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
+    std::cout << "Start get_rx_stream\n";
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -715,6 +718,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         }
     }
 
+    std::cout << "End get_rx_stream\n";
     return my_streamer;
 }
 
@@ -832,6 +836,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 }
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
+    std::cout << "Start get_tx_stream\n";
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
     // sfence to ensure the need for clock sync is pushed to other threads
@@ -954,5 +959,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // Clock sync takes time and some programs assume send will work quickly instead of having to wait for clock sync to finish, to avoid causing issues with those programs wait for lock sync before returning
     device_clock_sync_info->wait_for_sync();
 
+    std::cout << "End get_tx_stream\n";
     return my_streamer;
 }

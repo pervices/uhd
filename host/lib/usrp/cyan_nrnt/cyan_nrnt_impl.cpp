@@ -1388,12 +1388,14 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
 cyan_nrnt_impl::~cyan_nrnt_impl(void)
 {
+    std::cout << "Start ~cyan_nrnt_impl\n";
     stop_bm();
     stop_pps_dtc();
 
     // Manually calling destructor when using placement new is required
     _time_diff_pidc->~pidc();
     free(_time_diff_pidc);
+    std::cout << "End ~cyan_nrnt_impl\n";
 }
 
 //gets the jesd number to be used in creating stream command packets
