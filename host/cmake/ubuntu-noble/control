@@ -41,7 +41,7 @@ Depends: libuhdpv (= ${binary:Version}),
          python3-numpy,
          python3-requests,
          python3-ruamel.yaml,
-         python3-setuptools, liburing,
+         python3-setuptools, liburing-dev,
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: curl, procps
@@ -62,7 +62,7 @@ Package: libuhdpv
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
-Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}, liburing
+Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}, liburing-dev
 Multi-Arch: same
 Conflicts: libuhd4.1.0, libuhd4.4.0, libuhd4.6.0
 Description: hardware driver for Per Vices SDR products
@@ -75,7 +75,7 @@ Description: hardware driver for Per Vices SDR products
 Package: libuhdpv-dev
 Architecture: any
 Section: libdevel
-Depends: libuhdpv (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}, liburing
+Depends: libuhdpv (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}, liburing-dev
 Suggests: uhdpv-doc
 Conflicts: libuhd-dev
 Description: universal hardware driver for Per Vices SDR products
@@ -97,7 +97,7 @@ Depends: libuhdpv (= ${binary:Version}),
          python3-numpy,
          python3-requests,
          python3-ruamel.yaml,
-         python3-setuptools, liburing
+         python3-setuptools, liburing-dev
          ${misc:Depends},
          ${shlibs:Depends}
 Suggests: uhdpv-doc
@@ -113,7 +113,7 @@ Description: universal hardware driver for Per Vices SDR products - Python3
 
 Package: uhdpv-doc
 Architecture: all
-Depends: ${misc:Depends}, libjs-mathjax, liburing
+Depends: ${misc:Depends}, libjs-mathjax, liburing-dev
 Conflicts: uhd-doc
 Description: universal hardware driver for Per Vices SDR products - doc
  Detailed documentation for the Universal Hardware Driver.
