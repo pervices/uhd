@@ -26,7 +26,7 @@ supported_ubuntu_releases = ["focal", "jammy", "noble"]
 # tar.xz adds the tar.xz format, git archive creates the source code tarball
 prep_command = ["git", "config", "tar.tar.xz.command", "xz -c"]
 archive_command =  "git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
-debuild_command = "debuild -S -i -sa"
+debuild_command = "debuild -S -i -sa -d"
 debuild_nosign = " -uc -us"
 
 
