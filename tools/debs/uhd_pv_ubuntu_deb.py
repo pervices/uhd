@@ -119,7 +119,7 @@ def main(args):
     # Generate dsc file
     result = ""
     print("Running debuild / dsc generation")
-    print("cwd: " + uhd_deb_build_path)
+    print("cwd: " + str(uhd_deb_build_path))
     print("debuild_command: " + debuild_command)
     if args.sign:
         result = subprocess.run(shlex.split(debuild_command), cwd=uhd_deb_build_path)
