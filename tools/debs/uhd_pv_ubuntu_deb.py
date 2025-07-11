@@ -135,7 +135,7 @@ def main(args):
         print("Building deb with dsc using pbuilder for {}".format(args.release))
         os.mkdir(args.buildpath + "/result")
         result = subprocess.run(shlex.split(
-            "set -x; ./result uhdpv_{}-0ubuntu1~{}1.dsc; sudo pbuilder build --buildresult ./result uhdpv_{}-0ubuntu1~{}1.dsc".format(uhd_version, args.release, uhd_version, args.release)), cwd=args.buildpath)
+            "./result uhdpv_{}-0ubuntu1~{}1.dsc; sudo pbuilder build --buildresult ./result uhdpv_{}-0ubuntu1~{}1.dsc".format(uhd_version, args.release, uhd_version, args.release)), cwd=args.buildpath)
         if result.returncode:
             print("pbuilder failed")
             sys.exit(result.returncode)
