@@ -56,6 +56,10 @@ def main(args):
         if args.nightly:
             uhd_version = re.search("\\(([A-Za-z0-9+]+)", first_line)
             print("uhd_version 1: " + str(uhd_version))
+            print("uhd_version[0]: " +  uhd_version[0])
+            print("uhd_version[1]: " +  uhd_version[1])
+            print("uhd_version[2]: " +  uhd_version[2])
+            print("uhd_version[3]: " +  uhd_version[3])
             uhd_version = uhd_version[1]
             print("uhd_version 2: " + str(uhd_version))
         else:
