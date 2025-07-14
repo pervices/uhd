@@ -59,6 +59,8 @@ public:
 
     ~recv_packet_handler_mmsg(void);
 
+    bool tmp = true;
+
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
                            const size_t nsamps_per_buff,
                            uhd::rx_metadata_t& metadata,
@@ -269,12 +271,13 @@ public:
                     memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
             }
-            if(print_packet_length_error) [[unlikely]] {
+            if(print_packet_length_error || tmp) [[unlikely]] {
                 std::string message = "Mismatch in sample count between packets:";
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                     message += "\n\t" + std::to_string(vita_md[ch].num_payload_bytes / _BYTES_PER_SAMPLE);
                 }
                 UHD_LOG_ERROR("STREAMER", message);
+                tmp = false;
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
