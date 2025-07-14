@@ -239,17 +239,20 @@ public:
             // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
             std::vector<size_t> samples_to_cache(_NUM_CHANNELS, 0);
 
+            // Flag to decide if the packet length error should be printed
+            bool print_packet_length_error = false;
+
             // Copies sample data from the provider buffer to the user buffer
             // NOTE: do not update variables stored between runs in this loop, since the results will need to be discarded if data was overwritten
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
-                    UHD_LOGGER_ERROR("STREAMER") << "Mismatch in sample count between packets";
 
                     // Something is wrong with the packets if there is a mismatch in size and no other error has occured
                     if(metadata.error_code == rx_metadata_t::ERROR_CODE_NONE) {
                         metadata.error_code = rx_metadata_t::ERROR_CODE_BAD_PACKET;
+                        print_packet_length_error = true;
                     }
                 }
 
@@ -265,6 +268,13 @@ public:
                     // Copy extra samples from the packet to the cache
                     memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
+            }
+            if(print_packet_length_error) [[unlikely]] {
+                std::string message = "Mismatch in sample count between packets:";
+                for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                    message += "\n\t" + std::to_string(vita_md[ch].num_payload_bytes / _BYTES_PER_SAMPLE);
+                }
+                UHD_LOG_ERROR("STREAMER", message);
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
