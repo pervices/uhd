@@ -1,4 +1,4 @@
-uhdpv (4.8.0.16-0ubuntu1) ubuntu_release; urgency=low
+uhdpv (4.8.0.16-0ubuntu1~noble1) ubuntu_release; urgency=low
 
   * Throw error if the mistmatch between the target and actual frequency in set_rx_freq and set_tx_freq exceeds 250MHz
 

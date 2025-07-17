@@ -1,4 +1,4 @@
-uhd (4.8.0.0-0ubuntu1) ubuntu_release; urgency=low
+uhd (4.8.0.0-0ubuntu1~noble1) ubuntu_release; urgency=low
 
   * Highlights / Main Changes
     - Addition of rfnoc_modtool and further improvements to RFNoC Image Builder
