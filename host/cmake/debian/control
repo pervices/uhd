@@ -1,10 +1,12 @@
-Source: uhd
+Source: uhdpv
 Section: science
 Priority: optional
-Maintainer: Ettus Research <uhd.maintainer@emerson.com>
-Uploaders: Joerg Hofrichter <joerg.hofrichter@emerson.com>
+Maintainer: Per Vices <packages@pervices.com>
 Build-Depends: cmake,
-               debhelper (>= 12),
+               gcc-13,
+               g++-13,
+               git,
+               debhelper (>= 9),
                libboost-date-time-dev,
                libboost-dev,
                libboost-filesystem-dev,
@@ -22,19 +24,17 @@ Build-Depends: cmake,
                python3-numpy,
                python3-requests,
                python3-ruamel.yaml,
-               python3-setuptools,
-               pybind11-dev
+               python3-setuptools
 Build-Depends-Indep: doxygen,
               	     doxygen-latex,
                	     graphviz [!powerpcspe]
 Standards-Version: 4.6.0
-Homepage: https://www.ettus.com
-Vcs-Git: https://github.com/EttusResearch/uhd.git
+Homepage: https://www.pervices.com
+Vcs-Git: https://github.com/pervices/uhd.git
 
-Package: uhd-host
+Package: uhdpv-host
 Architecture: any
-Depends: libuhd4.8.0 (= ${binary:Version}),
-         python3-uhd (= ${binary:Version}),
+Depends: libuhdpv (= ${binary:Version}),
          python3,
          python3-mako,
          python3-numpy,
@@ -44,9 +44,9 @@ Depends: libuhd4.8.0 (= ${binary:Version}),
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: curl, procps
-Suggests: gnuradio
-Description: hardware driver for Ettus Research products - host apps
- Host utilities for the USRP Hardware Driver for Ettus Research products.
+Conflicts: uhd-host
+Description: hardware driver for Per Vices SDR products - host apps
+ Host utilities for the Hardware Driver for Per Vices SDR products.
  .
  The supported devices provide analog radio receiver and transmitter hardware
  along with digital interfaces for getting signals to and from a software
@@ -57,41 +57,40 @@ Description: hardware driver for Ettus Research products - host apps
  display hardware configuration information, and Doxygen generated
  documentation.
 
-Package: libuhd4.8.0
+Package: libuhdpv
 Architecture: any
 Section: libs
 Pre-Depends: ${misc:Pre-Depends}
 Depends: python3, adduser, ${shlibs:Depends}, ${misc:Depends}
-Suggests: gnuradio
-Replaces: libuhd003
 Multi-Arch: same
-Description: hardware driver for Ettus Research products
- Host library for the USRP Hardware Driver for Ettus Research products.
+Conflicts: libuhd4.1.0, libuhd4.4.0, libuhd4.6.0
+Description: hardware driver for Per Vices SDR products
+ Host library for the Hardware Driver for Per Vices SDR products.
  .
  The supported devices provide analog radio receiver and transmitter hardware
  along with digital interfaces for getting signals to and from a software
  defined radio running on the host computer.
 
-Package: libuhd-dev
+Package: libuhdpv-dev
 Architecture: any
 Section: libdevel
-Depends: libuhd4.8.0 (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
-Recommends: gnuradio-dev
-Suggests: uhd-doc
-Description: universal hardware driver for Ettus Research products
- Host library for the USRP Hardware Driver for Ettus Research products.
+Depends: libuhdpv (= ${binary:Version}), ${misc:Depends}, ${shlibs:Depends}
+Suggests: uhdpv-doc
+Conflicts: libuhd-dev
+Description: universal hardware driver for Per Vices SDR products
+ Host library for the Hardware Driver for Per Vices products.
  .
  The supported devices provide analog radio receiver and transmitter hardware
  along with digital interfaces for getting signals to and from a software
  defined radio running on the host computer.
  .
- This package contains the header files for developing with libuhd.
- Doxygen generated documentation is in the uhd-host package.
+ This package contains the header files for developing with libuhdpv.
+ Doxygen generated documentation is in the uhdpv-host package.
 
-Package: python3-uhd
+Package: python3-uhdpv
 Architecture: alpha amd64 arm64 armel armhf hppa i386 ia64 m68k mips64el ppc64 ppc64el riscv64 s390x sparc64 x32
 Section: libdevel
-Depends: libuhd4.8.0 (= ${binary:Version}),
+Depends: libuhdpv (= ${binary:Version}),
          python3,
          python3-mako,
          python3-numpy,
@@ -100,11 +99,10 @@ Depends: libuhd4.8.0 (= ${binary:Version}),
          python3-setuptools,
          ${misc:Depends},
          ${shlibs:Depends}
-Recommends: gnuradio
-Suggests: uhd-doc
-Conflicts: uhd-host (<= 4.1.0.4-0)
-Description: universal hardware driver for Ettus Research products - Python3
- Host library for the Universal Hardware Driver for Ettus Research products.
+Suggests: uhdpv-doc
+Conflicts: python3-uhd, uhdpv-host (<= 4.1.0.4-0)
+Description: universal hardware driver for Per Vices SDR products - Python3
+ Host library for the Universal Hardware Driver for Per Vices products.
  .
  The supported devices provide analog radio receiver and transmitter hardware
  along with digital interfaces for getting signals to and from a software
@@ -112,12 +110,11 @@ Description: universal hardware driver for Ettus Research products - Python3
  .
  This package contains the Python API support for Python3.
 
-Package: uhd-doc
+Package: uhdpv-doc
 Architecture: all
 Depends: ${misc:Depends}, libjs-mathjax
-Breaks: uhd-host (<< 4.1.0.4-0)
-Replaces: uhd-host (<< 4.1.0.4)
-Description: universal hardware driver for Ettus Research products - doc
+Conflicts: uhd-doc
+Description: universal hardware driver for Per Vices SDR products - doc
  Detailed documentation for the Universal Hardware Driver.
  .
  This package includes the Doxygen generated documentation.
