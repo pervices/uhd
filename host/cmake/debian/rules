@@ -48,8 +48,8 @@ override_dh_auto_install-indep:
 	rm -rf debian/tmp/usr/share/doc/uhd/doxygen/latex
 
 override_dh_auto_install-arch:
-# 	cp debian/uhdpv-host.limits debian/uhdpv-host/etc/security/limits.d/uhd.conf
-# 	cp debian/uhdpv-host.sysctl debian/uhdpv-host/etc/sysctl.d/uhd-usrp2.conf
+	cp debian/uhdpv-host.limits debian/uhdpv-host/etc/security/limits.d/uhd.conf
+	cp debian/uhdpv-host.sysctl debian/uhdpv-host/etc/sysctl.d/uhd-usrp2.conf
 	dh_auto_install
 	#chmod -x debian/tmp/usr/lib/uhd/tests/devtest/*.py
 	#chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/parse_benchmark_rate.py
