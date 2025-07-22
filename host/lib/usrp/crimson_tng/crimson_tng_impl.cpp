@@ -29,6 +29,7 @@
 #include "uhd/transport/udp_simple.hpp"
 #include "uhd/types/stream_cmd.hpp"
 #include "uhd/utils/static.hpp"
+#include <uhd/utils/log.hpp>
 
 #include <uhdlib/transport/udp_common.hpp>
 
@@ -143,8 +144,12 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
 #ifdef DEBUG_COUT
             std::cout << "PPS flag: " << pps_detected << std::endl;
 #endif
-
-        sleep(2);
+        // Check if it should exit every 10ms for up to 2s
+        for (size_t i = 0; i < 200; i++) {
+            usleep(10000);
+            if (dev->_pps_thread_should_exit)
+                break;
+        }
     }
     dev->_pps_thread_running = false;
 }
