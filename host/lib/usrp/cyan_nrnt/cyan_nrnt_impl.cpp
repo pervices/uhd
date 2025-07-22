@@ -155,8 +155,12 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
 #ifdef DEBUG_COUT
             std::cout << "PPS flag: " << pps_detected << std::endl;
 #endif
-
-        sleep(2);
+        // Check if it should exit every 10ms for up to 2s
+        for (size_t i = 0; i < 200; i++) {
+            usleep(10000);
+            if (dev->_pps_thread_should_exit)
+                break;
+        }
     }
     dev->_pps_thread_running = false;
 }
