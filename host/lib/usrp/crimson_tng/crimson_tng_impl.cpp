@@ -145,13 +145,11 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
             std::cout << "PPS flag: " << pps_detected << std::endl;
 #endif
         // Check if it should exit every 10ms for up to 2s
-        for (size_t i=0; i < 200; i++) {
-            UHD_LOGGER_INFO("CRIMSON_IMPL") << "10ms in pps";
+        for (size_t i = 0; i < 200; i++) {
             usleep(10000);
             if (dev->_pps_thread_should_exit)
                 break;
         }
-        UHD_LOGGER_INFO("CRIMSON_IMPL") << "2s in pps";
     }
     dev->_pps_thread_running = false;
 }
