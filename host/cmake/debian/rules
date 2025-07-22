@@ -60,9 +60,9 @@ override_dh_auto_install-arch:
 # Remove source files used to generate documentation
 	rm -rf debian/tmp/usr/share/doc/uhd/doxygen/latex
 
-override_dh_acc:
-	- dh_acc $@
-	- cat logs/libuhdpv-dev/*/log.txt
+# override_dh_acc:
+# 	- dh_acc $@
+# 	- cat logs/libuhdpv-dev/*/log.txt
 
 override_dh_shlibdeps:
 	dh_shlibdeps --package=uhdpv-host --libpackage=libuhdpv
