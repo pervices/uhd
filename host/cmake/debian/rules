@@ -30,7 +30,7 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
                                         -DUHD_PYTHON_DIR="lib/python3/dist-packages"')
 
 %:
-	dh $@ --parallel --sourcedirectory=/home/jade/doug/tmp/uhd/host/cmake/debian --builddirectory=build
+	dh $@ --parallel --sourcedirectory=/home/jade/doug/tmp/uhd/host --builddirectory=build
 
 override_dh_auto_configure:
 	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
