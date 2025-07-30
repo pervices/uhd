@@ -202,151 +202,156 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             }
         }
 
-	if (hw_info) {
-	    std::time_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-	    std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
-	    std::cout << std::getenv("LOGNAME") << "@" << std::ifstream("/etc/hostname").rdbuf() << std::endl;
-	    std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl; 
-	    std::cout << "Device Type: " << device_type << std::endl;
-	    std::cout << "Serial: " << dit->first << std::endl;
+        if (hw_info) {
+            std::time_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
+            std::cout << std::getenv("LOGNAME") << "@" << std::ifstream("/etc/hostname").rdbuf() << std::endl;
+            std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl;
+            std::cout << "Device Type: " << device_type << std::endl;
+            std::cout << "Serial: " << dit->first << std::endl;
 
-	    std::string server_version = silent_get_from_tree(tree, i, "server_version");
-	    size_t revision_start = server_version.find("Revision");
-	    size_t rtm_start = server_version.find("RTM");
-	    size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
+            std::string server_version = silent_get_from_tree(tree, i, "server_version");
+            size_t revision_start = server_version.find("Revision");
+            size_t rtm_start = server_version.find("RTM");
+            size_t fpga_rev_start = server_version.find(':', server_version.find("FPGA:"));
 
-	    // Server/FPGA version info
-	    std::cout << "\nServer " << server_version.substr(revision_start, server_version.find('\n', revision_start) - revision_start) << std::endl;
-	    std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start) << std::endl;
-	    std::cout << "FPGA Revision" << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
-	    std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
+            // Server/FPGA version info
+            std::cout << "\nServer " << server_version.substr(revision_start, server_version.find('\n', revision_start) - revision_start) << std::endl;
+            std::cout << "Server " << server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start) << std::endl;
+            std::cout << "FPGA Revision" << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
+            std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
 
-	    if (device_type == "crimson_tng") {
-		std::cout << "FPGA Flags: " << (get_from_tree_int(tree, i, "system/is_full_tx") == "1" ? "Full Tx" : "Production") << '\n' << std::endl;
-	    } else {
-		size_t fpga_jesd_start = server_version.find("JESD:");
-		std::string backplane = get_from_tree_int(tree, i, "imgparam/backplane_pinout");
-		
-		std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
-		std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
-		std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane + "G")) << '\n' << std::endl;
-	    }
+            if (device_type == "crimson_tng") {
+                std::cout << "FPGA Flags: " << (get_from_tree_int(tree, i, "system/is_full_tx") == "1" ? "Full Tx" : "Production") << '\n' << std::endl;
+            } else {
+                size_t fpga_jesd_start = server_version.find("JESD:");
+                std::string backplane = get_from_tree_int(tree, i, "imgparam/backplane_pinout");
 
-	    // Time board version info
-	    std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
-	    size_t rev_start = time_version.find("Revision:");
-	    size_t branch_start = time_version.find("Branch:");
-	    
-	    std::cout << "Time MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start) - rev_start) << std::endl;
-	    std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start) - branch_start) << std::endl;
+                std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
+                std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
+                std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane + "G")) << '\n' << std::endl;
+            }
 
-	    char device_path[50];
-	    sprintf(device_path, "mboards/%i/", i);
-	    if (tree->exists(std::string(device_path) + "time/eeprom")) {
-		std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
-		if (time_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos)
-		    std::cout << "Time EEPROM: " << time_eeprom.substr(0, time_eeprom.find('\n')) << std::endl;
-	    }
+            // Time board version info
+            std::string time_version = silent_get_from_tree(tree, i, "time/fw_version");
+            size_t rev_start = time_version.find("Revision:");
+            size_t branch_start = time_version.find("Branch:");
 
-	    std::cout << "\n";
+            std::cout << "Time MCU " << time_version.substr(rev_start, time_version.find('\n', rev_start) - rev_start) << std::endl;
+            std::cout << "Time MCU " << time_version.substr(branch_start, time_version.find('\n', branch_start) - branch_start) << std::endl;
 
-	    // RFE boards info
+            char device_path[50];
+            sprintf(device_path, "mboards/%i/", i);
+            if (tree->exists(std::string(device_path) + "time/eeprom")) {
+            std::string time_eeprom = silent_get_from_tree(tree, i, "time/eeprom");
+            if (time_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos)
+                std::cout << "Time EEPROM: " << time_eeprom.substr(0, time_eeprom.find('\n')) << std::endl;
+            }
+
+            std::cout << "\n";
+
+            // RFE boards info
             size_t num_tx_channels = dev->get_tx_num_channels();
             size_t num_rx_channels = dev->get_rx_num_channels();
 
-	    if (num_tx_channels > 1) {
-		std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
-	    }
-	    if (num_rx_channels > 1) {
-		std::cout << "Num Rx RFE: " << num_rx_channels << std::endl;
-	    }
+            if (num_tx_channels > 1) {
+                std::cout << "Num Tx RFE: " << num_tx_channels << std::endl;
+            }
+            if (num_rx_channels > 1) {
+                std::cout << "Num Rx RFE: " << num_rx_channels << std::endl;
+            }
 
-	     
-	    std::vector<size_t> channel_group;
-	    for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
-		char path[50];
-		sprintf(path, "rx/%lu/fw_version", rx_chan);
-		std::string rx_version = silent_get_from_tree(tree, i, path);
-		size_t rfe_rev_start = rx_version.find("Revision:");
-		size_t rfe_type_start = rx_version.find(":", rx_version.find("Board Version:"));
 
-		std::string current_serial = extract_mcu_serial(rx_version);
+            std::vector<size_t> channel_group;
+            for(size_t rx_chan = 0; rx_chan < num_rx_channels; rx_chan++) {
+                char path[50];
+                sprintf(path, "rx/%lu/fw_version", rx_chan);
+                std::string rx_version = silent_get_from_tree(tree, i, path);
+                size_t rfe_rev_start = rx_version.find("Revision:");
+                size_t rfe_type_start = rx_version.find(":", rx_version.find("Board Version:"));
 
-		if (not current_serial.empty())
-		    channel_group.push_back(rx_chan);
+                std::string current_serial = extract_mcu_serial(rx_version);
 
-		std::string next_serial; 
-		if (rx_chan+1 < num_rx_channels) {
-		    sprintf(path, "rx/%lu/fw_version", rx_chan+1);
-		    next_serial = extract_mcu_serial(silent_get_from_tree(tree, i, path));
-		}
+                if (not current_serial.empty())
+                    channel_group.push_back(rx_chan);
 
-		// Want to avoid printing duplicate info for channels on the same board, so make sure serial numbers are different
-		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
-		    for (size_t chan : channel_group) {
-			std::cout << "Rx" << chan << (chan == channel_group.back() ? " Type:" : ", "); 
-		    } 
+                std::string next_serial;
+                if (rx_chan+1 < num_rx_channels) {
+                    sprintf(path, "rx/%lu/fw_version", rx_chan+1);
+                    next_serial = extract_mcu_serial(silent_get_from_tree(tree, i, path));
+                }
 
-		    if (rfe_type_start != std::string::npos)
-			std::cout << rx_version.substr(rfe_type_start+1, rx_version.find('\n', rfe_type_start) - rfe_type_start - 1) << std::endl;
+                // Want to avoid printing duplicate info for channels on the same board, so make sure serial numbers are different
+                if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
+                    for (size_t chan : channel_group) {
+                        std::cout << "Rx" << chan << (chan == channel_group.back() ? " Type:" : ", ");
+                    }
 
-		    if (rfe_rev_start != std::string::npos)
-			std::cout << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
+                    if (rfe_type_start != std::string::npos) {
+                        std::cout << rx_version.substr(rfe_type_start+1, rx_version.find('\n', rfe_type_start) - rfe_type_start - 1) << std::endl;
+                    }
 
-		    sprintf(path, "rx/%lu/eeprom", rx_chan);
-		    if (tree->exists(std::string(device_path) + path)) {
-			std::string rx_eeprom = silent_get_from_tree(tree, i, path);
-			if (rx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos)
-			    std::cout << "MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
-		    } 
+                    if (rfe_rev_start != std::string::npos) {
+                        std::cout << "MCU " << rx_version.substr(rfe_rev_start, rx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
+                    }
 
-		    channel_group.clear();
-		}
+                    sprintf(path, "rx/%lu/eeprom", rx_chan);
+                    if (tree->exists(std::string(device_path) + path)) {
+                        std::string rx_eeprom = silent_get_from_tree(tree, i, path);
+                        if (rx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos) {
+                            std::cout << "MCU EEPROM: " << rx_eeprom.substr(0, rx_eeprom.find('\n')) << std::endl;
+                        }
+                    }
 
-	    }
+                    channel_group.clear();
+                }
+            }
 
-	    for (size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
-		char path[50];
-		sprintf(path, "tx/%lu/fw_version", tx_chan);
-		std::string tx_version = silent_get_from_tree(tree, i, path);
-		size_t rfe_rev_start = tx_version.find("Revision:");
-		size_t rfe_type_start = tx_version.find(":", tx_version.find("Board Version:"));
+            for (size_t tx_chan = 0; tx_chan < num_tx_channels; tx_chan++) {
+                char path[50];
+                sprintf(path, "tx/%lu/fw_version", tx_chan);
+                std::string tx_version = silent_get_from_tree(tree, i, path);
+                size_t rfe_rev_start = tx_version.find("Revision:");
+                size_t rfe_type_start = tx_version.find(":", tx_version.find("Board Version:"));
 
-		std::string current_serial = extract_mcu_serial(tx_version);
+                std::string current_serial = extract_mcu_serial(tx_version);
 
-		if (not current_serial.empty())
-		    channel_group.push_back(tx_chan);
+                if (not current_serial.empty()) {
+                    channel_group.push_back(tx_chan);
+                }
 
-		std::string next_serial; 
-		if (tx_chan+1 < num_tx_channels) {
-		    sprintf(path, "tx/%lu/fw_version", tx_chan+1);
-		    next_serial = extract_mcu_serial(silent_get_from_tree(tree, i, path));
-		}
+                std::string next_serial;
+                if (tx_chan+1 < num_tx_channels) {
+                    sprintf(path, "tx/%lu/fw_version", tx_chan+1);
+                    next_serial = extract_mcu_serial(silent_get_from_tree(tree, i, path));
+                }
 
-		if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
-		    for (size_t chan : channel_group) {
-			std::cout << "Tx" << chan << (chan == channel_group.back() ? " Type:" : ", "); 
-		    } 
+                if (current_serial.compare(next_serial) != 0 && not current_serial.empty()) {
+                    for (size_t chan : channel_group) {
+                        std::cout << "Tx" << chan << (chan == channel_group.back() ? " Type:" : ", ");
+                    }
 
-		    if (rfe_type_start != std::string::npos)
-			std::cout << tx_version.substr(rfe_type_start+1, tx_version.find('\n', rfe_type_start) - rfe_type_start - 1) << std::endl;
+                    if (rfe_type_start != std::string::npos) {
+                        std::cout << tx_version.substr(rfe_type_start+1, tx_version.find('\n', rfe_type_start) - rfe_type_start - 1) << std::endl;
+                    }
 
-		    if (rfe_rev_start != std::string::npos)
-			std::cout << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
+                    if (rfe_rev_start != std::string::npos) {
+                        std::cout << "MCU " << tx_version.substr(rfe_rev_start, tx_version.find('\n', rfe_rev_start) - rfe_rev_start) << std::endl;
+                    }
 
-		    sprintf(path, "tx/%lu/eeprom", tx_chan);
-		    if (tree->exists(std::string(device_path) + path)) {
-			std::string tx_eeprom = silent_get_from_tree(tree, i, path);
-			if (tx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos)
-			    std::cout << "MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::endl;
-		    } 
-
-		    channel_group.clear();
-		}
-	    }
-	} else {
-	    std::cout << "Device Type    : " << device_type << std::endl;
-	}
+                    sprintf(path, "tx/%lu/eeprom", tx_chan);
+                    if (tree->exists(std::string(device_path) + path)) {
+                        std::string tx_eeprom = silent_get_from_tree(tree, i, path);
+                        if (tx_eeprom.find("UNKNOWN: EEPROM not programmed or does not exist") == std::string::npos) {
+                            std::cout << "MCU EEPROM: " << tx_eeprom.substr(0, tx_eeprom.find('\n')) << std::endl;
+                        }
+                    }
+                    channel_group.clear();
+                }
+            }
+        } else {
+            std::cout << "Device Type    : " << device_type << std::endl;
+        }
 
         if(server_info) {
             try {
@@ -458,7 +463,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
                     if(!git_hash_only) {
                         try {
-                        std::vector<std::string> sensor_list = dev->get_tx_sensor_names(tx_chan);
+                            std::vector<std::string> sensor_list = dev->get_tx_sensor_names(tx_chan);
                             for(size_t n = 0; n < sensor_list.size(); n++) {
                                 uhd::sensor_value_t sensor_value = dev->get_tx_sensor(sensor_list[n], tx_chan);
                                 std::cout << "\ttx(" << std::to_string(tx_chan) << "): " << sensor_value.to_pp_string() << std::endl;
