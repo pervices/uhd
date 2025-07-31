@@ -944,6 +944,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
+    // cmp_time returns the time/date the FPGA image was compiled
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "cmp_time", "fpga/about/cmp_time", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/backplane_pinout", "fpga/about/imgparam/backplane_pinout", int, int);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/ddr_used", "fpga/about/imgparam/ddr_used", int, int);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/hps_only", "fpga/about/imgparam/hps_only", int, int);
