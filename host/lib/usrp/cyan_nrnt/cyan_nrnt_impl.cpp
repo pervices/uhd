@@ -253,6 +253,7 @@ void cyan_nrnt_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
 // TODO: change the rx functions that bind to this to use their own clock_sync_shared_info
 uhd::time_spec_t cyan_nrnt_impl::get_time_now() {
     // Waits for clock to be stable before getting time
+    _mm_lfence();
     if(_bm_thread_running) {
         device_clock_sync_info->wait_for_sync();
         double diff = device_clock_sync_info->get_time_diff();
@@ -572,6 +573,7 @@ void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::t
 void cyan_nrnt_impl::start_bm() {
 
     //checks if the current task is excempt from need clock synchronization
+    _mm_lfence();
 	if ( ! _bm_thread_needed ) {
 		return;
 	}
@@ -580,9 +582,11 @@ void cyan_nrnt_impl::start_bm() {
 	if ( ! _bm_thread_running ) {
 
 		_bm_thread_should_exit = false;
+        _mm_sfence();
         //starts the thread that synchronizes the clocks
         request_resync_time_diff();
         _bm_thread_running = true;
+        _mm_sfence();
 		_bm_thread = std::thread( bm_thread_fn, this );
 
         //Note: anything relying on this will require waiting time_diff_converged()
@@ -591,10 +595,12 @@ void cyan_nrnt_impl::start_bm() {
 
 //stops clock synchronization
 void cyan_nrnt_impl::stop_bm() {
+    _mm_lfence();
 
 	if ( _bm_thread_running ) {
 
 		_bm_thread_should_exit = true;
+        _mm_sfence();
 		_bm_thread.join();
 
 	}
@@ -657,6 +663,7 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
     dev->_sfp_control_mutex[dev->get_which_time_diff_iface()]->unlock();
     dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
+    _mm_lfence();
 	for(
 		now = uhd::get_system_time(),
 			then = now + T
@@ -703,8 +710,11 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
              UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
              dropped_recv_message_printed = true;
          }
+         // lfence to update _bm_thread_should_exit for the for loop
+         _mm_lfence();
 	}
 	dev->_bm_thread_running = false;
+    _mm_sfence();
 }
 
 /***********************************************************************

@@ -191,12 +191,13 @@ private:
      * Buffer Management Objects
      */
 
-	// N.B: the _bm_thread is also used for clock domain synchronization
-	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
-	std::thread _bm_thread;
-	std::atomic<bool> _bm_thread_needed;
-	std::atomic<bool> _bm_thread_running;
-	std::atomic<bool> _bm_thread_should_exit;
+    // Thread that handles syncing clocks between the host and Cyan
+    std::thread _bm_thread;
+    //  Always use _mm_sfence/_mm_lfence after writing/before reading control variables for _bm_thread
+    bool _bm_thread_needed;
+    // TODO: replace _bm_thread_running with checks to the thread object
+    bool _bm_thread_running;
+    bool _bm_thread_should_exit;
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called
