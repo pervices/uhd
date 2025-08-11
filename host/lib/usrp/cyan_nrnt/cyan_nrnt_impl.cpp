@@ -141,8 +141,10 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_
 void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
 
     dev->_pps_thread_running = true;
+    _mm_sfence();
     int pps_detected;
 
+    _mm_lfence();
     while (! dev->_pps_thread_should_exit) {
         dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").set(1);
         pps_detected = dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").get();
@@ -158,11 +160,16 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
         // Check if it should exit every 10ms for up to 2s
         for (size_t i = 0; i < 200; i++) {
             usleep(10000);
-            if (dev->_pps_thread_should_exit)
+            // lfence to update _pps_thread_should_exit (needed for for the following line and the while check)
+            _mm_lfence();
+            if (dev->_pps_thread_should_exit) {
                 break;
+            }
         }
+
     }
     dev->_pps_thread_running = false;
+    _mm_sfence();
 }
 
 void cyan_nrnt_impl::set_command_time( const std::string key, time_spec_t value ) {
@@ -591,6 +598,7 @@ void cyan_nrnt_impl::stop_bm() {
 }
 
 void cyan_nrnt_impl::start_pps_dtc() {
+    _mm_lfence();
 
     if ( ! _pps_thread_needed ) {
         return;
@@ -598,11 +606,13 @@ void cyan_nrnt_impl::start_pps_dtc() {
 
     if ( ! _pps_thread_running ) {
         _pps_thread_should_exit = false;
+        _mm_sfence();
         _pps_thread = std::thread( detect_pps, this );
     }
 }
 
 void cyan_nrnt_impl::stop_pps_dtc() {
+    _mm_lfence();
 
     if ( ! _pps_thread_needed ) {
         return;
@@ -610,6 +620,7 @@ void cyan_nrnt_impl::stop_pps_dtc() {
 
     if(_pps_thread.joinable()) {
         _pps_thread_should_exit = true;
+        _mm_sfence();
         _pps_thread.join();
     }
 }
@@ -1024,6 +1035,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     }
     _pps_thread_running = false;
     _pps_thread_should_exit = false;
+    _mm_sfence();
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
@@ -1347,9 +1359,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     }
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
-	if ( _pps_thread_needed ) {
-		start_pps_dtc();
-	}
+    _mm_lfence();
+    if ( _pps_thread_needed ) {
+        start_pps_dtc();
+    }
 
     //Initialize "Time Diff" mechanism before starting flow control thread
     time_spec_t ts = uhd::get_system_time();
