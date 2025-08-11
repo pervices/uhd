@@ -194,9 +194,9 @@ private:
 	// N.B: the _bm_thread is also used for clock domain synchronization
 	// N.B: the _bm_iface was removed in favour of using the _time_diff_iface
 	std::thread _bm_thread;
-	std::atomic<bool> _bm_thread_needed;
-	std::atomic<bool> _bm_thread_running;
-	std::atomic<bool> _bm_thread_should_exit;
+	bool _bm_thread_needed;
+	bool _bm_thread_running;
+	bool _bm_thread_should_exit;
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called
