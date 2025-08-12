@@ -49,7 +49,7 @@ namespace asio = boost::asio;
 
 #if 0
     #ifndef
-      #define DEBUG_COUT
+    #define DEBUG_COUT
     #endif
 #endif
 
@@ -60,8 +60,8 @@ namespace asio = boost::asio;
 //boost::mutex tng_udp_mutex;
 
 /***********************************************************************
- * Helper Functions
- **********************************************************************/
+* Helper Functions
+**********************************************************************/
 static void do_samp_rate_warning_message(
     double target_rate, double actual_rate, const std::string& xx, const size_t chan)
 {
@@ -69,10 +69,10 @@ static void do_samp_rate_warning_message(
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
         UHD_LOGGER_WARNING("MULTI_USRP")
             << boost::format(
-                   "The hardware does not support the requested %s sample rate on ch %li:\n"
-                   "Target sample rate: %f MSps\n"
-                   "Actual sample rate: %f MSps\n")
-                   % xx % chan % (target_rate / 1e6) % (actual_rate / 1e6);
+                "The hardware does not support the requested %s sample rate on ch %li:\n"
+                "Target sample rate: %f MSps\n"
+                "Actual sample rate: %f MSps\n")
+                % xx % chan % (target_rate / 1e6) % (actual_rate / 1e6);
     }
 }
 
@@ -109,13 +109,13 @@ static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) 
 }
 
 static size_t pre_to_ch( const std::string & pre ) {
-	char x = -1;
-	if ( 1 != sscanf( pre.c_str(), "rx_%c/stream", & x) ) {
-		throw value_error( "Invalid 'pre' argument '" + pre + "'" );
-	}
-	size_t ch = x - 'a';
+    char x = -1;
+    if ( 1 != sscanf( pre.c_str(), "rx_%c/stream", & x) ) {
+        throw value_error( "Invalid 'pre' argument '" + pre + "'" );
+    }
+    size_t ch = x - 'a';
 
-	return ch;
+    return ch;
 }
 
 // TODO: refactor so this function can be called even if this has been destructed
@@ -256,44 +256,44 @@ uhd::time_spec_t crimson_tng_impl::get_time_now() {
 
 void crimson_tng_impl::set_properties_from_addr() {
 
-	static const std::string crimson_prop_prefix( "crimson:" );
-	static const std::vector<std::string> blacklist { "crimson:sob" };
+    static const std::string crimson_prop_prefix( "crimson:" );
+    static const std::vector<std::string> blacklist { "crimson:sob" };
 
-	for( auto & prop: device_addr.keys() ) {
-		if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
+    for( auto & prop: device_addr.keys() ) {
+        if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
 
-			bool is_blacklisted = false;
-			for( auto & e: blacklist ) {
-				if ( e == prop ) {
-					is_blacklisted = true;
-				}
-			}
-			if ( is_blacklisted ) {
-				continue;
-			}
+            bool is_blacklisted = false;
+            for( auto & e: blacklist ) {
+                if ( e == prop ) {
+                    is_blacklisted = true;
+                }
+            }
+            if ( is_blacklisted ) {
+                continue;
+            }
 
-			std::string key = prop.substr( crimson_prop_prefix.length() );
-			std::string expected_string = device_addr[ prop ];
+            std::string key = prop.substr( crimson_prop_prefix.length() );
+            std::string expected_string = device_addr[ prop ];
 
             _mbc.iface->set_string( key, expected_string );
 
             std::string actual_string = _mbc.iface->get_string( key );
-			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR("CRIMSON_IMPL")
-					<< __func__ << "(): "
-					<< "Setting Crimson property failed: "
-					<< "key: '"<< key << "', "
-					<< "expected val: '" << expected_string << "', "
-					<< "actual val: '" << actual_string  << "'"
-					<< std::endl;
-			}
-		}
-	}
+            if ( actual_string != expected_string ) {
+                UHD_LOGGER_ERROR("CRIMSON_IMPL")
+                    << __func__ << "(): "
+                    << "Setting Crimson property failed: "
+                    << "key: '"<< key << "', "
+                    << "expected val: '" << expected_string << "', "
+                    << "actual val: '" << actual_string  << "'"
+                    << std::endl;
+            }
+        }
+    }
 }
 
 /***********************************************************************
- * Discovery over the udp transport
- **********************************************************************/
+* Discovery over the udp transport
+**********************************************************************/
 // This find function will be called if a hint is passed onto the find function
 device_addrs_t crimson_tng_impl::crimson_tng_find_with_addr(const device_addr_t &hint)
 {
@@ -311,9 +311,9 @@ device_addrs_t crimson_tng_impl::crimson_tng_find_with_addr(const device_addr_t 
 
     // Checks for all connected Crimsons
     for(
-		float to = 0.2;
-    	comm->recv(asio::buffer(buff), to);
-    	to = 0.05
+        float to = 0.2;
+        comm->recv(asio::buffer(buff), to);
+        to = 0.05
     ) {
         // parse the return buffer for the device type (from fpga/about/name)
         std::vector<std::string> tokens;
@@ -443,7 +443,7 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
         {
             //avoid the loopback device
             if ( asio::ip::address_v4::loopback().to_string() == if_addrs.inet ) {
-            	continue;
+                continue;
             }
 
             //create a new hint with this broadcast address
@@ -460,55 +460,55 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
 }
 
 /**
- * Buffer Management / Time Diff
- */
+* Buffer Management / Time Diff
+*/
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
 inline int64_t crimson_tng_impl::ticks_to_nsecs( int64_t tv_tick ) {
-	return (int64_t)( (double) tv_tick * _tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
+    return (int64_t)( (double) tv_tick * _tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
 inline int64_t crimson_tng_impl::nsecs_to_ticks( int64_t tv_nsec ) {
-	return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
+    return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
 }
 
 inline void crimson_tng_impl::make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
-	pkt.header = (uint64_t)0x20002 << 16;
-	pkt.tv_sec = ts.get_full_secs();
-	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
+    pkt.header = (uint64_t)0x20002 << 16;
+    pkt.tv_sec = ts.get_full_secs();
+    pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
 
-	boost::endian::native_to_big_inplace( pkt.header );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+    boost::endian::native_to_big_inplace( pkt.header );
+    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
 /// SoB Time Diff: send sync packet (must be done before reading flow iface)
 void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 
-	time_diff_req pkt;
+    time_diff_req pkt;
 
-	// Input to Process (includes feedback from PID Controller)
-	make_time_diff_packet(
-		pkt,
-		crimson_now
-	);
+    // Input to Process (includes feedback from PID Controller)
+    make_time_diff_packet(
+        pkt,
+        crimson_now
+    );
 
     _time_diff_iface[_which_time_diff_iface]->send( &pkt, sizeof( pkt ) );
 }
 
 bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
 
-	size_t r;
+    size_t r;
 
     r = _time_diff_iface[_which_time_diff_iface]->recv( &tdr, sizeof( tdr ) );
 
-	if ( 0 == r ) {
-		return false;
-	}
+    if ( 0 == r ) {
+        return false;
+    }
 
-	boost::endian::big_to_native_inplace( tdr.tv_sec );
-	boost::endian::big_to_native_inplace( tdr.tv_tick );
+    boost::endian::big_to_native_inplace( tdr.tv_sec );
+    boost::endian::big_to_native_inplace( tdr.tv_tick );
 
-	return true;
+    return true;
 }
 
 void crimson_tng_impl::reset_time_diff_pid() {
@@ -528,11 +528,11 @@ void crimson_tng_impl::reset_time_diff_pid() {
 /// SoB Time Diff: feed the time diff error back into out control system
 void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
-	static const double sp = 0.0;
+    static const double sp = 0.0;
 
-	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
+    double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
-	double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
+    double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
@@ -552,34 +552,34 @@ void crimson_tng_impl::start_bm() {
 
     //checks if the current task is excempt from need clock synchronization
     _mm_lfence();
-	if ( ! _bm_thread_needed ) {
-		return;
-	}
+    if ( ! _bm_thread_needed ) {
+        return;
+    }
 
-	if ( ! _bm_thread_running ) {
+    if ( ! _bm_thread_running ) {
 
-		_bm_thread_should_exit = false;
+        _bm_thread_should_exit = false;
         _mm_sfence();
         //starts the thread that synchronizes the clocks
         request_resync_time_diff();
         _bm_thread_running = true;
         _mm_sfence();
-		_bm_thread = std::thread( bm_thread_fn, this );
+        _bm_thread = std::thread( bm_thread_fn, this );
 
         //Note: anything relying on this will require waiting time_diff_converged()
-	}
+    }
 }
 
 void crimson_tng_impl::stop_bm() {
     _mm_lfence();
 
-	if ( _bm_thread_running ) {
+    if ( _bm_thread_running ) {
 
-		_bm_thread_should_exit = true;
+        _bm_thread_should_exit = true;
         _mm_sfence();
-		_bm_thread.join();
+        _bm_thread.join();
 
-	}
+    }
 }
 
 void crimson_tng_impl::start_pps_dtc() {
@@ -620,21 +620,21 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
     // Reduce thread priority
     nice(1);
 
-	dev->_bm_thread_running = true;
+    dev->_bm_thread_running = true;
 
     // Flag so that we only print the error message for failed recv once
     bool dropped_recv_message_printed = false;
 
-	const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
-	uhd::time_spec_t now, then, dt;
-	uhd::time_spec_t crimson_now;
-	struct timespec req, rem;
+    const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
+    uhd::time_spec_t now, then, dt;
+    uhd::time_spec_t crimson_now;
+    struct timespec req, rem;
 
-	double time_diff;
+    double time_diff;
 
-	struct time_diff_resp tdr;
+    struct time_diff_resp tdr;
 
-	//Gett offset
+    //Gett offset
     dev->_sfp_control_mutex[0]->lock();
     now = uhd::get_system_time();
     dev->time_diff_send( now );
@@ -643,17 +643,17 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
     dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
     _mm_lfence();
-	for(
-		now = uhd::get_system_time(),
-			then = now + T
-			;
+    for(
+        now = uhd::get_system_time(),
+            then = now + T
+            ;
 
-		! dev->_bm_thread_should_exit
-			;
+        ! dev->_bm_thread_should_exit
+            ;
 
-		then += T,
-			now = uhd::get_system_time()
-	) {
+        then += T,
+            now = uhd::get_system_time()
+    ) {
         if(dev->device_clock_sync_info->is_resync_requested()) {
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
             dev->device_clock_sync_info->resync_acknowledge();
@@ -661,12 +661,12 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
             dev->reset_time_diff_pid();
         }
 
-		dt = then - now;
-		if ( dt > 0.0 ) {
-			req.tv_sec = dt.get_full_secs();
-			req.tv_nsec = dt.get_frac_secs() * 1e9;
-			nanosleep( &req, &rem );
-		} else {
+        dt = then - now;
+        if ( dt > 0.0 ) {
+            req.tv_sec = dt.get_full_secs();
+            req.tv_nsec = dt.get_frac_secs() * 1e9;
+            nanosleep( &req, &rem );
+        } else {
             continue;
         }
 
@@ -686,19 +686,19 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         if (reply_good) {
             dev->time_diff_process( tdr, now );
         } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
-             UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
-             dropped_recv_message_printed = true;
-         }
-         // lfence to update _bm_thread_should_exit for the for loop
-         _mm_lfence();
-	}
-	dev->_bm_thread_running = false;
+            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
+            dropped_recv_message_printed = true;
+        }
+        // lfence to update _bm_thread_should_exit for the for loop
+        _mm_lfence();
+    }
+    dev->_bm_thread_running = false;
     _mm_sfence();
 }
 
 /***********************************************************************
- * Make
- **********************************************************************/
+* Make
+**********************************************************************/
 // Returns a pointer to the Crimson device, casted to the UHD base class
 static device::sptr crimson_tng_make(const device_addr_t &device_addr)
 {
@@ -710,12 +710,12 @@ static device::sptr crimson_tng_make(const device_addr_t &device_addr)
 // all the registered devices' find and make functions.
 UHD_STATIC_BLOCK(register_crimson_tng_device)
 {
-	set_log_level( uhd::log::severity_level::info );
+    set_log_level( uhd::log::severity_level::info );
     device::register_device(&crimson_tng_impl::crimson_tng_find, &crimson_tng_make, device::USRP);
 }
 /***********************************************************************
- * Structors
- **********************************************************************/
+* Structors
+**********************************************************************/
 // .set in TREE_CREATE_ sets the value of the property retrieved by calling get without having a publisher assigned
 // The value for set is irrelevant for RW and RO since a publisher is always assigned, and irrlevant for WO
 // Macro to create the tree, all properties created with this are R/W properties
@@ -742,15 +742,15 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 :
-	device_addr( _device_addr ),
-	// Put _time_diff_pidc on their own cache line to avoid false sharing
-	_time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
-	_bm_thread_needed( true ),
-	_bm_thread_running( false ),
-	_bm_thread_should_exit( false ),
-	_pps_thread_running( false ),
-	_pps_thread_should_exit( false ),
-	_command_time( 0.0 )
+    device_addr( _device_addr ),
+    // Put _time_diff_pidc on their own cache line to avoid false sharing
+    _time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
+    _bm_thread_needed( true ),
+    _bm_thread_running( false ),
+    _bm_thread_should_exit( false ),
+    _pps_thread_running( false ),
+    _pps_thread_should_exit( false ),
+    _command_time( 0.0 )
 {
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
@@ -784,10 +784,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Makes the UDP comm connection
     // TODO: figure out where _mbc is init since it doesn't have an obvious place where it's length ends up non 0
     _mbc.iface = pv_iface::make(
-		udp_simple::make_connected(
-			_device_addr["addr"],
-			BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
-		)
+        udp_simple::make_connected(
+            _device_addr["addr"],
+            BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
+        )
     );
 
     // Create the file tree of properties.
@@ -1038,23 +1038,23 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // loop for all RX chains
     for( size_t dspno = 0; dspno < num_rx_channels; dspno++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
-		std::string chan    = "Channel_" + num;
+        std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
+        std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+        std::string chan    = "Channel_" + num;
 
-		const fs_path rx_codec_path = CRIMSON_TNG_MB_PATH / "rx_codecs" / num;
-		const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / chan;
-		const fs_path db_path       = CRIMSON_TNG_MB_PATH / "dboards" / num;
-		const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / dspno;
-		const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / dspno;
+        const fs_path rx_codec_path = CRIMSON_TNG_MB_PATH / "rx_codecs" / num;
+        const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / chan;
+        const fs_path db_path       = CRIMSON_TNG_MB_PATH / "dboards" / num;
+        const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / dspno;
+        const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / dspno;
 
-		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
-		_tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
+        static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
+        _tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
 
-		_tree->create<std::string>(rx_fe_path / "antenna" / "value").set("N/A");
+        _tree->create<std::string>(rx_fe_path / "antenna" / "value").set("N/A");
 
-		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
-		_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
+        static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
+        _tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
 
         // RX Triggers
         TREE_CREATE_RW(rx_path / dspno / "/trigger/sma_mode"       , "rx_" + lc_num + "/trigger/sma_mode"       , std::string, string);
@@ -1066,121 +1066,121 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_pol"        , "rx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
 
 
-		// About information
-		TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
-		TREE_CREATE_RW(rx_path / dspno / "hw_version", "rx_"+lc_num+"/about/hw_ver", std::string, string);
-		TREE_CREATE_RW(rx_path / dspno / "sw_version", "rx_"+lc_num+"/about/sw_ver", std::string, string);
-		TREE_CREATE_RW(rx_path / dspno / "eeprom", "rx_"+lc_num+"/about/eeprom", std::string, string);
+        // About information
+        TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "hw_version", "rx_"+lc_num+"/about/hw_ver", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "sw_version", "rx_"+lc_num+"/about/sw_ver", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "eeprom", "rx_"+lc_num+"/about/eeprom", std::string, string);
 
-		// Power status
-		TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
+        // Power status
+        TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
 
-		// Channel Stream Status
-		TREE_CREATE_RW(rx_path / dspno / "stream", "rx_"+lc_num+"/stream", std::string, string);
+        // Channel Stream Status
+        TREE_CREATE_RW(rx_path / dspno / "stream", "rx_"+lc_num+"/stream", std::string, string);
 
-		// Codecs, phony properties for Crimson
-		TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
-		TREE_CREATE_ST(rx_codec_path / "name", std::string, "RX Codec");
+        // Codecs, phony properties for Crimson
+        TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
+        TREE_CREATE_ST(rx_codec_path / "name", std::string, "RX Codec");
 
-		// Daughter Boards' Frontend Settings
-		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
+        // Daughter Boards' Frontend Settings
+        TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
-	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
+        // RX bandwidth
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
 
-		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
+            meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 
-		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
-		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
-		TREE_CREATE_ST(rx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
+        TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(rx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 
-		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
+        TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
-		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
-		TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CRIMSON_TNG_LO_OFFSET );
+        TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
+        TREE_CREATE_ST(rx_fe_path / "lo_offset" / "value", double, (double) CRIMSON_TNG_LO_OFFSET );
 
-		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
+            meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 
-		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
-		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
-		TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
+        TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
+        TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
+        TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
         // Gain range for all elements in the current band
         TREE_CREATE_RW(rx_fe_path / "gain" / "range", "rx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
-		TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
+        TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
 
-		// RF band
-		TREE_CREATE_RW(rx_fe_path / "freq" / "band", "rx_"+lc_num+"/rf/freq/band", int, int);
+        // RF band
+        TREE_CREATE_RW(rx_fe_path / "freq" / "band", "rx_"+lc_num+"/rf/freq/band", int, int);
 
-		// RF receiver LNA
-		TREE_CREATE_RW(rx_fe_path / "freq"  / "lna", "rx_"+lc_num+"/rf/freq/lna" , int, int);
+        // RF receiver LNA
+        TREE_CREATE_RW(rx_fe_path / "freq"  / "lna", "rx_"+lc_num+"/rf/freq/lna" , int, int);
 
         // Rx rf pll lock detect
         TREE_CREATE_RW(rx_fe_path / "sensors" / "rfpll_lock", "rx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
 
-		// these are phony properties for Crimson
-		TREE_CREATE_ST(db_path / "rx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
-		TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
+        // these are phony properties for Crimson
+        TREE_CREATE_ST(db_path / "rx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
+        TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
 
-		// DSPs
+        // DSPs
         // DSPs are all at the same rate for RX (so these ranges are the same, unlike tx)
-		switch( dspno + 'A' ) {
+        switch( dspno + 'A' ) {
         case 'A':
         case 'B':
         case 'C':
         case 'D':
-			TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
-			TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-				meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
-			break;
-		}
+            TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
+                meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+            TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
+                meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+            TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
+                meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+            break;
+        }
 
         TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate", double, double);
 
-		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
-		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
+        TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
+        TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
 
         // Used to issue an rx stream command
         // WO property
         _tree->create<uhd::stream_cmd_t> ( rx_dsp_path / "stream_cmd" )
             .add_desired_subscriber(std::bind(&crimson_tng_impl::set_stream_cmd, this, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
 
-		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
+        TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
-		// Link settings
-		TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);
+        // Link settings
+        TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);
         TREE_CREATE_RW(rx_link_path / "endian_swap", "rx_"+lc_num+"/link/endian_swap", int, int);
-		TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
-		TREE_CREATE_RW(rx_link_path / "port",    "rx_"+lc_num+"/link/port",    std::string, string);
-		TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
+        TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
+        TREE_CREATE_RW(rx_link_path / "port",    "rx_"+lc_num+"/link/port",    std::string, string);
+        TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
 
         TREE_CREATE_RW(rx_dsp_path / "delay_iq",   "rx_"+lc_num+"/jesd/delay_iq",   std::string, string);
     }
 
     // loop for all TX chains
     for( size_t dspno = 0; dspno < num_tx_channels; dspno++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
-		std::string chan    = "Channel_" + num;
+        std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
+        std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+        std::string chan    = "Channel_" + num;
 
-		const fs_path tx_codec_path = CRIMSON_TNG_MB_PATH / "tx_codecs" / num;
-		const fs_path tx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "tx_frontends" / chan;
-		const fs_path db_path       = CRIMSON_TNG_MB_PATH / "dboards" / num;
-		const fs_path tx_dsp_path   = CRIMSON_TNG_MB_PATH / "tx_dsps" / dspno;
-		const fs_path tx_link_path  = CRIMSON_TNG_MB_PATH / "tx_link" / dspno;
+        const fs_path tx_codec_path = CRIMSON_TNG_MB_PATH / "tx_codecs" / num;
+        const fs_path tx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "tx_frontends" / chan;
+        const fs_path db_path       = CRIMSON_TNG_MB_PATH / "dboards" / num;
+        const fs_path tx_dsp_path   = CRIMSON_TNG_MB_PATH / "tx_dsps" / dspno;
+        const fs_path tx_link_path  = CRIMSON_TNG_MB_PATH / "tx_link" / dspno;
 
-		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
-		_tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
+        static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
+        _tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
 
-		_tree->create<std::string>(tx_fe_path / "antenna" / "value").set("N/A");
+        _tree->create<std::string>(tx_fe_path / "antenna" / "value").set("N/A");
 
-		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
-		_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
+        static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
+        _tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
 
         // TX Triggers
         TREE_CREATE_RW(tx_path / dspno / "/trigger/sma_mode"       , "tx_" + lc_num + "/trigger/sma_mode"       , std::string, string);
@@ -1192,64 +1192,64 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"        , "tx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
 
-		// About information
-		TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
-		TREE_CREATE_RW(tx_path / dspno / "hw_version", "tx_"+lc_num+"/about/hw_ver", std::string, string);
-		TREE_CREATE_RW(tx_path / dspno / "sw_version", "tx_"+lc_num+"/about/sw_ver", std::string, string);
-		TREE_CREATE_RW(tx_path / dspno / "eeprom", "tx_"+lc_num+"/about/eeprom", std::string, string);
+        // About information
+        TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "hw_version", "tx_"+lc_num+"/about/hw_ver", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "sw_version", "tx_"+lc_num+"/about/sw_ver", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "eeprom", "tx_"+lc_num+"/about/eeprom", std::string, string);
 
-		// Actual frequency values
-		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
+        // Actual frequency values
+        TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/freq/val", double, double);
 
         TREE_CREATE_RW(tx_path / chan / "freq" / "i_bias", "tx_"+lc_num+"/rf/freq/i_bias", double, double);
         TREE_CREATE_RW(tx_path / chan / "freq" / "q_bias", "tx_"+lc_num+"/rf/freq/q_bias", double, double);
 
-		// Power status
-		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
+        // Power status
+        TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
-		// Codecs, phony properties for Crimson
-		TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
-		TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
+        // Codecs, phony properties for Crimson
+        TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
+        TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
 
-		// Daughter Boards' Frontend Settings
-		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
+        // Daughter Boards' Frontend Settings
+        TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
-	    // TX bandwidth
+        // TX bandwidth
         // NOTE: this is not true for quarter rate DACs
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
 
-		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
+            meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 
-		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
-		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 
-		TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
+        TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
 
-		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
-               //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
+        TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
+            //TREE_CREATE_RW(tx_fe_path / "lo_offset" / "value", "tx_"+lc_num+"/rf/dac/nco", double, double);
                 TREE_CREATE_ST(tx_fe_path / "lo_offset" / "value", double, (double) CRIMSON_TNG_LO_OFFSET );
 
-		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
+            meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
 
-		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
-		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
-		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
+        TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/freq/val" , double, double);
+        TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
+        TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
         // Gain range for all elements in the current band
         TREE_CREATE_RW(tx_fe_path / "gain" / "range", "tx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
 
-		// RF band
-		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/freq/band", int, int);
+        // RF band
+        TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/freq/band", int, int);
 
         // Tx rf pll lock detect
         TREE_CREATE_RW(tx_fe_path / "sensors" / "rfpll_lock", "tx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
 
-		// these are phony properties for Crimson
-		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
+        // these are phony properties for Crimson
+        TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 
-		// DSPs
+        // DSPs
         if(is_full_tx) {
             // On full tx Crimson all tx channels can operate at the maximum rate
             TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
@@ -1284,47 +1284,47 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
         TREE_CREATE_RW(tx_dsp_path / "rate" / "value", "tx_"+lc_num+"/dsp/rate", double, double);
 
-		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
+        TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
+        TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+"/dsp/nco_adj", double, double);
 
-		TREE_CREATE_WO(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
-		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
-		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
+        TREE_CREATE_WO(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
+        TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/nco_adj", double, double);
+        TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco", double, double);
 
-		// Link settings
-		TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
+        // Link settings
+        TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
         TREE_CREATE_RW(tx_link_path / "endian_swap", "tx_"+lc_num+"/link/endian_swap", int, int);
-		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
-		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
+        TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
+        TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
 
         TREE_CREATE_RW(tx_dsp_path / "delay_iq",   "tx_"+lc_num+"/jesd/delay_iq",   std::string, string);
 
-		std::string ip_addr;
-		uint16_t udp_port;
-		std::string sfp;
-		get_tx_endpoint( _tree, dspno, ip_addr, udp_port, sfp );
+        std::string ip_addr;
+        uint16_t udp_port;
+        std::string sfp;
+        get_tx_endpoint( _tree, dspno, ip_addr, udp_port, sfp );
 
-		_mbc.fifo_ctrl_xports.push_back(
-			udp_simple::make_connected(
-				_tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr" ).get(),
-				std::to_string( _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
-			)
-		);
+        _mbc.fifo_ctrl_xports.push_back(
+            udp_simple::make_connected(
+                _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr" ).get(),
+                std::to_string( _tree->access<int>( CRIMSON_TNG_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
+            )
+        );
     }
 
-	const fs_path cm_path  = CRIMSON_TNG_MB_PATH / "cm";
+    const fs_path cm_path  = CRIMSON_TNG_MB_PATH / "cm";
 
-	// Common Mode
-	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
-	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
-	TREE_CREATE_WO(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
-	TREE_CREATE_WO(cm_path / "rx/gain/val", "cm/rx/gain/val", double, double);
+    // Common Mode
+    TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
+    TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
+    TREE_CREATE_WO(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
+    TREE_CREATE_WO(cm_path / "rx/gain/val", "cm/rx/gain/val", double, double);
     TREE_CREATE_RW(cm_path / "rx/force_stream", "cm/rx/force_stream", int, int);
-	TREE_CREATE_WO(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
+    TREE_CREATE_WO(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
     TREE_CREATE_RW(cm_path / "tx/force_stream", "cm/tx/force_stream", int, int);
-	TREE_CREATE_WO(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
-	TREE_CREATE_WO(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
+    TREE_CREATE_WO(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
+    TREE_CREATE_WO(cm_path / "trx/nco_adj", "cm/trx/nco_adj", double, double);
 
     //do some post-init tasks
     fs_path root = "/mboards/0";
@@ -1403,83 +1403,83 @@ crimson_tng_impl::~crimson_tng_impl(void)
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
 
-	switch( chan ) {
-	case 0:
-	case 2:
-		return "sfpa";
-		break;
-	case 1:
-	case 3:
-		return "sfpb";
-		break; 
-	}
-	throw std::runtime_error("Invalid channel specified.");
+    switch( chan ) {
+    case 0:
+    case 2:
+        return "sfpa";
+        break;
+    case 1:
+    case 3:
+        return "sfpb";
+        break;
+    }
+    throw std::runtime_error("Invalid channel specified.");
 }
 
 std::string crimson_tng_impl::get_rx_sfp( size_t chan ) {
 
-	switch( chan ) {
-	case 0:
-	case 2:
-		return "sfpa";
-		break;
-	case 1:
-	case 3:
-		return "sfpb";
-		break;
-	}
-	throw std::runtime_error("Invalid channel specified.");
+    switch( chan ) {
+    case 0:
+    case 2:
+        return "sfpa";
+        break;
+    case 1:
+    case 3:
+        return "sfpb";
+        break;
+    }
+    throw std::runtime_error("Invalid channel specified.");
 }
 
 std::string crimson_tng_impl::get_tx_ip( size_t chan ) {
-    
+
     std::string sfp = get_tx_sfp(chan);
 
-	return _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
+    return _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
 }
 
 uint16_t crimson_tng_impl::get_tx_fc_port( size_t chan ) {
-    
+
     const fs_path fc_port_path = CRIMSON_TNG_MB_PATH / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
-    
+
     return (uint16_t) _tree->access<int>( fc_port_path ).get();
 }
 
 uint16_t crimson_tng_impl::get_tx_udp_port( size_t chan ) {
-    
-	const fs_path prop_path = CRIMSON_TNG_MB_PATH / "tx_link";
 
-	const std::string udp_port_str = _tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
+    const fs_path prop_path = CRIMSON_TNG_MB_PATH / "tx_link";
 
-	std::stringstream udp_port_ss( udp_port_str );
+    const std::string udp_port_str = _tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
+
+    std::stringstream udp_port_ss( udp_port_str );
     uint16_t udp_port;
-	udp_port_ss >> udp_port;
+    udp_port_ss >> udp_port;
     return udp_port;
 }
 
 //TODO: make this use the above functions for getting ip, port, and sfp
 void crimson_tng_impl::get_tx_endpoint( uhd::property_tree::sptr tree, const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp ) {
 
-	switch( chan ) {
-	case 0:
-	case 2:
-		sfp = "sfpa";
-		break;
-	case 1:
-	case 3:
-		sfp = "sfpb";
-		break;
-	}
+    switch( chan ) {
+    case 0:
+    case 2:
+        sfp = "sfpa";
+        break;
+    case 1:
+    case 3:
+        sfp = "sfpb";
+        break;
+    }
 
-	const std::string chan_str( 1, 'A' + chan );
-	const fs_path prop_path = CRIMSON_TNG_MB_PATH / "tx_link";
+    const std::string chan_str( 1, 'A' + chan );
+    const fs_path prop_path = CRIMSON_TNG_MB_PATH / "tx_link";
 
-	const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
+    const std::string udp_port_str = tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
 
-	std::stringstream udp_port_ss( udp_port_str );
-	udp_port_ss >> udp_port;
+    std::stringstream udp_port_ss( udp_port_str );
+    udp_port_ss >> udp_port;
 
-	ip_addr = tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
+    ip_addr = tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
 }
 
 constexpr double RX_SIGN = +1.0;
@@ -1488,7 +1488,7 @@ constexpr double TX_SIGN = -1.0;
 // XXX: @CF: 20180418: stop-gap until moved to server
 // adc_dac_bw is the bandwidth of the ADC or DAC, not the bandwitdh of the stream to the user
 bool crimson_tng_impl::is_high_band( const meta_range_t &dsp_range, const double freq, double dsp_bw ) {
-	bool within_dsp_nco = freq + dsp_bw / 2.0 <= dsp_range.stop();
+    bool within_dsp_nco = freq + dsp_bw / 2.0 <= dsp_range.stop();
     if(within_dsp_nco) {
         return false;
     } else {
@@ -1501,7 +1501,7 @@ bool crimson_tng_impl::is_high_band( const meta_range_t &dsp_range, const double
 
 // return true if b is a (not necessarily strict) subset of a
 static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
-	return b.start() >= a.start() && b.stop() <= a.stop();
+    return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
 double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, double user_bw ) {
@@ -1555,51 +1555,51 @@ double crimson_tng_impl::choose_lo_shift( double target_freq, double dsp_bw, dou
 //dsp_bw: bandwidth of the dsp. Processing (most relevantly the NCO) occur at this bandwidth, later the signal gets downsampled to the user's requested rate
 tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band, size_t chan ) {
 
-	enum {
-		LOW_BAND,
-		HIGH_BAND,
-	};
+    enum {
+        LOW_BAND,
+        HIGH_BAND,
+    };
 
-	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+    freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
     double dsp_bw = dsp_range.stop() - dsp_range.start();
-	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+    freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
 
-	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+    double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
     // Bandwidth of the data stream to the user
-	double user_bw = dsp_subtree->access<double>( "/rate/value" ).get();
+    double user_bw = dsp_subtree->access<double>( "/rate/value" ).get();
 
-	int band = is_high_band( dsp_range, clipped_requested_freq, dsp_bw ) ? HIGH_BAND : LOW_BAND;
+    int band = is_high_band( dsp_range, clipped_requested_freq, dsp_bw ) ? HIGH_BAND : LOW_BAND;
 
-	//------------------------------------------------------------------
-	//-- set the RF frequency depending upon the policy
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
+    //-- set the RF frequency depending upon the policy
+    //------------------------------------------------------------------
     // Desired LO frequency
-	double target_rf_freq = 0.0;
+    double target_rf_freq = 0.0;
 
-	switch (tune_request.rf_freq_policy){
-		case tune_request_t::POLICY_AUTO:
-			switch( band ) {
-			case LOW_BAND:
-				// in low band, we only use the DSP to tune
-				target_rf_freq = 0;
-				break;
-			case HIGH_BAND:
+    switch (tune_request.rf_freq_policy){
+        case tune_request_t::POLICY_AUTO:
+            switch( band ) {
+            case LOW_BAND:
+                // in low band, we only use the DSP to tune
+                target_rf_freq = 0;
+                break;
+            case HIGH_BAND:
                 target_rf_freq = choose_lo_shift(clipped_requested_freq, dsp_bw, user_bw);
-				break;
-			}
-		break;
+                break;
+            }
+        break;
 
-		case tune_request_t::POLICY_MANUAL:
+        case tune_request_t::POLICY_MANUAL:
             // prevent use of low band when a specific lo is requested
             if(band == LOW_BAND && tune_request.lo_freq !=0) band = HIGH_BAND;
-			target_rf_freq = tune_request.lo_freq;
-			break;
+            target_rf_freq = tune_request.lo_freq;
+            break;
 
-		case tune_request_t::POLICY_NONE:
-			break; //does not set
-	}
+        case tune_request_t::POLICY_NONE:
+            break; //does not set
+    }
 
-	rf_fe_subtree->access<int>( "freq/band" ).set( band );
+    rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
     if(!gain_reset_warning_printed) {
         if(*gain_is_set) {
@@ -1613,67 +1613,67 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
     }
 
 
-	//------------------------------------------------------------------
-	//-- Tune the RF frontend
-	//------------------------------------------------------------------
-	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
-	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+    //------------------------------------------------------------------
+    //-- Tune the RF frontend
+    //------------------------------------------------------------------
+    rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
+    const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
     if(actual_rf_freq == 0 && target_rf_freq != 0) {
         UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Error when attempting to set lo on channel " + std::string(1, chan + 'A') + ". The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
     }
 
-	//------------------------------------------------------------------
-	//-- Set the DSP frequency depending upon the DSP frequency policy.
-	//------------------------------------------------------------------
-	double target_dsp_freq = 0.0;
-	switch (tune_request.dsp_freq_policy) {
-		case tune_request_t::POLICY_AUTO:
-			target_dsp_freq = actual_rf_freq - clipped_requested_freq;
+    //------------------------------------------------------------------
+    //-- Set the DSP frequency depending upon the DSP frequency policy.
+    //------------------------------------------------------------------
+    double target_dsp_freq = 0.0;
+    switch (tune_request.dsp_freq_policy) {
+        case tune_request_t::POLICY_AUTO:
+            target_dsp_freq = actual_rf_freq - clipped_requested_freq;
 
-			//invert the sign on the dsp freq for transmit (spinning up vs down)
-			target_dsp_freq *= xx_sign;
+            //invert the sign on the dsp freq for transmit (spinning up vs down)
+            target_dsp_freq *= xx_sign;
 
-			break;
+            break;
 
-		case tune_request_t::POLICY_MANUAL:
-			target_dsp_freq = tune_request.dsp_freq;
-			break;
+        case tune_request_t::POLICY_MANUAL:
+            target_dsp_freq = tune_request.dsp_freq;
+            break;
 
-		case tune_request_t::POLICY_NONE:
-			break; //does not set
-	}
+        case tune_request_t::POLICY_NONE:
+            break; //does not set
+    }
 
-	//------------------------------------------------------------------
-	//-- Tune the DSP
-	//------------------------------------------------------------------
-	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
-	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+    //------------------------------------------------------------------
+    //-- Tune the DSP
+    //------------------------------------------------------------------
+    dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
+    const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
 
-	//------------------------------------------------------------------
-	//-- Load and return the tune result
-	//------------------------------------------------------------------
-	tune_result_t tune_result;
-	tune_result.clipped_rf_freq = clipped_requested_freq;
-	tune_result.target_rf_freq = target_rf_freq;
-	tune_result.actual_rf_freq = actual_rf_freq;
-	tune_result.target_dsp_freq = target_dsp_freq;
-	tune_result.actual_dsp_freq = actual_dsp_freq;
-	return tune_result;
+    //------------------------------------------------------------------
+    //-- Load and return the tune result
+    //------------------------------------------------------------------
+    tune_result_t tune_result;
+    tune_result.clipped_rf_freq = clipped_requested_freq;
+    tune_result.target_rf_freq = target_rf_freq;
+    tune_result.actual_rf_freq = actual_rf_freq;
+    tune_result.target_dsp_freq = target_dsp_freq;
+    tune_result.actual_dsp_freq = actual_dsp_freq;
+    return tune_result;
 }
 
 uhd::tune_result_t crimson_tng_impl::set_rx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
+    const uhd::tune_request_t &tune_request, size_t chan
 ) {
 
-	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
-			_tree->subtree(rx_dsp_root(chan)),
-			_tree->subtree(rx_rf_fe_root(chan)),
-			tune_request,
+    tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
+            _tree->subtree(rx_dsp_root(chan)),
+            _tree->subtree(rx_rf_fe_root(chan)),
+            tune_request,
             &rx_gain_is_set[chan],
             &last_set_rx_band[chan],
             chan);
-	return result;
+    return result;
 
 }
 
@@ -1698,7 +1698,7 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
             &tx_gain_is_set[chan],
             &last_set_tx_band[chan],
             chan);
-	return result;
+    return result;
 
 }
 

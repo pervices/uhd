@@ -45,33 +45,33 @@
 #include <uhd/utils/log.hpp>
 
 #if 0
-  #ifndef UHD_TXRX_DEBUG_PRINTS
-  #define UHD_TXRX_DEBUG_PRINTS
-  #endif
+#ifndef UHD_TXRX_DEBUG_PRINTS
+#define UHD_TXRX_DEBUG_PRINTS
+#endif
 #endif
 
 #if 0
-  #ifndef UHD_TXRX_SEND_DEBUG_PRINTS
-  #define UHD_TXRX_SEND_DEBUG_PRINTS
-  #endif
+#ifndef UHD_TXRX_SEND_DEBUG_PRINTS
+#define UHD_TXRX_SEND_DEBUG_PRINTS
+#endif
 #endif
 
 #if 0
-  #ifndef DEBUG_FC
-  #define DEBUG_FC
-  #endif
+#ifndef DEBUG_FC
+#define DEBUG_FC
+#endif
 #endif
 
 #if 0
-  #ifndef BUFFER_LVL_DEBUG
-  #define BUFFER_LVL_DEBUG
-  #endif
+#ifndef BUFFER_LVL_DEBUG
+#define BUFFER_LVL_DEBUG
+#endif
 #endif
 
 #if 0
-  #ifndef UHD_TXRX_DEBUG_TIME
-  #define UHD_TXRX_DEBUG_TIME
-  #endif
+#ifndef UHD_TXRX_DEBUG_TIME
+#define UHD_TXRX_DEBUG_TIME
+#endif
 #endif
 
 using namespace uhd;
@@ -82,12 +82,12 @@ namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
 /***********************************************************************
- * helpers
- **********************************************************************/
+* helpers
+**********************************************************************/
 
 std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
-	os << std::fixed << std::setprecision( 6 ) << ts.get_real_secs();
-	return os;
+    os << std::fixed << std::setprecision( 6 ) << ts.get_real_secs();
+    return os;
 }
 
 crimson_tng_recv_packet_streamer::crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dsp_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
@@ -379,13 +379,13 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
 }
 
 /***********************************************************************
- * constants
- **********************************************************************/
+* constants
+**********************************************************************/
 static const size_t vrt_send_header_offset_words32 = 0;
 
 /***********************************************************************
- * Helper Functions
- **********************************************************************/
+* Helper Functions
+**********************************************************************/
 
 void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
     rx_sfp_throughput_used[ch] = rate_samples;
@@ -404,9 +404,9 @@ void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
 
         UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C)
                 << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
-                                 "exceeds the maximum capacity of the connection.\n"
-                                 "This can cause overflows.")
-                       % (rate_used / 1e6) % ch;
+                                "exceeds the maximum capacity of the connection.\n"
+                                "This can cause overflows.")
+                    % (rate_used / 1e6) % ch;
 
         rx_rate_warning_printed = true;
     }
@@ -436,9 +436,9 @@ void crimson_tng_impl::tx_rate_check(size_t ch, double rate_samples) {
 
         UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C)
                 << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
-                                 "exceeds the maximum capacity of the connection.\n"
-                                 "This can cause underruns.")
-                       % (rate_used / 1e6) % ch;
+                                "exceeds the maximum capacity of the connection.\n"
+                                "This can cause underruns.")
+                    % (rate_used / 1e6) % ch;
 
         // Only print this warning once
         tx_rate_warning_printed = true;
@@ -501,8 +501,8 @@ void crimson_tng_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
 }
 
 /***********************************************************************
- * Async Data
- **********************************************************************/
+* Async Data
+**********************************************************************/
 bool crimson_tng_impl::recv_async_msg(
     async_metadata_t &async_metadata, double timeout
 ){
@@ -521,8 +521,8 @@ bool crimson_tng_impl::recv_async_msg(
 }
 
 /***********************************************************************
- * Receive streamer
- **********************************************************************/
+* Receive streamer
+**********************************************************************/
 rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args_){
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
     clock_sync_desired = true;
@@ -714,75 +714,75 @@ _tree->access<t>( p ).set( _tree->access<t>( p ).get() )
 }
 
 /***********************************************************************
- * Transmit streamer
- **********************************************************************/
+* Transmit streamer
+**********************************************************************/
 
 static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, std::shared_ptr<std::mutex> sfp_control_mutex, double tick_rate, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
-	double tick_period_ps = 1.0 / tick_rate;
+    double tick_period_ps = 1.0 / tick_rate;
 
-	#pragma pack(push,1)
-	struct fifo_lvl_req {
-		uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
-		//uint64_t cookie;
-	};
-	#pragma pack(pop)
+    #pragma pack(push,1)
+    struct fifo_lvl_req {
+        uint64_t header; // 000000010001CCCC (C := channel bits, x := WZ,RAZ)
+        //uint64_t cookie;
+    };
+    #pragma pack(pop)
 
-	#pragma pack(push,1)
-	struct fifo_lvl_rsp {
-		uint64_t header; // CCCC00000000FFFF (C := channel bits, F := fifo bits)
-		uint64_t oflow;
-		uint64_t uflow;
-		uint64_t tv_sec;
-		uint64_t tv_tick;
-		//uint64_t cookie;
-	};
-	#pragma pack(pop)
+    #pragma pack(push,1)
+    struct fifo_lvl_rsp {
+        uint64_t header; // CCCC00000000FFFF (C := channel bits, F := fifo bits)
+        uint64_t oflow;
+        uint64_t uflow;
+        uint64_t tv_sec;
+        uint64_t tv_tick;
+        //uint64_t cookie;
+    };
+    #pragma pack(pop)
 
-	fifo_lvl_req req;
-	fifo_lvl_rsp rsp;
+    fifo_lvl_req req;
+    fifo_lvl_rsp rsp;
 
-	req.header = (uint64_t)0x10001 << 16;
-	req.header |= (channel & 0xffff);
+    req.header = (uint64_t)0x10001 << 16;
+    req.header |= (channel & 0xffff);
 
-	boost::endian::big_to_native_inplace( req.header );
+    boost::endian::big_to_native_inplace( req.header );
 
-	size_t r = 0;
+    size_t r = 0;
 
     sfp_control_mutex->lock();
-	for( size_t tries = 0; tries < 100; tries++ ) {
-		r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
-		if ( sizeof( req ) != r ) {
-			continue;
-		}
+    for( size_t tries = 0; tries < 100; tries++ ) {
+        r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
+        if ( sizeof( req ) != r ) {
+            continue;
+        }
 
-		r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
-		if ( sizeof( rsp ) != r ) {
-			continue;
-		}
+        r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
+        if ( sizeof( rsp ) != r ) {
+            continue;
+        }
 
-		boost::endian::big_to_native_inplace( rsp.header );
-		if ( channel != ( ( rsp.header >> 48 ) & 0xffff ) ) {
-			r = 0;
-			continue;
-		}
+        boost::endian::big_to_native_inplace( rsp.header );
+        if ( channel != ( ( rsp.header >> 48 ) & 0xffff ) ) {
+            r = 0;
+            continue;
+        }
 
-		break;
-	}
+        break;
+    }
     sfp_control_mutex->unlock();
 
-	if ( 0 == r ) {
-		UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
-		throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
-	}
+    if ( 0 == r ) {
+        UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+        throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
+    }
 
-	boost::endian::big_to_native_inplace( rsp.oflow );
-	boost::endian::big_to_native_inplace( rsp.uflow );
-	boost::endian::big_to_native_inplace( rsp.tv_sec );
-	boost::endian::big_to_native_inplace( rsp.tv_tick );
+    boost::endian::big_to_native_inplace( rsp.oflow );
+    boost::endian::big_to_native_inplace( rsp.uflow );
+    boost::endian::big_to_native_inplace( rsp.tv_sec );
+    boost::endian::big_to_native_inplace( rsp.tv_tick );
 
     //fifo level provided by FPGA
-	lvl = rsp.header & 0xffff;
+    lvl = rsp.header & 0xffff;
 
     lvl = lvl * bl_multiple;
 
@@ -807,22 +807,22 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
     }
 #endif
 
-	uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
-	oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
+    uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
+    oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
 
-	now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
+    now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
-	std::stringstream ss;
-	ss
-			<< now << ": "
-			<< (char)('A' + channel) << ": "
-			<< '%' << std::dec << std::setw( 2 ) << std::setfill( ' ' ) << (unsigned)( pcnt * 100 )  << " "
-			<< std::hex << std::setw( 4 ) << std::setfill( '0' ) << lvl << " "
-			<< std::hex << std::setw( 16 ) << std::setfill( '0' ) << uflow << " "
-			<< std::hex << std::setw( 16 ) << std::setfill( '0' ) << oflow << " "
-			<< std::endl << std::flush;
-	std::cout << ss.str();
+    std::stringstream ss;
+    ss
+            << now << ": "
+            << (char)('A' + channel) << ": "
+            << '%' << std::dec << std::setw( 2 ) << std::setfill( ' ' ) << (unsigned)( pcnt * 100 )  << " "
+            << std::hex << std::setw( 4 ) << std::setfill( '0' ) << lvl << " "
+            << std::hex << std::setw( 16 ) << std::setfill( '0' ) << uflow << " "
+            << std::hex << std::setw( 16 ) << std::setfill( '0' ) << oflow << " "
+            << std::endl << std::flush;
+    std::cout << ss.str();
 #endif
 }
 
@@ -866,8 +866,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
         const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
         const fs_path tx_link_path  = CRIMSON_TNG_MB_PATH / "tx_link" / chan;
 
-		// power on the channel
-		_tree->access<std::string>(tx_path / chan / "pwr").set("1");
+        // power on the channel
+        _tree->access<std::string>(tx_path / chan / "pwr").set("1");
 
         if(little_endian_supported) {
             // enables endian swap (by default the packets are big endian, x86 CPUs are little endian)
@@ -882,8 +882,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
             // Don't need to attempt to enable little endian for other channels if one has already failed, since they will all fail
         }
 
-		// vita enable
-		_tree->access<std::string>(tx_link_path / "vita_en").set("1");
+        // vita enable
+        _tree->access<std::string>(tx_link_path / "vita_en").set("1");
 
         // Issue reset request to clear anything from initialization
         _tree->access<double>(tx_dsp_root(chan) + "/rstreq").set(1);

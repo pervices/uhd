@@ -31,8 +31,8 @@ class crimson_tng_recv_packet_streamer : public uhd::transport::sph::recv_packet
 public:
 
     /**
-     * @param iface The interface to access thes server
-     */
+    * @param iface The interface to access thes server
+    */
     crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer);
 
     ~crimson_tng_recv_packet_streamer();
@@ -47,9 +47,9 @@ private:
     std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
 
     /**
-     * A shared pointer to the interface used to access the server.
-     * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-     */
+    * A shared pointer to the interface used to access the server.
+    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
+    */
     pv_iface::sptr _iface;
 };
 
@@ -60,8 +60,8 @@ public:
     typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
     /**
-     * @param iface The interface to access thes server
-     */
+    * @param iface The interface to access thes server
+    */
     crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info);
 
     ~crimson_tng_send_packet_streamer();
@@ -85,15 +85,15 @@ public:
     void resize(const size_t size);
 
     // Starts buffer monitor thread if it is not already running
-	inline void start_buffer_monitor_thread() {
+    inline void start_buffer_monitor_thread() {
         _stop_buffer_monitor = false;
 
         //spawn a thread to monitor the buffer level
         _buffer_monitor_thread = std::thread( crimson_tng_send_packet_streamer::buffer_monitor_loop, this );
         _buffer_monitor_running = true;
-	}
+    }
 
-	void stop_buffer_monitor_thread();
+    void stop_buffer_monitor_thread();
 
 protected:
     void if_hdr_pack(uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
@@ -101,7 +101,7 @@ protected:
     int64_t get_buffer_level_from_device(const size_t ch_i);
 
 private:
-	bool _first_call_to_send;
+    bool _first_call_to_send;
     bool _buffer_monitor_running;
     bool _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
@@ -109,13 +109,13 @@ private:
 
     // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
     struct eprops_type{
-		uhd::transport::zero_copy_if::sptr xport_chan;
+        uhd::transport::zero_copy_if::sptr xport_chan;
         xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
-		uint64_t oflow;
-		uint64_t uflow;
+        uint64_t oflow;
+        uint64_t uflow;
         /**
-         * Upper case channel letter.
-         */
+        * Upper case channel letter.
+        */
         std::string name;
         eprops_type() : oflow( -1 ), uflow( -1 ) {}
         eprops_type( const eprops_type & other )
@@ -132,18 +132,18 @@ private:
     bool _performance_warning_printed = false;
 
     /**
-     * A shared pointer to the interface used to access the server.
-     * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-     */
+    * A shared pointer to the interface used to access the server.
+    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
+    */
     pv_iface::sptr _iface;
 
     /***********************************************************************
-     * buffer_monitor_loop
-     * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode
-     * - update over / underflow counters
-     * - put async message packets into queue
-     **********************************************************************/
-	static void buffer_monitor_loop( crimson_tng_send_packet_streamer *self );
+    * buffer_monitor_loop
+    * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode
+    * - update over / underflow counters
+    * - put async message packets into queue
+    **********************************************************************/
+    static void buffer_monitor_loop( crimson_tng_send_packet_streamer *self );
 };
 
 }

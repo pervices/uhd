@@ -21,10 +21,10 @@
 #include <stdint.h>
 
 /*!
- * Structs and constants for crimson_tng communication.
- * This header is shared by the firmware and host code.
- * Therefore, this header may only contain valid C code.
- */
+* Structs and constants for crimson_tng communication.
+* This header is shared by the firmware and host code.
+* Therefore, this header may only contain valid C code.
+*/
 
 #define CRIMSON_TNG_FW_COMPAT_MAJOR 1
 #define CRIMSON_TNG_FW_COMPAT_MINOR 0
@@ -168,9 +168,9 @@
 #define CRIMSON_TNG_VITA_TLR_E	0x0
 #define CRIMSON_TNG_VITA_TLR_PCKCNT	0x0
 #define CRIMSON_TNG_VITA_TLR	((CRIMSON_TNG_VITA_TLR_EN     << 20)|\
-				( CRIMSON_TNG_VITA_TLR_IND    << 8) |\
-				( CRIMSON_TNG_VITA_TLR_E      << 7) |\
-				( CRIMSON_TNG_VITA_TLR_PCKCNT << 0) )
+                ( CRIMSON_TNG_VITA_TLR_IND    << 8) |\
+                ( CRIMSON_TNG_VITA_TLR_E      << 7) |\
+                ( CRIMSON_TNG_VITA_TLR_PCKCNT << 0) )
 
 #define CRIMSON_TNG_DEBUG_NAME_C "CRIMSON_TNG"
 
