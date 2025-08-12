@@ -129,9 +129,13 @@ void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t strea
 // Loop that polls Crimson to verify the PPS is working
 void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
 
+    // Let other threads know this is running
     dev->_pps_thread_running = true;
+    _mm_sfence();
+
     int pps_detected;
 
+    _mm_lfence();
     while (! dev->_pps_thread_should_exit) {
         dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").set(1);
         pps_detected = dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").get();
@@ -147,11 +151,16 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
         // Check if it should exit every 10ms for up to 2s
         for (size_t i = 0; i < 200; i++) {
             usleep(10000);
-            if (dev->_pps_thread_should_exit)
+            // lfence to update _pps_thread_should_exit (needed for for the following line and the while loop check)
+            _mm_lfence();
+            if (dev->_pps_thread_should_exit) {
                 break;
+            }
         }
     }
+    // Let other threads know this loop is stopping
     dev->_pps_thread_running = false;
+    _mm_sfence();
 }
 
 void crimson_tng_impl::set_command_time( const std::string key, time_spec_t value ) {
@@ -565,6 +574,8 @@ void crimson_tng_impl::stop_bm() {
 }
 
 void crimson_tng_impl::start_pps_dtc() {
+    // Esnure _pps_thread_needed and _pps_thread_running are loaded
+    _mm_lfence();
 
     if ( ! _pps_thread_needed ) {
         return;
@@ -572,19 +583,23 @@ void crimson_tng_impl::start_pps_dtc() {
 
     if ( ! _pps_thread_running ) {
         _pps_thread_should_exit = false;
+        _mm_sfence();
         _pps_thread = std::thread( detect_pps, this );
     }
 }
 
 void crimson_tng_impl::stop_pps_dtc() {
+    // Esnure _pps_thread_needed is loaded
+    _mm_lfence();
 
     if ( ! _pps_thread_needed ) {
         return;
     }
 
-
     if(_pps_thread.joinable()) {
         _pps_thread_should_exit = true;
+        // Update _pps_thread_should_exit in other threads
+        _mm_sfence();
         _pps_thread.join();
     }
 }
@@ -981,6 +996,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     } catch(uhd::lookup_error &e) {
         _pps_thread_needed = false;
     }
+    _pps_thread_running = false;
+    _pps_thread_should_exit = false;
+    // Ensure pps control variables are updated to other threads
+    _mm_sfence();
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
@@ -1318,9 +1337,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     }
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
-	if ( _pps_thread_needed ) {
-		start_pps_dtc();
-	}
+    // Ensure _pps_thread_needed is loaded if changed in another thread
+    _mm_lfence();
+    if ( _pps_thread_needed ) {
+        start_pps_dtc();
+    }
 
     //Initialize "Time Diff" mechanism before starting flow control thread
     time_spec_t ts = uhd::get_system_time();
