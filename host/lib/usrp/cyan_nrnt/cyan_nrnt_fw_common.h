@@ -114,9 +114,9 @@
 #define CYAN_NRNT_VITA_TLR_E	0x0
 #define CYAN_NRNT_VITA_TLR_PCKCNT	0x0
 #define CYAN_NRNT_VITA_TLR	((CYAN_NRNT_VITA_TLR_EN     << 20)|\
-				( CYAN_NRNT_VITA_TLR_IND    << 8) |\
-				( CYAN_NRNT_VITA_TLR_E      << 7) |\
-				( CYAN_NRNT_VITA_TLR_PCKCNT << 0) )
+                ( CYAN_NRNT_VITA_TLR_IND    << 8) |\
+                ( CYAN_NRNT_VITA_TLR_E      << 7) |\
+                ( CYAN_NRNT_VITA_TLR_PCKCNT << 0) )
 
 // Constants to determine which frequency band to use
 #define CYAN_NRNT_LOW_MID_BARRIER 400000000

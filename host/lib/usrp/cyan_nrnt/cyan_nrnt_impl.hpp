@@ -48,26 +48,26 @@ namespace usrp {
 
 #pragma pack(push,1)
 struct gpio_burst_req {
-	uint64_t header; // Frame 1
-	int64_t tv_sec;  // Frame 2
-	int64_t tv_psec; // Frame 2
-	uint64_t pins;   // Frame 3
-	uint64_t mask;   // Frame 3
+    uint64_t header; // Frame 1
+    int64_t tv_sec;  // Frame 2
+    int64_t tv_psec; // Frame 2
+    uint64_t pins;   // Frame 3
+    uint64_t mask;   // Frame 3
 };
 #pragma pack(pop)
 
 #pragma pack(push,1)
 struct time_diff_req {
-	uint64_t header;
-	int64_t tv_sec;
-	int64_t tv_tick;
+    uint64_t header;
+    int64_t tv_sec;
+    int64_t tv_tick;
 };
 #pragma pack(pop)
 
 #pragma pack(push,1)
 struct time_diff_resp {
-	int64_t tv_sec;
-	int64_t tv_tick;
+    int64_t tv_sec;
+    int64_t tv_tick;
 };
 #pragma pack(pop)
 
@@ -159,19 +159,19 @@ private:
     // Mutexes for controlling control (not data) send/receives each SFP port
     std::vector<std::shared_ptr<std::mutex>> _sfp_control_mutex;
 
-	/**
-	 * Clock Domain Synchronization Objects
-	 */
+    /**
+    * Clock Domain Synchronization Objects
+    */
 
     /// UDP endpoint that receives our Time Diff packets
     std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
-	/** PID controller that rejects differences between Crimson's clock and the host's clock.
-	 *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
-	 *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
-	 *  -> The Control Variable of the controller (the output) is the required compensation for the host
-	 *     such that the error is forced to zero.
-	 *     => Crimson Time Now := Host Time Now + CV
-	 */
+    /** PID controller that rejects differences between Crimson's clock and the host's clock.
+    *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
+    *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
+    *  -> The Control Variable of the controller (the output) is the required compensation for the host
+    *     such that the error is forced to zero.
+    *     => Crimson Time Now := Host Time Now + CV
+    */
     static constexpr size_t padded_pidc_tcl_size = (size_t) ceil(sizeof(uhd::pidc_tl) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     uhd::pidc* const _time_diff_pidc;
 
@@ -179,7 +179,7 @@ private:
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
     std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
 
-	uhd::time_spec_t _streamer_start_time;
+    uhd::time_spec_t _streamer_start_time;
     void time_diff_send( const uhd::time_spec_t & crimson_now );
     bool time_diff_recv( time_diff_resp & tdr );
     // Resets the PID controller managing time diffs
@@ -188,8 +188,8 @@ private:
     void fifo_update_process( const time_diff_resp & tdr );
 
     /**
-     * Buffer Management Objects
-     */
+    * Buffer Management Objects
+    */
 
     // Thread that handles syncing clocks between the host and Cyan
     std::thread _bm_thread;
@@ -220,7 +220,7 @@ private:
     // Maximum frequency of the highest band
     double _freq_range_stop;
 
-	static void bm_thread_fn( cyan_nrnt_impl *dev );
+    static void bm_thread_fn( cyan_nrnt_impl *dev );
 
     struct mb_container_type{
         pv_iface::sptr iface;
@@ -260,23 +260,23 @@ private:
     std::vector<bool> is_rx_sfp_cached;
     std::vector<std::string> rx_sfp_cache;
     std::string get_rx_sfp( size_t chan );
-    
+
     std::vector<bool> is_tx_ip_cached;
     std::vector<std::string> tx_ip_cache;
     std::string get_tx_ip( size_t chan );
-    
+
     std::vector<bool> is_tx_fc_cached;
     std::vector<uint16_t> tx_fc_cache;
     uint16_t get_tx_fc_port( size_t chan );
-    
+
     std::vector<bool> is_tx_udp_port_cached;
     std::vector<uint16_t> tx_udp_port_cache;
     uint16_t get_tx_udp_port( size_t chan );
-    
+
     std::vector<bool> is_tx_baseband_only;
-    
+
     void get_tx_endpoint( const size_t & chan, std::string & ip_addr, uint16_t & udp_port, std::string & sfp );
-    
+
     int64_t get_tx_buff_scale();
 
     int get_rx_xg_intf(int channel);

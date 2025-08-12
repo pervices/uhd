@@ -54,7 +54,7 @@ namespace asio = boost::asio;
 
 #if 0
     #ifndef
-      #define DEBUG_COUT
+    #define DEBUG_COUT
     #endif
 #endif
 
@@ -65,8 +65,8 @@ namespace asio = boost::asio;
 //boost::mutex tng_udp_mutex;
 
 /***********************************************************************
- * Helper Functions
- **********************************************************************/
+* Helper Functions
+**********************************************************************/
 static void do_samp_rate_warning_message(
     double target_rate, double actual_rate, const std::string& xx, const size_t chan)
 {
@@ -74,10 +74,10 @@ static void do_samp_rate_warning_message(
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
         UHD_LOGGER_WARNING("MULTI_USRP")
             << boost::format(
-                   "The hardware does not support the requested %s sample rate on ch %li:\n"
-                   "Target sample rate: %f MSps\n"
-                   "Actual sample rate: %f MSps\n")
-                   % xx % chan % (target_rate / 1e6) % (actual_rate / 1e6);
+                "The hardware does not support the requested %s sample rate on ch %li:\n"
+                "Target sample rate: %f MSps\n"
+                "Actual sample rate: %f MSps\n")
+                % xx % chan % (target_rate / 1e6) % (actual_rate / 1e6);
     }
 }
 
@@ -119,13 +119,13 @@ static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) 
 
 //figures out the channel number from the rx stream path
 static size_t pre_to_ch( const std::string & pre ) {
-	char x = -1;
-	if ( 1 != sscanf( pre.c_str(), "rx_%c/stream", & x) ) {
-		throw value_error( "Invalid 'pre' argument '" + pre + "'" );
-	}
-	size_t ch = x - 'a';
+    char x = -1;
+    if ( 1 != sscanf( pre.c_str(), "rx_%c/stream", & x) ) {
+        throw value_error( "Invalid 'pre' argument '" + pre + "'" );
+    }
+    size_t ch = x - 'a';
 
-	return ch;
+    return ch;
 }
 
 
@@ -268,44 +268,44 @@ uhd::time_spec_t cyan_nrnt_impl::get_time_now() {
 
 void cyan_nrnt_impl::set_properties_from_addr() {
 
-	static const std::string crimson_prop_prefix( "crimson:" );
-	static const std::vector<std::string> blacklist { "crimson:sob" };
+    static const std::string crimson_prop_prefix( "crimson:" );
+    static const std::vector<std::string> blacklist { "crimson:sob" };
 
-	for( auto & prop: device_addr.keys() ) {
-		if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
+    for( auto & prop: device_addr.keys() ) {
+        if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
 
-			bool is_blacklisted = false;
-			for( auto & e: blacklist ) {
-				if ( e == prop ) {
-					is_blacklisted = true;
-				}
-			}
-			if ( is_blacklisted ) {
-				continue;
-			}
+            bool is_blacklisted = false;
+            for( auto & e: blacklist ) {
+                if ( e == prop ) {
+                    is_blacklisted = true;
+                }
+            }
+            if ( is_blacklisted ) {
+                continue;
+            }
 
-			std::string key = prop.substr( crimson_prop_prefix.length() );
-			std::string expected_string = device_addr[ prop ];
+            std::string key = prop.substr( crimson_prop_prefix.length() );
+            std::string expected_string = device_addr[ prop ];
 
             _mbc.iface->set_string( key, expected_string );
 
             std::string actual_string = _mbc.iface->get_string( key );
-			if ( actual_string != expected_string ) {
-				UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C "_IMPL")
-					<< __func__ << "(): "
-					<< "Setting " CYAN_NRNT_DEBUG_NAME_S "  property failed: "
-					<< "key: '"<< key << "', "
-					<< "expected val: '" << expected_string << "', "
-					<< "actual val: '" << actual_string  << "'"
-					<< std::endl;
-			}
-		}
-	}
+            if ( actual_string != expected_string ) {
+                UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C "_IMPL")
+                    << __func__ << "(): "
+                    << "Setting " CYAN_NRNT_DEBUG_NAME_S "  property failed: "
+                    << "key: '"<< key << "', "
+                    << "expected val: '" << expected_string << "', "
+                    << "actual val: '" << actual_string  << "'"
+                    << std::endl;
+            }
+        }
+    }
 }
 
 /***********************************************************************
- * Discovery over the udp transport
- **********************************************************************/
+* Discovery over the udp transport
+**********************************************************************/
 // This find function will be called if a hint is passed onto the find function
 device_addrs_t cyan_nrnt_impl::cyan_nrnt_find_with_addr(const device_addr_t &hint)
 {
@@ -323,9 +323,9 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find_with_addr(const device_addr_t &hin
 
     // Checks for all connected Cyan NRNT
     for(
-		float to = 0.2;
-    	comm->recv(asio::buffer(buff), to);
-    	to = 0.05
+        float to = 0.2;
+        comm->recv(asio::buffer(buff), to);
+        to = 0.05
     ) {
         // parse the return buffer for the device type (from fpga/about/name)
         std::vector<std::string> tokens;
@@ -457,7 +457,7 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find(const device_addr_t &hint_)
         {
             //avoid the loopback device
             if ( asio::ip::address_v4::loopback().to_string() == if_addrs.inet ) {
-            	continue;
+                continue;
             }
 
             //create a new hint with this broadcast address
@@ -474,61 +474,61 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find(const device_addr_t &hint_)
 }
 
 /**
- * Buffer Management / Time Diff
- */
+* Buffer Management / Time Diff
+*/
 
 // SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
 static constexpr double tick_period_ns = 1.0 / CYAN_NRNT_TICK_RATE * 1e9;
 static inline int64_t ticks_to_nsecs( int64_t tv_tick ) {
-	return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
+    return (int64_t)( (double) tv_tick * tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
 }
 static inline int64_t nsecs_to_ticks( int64_t tv_nsec ) {
-	return (int64_t)( (double) tv_nsec / tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
+    return (int64_t)( (double) tv_nsec / tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
 }
 
 static inline void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
-	pkt.header = (uint64_t)0x20002 << 16;
-	pkt.tv_sec = ts.get_full_secs();
-	pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
+    pkt.header = (uint64_t)0x20002 << 16;
+    pkt.tv_sec = ts.get_full_secs();
+    pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
 
-	boost::endian::native_to_big_inplace( pkt.header );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
-	boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
+    boost::endian::native_to_big_inplace( pkt.header );
+    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
+    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
 }
 
 void cyan_nrnt_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
 
-	time_diff_req pkt;
+    time_diff_req pkt;
 
-	// Input to Process (includes feedback from PID Controller)
-	make_time_diff_packet(
-		pkt,
-		crimson_now
-	);
+    // Input to Process (includes feedback from PID Controller)
+    make_time_diff_packet(
+        pkt,
+        crimson_now
+    );
 
     if (_which_time_diff_iface >= NUMBER_OF_XG_CONTROL_INTF) {
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
-	_time_diff_iface[_which_time_diff_iface]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
+    _time_diff_iface[_which_time_diff_iface]->send( boost::asio::const_buffer( &pkt, sizeof( pkt ) ) );
 }
 
 bool cyan_nrnt_impl::time_diff_recv( time_diff_resp & tdr ) {
 
-	size_t r;
+    size_t r;
 
     if (_which_time_diff_iface >= NUMBER_OF_XG_CONTROL_INTF) {
         throw runtime_error( "XG Control interface offset out of bound!" );
     }
-	r = _time_diff_iface[_which_time_diff_iface]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
+    r = _time_diff_iface[_which_time_diff_iface]->recv( boost::asio::mutable_buffer( & tdr, sizeof( tdr ) ) );
 
-	if ( 0 == r ) {
-		return false;
-	}
+    if ( 0 == r ) {
+        return false;
+    }
 
-	boost::endian::big_to_native_inplace( tdr.tv_sec );
-	boost::endian::big_to_native_inplace( tdr.tv_tick );
+    boost::endian::big_to_native_inplace( tdr.tv_sec );
+    boost::endian::big_to_native_inplace( tdr.tv_tick );
 
-	return true;
+    return true;
 }
 
 void cyan_nrnt_impl::reset_time_diff_pid() {
@@ -549,11 +549,11 @@ void cyan_nrnt_impl::reset_time_diff_pid() {
 /// SoB Time Diff: feed the time diff error back into out control system
 void cyan_nrnt_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
-	static const double sp = 0.0;
+    static const double sp = 0.0;
 
-	double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
+    double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
-	double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
+    double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
@@ -574,36 +574,36 @@ void cyan_nrnt_impl::start_bm() {
 
     //checks if the current task is excempt from need clock synchronization
     _mm_lfence();
-	if ( ! _bm_thread_needed ) {
-		return;
-	}
+    if ( ! _bm_thread_needed ) {
+        return;
+    }
 
-	//checks if clock synchronization is already being done
-	if ( ! _bm_thread_running ) {
+    //checks if clock synchronization is already being done
+    if ( ! _bm_thread_running ) {
 
-		_bm_thread_should_exit = false;
+        _bm_thread_should_exit = false;
         _mm_sfence();
         //starts the thread that synchronizes the clocks
         request_resync_time_diff();
         _bm_thread_running = true;
         _mm_sfence();
-		_bm_thread = std::thread( bm_thread_fn, this );
+        _bm_thread = std::thread( bm_thread_fn, this );
 
         //Note: anything relying on this will require waiting time_diff_converged()
-	}
+    }
 }
 
 //stops clock synchronization
 void cyan_nrnt_impl::stop_bm() {
     _mm_lfence();
 
-	if ( _bm_thread_running ) {
+    if ( _bm_thread_running ) {
 
-		_bm_thread_should_exit = true;
+        _bm_thread_should_exit = true;
         _mm_sfence();
-		_bm_thread.join();
+        _bm_thread.join();
 
-	}
+    }
 }
 
 void cyan_nrnt_impl::start_pps_dtc() {
@@ -644,37 +644,37 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
 
     // Flag so that we only print the error message for failed recv once
     bool dropped_recv_message_printed = false;
-    
-	const uhd::time_spec_t T( 1.0 / (double) CYAN_NRNT_UPDATE_PER_SEC );
-	uhd::time_spec_t now, then, dt;
+
+    const uhd::time_spec_t T( 1.0 / (double) CYAN_NRNT_UPDATE_PER_SEC );
+    uhd::time_spec_t now, then, dt;
     //the predicted time on the unit
-	uhd::time_spec_t crimson_now;
-	struct timespec req, rem;
+    uhd::time_spec_t crimson_now;
+    struct timespec req, rem;
 
-	double time_diff;
+    double time_diff;
 
-	struct time_diff_resp tdr;
+    struct time_diff_resp tdr;
 
-	//Get offset
+    //Get offset
     dev->_sfp_control_mutex[dev->get_which_time_diff_iface()]->lock();
-	now = uhd::get_system_time();
-	dev->time_diff_send( now );
-	dev->time_diff_recv( tdr );
+    now = uhd::get_system_time();
+    dev->time_diff_send( now );
+    dev->time_diff_recv( tdr );
     dev->_sfp_control_mutex[dev->get_which_time_diff_iface()]->unlock();
     dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
     _mm_lfence();
-	for(
-		now = uhd::get_system_time(),
-			then = now + T
-			;
+    for(
+        now = uhd::get_system_time(),
+            then = now + T
+            ;
 
-		! dev->_bm_thread_should_exit
-			;
+        ! dev->_bm_thread_should_exit
+            ;
 
-		then += T,
-			now = uhd::get_system_time()
-	) {
+        then += T,
+            now = uhd::get_system_time()
+    ) {
         if(dev->device_clock_sync_info->is_resync_requested()) {
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
             dev->device_clock_sync_info->resync_acknowledge();
@@ -682,12 +682,12 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
             dev->reset_time_diff_pid();
         }
 
-		dt = then - now;
-		if ( dt > 0.0 ) {
-			req.tv_sec = dt.get_full_secs();
-			req.tv_nsec = dt.get_frac_secs() * 1e9;
-			nanosleep( &req, &rem );
-		} else {
+        dt = then - now;
+        if ( dt > 0.0 ) {
+            req.tv_sec = dt.get_full_secs();
+            req.tv_nsec = dt.get_frac_secs() * 1e9;
+            nanosleep( &req, &rem );
+        } else {
             continue;
         }
 
@@ -706,20 +706,20 @@ void cyan_nrnt_impl::bm_thread_fn( cyan_nrnt_impl *dev ) {
         dev->_sfp_control_mutex[0]->unlock();
         if (reply_good) {
             dev->time_diff_process( tdr, now );
-         } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
-             UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
-             dropped_recv_message_printed = true;
-         }
-         // lfence to update _bm_thread_should_exit for the for loop
-         _mm_lfence();
-	}
-	dev->_bm_thread_running = false;
+        } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
+            dropped_recv_message_printed = true;
+        }
+        // lfence to update _bm_thread_should_exit for the for loop
+        _mm_lfence();
+    }
+    dev->_bm_thread_running = false;
     _mm_sfence();
 }
 
 /***********************************************************************
- * Make
- **********************************************************************/
+* Make
+**********************************************************************/
 // Returns a pointer to the SDR device, casted to the UHD base class
 static device::sptr cyan_nrnt_make(const device_addr_t &device_addr)
 {
@@ -746,13 +746,13 @@ static device::sptr cyan_nrnt_make(const device_addr_t &device_addr)
 // all the registered devices' find and make functions.
 UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 {
-	set_log_level( uhd::log::severity_level::info );
+    set_log_level( uhd::log::severity_level::info );
     device::register_device(&cyan_nrnt_impl::cyan_nrnt_find, &cyan_nrnt_make, device::USRP);
 }
 
 /***********************************************************************
- * Structors
- **********************************************************************/
+* Structors
+**********************************************************************/
 // .set in TREE_CREATE_ sets the value of the property retrieved by calling get without having a publisher assigned
 // The value for set is irrelevant for RW and RO since a publisher is always assigned, and irrlevant for WO
 // Macro to create the tree, all properties created with this are R/W properties
@@ -779,15 +779,15 @@ UHD_STATIC_BLOCK(register_cyan_nrnt_device)
 
 cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk, double freq_range_stop)
 :
-	device_addr( _device_addr ),
-	// Put _time_diff_pidc on their own cache line to avoid false sharing
-	_time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
-	_bm_thread_needed( true ),
-	_bm_thread_running( false ),
-	_bm_thread_should_exit( false ),
-	_pps_thread_running( false ),
-	_pps_thread_should_exit( false ),
-	_command_time( 0.0 ),
+    device_addr( _device_addr ),
+    // Put _time_diff_pidc on their own cache line to avoid false sharing
+    _time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
+    _bm_thread_needed( true ),
+    _bm_thread_running( false ),
+    _bm_thread_should_exit( false ),
+    _pps_thread_running( false ),
+    _pps_thread_should_exit( false ),
+    _command_time( 0.0 ),
     _freq_range_stop(freq_range_stop),
     _use_dpdk(use_dpdk)
 {
@@ -817,10 +817,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     // Makes the UDP comm connection
     _mbc.iface = pv_iface::make(
-		udp_simple::make_connected(
-			_device_addr["addr"],
-			BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
-		)
+        udp_simple::make_connected(
+            _device_addr["addr"],
+            BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
+        )
     );
 
     // TODO check if locked already
@@ -865,7 +865,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     rx_rfe_rate_cache.resize(num_rx_channels, 0);
     tx_gain_is_set.resize(num_tx_channels, false);
     last_set_tx_band.resize(num_tx_channels, -1);
-    
+
     // Checks if the tx channel is baseband only
     is_tx_baseband_only.resize(num_tx_channels, false);
     for(size_t ch = 0; ch < num_tx_channels; ch++) {
@@ -1079,23 +1079,23 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     // loop for all RX chains
     for( size_t dspno = 0; dspno < num_rx_channels; dspno++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
-		std::string chan    = "Channel_" + num;
+        std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
+        std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+        std::string chan    = "Channel_" + num;
 
-		const fs_path rx_codec_path = CYAN_NRNT_MB_PATH / "rx_codecs" / num;
-		const fs_path rx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "rx_frontends" / chan;
-		const fs_path db_path       = CYAN_NRNT_MB_PATH / "dboards" / num;
-		const fs_path rx_dsp_path   = CYAN_NRNT_MB_PATH / "rx_dsps" / dspno;
-		const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / dspno;
+        const fs_path rx_codec_path = CYAN_NRNT_MB_PATH / "rx_codecs" / num;
+        const fs_path rx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "rx_frontends" / chan;
+        const fs_path db_path       = CYAN_NRNT_MB_PATH / "dboards" / num;
+        const fs_path rx_dsp_path   = CYAN_NRNT_MB_PATH / "rx_dsps" / dspno;
+        const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / dspno;
 
-		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
-		_tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
+        static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
+        _tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
 
-		_tree->create<std::string>(rx_fe_path / "antenna" / "value").set("N/A");
+        _tree->create<std::string>(rx_fe_path / "antenna" / "value").set("N/A");
 
-		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
-		_tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
+        static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
+        _tree->create<std::vector<std::string> >(rx_fe_path / "sensors").set(sensor_options);
 
         // RX Triggers
         TREE_CREATE_RW(rx_path / dspno / "/trigger/sma_mode"       , "rx_" + lc_num + "/trigger/sma_mode"       , std::string, string);
@@ -1107,10 +1107,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_pol"        , "rx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
 
         // About information
-		TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
-		TREE_CREATE_RW(rx_path / dspno / "hw_version", "rx_"+lc_num+"/about/hw_ver", std::string, string);
-		TREE_CREATE_RW(rx_path / dspno / "sw_version", "rx_"+lc_num+"/about/sw_ver", std::string, string);
-		TREE_CREATE_RW(rx_path / dspno / "eeprom", "rx_"+lc_num+"/about/eeprom", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "hw_version", "rx_"+lc_num+"/about/hw_ver", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "sw_version", "rx_"+lc_num+"/about/sw_ver", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "eeprom", "rx_"+lc_num+"/about/eeprom", std::string, string);
 
         TREE_CREATE_RW(rx_path / dspno / "about/rfe_rate", "rx_"+lc_num+"/about/rfe_rate", double, double);
         try {
@@ -1121,89 +1121,89 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
             rx_rfe_rate_cache[dspno] = 3000000000;
         }
 
-		// Power status
-		TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
+        // Power status
+        TREE_CREATE_RW(rx_path / dspno / "pwr", "rx_"+lc_num+"/pwr", std::string, string);
 
-		// Channel Stream Status
-		TREE_CREATE_RW(rx_path / dspno / "stream", "rx_"+lc_num+"/stream", std::string, string);
+        // Channel Stream Status
+        TREE_CREATE_RW(rx_path / dspno / "stream", "rx_"+lc_num+"/stream", std::string, string);
 
-		// Codecs, phony properties for Crimson
-		TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
-		TREE_CREATE_ST(rx_codec_path / "name", std::string, "RX Codec");
+        // Codecs, phony properties for Crimson
+        TREE_CREATE_RW(rx_codec_path / "gains", "rx_"+lc_num+"/dsp/gain", int, int);
+        TREE_CREATE_ST(rx_codec_path / "name", std::string, "RX Codec");
 
-		// Daughter Boards' Frontend Settings
-		TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
+        // Daughter Boards' Frontend Settings
+        TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
-	    // RX bandwidth
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL );
-		TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
+        // RX bandwidth
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL );
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
 
-		TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 
-		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
-		TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
-		TREE_CREATE_ST(rx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(rx_fe_path / "dc_offset" / "enable", bool, false);
+        TREE_CREATE_ST(rx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(rx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 
-		TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
+        TREE_CREATE_RW(rx_fe_path / "connection",  "rx_"+lc_num+"/link/iface", std::string, string);
 
-		TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
+        TREE_CREATE_ST(rx_fe_path / "use_lo_offset", bool, true );
 
-		TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(rx_fe_path / "freq" / "range", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 
-		TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
-		TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
-		TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
+        TREE_CREATE_RW(rx_fe_path / "freq"  / "value", "rx_"+lc_num+"/rf/freq/val" , double, double);
+        TREE_CREATE_ST(rx_fe_path / "gains", std::string, "gain" );
+        TREE_CREATE_RW(rx_fe_path / "gain"  / "value", "rx_"+lc_num+"/rf/gain/val" , double, double);
         // Gain range for all elements in the current band
         TREE_CREATE_RW(rx_fe_path / "gain" / "range", "rx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
         TREE_CREATE_RW(rx_fe_path / "gain"  / "adc_digital", "rx_"+lc_num+"/rf/gain/adc_digital" , double, double);
-		TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
+        TREE_CREATE_RW(rx_fe_path / "atten" / "value", "rx_"+lc_num+"/rf/atten/val", double, double);
 
-		// RF band
-		TREE_CREATE_RW(rx_fe_path / "freq" / "band", "rx_"+lc_num+"/rf/freq/band", int, int);
+        // RF band
+        TREE_CREATE_RW(rx_fe_path / "freq" / "band", "rx_"+lc_num+"/rf/freq/band", int, int);
 
-		// RF receiver LNA
-		TREE_CREATE_RW(rx_fe_path / "freq"  / "lna", "rx_"+lc_num+"/rf/freq/lna" , int, int);
+        // RF receiver LNA
+        TREE_CREATE_RW(rx_fe_path / "freq"  / "lna", "rx_"+lc_num+"/rf/freq/lna" , int, int);
 
         // Rx rf pll lock detect
         TREE_CREATE_RW(rx_fe_path / "sensors" / "rfpll_lock", "rx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
 
 
-		// these are phony properties for Crimson
-		TREE_CREATE_ST(db_path / "rx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
-		TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
+        // these are phony properties for Crimson
+        TREE_CREATE_ST(db_path / "rx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
+        TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
 
-		// DSPs
-		TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_RATE_RANGE_START, (double) CYAN_NRNT_RATE_RANGE_STOP_FULL, (double) CYAN_NRNT_RATE_RANGE_STEP));
-		TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-			meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL, (double) CYAN_NRNT_DSP_BW_STEPSIZE));
+        // DSPs
+        TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_RATE_RANGE_START, (double) CYAN_NRNT_RATE_RANGE_STOP_FULL, (double) CYAN_NRNT_RATE_RANGE_STEP));
+        TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
+            meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL, (double) CYAN_NRNT_DSP_BW_STEPSIZE));
 
         TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate", double, double);
 
-		TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
-		TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
+        TREE_CREATE_RW(rx_dsp_path / "freq" / "value", "rx_"+lc_num+"/dsp/nco_adj", double, double);
+        TREE_CREATE_RW(rx_dsp_path / "bw" / "value",   "rx_"+lc_num+"/dsp/rate",    double, double);
 
         // Used to issue an rx stream command
         // WO property
         _tree->create<uhd::stream_cmd_t> ( rx_dsp_path / "stream_cmd" )
             .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_stream_cmd, this, ("rx_"+lc_num+"/stream_cmd"), ph::_1));
 
-		TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
+        TREE_CREATE_RW(rx_dsp_path / "nco", "rx_"+lc_num+"/dsp/nco_adj", double, double);
 
         TREE_CREATE_RW(rx_path / dspno / "jesd" / "status", "rx_"+lc_num+"/jesd/status", std::string, string);
 
         TREE_CREATE_RW(rx_path / dspno / "status" / "lna", "rx_"+lc_num+"/status/lna", std::string, string);
 
-		// Link settings
-		TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);
+        // Link settings
+        TREE_CREATE_RW(rx_link_path / "vita_en", "rx_"+lc_num+"/link/vita_en", std::string, string);
         TREE_CREATE_RW(rx_link_path / "endian_swap", "rx_"+lc_num+"/link/endian_swap", int, int);
-		TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
-		TREE_CREATE_RW(rx_link_path / "port",    "rx_"+lc_num+"/link/port",    std::string, string);
-		TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
+        TREE_CREATE_RW(rx_link_path / "ip_dest", "rx_"+lc_num+"/link/ip_dest", std::string, string);
+        TREE_CREATE_RW(rx_link_path / "port",    "rx_"+lc_num+"/link/port",    std::string, string);
+        TREE_CREATE_RW(rx_link_path / "iface",   "rx_"+lc_num+"/link/iface",   std::string, string);
 
         TREE_CREATE_RW(rx_link_path / "jesd_num",   "rx_"+lc_num+"/link/jesd_num",   int, int);
 
@@ -1212,23 +1212,23 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     // initializes all TX chains
     for( size_t dspno = 0; dspno < num_tx_channels; dspno++ ) {
-		std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-		std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
-		std::string chan    = "Channel_" + num;
+        std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
+        std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+        std::string chan    = "Channel_" + num;
 
-		const fs_path tx_codec_path = CYAN_NRNT_MB_PATH / "tx_codecs" / num;
-		const fs_path tx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "tx_frontends" / chan;
-		const fs_path db_path       = CYAN_NRNT_MB_PATH / "dboards" / num;
-		const fs_path tx_dsp_path   = CYAN_NRNT_MB_PATH / "tx_dsps" / dspno;
-		const fs_path tx_link_path  = CYAN_NRNT_MB_PATH / "tx_link" / dspno;
+        const fs_path tx_codec_path = CYAN_NRNT_MB_PATH / "tx_codecs" / num;
+        const fs_path tx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "tx_frontends" / chan;
+        const fs_path db_path       = CYAN_NRNT_MB_PATH / "dboards" / num;
+        const fs_path tx_dsp_path   = CYAN_NRNT_MB_PATH / "tx_dsps" / dspno;
+        const fs_path tx_link_path  = CYAN_NRNT_MB_PATH / "tx_link" / dspno;
 
-		static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
-		_tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
+        static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
+        _tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
 
-		_tree->create<std::string>(tx_fe_path / "antenna" / "value").set("N/A");
+        _tree->create<std::string>(tx_fe_path / "antenna" / "value").set("N/A");
 
-		static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
-		_tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
+        static const std::vector<std::string> sensor_options = boost::assign::list_of("lo_locked");
+        _tree->create<std::vector<std::string> >(tx_fe_path / "sensors").set(sensor_options);
 
         // TX Triggers
         TREE_CREATE_RW(tx_path / dspno / "/trigger/sma_mode"       , "tx_" + lc_num + "/trigger/sma_mode"       , std::string, string);
@@ -1241,114 +1241,114 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
 
         // About information
-		TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
-		TREE_CREATE_RW(tx_path / dspno / "hw_version", "tx_"+lc_num+"/about/hw_ver", std::string, string);
-		TREE_CREATE_RW(tx_path / dspno / "sw_version", "tx_"+lc_num+"/about/sw_ver", std::string, string);
-		TREE_CREATE_RW(tx_path / dspno / "eeprom", "tx_"+lc_num+"/about/eeprom", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "hw_version", "tx_"+lc_num+"/about/hw_ver", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "sw_version", "tx_"+lc_num+"/about/sw_ver", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "eeprom", "tx_"+lc_num+"/about/eeprom", std::string, string);
 
-		// Actual frequency values
-		TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/lo_freq", double, double);
+        // Actual frequency values
+        TREE_CREATE_RW(tx_path / chan / "freq" / "value", "tx_"+lc_num+"/rf/lo_freq", double, double);
 
-		// Power status
-		TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
+        // Power status
+        TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
-		// Codecs, phony properties for Crimson
-		TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
-		TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
+        // Codecs, phony properties for Crimson
+        TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
+        TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
 
-		// Daughter Boards' Frontend Settings
-		TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
+        // Daughter Boards' Frontend Settings
+        TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
-	    // TX bandwidth
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL );
-		TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
+        // TX bandwidth
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL );
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
 
-		TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 
-		TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
-		TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(tx_fe_path / "dc_offset" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
+        TREE_CREATE_ST(tx_fe_path / "iq_balance" / "value", std::complex<double>, std::complex<double>(0.0, 0.0));
 
-		TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
+        TREE_CREATE_RW(tx_fe_path / "connection",  "tx_"+lc_num+"/link/iface", std::string, string);
 
-		TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
+        TREE_CREATE_ST(tx_fe_path / "use_lo_offset", bool, false);
 
-		TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(tx_fe_path / "freq" / "range", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
 
-		TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/lo_freq" , double, double);
-		TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
-		TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
+        TREE_CREATE_RW(tx_fe_path / "freq"  / "value", "tx_"+lc_num+"/rf/lo_freq" , double, double);
+        TREE_CREATE_ST(tx_fe_path / "gains", std::string, "gain" );
+        TREE_CREATE_RW(tx_fe_path / "gain"  / "value", "tx_"+lc_num+"/rf/gain/val" , double, double);
         // Gain range for all elements in the current band
         TREE_CREATE_RW(tx_fe_path / "gain" / "range", "tx_"+lc_num+"/rf/gain/range",  meta_range_t, meta_range);
 
-		// RF band
-		TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/band", int, int);
+        // RF band
+        TREE_CREATE_RW(tx_fe_path / "freq" / "band", "tx_"+lc_num+"/rf/band", int, int);
 
         // Tx rf pll lock detect
         TREE_CREATE_RW(tx_fe_path / "sensors" / "rfpll_lock", "tx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
 
-		// these are phony properties for Crimson
-		TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
+        // these are phony properties for Crimson
+        TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
 
-		// DSPs
+        // DSPs
 
-		TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_RATE_RANGE_START, (double) CYAN_NRNT_RATE_RANGE_STOP_FULL, (double) CYAN_NRNT_RATE_RANGE_STEP));
-		TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-			meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
-		TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-			meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL, (double) CYAN_NRNT_DSP_BW_STEPSIZE));
+        TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_RATE_RANGE_START, (double) CYAN_NRNT_RATE_RANGE_STOP_FULL, (double) CYAN_NRNT_RATE_RANGE_STEP));
+        TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
+            meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
+        TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
+            meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL, (double) CYAN_NRNT_DSP_BW_STEPSIZE));
 
         TREE_CREATE_RW(tx_dsp_path / "rate" / "value", "tx_"+lc_num+"/dsp/rate", double, double);
 
-		TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
+        TREE_CREATE_RW(tx_dsp_path / "bw" / "value",   "tx_"+lc_num+"/dsp/rate",    double, double);
 
         //interface for setting all ncos
-		TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+ "/dsp/all_nco", double, double);
+        TREE_CREATE_RW(tx_dsp_path / "freq" / "value", "tx_"+lc_num+ "/dsp/all_nco", double, double);
 
-		TREE_CREATE_WO(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
-		TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/fpga_nco", double, double);
+        TREE_CREATE_WO(tx_dsp_path / "rstreq", "tx_"+lc_num+"/dsp/rstreq", double, double);
+        TREE_CREATE_RW(tx_dsp_path / "nco", "tx_"+lc_num+"/dsp/fpga_nco", double, double);
 
         //accesses the interface function for all DAC ncos
-		TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco/dacfreq", double, double);
+        TREE_CREATE_RW(tx_fe_path / "nco", "tx_"+lc_num+"/rf/dac/nco/dacfreq", double, double);
 
         TREE_CREATE_RW(tx_path / dspno / "jesd" / "status", "tx_"+lc_num+"/jesd/status", std::string, string);
 
-		// Link settings
-		TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
+        // Link settings
+        TREE_CREATE_RW(tx_link_path / "vita_en", "tx_"+lc_num+"/link/vita_en", std::string, string);
         TREE_CREATE_RW(tx_link_path / "endian_swap", "tx_"+lc_num+"/link/endian_swap", int, int);
-		TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
-		TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
+        TREE_CREATE_RW(tx_link_path / "port",    "tx_"+lc_num+"/link/port",    std::string, string);
+        TREE_CREATE_RW(tx_link_path / "iface",   "tx_"+lc_num+"/link/iface",   std::string, string);
 
         TREE_CREATE_RW(tx_dsp_path / "delay_iq", "tx_"+lc_num+"/jesd/delay_iq",   std::string, string);
 
-		std::string ip_addr;
-		uint16_t udp_port;
-		std::string sfp;
-		get_tx_endpoint( dspno, ip_addr, udp_port, sfp );
+        std::string ip_addr;
+        uint16_t udp_port;
+        std::string sfp;
+        get_tx_endpoint( dspno, ip_addr, udp_port, sfp );
 
         // Creates socket for getting buffer level
-		_mbc.fifo_ctrl_xports.push_back(
-			udp_simple::make_connected(
-				_tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr" ).get(),
-				std::to_string( _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
-			)
-		);
+        _mbc.fifo_ctrl_xports.push_back(
+            udp_simple::make_connected(
+                _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr" ).get(),
+                std::to_string( _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
+            )
+        );
     }
 
-	const fs_path cm_path  = CYAN_NRNT_MB_PATH / "cm";
+    const fs_path cm_path  = CYAN_NRNT_MB_PATH / "cm";
 
-	// Common Mode
-	TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
-	TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
-	TREE_CREATE_WO(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
-	TREE_CREATE_WO(cm_path / "rx/gain/val", "cm/rx/gain/val", int, int);
+    // Common Mode
+    TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
+    TREE_CREATE_RW(cm_path / "chanmask-tx", "cm/chanmask-tx", int, int);
+    TREE_CREATE_WO(cm_path / "rx/atten/val", "cm/rx/atten/val", double, double);
+    TREE_CREATE_WO(cm_path / "rx/gain/val", "cm/rx/gain/val", int, int);
     TREE_CREATE_RW(cm_path / "rx/force_stream", "cm/rx/force_stream", int, int);
-	TREE_CREATE_WO(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
+    TREE_CREATE_WO(cm_path / "tx/gain/val", "cm/tx/gain/val", double, double);
     TREE_CREATE_RW(cm_path / "tx/force_stream", "cm/tx/force_stream", int, int);
-	TREE_CREATE_WO(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
-	TREE_CREATE_WO(cm_path / "trx/nco_adj", "cm/trx/fpga_nco", double, double);
+    TREE_CREATE_WO(cm_path / "trx/freq/val", "cm/trx/freq/val", double, double);
+    TREE_CREATE_WO(cm_path / "trx/nco_adj", "cm/trx/fpga_nco", double, double);
 
     //do some post-init tasks
     this->update_rates();
@@ -1410,7 +1410,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         start_bm();
     }
 
-	rx_stream_cmd_issuer.reserve(num_rx_channels);
+    rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
         //The channel argument in the packet is actually the jesd number relative to the sfp port on Cyan
         //i.e. If there are two channels per sfp port one channel on each port would be 0, the other 1
@@ -1504,7 +1504,7 @@ uint16_t cyan_nrnt_impl::get_tx_fc_port( size_t chan ) {
         return tx_fc_cache[chan];
     } else {
         const fs_path fc_port_path = CYAN_NRNT_MB_PATH / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
-    
+
         tx_fc_cache[chan] = (uint16_t) _tree->access<int>( fc_port_path ).get();
         is_tx_fc_cached[chan] = true;
         return tx_fc_cache[chan];
@@ -1546,7 +1546,7 @@ constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
 static int select_band( const double freq ) {
-	if( freq >= CYAN_NRNT_MID_HIGH_BARRIER )
+    if( freq >= CYAN_NRNT_MID_HIGH_BARRIER )
         return HIGH_BAND;
     else if( freq >= CYAN_NRNT_LOW_MID_BARRIER )
         return MID_BAND;
@@ -1556,7 +1556,7 @@ static int select_band( const double freq ) {
 
 // return true if b is a (not necessarily strict) subset of a
 static bool range_contains( const meta_range_t & a, const meta_range_t & b ) {
-	return b.start() >= a.start() && b.stop() <= a.stop();
+    return b.start() >= a.start() && b.stop() <= a.stop();
 }
 
 double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_tree::sptr dsp_subtree, int xx_sign, size_t chan ) {
@@ -1594,9 +1594,9 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
         freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
         dsp_bw = dsp_range.stop() - dsp_range.start();
     }
-    
+
     // 3G rx has a fixed 250MHz NCO built into it in 1G mode
-    // if dsp NCO is not bypassed, try to keep LO 250MHz above the target 
+    // if dsp NCO is not bypassed, try to keep LO 250MHz above the target
     double compensatory_dsp_shift;
     if(flag_use_3g_as_1g && RX_SIGN == xx_sign && dsp_bw != 0 && rx_rfe_rate_cache[chan]) {
         compensatory_dsp_shift = CYAN_NRNT_RX_NCO_SHIFT_3G_TO_1G;
@@ -1652,12 +1652,12 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
 //calculates and sets the band, nco, and lo shift
 tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, property_tree::sptr dsp_subtree, property_tree::sptr rf_fe_subtree, const tune_request_t &tune_request, int* gain_is_set, int* last_set_band, size_t chan ) {
 
-	freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
-	freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
+    freq_range_t dsp_range = dsp_subtree->access<meta_range_t>("freq/range").get();
+    freq_range_t rf_range = rf_fe_subtree->access<meta_range_t>("freq/range").get();
+    freq_range_t adc_range( dsp_range.start(), dsp_range.stop(), 0.0001 );
 
-	double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
-    
+    double clipped_requested_freq = rf_range.clip( tune_request.target_freq );
+
     int band;
     // Is tx and tx channel is low band only
     if(TX_SIGN == xx_sign && is_tx_baseband_only[chan]) {
@@ -1667,40 +1667,40 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
         band = select_band( clipped_requested_freq );
     }
 
-	//------------------------------------------------------------------
-	//-- set the RF frequency depending upon the policy
-	//------------------------------------------------------------------
+    //------------------------------------------------------------------
+    //-- set the RF frequency depending upon the policy
+    //------------------------------------------------------------------
     // Desired LO frequency
-	double target_rf_freq = 0.0;
+    double target_rf_freq = 0.0;
 
-	if ( TX_SIGN == xx_sign ) {
-		rf_fe_subtree->access<double>("nco").set( 0.0 );
-	}
+    if ( TX_SIGN == xx_sign ) {
+        rf_fe_subtree->access<double>("nco").set( 0.0 );
+    }
 
-	switch (tune_request.rf_freq_policy){
-		case tune_request_t::POLICY_AUTO:
-			switch( band ) {
-			case LOW_BAND:
-				// in low band, we only use the DSP to tune
-				target_rf_freq = 0;
-				break;
+    switch (tune_request.rf_freq_policy){
+        case tune_request_t::POLICY_AUTO:
+            switch( band ) {
+            case LOW_BAND:
+                // in low band, we only use the DSP to tune
+                target_rf_freq = 0;
+                break;
             //The differences between mid and high band are handled on the server
-			case MID_BAND:
+            case MID_BAND:
             case HIGH_BAND:
                 target_rf_freq = choose_lo_shift( clipped_requested_freq, band, dsp_subtree, xx_sign, chan );
-				break;
-			}
-		break;
+                break;
+            }
+        break;
 
-		case tune_request_t::POLICY_MANUAL:
+        case tune_request_t::POLICY_MANUAL:
             // prevent use of low band when a specific lo is requested
             if(band == LOW_BAND && tune_request.lo_freq !=0) band = MID_BAND;
-			target_rf_freq = tune_request.lo_freq;
-			break;
+            target_rf_freq = tune_request.lo_freq;
+            break;
 
-		case tune_request_t::POLICY_NONE:
-			break; //does not set
-	}
+        case tune_request_t::POLICY_NONE:
+            break; //does not set
+    }
 
     rf_fe_subtree->access<int>( "freq/band" ).set( band );
 
@@ -1716,42 +1716,42 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
     }
 
 
-	//------------------------------------------------------------------
-	//-- Tune the RF frontend
-	//------------------------------------------------------------------
-	rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
-	const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
+    //------------------------------------------------------------------
+    //-- Tune the RF frontend
+    //------------------------------------------------------------------
+    rf_fe_subtree->access<double>("freq/value").set( target_rf_freq );
+    const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
     if(actual_rf_freq == 0 && target_rf_freq != 0) {
         UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Error when attempting to set lo on channel " + std::string(1, chan + 'A') + ". If this error persists contact support");
     }
 
-	//------------------------------------------------------------------
-	//-- Set the DSP frequency depending upon the DSP frequency policy.
-	//------------------------------------------------------------------
-	double target_dsp_freq = 0.0;
-	switch (tune_request.dsp_freq_policy) {
-		case tune_request_t::POLICY_AUTO:
-			target_dsp_freq = actual_rf_freq - clipped_requested_freq;
+    //------------------------------------------------------------------
+    //-- Set the DSP frequency depending upon the DSP frequency policy.
+    //------------------------------------------------------------------
+    double target_dsp_freq = 0.0;
+    switch (tune_request.dsp_freq_policy) {
+        case tune_request_t::POLICY_AUTO:
+            target_dsp_freq = actual_rf_freq - clipped_requested_freq;
 
-			//invert the sign on the dsp freq for transmit (spinning up vs down)
-			target_dsp_freq *= xx_sign;
+            //invert the sign on the dsp freq for transmit (spinning up vs down)
+            target_dsp_freq *= xx_sign;
 
-			break;
+            break;
 
-		case tune_request_t::POLICY_MANUAL:
-			target_dsp_freq = tune_request.dsp_freq;
-			break;
+        case tune_request_t::POLICY_MANUAL:
+            target_dsp_freq = tune_request.dsp_freq;
+            break;
 
-		case tune_request_t::POLICY_NONE:
-			break; //does not set
-	}
+        case tune_request_t::POLICY_NONE:
+            break; //does not set
+    }
 
-	//------------------------------------------------------------------
-	//-- Tune the DSP
-	//------------------------------------------------------------------
-	dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
-	const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
+    //------------------------------------------------------------------
+    //-- Tune the DSP
+    //------------------------------------------------------------------
+    dsp_subtree->access<double>("freq/value").set(target_dsp_freq);
+    const double actual_dsp_freq = dsp_subtree->access<double>("freq/value").get();
 
     // Warn user if they attempted manual tuning, and the resulting NCO is 0 and the intended NCO was not 0 (which occurs at high sample rates where the DSP is bypassed)
     if( (tune_request.dsp_freq_policy == tune_request_t::POLICY_MANUAL || tune_request.rf_freq_policy == tune_request_t::POLICY_MANUAL) && target_dsp_freq != 0 && actual_dsp_freq == 0) {
@@ -1761,29 +1761,29 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
         }
     }
 
-	//------------------------------------------------------------------
-	//-- Load and return the tune result
-	//------------------------------------------------------------------
-	tune_result_t tune_result;
-	tune_result.clipped_rf_freq = clipped_requested_freq;
-	tune_result.target_rf_freq = target_rf_freq;
-	tune_result.actual_rf_freq = actual_rf_freq;
-	tune_result.target_dsp_freq = target_dsp_freq;
-	tune_result.actual_dsp_freq = actual_dsp_freq;
-	return tune_result;
+    //------------------------------------------------------------------
+    //-- Load and return the tune result
+    //------------------------------------------------------------------
+    tune_result_t tune_result;
+    tune_result.clipped_rf_freq = clipped_requested_freq;
+    tune_result.target_rf_freq = target_rf_freq;
+    tune_result.actual_rf_freq = actual_rf_freq;
+    tune_result.target_dsp_freq = target_dsp_freq;
+    tune_result.actual_dsp_freq = actual_dsp_freq;
+    return tune_result;
 }
 
 uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
+    const uhd::tune_request_t &tune_request, size_t chan
 ) {
 
-	tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
-			_tree->subtree(rx_dsp_root(chan)),
-			_tree->subtree(rx_rf_fe_root(chan)),
-			tune_request,
+    tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
+            _tree->subtree(rx_dsp_root(chan)),
+            _tree->subtree(rx_rf_fe_root(chan)),
+            tune_request,
             &rx_gain_is_set[chan], &last_set_rx_band[chan],
             chan);
-	return result;
+    return result;
 
 }
 
@@ -1798,16 +1798,16 @@ double cyan_nrnt_impl::get_rx_freq(size_t chan) {
 }
 
 uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
-	const uhd::tune_request_t &tune_request, size_t chan
+    const uhd::tune_request_t &tune_request, size_t chan
 ) {
 
-	tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
-			_tree->subtree(tx_dsp_root(chan)),
-			_tree->subtree(tx_rf_fe_root(chan)),
-			tune_request,
+    tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
+            _tree->subtree(tx_dsp_root(chan)),
+            _tree->subtree(tx_rf_fe_root(chan)),
+            tune_request,
             &tx_gain_is_set[chan], &last_set_tx_band[chan],
             chan);
-	return result;
+    return result;
 
 }
 
@@ -1874,7 +1874,7 @@ void cyan_nrnt_impl::set_rx_gain(double gain, const std::string &name, size_t ch
 
         return;
     }
-    
+
     //calls this function for each channel individually
     for (size_t c = 0; c < num_rx_channels; c++){
         set_rx_gain( gain, name, c );
