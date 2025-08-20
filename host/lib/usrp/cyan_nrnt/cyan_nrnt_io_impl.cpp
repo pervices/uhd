@@ -908,12 +908,13 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     }
 
     size_t nsamp_multiple;
-    try {
-        nsamp_multiple = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx").get();
-    } catch(uhd::lookup_error &e) {
-        // nsamps_multiple_tx not implemented on server
-        nsamp_multiple = CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
-    }
+    nsamp_multiple = 12;
+    // try {
+    //     nsamp_multiple = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx").get();
+    // } catch(uhd::lookup_error &e) {
+    //     // nsamps_multiple_tx not implemented on server
+    //     nsamp_multiple = CYAN_NRNT_PACKET_NSAMP_MULTIPLE;
+    // }
 
     // Each streamer has its own FIFO buffer that can operate independantly
     // However there is a deprecated function in device for reading async message
