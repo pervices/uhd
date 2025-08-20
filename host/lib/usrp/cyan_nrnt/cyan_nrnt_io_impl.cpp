@@ -908,7 +908,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     }
 
     size_t nsamp_multiple;
-    nsamp_multiple = 32;
+    nsamp_multiple = 16;
     // try {
     //     nsamp_multiple = _tree->access<int>(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx").get();
     // } catch(uhd::lookup_error &e) {
