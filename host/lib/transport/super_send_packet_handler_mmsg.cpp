@@ -85,11 +85,11 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
             UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Unable to set send buffer size. Performance will be negatively affected.\n Target size: " + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\nActual size: " + std::to_string(_ACTUAL_SEND_BUFFER_SIZE/2) + "\nPlease run \"sudo sysctl -w net.core.wmem_max=" + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\"\n");
         }
 
-        int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
-        if(mtu < MIN_MTU) {
-            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "MTU of interface associated with " + dst_ips[n] + "is to small. " + std::to_string(MIN_MTU) + "required, the current value is " + std::to_string(mtu) + ".\n");
-            throw uhd::system_error("MTU size to small");
-        }
+        // int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
+        // if(mtu < MIN_MTU) {
+        //     UHD_LOG_ERROR("SEND_PACKET_HANDLER", "MTU of interface associated with " + dst_ips[n] + "is to small. " + std::to_string(MIN_MTU) + "required, the current value is " + std::to_string(mtu) + ".\n");
+        //     throw uhd::system_error("MTU size to small");
+        // }
 
         int set_priority_ret = setsockopt(send_socket_fd, SOL_SOCKET, SO_PRIORITY, &TX_SO_PRIORITY, sizeof(TX_SO_PRIORITY));
         if(set_priority_ret) {
