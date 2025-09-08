@@ -906,8 +906,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fw_version", "fpga/about/fw_ver", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "hw_version", "fpga/about/hw_ver", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
-    // cmp_time returns the time/date the FPGA image was compiled
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "cmp_time", "fpga/about/cmp_time", std::string, string);
     TREE_CREATE_WO(CRIMSON_TNG_MB_PATH / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "temp", "fpga/board/temp", std::string, string);
     // TODO: investigate/add comments to explain what user/regs does
