@@ -1,3 +1,9 @@
+uhdpv (4.8.0.20-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing git hash not printing when launching UHD
+
+ -- Per Vices <packages@pervices.com>  Mon, 15 Sep 2025 14:59:26 -0400
+
 uhdpv (4.8.0.19-0ubuntu1) ubuntu_release; urgency=low
 
   * Access to additional FPGA versioning info (primarily for UHD developers)
