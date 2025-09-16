@@ -815,9 +815,9 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
     uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
     oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
 
-    std::cout << "get_fifo_lvl_udp_abs " << (char)('A' + channel) << ": Overflow=" << oflow << " Underflow=" << uflow << std::endl;
 
     now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
+    std::cout << "[" << now << "] get_fifo_lvl_udp_abs " << (char)('A' + channel) << ": Overflow=" << oflow << " Underflow=" << uflow << std::endl;
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
     std::stringstream ss;
