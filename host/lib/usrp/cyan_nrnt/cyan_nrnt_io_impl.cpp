@@ -162,7 +162,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
 
     const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
     for(size_t n = 0; n < _channels.size(); n++) {
-        channel_name = std::string(1, (char) (_channels[n] + 'a'));
+        std::string channel_name = std::string(1, (char) (_channels[n] + 'a'));
         uint64_t oflow = std::stoull(_iface->get_string("tx/" + channel_name + "/qa/oflow", "0"), nullptr, 0);
         uint64_t uflow = std::stoull(_iface->get_string("tx/" + channel_name + "/qa/uflow", "0"), nullptr, 0);
 
