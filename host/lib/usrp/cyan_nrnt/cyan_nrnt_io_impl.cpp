@@ -158,16 +158,25 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     }
 
     stop_buffer_monitor_thread();
-    for( auto & ep: _eprops ) {
+
+    const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
+    for(size_t n = 0; n < _channels.size(); n++) {
+        uint64_t uflow = std::stoull(_tree->access<std::string>( tx_path / n / "uflow").get(), nullptr, 0);
+        uint64_t oflow = std::stoull(_tree->access<std::string>( tx_path / n / "uflow").get(), nullptr, 0);
+        std::string channel_name = boost::lexical_cast<std::string>((char)(n + 'A'));
+        std::cout << "CH " << channel_name << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
+    }
+    // for( auto & ep: _eprops ) {
 
         // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
         // TODO: query the uflow/oflow count from the FPGA once it supports that
-        if(ep.oflow != (uint64_t)-1 || ep.uflow != (uint64_t)-1) {
-            std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
-        } else {
-            std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
-        }
-    }
+
+        // if(ep.oflow != (uint64_t)-1 || ep.uflow != (uint64_t)-1) {
+        //     std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
+        // } else {
+        //     std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
+        // }
+    // }
     _eprops.clear();
 
     for(size_t n = 0; n < _channels.size(); n++) {

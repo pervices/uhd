@@ -1323,6 +1323,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
         TREE_CREATE_RW(tx_dsp_path / "delay_iq", "tx_"+lc_num+"/jesd/delay_iq",   std::string, string);
 
+        // underflow/overflow values
+        TREE_CREATE_RW(tx_path / dspno / "uflow", "tx_"+lc_num+"/qa/uflow", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "oflow", "tx_"+lc_num+"/qa/oflow", std::string, string);
+
         std::string ip_addr;
         uint16_t udp_port;
         std::string sfp;
