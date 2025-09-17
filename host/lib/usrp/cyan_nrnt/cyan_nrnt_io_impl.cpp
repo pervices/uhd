@@ -329,7 +329,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
                 }
                 ep.uflow = uflow;
             }
-
+            std::cout << "oflow: " << oflow << "\nep.oflow: " << ep.oflow << std::endl;
             // Update overflow counter and send message if there are more overflows now than the previous check
             if ( oflow > ep.oflow ) {
                 // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
