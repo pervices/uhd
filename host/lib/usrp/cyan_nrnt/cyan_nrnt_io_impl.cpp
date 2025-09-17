@@ -301,7 +301,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
             }
 
             // Update underflow counter and send message if there are more underflows now than the previous check
-            if ( std::cmp_greater(uflow, ep.uflow) ) {
+            if ( (uflow > ep.uflow) ) {
                 // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
                 // async_metadata_t metadata;
                 // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -329,9 +329,14 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
                 }
                 ep.uflow = uflow;
             }
+            // ep.uflow is initialized to -1, so it needs to be set if this is the first time
+            if ( (uint64_t)-1 == ep.uflow ) {
+                ep.uflow = uflow
+            }
+            
             std::cout << "oflow: " << oflow << "\nep.oflow: " << ep.oflow << std::endl;
             // Update overflow counter and send message if there are more overflows now than the previous check
-            if ( std::cmp_greater(oflow, ep.oflow) ) {
+            if ( oflow > ep.oflow ) {
                 // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
                 // async_metadata_t metadata;
                 // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -358,6 +363,10 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
                     self->_performance_warning_printed = true;
                 }
                 ep.oflow = oflow;
+            }
+            // ep.oflow is initialized to -1, so it needs to be set if this is the first time
+            if ( (uint64_t)-1 == ep.oflow ) {
+                ep.oflow = oflow
             }
         }
 
