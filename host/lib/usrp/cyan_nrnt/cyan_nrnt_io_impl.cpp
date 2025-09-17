@@ -506,6 +506,16 @@ void cyan_nrnt_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
     //_mbc.tx_fe->set_mux(conn);
 }
 
+uint64_t cyan_nrnt_impl::get_tx_underflow( size_t chan ) {
+        uint64_t uflow = std::stoull(_tree->access<std::string>( tx_path / chan / "uflow").get(), nullptr, 0);
+        return uflow;
+}
+
+uint64_t cyan_nrnt_impl::get_tx_overflow( size_t chan ) {
+        uint64_t oflow = std::stoull(_tree->access<std::string>( tx_path / chan / "oflow").get(), nullptr, 0);
+        return oflow;
+}
+
 /***********************************************************************
 * Async Data
 **********************************************************************/
