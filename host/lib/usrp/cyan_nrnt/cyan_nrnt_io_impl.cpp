@@ -160,6 +160,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
         // Does not actually turn off board
+        std::cout << "Deactivating channel " << n << " with oflow: " << _eprops[n].oflow << std::endl;
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
     }
 
