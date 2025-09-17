@@ -273,13 +273,13 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
 
     for( ; ! self->_stop_buffer_monitor; ) {
 
-        if ( !(self->_tx_streamer_channel_in_use->at(self->_channels[i])) ) {
-            continue;
-        }
-
         const auto t0 = std::chrono::high_resolution_clock::now();
 
         for( size_t i = 0; i < self->_eprops.size(); i++ ) {
+
+            if ( !(self->_tx_streamer_channel_in_use->at(self->_channels[i])) ) {
+                continue;
+            }
 
             eprops_type & ep = self->_eprops[ i ];
 
