@@ -331,9 +331,9 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
             }
             // ep.uflow is initialized to -1, so it needs to be set if this is the first time
             if ( (uint64_t)-1 == ep.uflow ) {
-                ep.uflow = uflow
+                ep.uflow = uflow;
             }
-            
+
             std::cout << "oflow: " << oflow << "\nep.oflow: " << ep.oflow << std::endl;
             // Update overflow counter and send message if there are more overflows now than the previous check
             if ( oflow > ep.oflow ) {
@@ -366,7 +366,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
             }
             // ep.oflow is initialized to -1, so it needs to be set if this is the first time
             if ( (uint64_t)-1 == ep.oflow ) {
-                ep.oflow = oflow
+                ep.oflow = oflow;
             }
         }
 
