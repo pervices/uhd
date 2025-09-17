@@ -168,7 +168,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         std::string channel_name = std::string(1, ('a' + _channels[n]));
         std::cout << "CHANNEL NAME: " << channel_name << "\n";
         std::string oflow = _iface->get_string("tx/" + channel_name + "/qa/oflow");
-        std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow";
+        std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow");
         std::cout << "OFLOW DIRECT: " << _iface->get_string("tx/" + channel_name + "/qa/oflow") << "\n";
         std::cout << "CH " << std::toupper((char) (_channels[n] + 'a')) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
