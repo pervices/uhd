@@ -273,6 +273,10 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
 
         for( size_t i = 0; i < self->_eprops.size(); i++ ) {
 
+            if ( !(_tx_streamer_channel_in_use->at(_channels[i])) ) {
+                continue;
+            }
+
             eprops_type & ep = self->_eprops[ i ];
 
             xport_chan_fifo_lvl_abs_type get_fifo_level;
