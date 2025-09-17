@@ -163,6 +163,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
     for(size_t n = 0; n < _channels.size(); n++) {
         std::string channel_name = std::string('a' + _channels[n]);
+        std::cout < "CHANNEL NAME: " << channel_name << "\n";
         uint64_t oflow = std::stoull(_iface->get_string("tx/" + channel_name + "/qa/oflow"), nullptr, 0);
         uint64_t uflow = std::stoull(_iface->get_string("tx/" + channel_name + "/qa/uflow"), nullptr, 0);
         std::cout << "OFLOW DIRECT: " << _iface->get_string("tx/" + channel_name + "/qa/oflow") << "\n";
