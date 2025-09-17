@@ -1971,3 +1971,13 @@ double cyan_nrnt_impl::get_link_rate() {
         return link_rate_cache;
     }
 }
+
+uint64_t cyan_nrnt_impl::get_tx_underflow( size_t chan ) {
+        uint64_t uflow = std::stoull(_tree->access<std::string>( tx_path / chan / "uflow").get(), nullptr, 0);
+        return uflow;
+}
+
+uint64_t cyan_nrnt_impl::get_tx_overflow( size_t chan ) {
+        uint64_t oflow = std::stoull(_tree->access<std::string>( tx_path / chan / "oflow").get(), nullptr, 0);
+        return oflow;
+}

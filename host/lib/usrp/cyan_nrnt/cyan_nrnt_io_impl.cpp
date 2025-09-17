@@ -161,10 +161,8 @@ void cyan_nrnt_send_packet_streamer::teardown() {
 
     const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
     for(size_t n = 0; n < _channels.size(); n++) {
-        uint64_t uflow = std::stoull(_tree->access<std::string>( tx_path / n / "uflow").get(), nullptr, 0);
-        uint64_t oflow = std::stoull(_tree->access<std::string>( tx_path / n / "uflow").get(), nullptr, 0);
         std::string channel_name = boost::lexical_cast<std::string>((char)(n + 'A'));
-        std::cout << "CH " << channel_name << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
+        std::cout << "CH " << channel_name << ": Overflow Count: " << get_overflow(n) << ", Underflow Count: " << get_underflow(n) << "\n";
     }
     // for( auto & ep: _eprops ) {
 

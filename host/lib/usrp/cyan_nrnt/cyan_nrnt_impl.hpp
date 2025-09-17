@@ -315,6 +315,10 @@ private:
     double link_rate_cache = 0;
     double get_link_rate();
 
+    // Get Tx overflow/underflow values from device
+    uint64_t get_tx_underflow( size_t chan );
+    uint64_t get_tx_overflow( size_t chan );
+
     bool tx_rate_warning_printed = false;
     void tx_rate_check(size_t ch, double rate_samples);
 
