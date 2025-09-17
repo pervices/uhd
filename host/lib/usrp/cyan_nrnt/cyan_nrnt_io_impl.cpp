@@ -273,7 +273,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
 
         for( size_t i = 0; i < self->_eprops.size(); i++ ) {
 
-            if ( !(self->_tx_streamer_channel_in_use->at(_channels[i])) ) {
+            if ( !(self->_tx_streamer_channel_in_use->at(self->_channels[i])) ) {
                 continue;
             }
 
