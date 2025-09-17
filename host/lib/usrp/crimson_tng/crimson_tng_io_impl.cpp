@@ -168,6 +168,7 @@ void crimson_tng_send_packet_streamer::teardown() {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns on the outward facing LED on the board
         // Does not actually turn off board
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
+        _tx_streamer_channel_in_use->at(_channels[n]) = false;
     }
 
     stop_buffer_monitor_thread();
@@ -182,10 +183,6 @@ void crimson_tng_send_packet_streamer::teardown() {
         }
     }
     _eprops.clear();
-
-    for(size_t n = 0; n < _channels.size(); n++) {
-        _tx_streamer_channel_in_use->at(_channels[n]) = false;
-    }
 }
 
 //send fucntion called by external programs
@@ -275,6 +272,10 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
     uhd::set_thread_priority_safe(0, false);
 
     for( ; ! self->_stop_buffer_monitor; ) {
+
+        if ( !(self->_tx_streamer_channel_in_use->at(self->_channels[i])) ) {
+            continue;
+        }
 
         const auto t0 = std::chrono::high_resolution_clock::now();
 

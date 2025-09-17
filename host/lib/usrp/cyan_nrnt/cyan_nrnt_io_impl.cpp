@@ -176,10 +176,6 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         }
     }
     _eprops.clear();
-
-    // for(size_t n = 0; n < _channels.size(); n++) {
-    //     _tx_streamer_channel_in_use->at(_channels[n]) = false;
-    // }
 }
 
 size_t cyan_nrnt_send_packet_streamer::send(
@@ -819,7 +815,6 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
     uflow = rsp.uflow & uint64_t( 0x0fffffffffffffff );
     oflow = rsp.oflow & uint64_t( 0x0fffffffffffffff );
-
 
     now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
 
