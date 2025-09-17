@@ -160,7 +160,6 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
         // Does not actually turn off board
-        std::cout << "Deactivating channel " << n << " with oflow: " << _eprops[n].oflow << std::endl;
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
     }
@@ -823,7 +822,6 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
 
     now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
-    std::cout << "get_fifo_lvl_udp_abs " << (char)('A' + channel) << ": Overflow=" << oflow << " Underflow=" << uflow << std::endl;
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
     std::stringstream ss;
