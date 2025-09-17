@@ -379,7 +379,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
             if ( (uint64_t)-1 == ep.oflow ) {
                 ep.oflow = oflow;
             }
-            std::cout << "OFLOW SERVER: " << _iface->get_string("tx/" + std::string(1, ('a' + i)) + "/qa/oflow")
+            std::cout << "OFLOW SERVER: " << self->_iface->get_string("tx/" + std::string(1, ('a' + i)) + "/qa/oflow")
         }
 
         const auto t1 = std::chrono::high_resolution_clock::now();
