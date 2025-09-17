@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 
+#include <cctype>
 #include <iomanip>
 #include <mutex>
 
@@ -161,8 +162,11 @@ void cyan_nrnt_send_packet_streamer::teardown() {
 
     const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
     for(size_t n = 0; n < _channels.size(); n++) {
-        std::string channel_name = boost::lexical_cast<std::string>((char)(n + 'A'));
-        std::cout << "CH " << channel_name << ": Overflow Count: " << cyan_nrnt_impl::get_tx_overflow(n) << ", Underflow Count: " << cyan_nrnt_impl::get_tx_underflow(n) << "\n";
+        channel_name = std::string(1, (char) (_channels[n] + 'a'));
+        uint64_t oflow = std::stoull(_iface->get_string("tx/" + channel_name + "/qa/oflow", "0"), nullptr, 0);
+        uint64_t uflow = std::stoull(_iface->get_string("tx/" + channel_name + "/qa/uflow", "0"), nullptr, 0);
+
+        std::cout << "CH " << std::toupper(channel_name) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
     // for( auto & ep: _eprops ) {
 
@@ -504,18 +508,6 @@ void cyan_nrnt_impl::update_tx_subdev_spec(const subdev_spec_t &spec){
     //set the mux for this spec
     //const std::string conn = _tree->access<std::string>(root / spec[0].db_name / "tx_frontends" / spec[0].sd_name / "connection").get();
     //_mbc.tx_fe->set_mux(conn);
-}
-
-uint64_t cyan_nrnt_impl::get_tx_underflow( size_t chan ) {
-        const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
-        uint64_t uflow = std::stoull(_tree->access<std::string>( tx_path / chan / "uflow").get(), nullptr, 0);
-        return uflow;
-}
-
-uint64_t cyan_nrnt_impl::get_tx_overflow( size_t chan ) {
-        const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
-        uint64_t oflow = std::stoull(_tree->access<std::string>( tx_path / chan / "oflow").get(), nullptr, 0);
-        return oflow;
 }
 
 /***********************************************************************
