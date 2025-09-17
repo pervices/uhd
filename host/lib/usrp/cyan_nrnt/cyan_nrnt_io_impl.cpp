@@ -301,7 +301,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
             }
 
             // Update underflow counter and send message if there are more underflows now than the previous check
-            if ( uflow > ep.uflow ) {
+            if ( std::cmp_greater(uflow, ep.uflow) ) {
                 // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
                 // async_metadata_t metadata;
                 // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -331,7 +331,7 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
             }
             std::cout << "oflow: " << oflow << "\nep.oflow: " << ep.oflow << std::endl;
             // Update overflow counter and send message if there are more overflows now than the previous check
-            if ( oflow > ep.oflow ) {
+            if ( std::cmp_greater(oflow, ep.oflow) ) {
                 // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
                 // async_metadata_t metadata;
                 // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
