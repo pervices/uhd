@@ -164,13 +164,6 @@ void crimson_tng_send_packet_streamer::teardown() {
         usleep(10);
     }
 
-    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-        // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns on the outward facing LED on the board
-        // Does not actually turn off board
-        _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
-        _tx_streamer_channel_in_use->at(_channels[n]) = false;
-    }
-
     stop_buffer_monitor_thread();
     for( auto & ep: _eprops ) {
 
@@ -183,6 +176,13 @@ void crimson_tng_send_packet_streamer::teardown() {
         }
     }
     _eprops.clear();
+
+    for(size_t n = 0; n < _channels.size(); n++) {
+        // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns on the outward facing LED on the board
+        // Does not actually turn off board
+        _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
+        _tx_streamer_channel_in_use->at(_channels[n]) = false;
+    }
 }
 
 //send fucntion called by external programs
@@ -277,10 +277,12 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
 
         for( size_t i = 0; i < self->_eprops.size(); i++ ) {
 
-            if ( !(self->_tx_streamer_channel_in_use->at(self->_channels[i])) ) {
-                continue;
+            if ( self->_stop_buffer_monitor ) {
+                return;
             }
 
+            // Object used to store the under/overflow counts for internal use elsewhere
+            // TODO: see if we still need this elsewhere and consider replacing it with and array local to this function
             eprops_type & ep = self->_eprops[ i ];
 
             xport_chan_fifo_lvl_abs_type get_fifo_level;
@@ -291,16 +293,17 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
                 continue;
             }
 
-            uhd::time_spec_t then;
+            // Reported buffer level
+            size_t level;
+            // Number of underflows reported by this request
             uint64_t uflow;
+            // Number of underflows reported by this request
             uint64_t oflow;
+            // Time of the reply to the buffer level querry
+            uhd::time_spec_t then;
+
             async_metadata_t metadata;
 
-            if ( self->_stop_buffer_monitor ) {
-                return;
-            }
-
-            size_t level;
             // gets buffer level, we only care about the uflow and oflow counters
             try {
                 get_fifo_level( level, uflow, oflow, then );
@@ -308,7 +311,8 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
                 continue;
             }
 
-            if ( (uint64_t)-1 != ep.uflow && uflow != ep.uflow ) {
+            // Update underflow counter and send message if there are more underflows now than the previous check
+            if ( (uflow > ep.uflow) ) {
                 // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
                 // async_metadata_t metadata;
                 // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -334,12 +338,15 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
                     }
                     self->_performance_warning_printed = true;
                 }
-
+                ep.uflow = uflow;
+            }
+            // ep.uflow is initialized to -1, so it needs to be set if this is the first time
+            if ( (uint64_t)-1 == ep.uflow ) {
+                ep.uflow = uflow;
             }
 
-            ep.uflow = uflow;
-
-            if ( (uint64_t)-1 != ep.oflow && oflow != ep.oflow ) {
+            // Update overflow counter and send message if there are more overflows now than the previous check
+            if ( oflow > ep.oflow ) {
                 // XXX: @CF: 20170905: Eventually we want to return tx channel metadata as VRT49 context packets rather than custom packets. See usrp2/io_impl.cpp
                 // async_metadata_t metadata;
                 // load_metadata_from_buff( uhd::ntohx<boost::uint32_t>, metadata, if_packet_info, vrt_hdr, tick_rate, index );
@@ -365,9 +372,12 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
                     }
                     self->_performance_warning_printed = true;
                 }
+                ep.oflow = oflow;
             }
-
-            ep.oflow = oflow;
+            // ep.oflow is initialized to -1, so it needs to be set if this is the first time
+            if ( (uint64_t)-1 == ep.oflow ) {
+                ep.oflow = oflow;
+            }
         }
 
         const auto t1 = std::chrono::high_resolution_clock::now();
