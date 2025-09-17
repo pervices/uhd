@@ -157,6 +157,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         usleep(10);
     }
 
+    stop_buffer_monitor_thread();
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
         // Does not actually turn off board
@@ -164,7 +165,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
     }
 
-    stop_buffer_monitor_thread();
+    // stop_buffer_monitor_thread();
     for( auto & ep: _eprops ) {
 
         // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
@@ -818,7 +819,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
 
     now = uhd::time_spec_t( rsp.tv_sec, rsp.tv_tick * tick_period_ps );
-    std::cout << "[" << rsp.tv_tick << "] get_fifo_lvl_udp_abs " << (char)('A' + channel) << ": Overflow=" << oflow << " Underflow=" << uflow << std::endl;
+    std::cout << "get_fifo_lvl_udp_abs " << (char)('A' + channel) << ": Overflow=" << oflow << " Underflow=" << uflow << std::endl;
 
 #ifdef UHD_TXRX_DEBUG_PRINTS
     std::stringstream ss;
