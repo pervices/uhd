@@ -170,8 +170,8 @@ void crimson_tng_send_packet_streamer::teardown() {
     for(size_t n = 0; n < _channels.size(); n++) {
         std::string channel_name = std::string(1, ('a' + _channels[n]));
         // qa properties won't update with values until they are first manually set
-        // _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
-        // _iface->set_string(("tx/" + channel_name + "/qa/uflow"), channel_name);
+        _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
+        _iface->set_string(("tx/" + channel_name + "/qa/uflow"), channel_name);
 
         std::string oflow = _iface->get_string("tx/" + channel_name + "/qa/oflow");
         std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow");
