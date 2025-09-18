@@ -158,17 +158,18 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     }
 
     stop_buffer_monitor_thread();
-    for( auto & ep: _eprops ) {
-
-        // oflow/uflow counter is initialized to -1. If they are still -1 then the monitoring hasn't started yet
-        // TODO: query the uflow/oflow count from the FPGA once it supports that
-        if(ep.oflow != (uint64_t)-1 || ep.uflow != (uint64_t)-1) {
-            std::cout << "CH " << ep.name << ": Overflow Count: " << ep.oflow << ", Underflow Count: " << ep.uflow << "\n";
-        } else {
-            std::cout << "CH " << ep.name << ": Overflow Count: 0, Underflow Count: 0\n";
-        }
-    }
     _eprops.clear();
+
+    for(size_t n = 0; n < _channels.size(); n++) {
+        std::string channel_name = std::string(1, ('a' + _channels[n]));
+        // qa properties won't update with values until they are first manually set
+        _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
+        _iface->set_string(("tx/" + channel_name + "/qa/uflow"), channel_name);
+
+        std::string oflow = _iface->get_string("tx/" + channel_name + "/qa/oflow");
+        std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow");
+        std::cout << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
+    }
 
     for(size_t n = 0; n < _channels.size(); n++) {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
