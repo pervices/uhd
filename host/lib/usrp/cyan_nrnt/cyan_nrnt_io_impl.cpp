@@ -157,12 +157,6 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         usleep(10);
     }
 
-    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-        // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
-        // Does not actually turn off board
-        _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
-    }
-
     stop_buffer_monitor_thread();
     for( auto & ep: _eprops ) {
 
@@ -177,6 +171,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     _eprops.clear();
 
     for(size_t n = 0; n < _channels.size(); n++) {
+        _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
     }
 }
@@ -334,6 +329,10 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
                 }
                 ep.uflow = uflow;
             }
+            // ep.uflow is initialized to -1, so it needs to be set if this is the first time
+            if ( (uint64_t)-1 == ep.uflow ) {
+                ep.uflow = uflow;
+            }
 
             // Update overflow counter and send message if there are more overflows now than the previous check
             if ( oflow > ep.oflow ) {
@@ -362,6 +361,10 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
                     }
                     self->_performance_warning_printed = true;
                 }
+                ep.oflow = oflow;
+            }
+            // ep.oflow is initialized to -1, so it needs to be set if this is the first time
+            if ( (uint64_t)-1 == ep.oflow ) {
                 ep.oflow = oflow;
             }
         }
