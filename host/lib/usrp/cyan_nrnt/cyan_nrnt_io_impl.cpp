@@ -157,19 +157,19 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         }
         usleep(10);
     }
-    for(size_t n = 0; n < _channels.size(); n++) {
-        std::string channel_name = std::string(1, ('a' + _channels[n]));
-        _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
-    }
+    // for(size_t n = 0; n < _channels.size(); n++) {
+    //     std::string channel_name = std::string(1, ('a' + _channels[n]));
+    //     _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
+    // }
     stop_buffer_monitor_thread();
 
     const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
     for(size_t n = 0; n < _channels.size(); n++) {
         std::string channel_name = std::string(1, ('a' + _channels[n]));
-        std::cout << "CHANNEL NAME: " << channel_name << "\n";
+        _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
+
         std::string oflow = _iface->get_string("tx/" + channel_name + "/qa/oflow");
         std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow");
-        std::cout << "OFLOW DIRECT: " << _iface->get_string("tx/" + channel_name + "/qa/oflow") << "\n";
         std::cout << "CH " << std::toupper((char) (_channels[n] + 'a')) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
     for( auto & ep: _eprops ) {
@@ -382,7 +382,6 @@ void cyan_nrnt_send_packet_streamer::buffer_monitor_loop( cyan_nrnt_send_packet_
             if ( (uint64_t)-1 == ep.oflow ) {
                 ep.oflow = oflow;
             }
-            std::cout << "OFLOW SERVER: " << self->_iface->get_string("tx/" + std::string(1, ('a' + i)) + "/qa/oflow");
         }
 
         const auto t1 = std::chrono::high_resolution_clock::now();
