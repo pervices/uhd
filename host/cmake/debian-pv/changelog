@@ -1,3 +1,10 @@
+uhdpv (4.8.0.21-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing not reporting underflow/overflows at the end of tx streaming
+  * Fixing only reporting underflow/overflows for the last tx channel in the printout on streamer destruction
+
+ -- Per Vices <packages@pervices.com>  Fri, 19 Sep 2025 11:45:57 -0400
+
 uhdpv (4.8.0.20-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing git hash not printing when launching UHD
