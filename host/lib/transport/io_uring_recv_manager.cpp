@@ -207,7 +207,9 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         io_uring_cq_advance(ring, 1);
 
         if(!slow_consumer_warning_printed) {
-            UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Try reducing time between recv calls");
+            // This is an error because io_uring recv_manager cannot recover from this
+            // TODO: downgrade to warning once io_uring_recv_manager can recover
+            UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Reducing time between and/or increase the samples requested between recv calls");
             slow_consumer_warning_printed = true;
         }
         info->length = 0;
