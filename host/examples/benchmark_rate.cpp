@@ -621,6 +621,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // calculate samples per channel from specified duration and sample rate
         auto rate = usrp->get_rx_rate();
         size_t spc = duration*rate;
+        std::cout << "Samples per Rx channel: " << spc << std::endl;
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < rx_channel_nums.size(); count++) {
                 std::vector<size_t> this_streamer_channels{rx_channel_nums[count]};
@@ -686,6 +687,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // calculate samples per channel from specified duration and sample rate
         auto rate = usrp->get_tx_rate();
         size_t spc = duration*rate;
+        std::cout << "Samples per Tx channel: " << spc << std::endl;
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
                 std::vector<size_t> this_streamer_channels{tx_channel_nums[count]};
