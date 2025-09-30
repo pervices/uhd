@@ -134,6 +134,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             return;
         }
     }
+    rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+    return;
 
     // while (true) {
     //     if (burst_timer_elapsed) {
