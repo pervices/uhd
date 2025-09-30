@@ -7,6 +7,7 @@
 
 #include <uhd/convert.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
 #include <boost/algorithm/string.hpp>
@@ -716,6 +717,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 spb = spb - (spb % tx_align);
             }
             std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
+
+            // Make sure channels all have the same sample rate as the first one
+            auto ch_rate_zero = usrp->get_tx_rate();
+            for (size_t ch = 0; ch < tx_stream->get_num_channels(); ch++) {
+                auto ch_rate = usrp->get_tx_rate(ch);
+                if (ch_rate != ch_rate_zero) {
+                    // If there are different sample rates, error and suggest options to the user
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Multiple sample rates are detected, but a streamer can only handle one.\n"
+                        << "    Make sure the specified sample rate is valid for all channels or use the multi_streamer argument."  << std::endl;
+                        return -1;
+                }
+            }
             auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
                 benchmark_tx_rate(usrp,
                     tx_cpu,
