@@ -240,7 +240,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         }
     }
     // print pre-test summary
-    auto time_stamp   = NOW();)
+    auto time_stamp   = NOW();
     auto num_channels = tx_stream->get_num_channels();
     std::cout << boost::format("[%s] Testing transmit rate %f Msps on %u channels\n")
                      % time_stamp % (tx_rate / 1e6) % num_channels;
