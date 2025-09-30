@@ -229,18 +229,9 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_affinity_active_core();
     }
 
-    auto tx_rate      = usrp->get_tx_rate();
-    // make sure all channels have same rate
-    for (size_t ch = 0; ch < tx_stream->get_num_channels(); ch++) {
-        auto ch_rate = usrp->get_tx_rate(ch);
-        if (ch_rate != tx_rate) {
-            // If there are different sample rates, error and suggest options to the user
-            UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Multiple sample rates are detected, but a streamer can only handle one.\n"
-                << "    Make sure to specify a valid sample rate for all channels or use the multi_streamer argument."  << std::endl;
-        }
-    }
     // print pre-test summary
     auto time_stamp   = NOW();
+    auto tx_rate      = usrp->get_tx_rate();
     auto num_channels = tx_stream->get_num_channels();
     std::cout << boost::format("[%s] Testing transmit rate %f Msps on %u channels\n")
                      % time_stamp % (tx_rate / 1e6) % num_channels;
@@ -726,6 +717,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 spb = spb - (spb % tx_align);
             }
             std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
+
+            // Make sure channels all have the same sample rate as the first one
+            auto ch_rate_zero = usrp->get_tx_rate();
+            for (size_t ch = 0; ch < tx_stream->get_num_channels(); ch++) {
+                auto ch_rate = usrp->get_tx_rate(ch);
+                if (ch_rate != ch_rate_zero) {
+                    // If there are different sample rates, error and suggest options to the user
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Multiple sample rates are detected, but a streamer can only handle one.\n"
+                        << "    Make sure to specify a valid sample rate for all channels or use the multi_streamer argument."  << std::endl;
+                        return -1;
+                }
+            }
             auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
                 benchmark_tx_rate(usrp,
                     tx_cpu,
