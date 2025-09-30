@@ -725,7 +725,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 if (ch_rate != ch_rate_zero) {
                     // If there are different sample rates, error and suggest options to the user
                     UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Multiple sample rates are detected, but a streamer can only handle one.\n"
-                        << "    Make sure to specify a valid sample rate for all channels or use the multi_streamer argument."  << std::endl;
+                        << "    Make sure the specified sample rate is valid for all channels or use the multi_streamer argument."  << std::endl;
                         return -1;
                 }
             }
