@@ -231,6 +231,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     std::atomic<bool>& burst_timer_elapsed,
     const start_time_type& start_time,
     const size_t spb,
+    const size_t spc,
     const size_t sample_align,
     bool elevate_priority,
     double tx_delay,
@@ -600,7 +601,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             spb = rx_spb;
         }
         // calculate samples per channel from specified duration and sample rate
-        auto rate = usrp->get_rx_rate() / 1e6;
+        auto rate = usrp->get_rx_rate();
         size_t spc = duration*rate;
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < rx_channel_nums.size(); count++) {
@@ -664,6 +665,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             tx_delay = 0.5;
         }
 
+        // calculate samples per channel from specified duration and sample rate
+        auto rate = usrp->get_tx_rate();
+        size_t spc = duration*rate;
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
                 std::vector<size_t> this_streamer_channels{tx_channel_nums[count]};
@@ -697,6 +701,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         burst_timer_elapsed,
                         start_time,
                         spb,
+                        spc,
                         tx_align,
                         elevate_priority,
                         adjusted_tx_delay,
@@ -741,6 +746,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     burst_timer_elapsed,
                     start_time,
                     spb,
+                    spc,
                     tx_align,
                     elevate_priority,
                     adjusted_tx_delay,
