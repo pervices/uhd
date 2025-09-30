@@ -270,35 +270,47 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const double burst_pkt_time = std::max<double>(0.1, (2.0 * spb / tx_rate));
     double timeout              = burst_pkt_time + tx_delay;
 
-
-
-    if (random_nsamps) {
-        std::srand((unsigned int)time(NULL));
-        while (not burst_timer_elapsed) {
-            size_t num_samps = (rand() % spb) + 1;
-            if (sample_align) {
-                num_samps =
-                    std::max(sample_align, num_samps - (num_samps % sample_align));
-            }
-            num_tx_samps += tx_stream->send(buffs, num_samps, md, timeout)
-                            * tx_stream->get_num_channels();
-            md.has_time_spec = false;
-        }
-    } else {
-        while (not burst_timer_elapsed) {
-            const size_t num_tx_samps_sent_now =
+    while (num_tx_samps < spc*num_channels) {
+        const size_t num_tx_samps_sent_now =
                 tx_stream->send(buffs, spb, md, timeout) * tx_stream->get_num_channels();
-            num_tx_samps += num_tx_samps_sent_now;
-            if (num_tx_samps_sent_now == 0) {
-                num_timeouts_tx++;
-                if ((num_timeouts_tx % 10000) == 1) {
-                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx.load()
-                              << std::endl;
-                }
+        num_tx_samps += num_tx_samps_sent_now;
+        if (num_tx_samps_sent_now == 0) {
+            num_timeouts_tx++;
+            if ((num_timeouts_tx % 10000) == 1) {
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx.load()
+                            << std::endl;
             }
-            md.has_time_spec = false;
         }
+        md.has_time_spec = false;
     }
+
+    // if (random_nsamps) {
+    //     std::srand((unsigned int)time(NULL));
+    //     while (not burst_timer_elapsed) {
+    //         size_t num_samps = (rand() % spb) + 1;
+    //         if (sample_align) {
+    //             num_samps =
+    //                 std::max(sample_align, num_samps - (num_samps % sample_align));
+    //         }
+    //         num_tx_samps += tx_stream->send(buffs, num_samps, md, timeout)
+    //                         * tx_stream->get_num_channels();
+    //         md.has_time_spec = false;
+    //     }
+    // } else {
+    //     while (not burst_timer_elapsed) {
+    //         const size_t num_tx_samps_sent_now =
+    //             tx_stream->send(buffs, spb, md, timeout) * tx_stream->get_num_channels();
+    //         num_tx_samps += num_tx_samps_sent_now;
+    //         if (num_tx_samps_sent_now == 0) {
+    //             num_timeouts_tx++;
+    //             if ((num_timeouts_tx % 10000) == 1) {
+    //                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx.load()
+    //                           << std::endl;
+    //             }
+    //         }
+    //         md.has_time_spec = false;
+    //     }
+    // }
 
     // send a mini EOB packet
     md.end_of_burst = true;
