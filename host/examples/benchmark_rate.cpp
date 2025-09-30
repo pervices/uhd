@@ -6,6 +6,7 @@
 //
 
 #include <uhd/convert.hpp>
+#include <uhd/types/stream_cmd.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
@@ -108,9 +109,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     uhd::time_spec_t last_time;
     const double rate = usrp->get_rx_rate();
 
-    uhd::stream_cmd_t cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
-    cmd.num_samps = spc;
+    uhd::stream_cmd_t cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
+    cmd.num_samps = spb;
     if (random_nsamps) {
+        cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE;
         cmd.num_samps   = (rand() % spb) + 1;
     }
 
@@ -121,7 +123,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const float burst_pkt_time = std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
 
-    while (num_rx_samps < spc) {
+    while (num_rx_samps < spc*num_channels) {
         try {
             num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
                             * rx_stream->get_num_channels();
@@ -267,6 +269,8 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // for overhead of the send() call (enough).
     const double burst_pkt_time = std::max<double>(0.1, (2.0 * spb / tx_rate));
     double timeout              = burst_pkt_time + tx_delay;
+
+
 
     if (random_nsamps) {
         std::srand((unsigned int)time(NULL));
