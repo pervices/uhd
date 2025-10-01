@@ -171,7 +171,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 // Normally if eob then rx has completed
                 // however in random nsamps mode there are repeated bursts and each burst with have eob
                 if (md.end_of_burst && !random_nsamps) {
-                    std::cout << "EOB DETECTED" << std::endl;
                     return;
                 }
                 break;
@@ -220,7 +219,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
         }
     }
-    std::cout << "EXITED WHILE LOOP" << std::endl;
+    const auto actual_stop_time = std::chrono::steady_clock::now();
+    std::cout << "Actual RX run time:" << std::chrono::duration<float>(actual_stop_time - rx_start_time).count() << std::endl;
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     return;
 
