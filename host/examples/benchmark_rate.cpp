@@ -7,6 +7,7 @@
 
 #include <uhd/convert.hpp>
 #include <uhd/types/stream_cmd.hpp>
+#include <uhd/types/time_spec.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
@@ -19,6 +20,7 @@
 #include <chrono>
 #include <complex>
 #include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <thread>
 
@@ -93,8 +95,9 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     auto time_stamp   = NOW();
     auto rx_rate      = usrp->get_rx_rate() / 1e6;
     auto num_channels = rx_stream->get_num_channels();
-    std::cout << boost::format("[%s] Testing receive rate %f Msps on %u channels\n")
-                     % time_stamp % rx_rate % num_channels;
+    size_t total_rx_samps = spc * num_channels;
+    std::cout << boost::format("[%s] Testing receive rate %f Msps on %u channels for %u total samples\n")
+                     % time_stamp % rx_rate % num_channels % total_rx_samps;
 
     // setup variables and allocate buffer
     uhd::rx_metadata_t md;
@@ -124,13 +127,22 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const float burst_pkt_time = std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
 
-
-    size_t total_rx_samps = spc*num_channels;
+    const auto rx_start_time = std::chrono::steady_clock::now();
+    // Loop until all samples have been sent
     while (num_rx_samps < total_rx_samps) {
-        try {
-            // Send only remaining samples if less than spb
-            size_t samps_left = (total_rx_samps - num_rx_samps)/num_channels;
+        size_t samps_left = (total_rx_samps - num_rx_samps) / num_channels;
+
+        if (random_nsamps) {
+            cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(user_rx_delay);
+            // Should not exceed the number of samples per channel left, so set as an upper bound
+            cmd.num_samps = (rand() % std::clamp(spb, (size_t)0, samps_left)) + 1;
+            rx_stream->issue_stream_cmd(cmd);
+        } else {
+            // If the remaining samples per channel are less than spb, send that amount instead to avoid overshooting target
             cmd.num_samps = std::min(samps_left, spb);
+        }
+
+        try {
             num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
                             * rx_stream->get_num_channels();
             recv_timeout = burst_pkt_time;
@@ -139,7 +151,76 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             UHD_LOGGER_ERROR("BENCHMARK_RATE") << e.what() << std::endl;
             return;
         }
+
+        // handle the error codes
+        switch (md.error_code) {
+            case uhd::rx_metadata_t::ERROR_CODE_NONE:
+                if (had_an_overflow) {
+                    had_an_overflow          = false;
+                    const long dropped_samps = (md.time_spec - last_time).to_ticks(rate);
+                    if (dropped_samps < 0) {
+                        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW()
+                                  << "] Timestamp after overrun recovery "
+                                     "ahead of error timestamp! Unable to calculate "
+                                     "number of dropped samples."
+                                     "(Delta: "
+                                  << dropped_samps << " ticks)\n";
+                    }
+                    num_dropped_samps += std::max<long>(1, dropped_samps);
+                }
+                // Normally if eob then rx has completed
+                // however in random nsamps mode there are repeated bursts and each burst with have eob
+                if (md.end_of_burst && !random_nsamps) {
+                    std::cout << "EOB DETECTED" << std::endl;
+                    return;
+                }
+                break;
+
+            // ERROR_CODE_OVERFLOW can indicate overflow or sequence error
+            case uhd::rx_metadata_t::ERROR_CODE_OVERFLOW:
+                last_time       = md.time_spec;
+                had_an_overflow = true;
+                // check out_of_sequence flag to see if it was a sequence error or
+                // overflow
+                if (!md.out_of_sequence) {
+                    num_overruns++;
+                } else {
+                    num_seqrx_errors++;
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Detected Rx sequence error."
+                              << std::endl;
+                }
+                break;
+
+            case uhd::rx_metadata_t::ERROR_CODE_LATE_COMMAND:
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                          << ", restart streaming..." << std::endl;
+                num_late_commands++;
+                // Radio core will be in the idle state. Issue stream command to restart
+                // streaming.
+                cmd.time_spec  = usrp->get_time_now() + uhd::time_spec_t(0.05);
+                cmd.stream_now = (buffs.size() == 1);
+                rx_stream->issue_stream_cmd(cmd);
+                break;
+
+            case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                          << ", continuing..." << std::endl;
+                num_timeouts_rx++;
+                break;
+
+                // Otherwise, it's an error
+            default:
+                if(!unexpected_error_printed) {
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
+                          << std::endl;
+                    UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
+                          << std::endl;
+                    unexpected_error_printed = true;
+                }
+                break;
+        }
     }
+    std::cout << "EXITED WHILE LOOP" << std::endl;
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     return;
 
@@ -162,74 +243,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << e.what() << std::endl;
     //         return;
     //     }
-
-    //     // handle the error codes
-    //     switch (md.error_code) {
-    //         case uhd::rx_metadata_t::ERROR_CODE_NONE:
-    //             if (had_an_overflow) {
-    //                 had_an_overflow          = false;
-    //                 const long dropped_samps = (md.time_spec - last_time).to_ticks(rate);
-    //                 if (dropped_samps < 0) {
-    //                     UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW()
-    //                               << "] Timestamp after overrun recovery "
-    //                                  "ahead of error timestamp! Unable to calculate "
-    //                                  "number of dropped samples."
-    //                                  "(Delta: "
-    //                               << dropped_samps << " ticks)\n";
-    //                 }
-    //                 num_dropped_samps += std::max<long>(1, dropped_samps);
-    //             }
-    //             // Normally if eob then rx has completed
-    //             // however in random nsamps mode there are repeated bursts and each burst with have eob
-    //             if (md.end_of_burst && !random_nsamps) {
-    //                 return;
-    //             }
-    //             break;
-
-    //         // ERROR_CODE_OVERFLOW can indicate overflow or sequence error
-    //         case uhd::rx_metadata_t::ERROR_CODE_OVERFLOW:
-    //             last_time       = md.time_spec;
-    //             had_an_overflow = true;
-    //             // check out_of_sequence flag to see if it was a sequence error or
-    //             // overflow
-    //             if (!md.out_of_sequence) {
-    //                 num_overruns++;
-    //             } else {
-    //                 num_seqrx_errors++;
-    //                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Detected Rx sequence error."
-    //                           << std::endl;
-    //             }
-    //             break;
-
-    //         case uhd::rx_metadata_t::ERROR_CODE_LATE_COMMAND:
-    //             UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
-    //                       << ", restart streaming..." << std::endl;
-    //             num_late_commands++;
-    //             // Radio core will be in the idle state. Issue stream command to restart
-    //             // streaming.
-    //             cmd.time_spec  = usrp->get_time_now() + uhd::time_spec_t(0.05);
-    //             cmd.stream_now = (buffs.size() == 1);
-    //             rx_stream->issue_stream_cmd(cmd);
-    //             break;
-
-    //         case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
-    //             UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
-    //                       << ", continuing..." << std::endl;
-    //             num_timeouts_rx++;
-    //             break;
-
-    //             // Otherwise, it's an error
-    //         default:
-    //             if(!unexpected_error_printed) {
-    //                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Receiver error: " << md.strerror()
-    //                       << std::endl;
-    //                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Unexpected error on recv, continuing..."
-    //                       << std::endl;
-    //                 unexpected_error_printed = true;
-    //             }
-    //             break;
-    //     }
-    // }
 }
 
 /***********************************************************************
@@ -256,8 +269,9 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     auto time_stamp   = NOW();
     auto tx_rate      = usrp->get_tx_rate();
     auto num_channels = tx_stream->get_num_channels();
-    std::cout << boost::format("[%s] Testing transmit rate %f Msps on %u channels\n")
-                     % time_stamp % (tx_rate / 1e6) % num_channels;
+    size_t total_tx_samps = spc*num_channels;
+    std::cout << boost::format("[%s] Testing transmit rate %f Msps on %u channels for %u total samples\n")
+                     % time_stamp % (tx_rate / 1e6) % num_channels % total_tx_samps;
 
     // setup variables and allocate buffer
     std::vector<char> buff(spb * uhd::convert::get_bytes_per_item(tx_cpu));
@@ -278,10 +292,24 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const double burst_pkt_time = std::max<double>(0.1, (2.0 * spb / tx_rate));
     double timeout              = burst_pkt_time + tx_delay;
 
-    size_t total_tx_samps = spc*num_channels;
+    if (random_nsamps) {
+        std::srand((unsigned int)time(NULL));
+    }
+
     while (num_tx_samps < total_tx_samps) {
-        size_t samps_left = (total_tx_samps - num_tx_samps)/num_channels;
-        size_t nsamps_send = std::min(samps_left, spb); 
+        size_t samps_left = (total_tx_samps - num_tx_samps) / num_channels;
+        size_t nsamps_send;
+
+        if (random_nsamps) {
+            // Do not let num samples exceed spb or remaining samples
+            nsamps_send = (rand() % std::clamp(spb, (size_t)0, samps_left)) + 1;
+            if (sample_align) {
+                nsamps_send = std::max(sample_align, nsamps_send - (nsamps_send % sample_align));
+            }
+        } else {
+            nsamps_send = std::min(samps_left, spb); 
+        }
+
         const size_t num_tx_samps_sent_now =
                 tx_stream->send(buffs, nsamps_send, md, timeout) * tx_stream->get_num_channels();
         num_tx_samps += num_tx_samps_sent_now;
