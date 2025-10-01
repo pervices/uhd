@@ -125,12 +125,13 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
 
 
-    size_t rx_samps_left = spc*num_channels;
-    while (rx_samps_left > 0) {
+    size_t total_rx_samps = spc*num_channels;
+    while (num_rx_samps < total_rx_samps) {
         try {
             // Send only remaining samples if less than spb
-            cmd.num_samps = std::min(rx_samps_left, spb);
-            rx_samps_left -= rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
+            size_t samps_left = total_rx_samps - num_rx_samps;
+            cmd.num_samps = std::min(samps_left, spb);
+            num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
                             * rx_stream->get_num_channels();
             recv_timeout = burst_pkt_time;
         } catch (uhd::io_error& e) {
@@ -139,17 +140,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             return;
         }
     }
-    // while (num_rx_samps < spc*num_channels) {
-    //     try {
-    //         num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
-    //                         * rx_stream->get_num_channels();
-    //         recv_timeout = burst_pkt_time;
-    //     } catch (uhd::io_error& e) {
-    //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Caught an IO exception. " << std::endl;
-    //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << e.what() << std::endl;
-    //         return;
-    //     }
-    // }
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     return;
 
@@ -288,9 +278,12 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const double burst_pkt_time = std::max<double>(0.1, (2.0 * spb / tx_rate));
     double timeout              = burst_pkt_time + tx_delay;
 
-    while (num_tx_samps < spc*num_channels) {
+    size_t total_tx_samps = spc*num_channels;
+    while (num_tx_samps < total_tx_samps) {
+        size_t samps_left = (total_tx_samps - num_tx_samps);
+        size_t nsamps_send = std::min(samps_left, spb); 
         const size_t num_tx_samps_sent_now =
-                tx_stream->send(buffs, spb, md, timeout) * tx_stream->get_num_channels();
+                tx_stream->send(buffs, nsamps_send, md, timeout) * tx_stream->get_num_channels();
         num_tx_samps += num_tx_samps_sent_now;
         if (num_tx_samps_sent_now == 0) {
             num_timeouts_tx++;
