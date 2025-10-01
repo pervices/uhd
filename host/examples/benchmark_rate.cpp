@@ -84,7 +84,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     bool elevate_priority,
     double adjusted_rx_delay,
     double user_rx_delay,
-    bool rx_stream_now)
+    bool rx_stream_now,
+    double& rx_actual_duration)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
@@ -220,6 +221,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         }
     }
     const auto actual_stop_time = std::chrono::steady_clock::now();
+    rx_actual_duration = std::chrono::duration<float>(actual_stop_time - rx_start_time).count();
     std::cout << "Actual RX run time:" << std::chrono::duration<float>(actual_stop_time - rx_start_time).count() << std::endl;
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     return;
@@ -258,7 +260,8 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const size_t sample_align,
     bool elevate_priority,
     double tx_delay,
-    bool random_nsamps = false)
+    double& tx_actual_duration,
+    bool random_nsamps = false,)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
@@ -422,6 +425,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     bool rx_stream_now = false;
     std::string priority;
     bool elevate_priority = false;
+    double rx_actual_duration = 0.0;
+    double tx_actual_duration = 0.0;
 
     // setup the program options
     po::options_description desc("Allowed options");
@@ -679,7 +684,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         elevate_priority,
                         adjusted_rx_delay,
                         rx_delay,
-                        rx_stream_now);
+                        rx_stream_now,
+                        rx_actual_duration);
                 });
                 uhd::set_thread_name(rx_thread, "bmark_rx_strm" + std::to_string(count));
             }
@@ -701,7 +707,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     elevate_priority,
                     adjusted_rx_delay,
                     rx_delay,
-                    rx_stream_now);
+                    rx_stream_now,
+                    rx_actual_duration);
             });
             uhd::set_thread_name(rx_thread, "bmark_rx_stream");
         }
@@ -762,6 +769,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         tx_align,
                         elevate_priority,
                         adjusted_tx_delay,
+                        tx_actual_duration,
                         random_nsamps);
                 });
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
@@ -807,6 +815,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     tx_align,
                     elevate_priority,
                     adjusted_tx_delay,
+                    tx_actual_duration,
                     random_nsamps);
             });
             uhd::set_thread_name(tx_thread, "bmark_tx_stream");
@@ -839,6 +848,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // interrupt and join the threads
     burst_timer_elapsed = true;
     thread_group.join_all();
+
+    std::cout << "Actual Rx Duration after thread: " << rx_actual_duration << std::endl;
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
