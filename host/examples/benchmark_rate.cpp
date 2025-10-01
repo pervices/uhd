@@ -126,7 +126,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     const float burst_pkt_time = std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
-
+    std::cout << "Expected duration: " << burst_pkt_time * (total_rx_samps / spb) << std::endl;
     const auto rx_start_time = std::chrono::steady_clock::now();
     // Loop until all samples have been sent
     while (num_rx_samps < total_rx_samps) {
