@@ -131,6 +131,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             // Send only remaining samples if less than spb
             size_t samps_left = total_rx_samps - num_rx_samps;
             cmd.num_samps = std::min(samps_left, spb);
+            std::cout << "Rx samples received: " << num_rx_samps << "\nRx samples left: " << samps_left << std::endl;
             num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
                             * rx_stream->get_num_channels();
             recv_timeout = burst_pkt_time;
@@ -282,6 +283,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     while (num_tx_samps < total_tx_samps) {
         size_t samps_left = (total_tx_samps - num_tx_samps);
         size_t nsamps_send = std::min(samps_left, spb); 
+        std::cout << "Tx samples received: " << num_tx_samps << "\nTx samples left: " << samps_left << std::endl;
         const size_t num_tx_samps_sent_now =
                 tx_stream->send(buffs, nsamps_send, md, timeout) * tx_stream->get_num_channels();
         num_tx_samps += num_tx_samps_sent_now;
