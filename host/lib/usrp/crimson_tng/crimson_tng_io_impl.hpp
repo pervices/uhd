@@ -117,6 +117,7 @@ private:
         * Upper case channel letter.
         */
         std::string name;
+        double sample_rate;
         eprops_type() : oflow( -1 ), uflow( -1 ) {}
         eprops_type( const eprops_type & other )
         :
