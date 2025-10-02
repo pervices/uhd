@@ -202,6 +202,10 @@ size_t crimson_tng_send_packet_streamer::send(
     if ( _first_call_to_send || metadata.start_of_burst ) {
         metadata.start_of_burst = true;
 
+        for (size_t ch = 0; ch < _eprops.size(); ch++) {
+            std::cout << "CH " << _eprops[ch].name << " rate: " << _iface->get_double("tx/" + std::tolower(_eprops[ch].name[0]) + "/dsp/rate") << std::endl;
+
+        }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
             uhd::time_spec_t now = get_device_time();
