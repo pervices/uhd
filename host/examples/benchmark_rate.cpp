@@ -127,7 +127,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     const float burst_pkt_time = std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
-    std::cout << "Expected burst duration: " << burst_pkt_time << std::endl;
+   
     const auto rx_start_time = std::chrono::steady_clock::now();
     // Loop until all samples have been sent
     while (num_rx_samps < total_rx_samps) {
@@ -222,7 +222,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     }
     const auto actual_stop_time = std::chrono::steady_clock::now();
     rx_actual_duration = std::chrono::duration<float>(actual_stop_time - rx_start_time).count();
-    std::cout << "Actual RX run time:" << std::chrono::duration<float>(actual_stop_time - rx_start_time).count() << std::endl;
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     return;
 
@@ -299,6 +298,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         std::srand((unsigned int)time(NULL));
     }
 
+    const auto tx_start_time = std::chrono::steady_clock::now();
     while (num_tx_samps < total_tx_samps) {
         size_t samps_left = (total_tx_samps - num_tx_samps) / num_channels;
         size_t nsamps_send;
@@ -357,6 +357,8 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send(buffs, 0, md);
+    const auto actual_stop_time = std::chrono::steady_clock::now();
+    tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
 }
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
@@ -828,6 +830,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
     std::cout << "Expected rx duration in main: " << duration + adjusted_rx_delay << std::endl;
+    std::cout << "Expected tx duration in main: " << duration + adjusted_tx_delay << std::endl;
     // Sleep for the required duration (add any initial delay).
     // If you are benchmarking Rx and Tx at the same time, Rx threads will run longer
     // than specified duration if tx_delay > rx_delay because of the overly simplified
@@ -850,6 +853,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     thread_group.join_all();
 
     std::cout << "Actual Rx Duration after thread: " << rx_actual_duration << std::endl;
+    std::cout << "Actual Tx Duration after thread: " << tx_actual_duration << std::endl;
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
