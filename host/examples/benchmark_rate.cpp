@@ -261,7 +261,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     bool elevate_priority,
     double tx_delay,
     double& tx_actual_duration,
-    bool random_nsamps = false,)
+    bool random_nsamps = false)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
@@ -672,7 +672,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 stream_args.channels             = this_streamer_channels;
                 stream_args.args                 = uhd::device_addr_t(rx_stream_args);
                 uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-                auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+                auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed, &rx_actual_duration]() {
                     benchmark_rx_rate(usrp,
                         rx_cpu,
                         rx_stream,
@@ -695,7 +695,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             stream_args.channels             = rx_channel_nums;
             stream_args.args                 = uhd::device_addr_t(rx_stream_args);
             uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-            auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+            auto rx_thread = thread_group.create_thread([=, &burst_timer_elapsed, &rx_actual_duration]() {
                 benchmark_rx_rate(usrp,
                     rx_cpu,
                     rx_stream,
@@ -758,7 +758,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     spb = spb - (spb % tx_align);
                 }
                 std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-                auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+                auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed, &tx_actual_duration]() {
                     benchmark_tx_rate(usrp,
                         tx_cpu,
                         tx_stream,
@@ -804,7 +804,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 spb = spb - (spb % tx_align);
             }
             std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-            auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed]() {
+            auto tx_thread = thread_group.create_thread([=, &burst_timer_elapsed, &tx_actual_duration]() {
                 benchmark_tx_rate(usrp,
                     tx_cpu,
                     tx_stream,
