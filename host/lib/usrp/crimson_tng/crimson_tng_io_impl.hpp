@@ -81,6 +81,7 @@ public:
     void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs );
 
     void set_channel_name( size_t chan, std::string name );
+    void sync_channel_rate ( size_t chan, double rate);
 
     void resize(const size_t size);
 

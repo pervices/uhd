@@ -202,9 +202,17 @@ size_t crimson_tng_send_packet_streamer::send(
     if ( _first_call_to_send || metadata.start_of_burst ) {
         metadata.start_of_burst = true;
 
+        // Make sure all channel sample rates match for the streamer
+        double prev_rate = _eprops[0].sample_rate;
         for (size_t ch = 0; ch < _eprops.size(); ch++) {
-            std::cout << "CH " << _eprops[ch].name << " rate: " << _iface->get_double("tx/" + std::string(1, std::tolower(_eprops[ch].name[0])) + "/dsp/rate") << std::endl;
-            
+            double current_rate = _eprops[ch].sample_rate;
+            // If there are different rates, error and suggest fixes
+            if (current_rate !== prev_rate) {
+                std::string message = "Multiple sample rates are detected, but a streamer can only handle one.\nMake sure the specified sample rate is valid and identical for all channels or use multiple streamers instead.";
+                UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
+                throw uhd::runtime_error(message);
+            }            
+            prev_rate = current_rate;
         }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
@@ -237,7 +245,9 @@ void crimson_tng_send_packet_streamer::set_xport_chan_fifo_lvl_abs( size_t chan,
 void crimson_tng_send_packet_streamer::set_channel_name( size_t chan, std::string name ) {
     _eprops.at(chan).name = name;
 }
-
+void crimson_tng_send_packet_streamer::sync_channel_rate( size_t chan, double rate ) {
+    _eprops.at(chan).sample_rate = rate;
+}
 void crimson_tng_send_packet_streamer::resize(const size_t size){
     _eprops.resize( size );
 }
@@ -468,7 +478,8 @@ void crimson_tng_impl::update_tx_samp_rate(const size_t chan, const double rate 
     std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
     // if shared_ptr is false then no streamer is using this ch
     if (!my_streamer) return;
-
+    // Store specified channels sample rate
+    my_streamer->sync_channel_rate(chan, rate);
     // Inform the streamer of the sample rate change
     my_streamer->set_samp_rate(rate);
 }
