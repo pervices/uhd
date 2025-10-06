@@ -869,12 +869,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     while ((actual_duration_rx == 0.0 || actual_duration_tx == 0.0) && std::chrono::steady_clock::now() < wait_end) {
         cv.wait_until(lk, wait_end);
         if (actual_duration_rx > 0.0) {
-            const auto rx_thread_time = std::chrono::steady_clock::now() - rx_thread_start;
-            std::cout << "RX THREAD DURATION: " << rx_thread_time.count() << std::endl;
+            const auto rx_thread_time = std::chrono::duration<float>(std::chrono::steady_clock::now() - rx_thread_start).count();
+            std::cout << "RX THREAD DURATION: " << rx_thread_time << std::endl;
         }
         if (actual_duration_tx > 0.0) {
-            const auto tx_thread_time = std::chrono::steady_clock::now() - tx_thread_start;
-            std::cout << "TX THREAD DURATION: " << tx_thread_time.count() << std::endl;
+            const auto tx_thread_time = std::chrono::duration<float>(std::chrono::steady_clock::now() - tx_thread_start).count();
+            std::cout << "TX THREAD DURATION: " << tx_thread_time << std::endl;
         }
         std::cout << "actual duration rx: " << actual_duration_rx << std::endl;
         std::cout << "actual duration tx: " << actual_duration_tx << std::endl;
