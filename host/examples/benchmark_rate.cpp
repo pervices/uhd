@@ -860,14 +860,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // const auto wait_end = std::chrono::steady_clock::now() + (1s * duration);
-    const auto test_time = (1s * 1.05);
-    std::cout << "float x 1s: " << test_time.count() << std::endl;
     const auto wait_end = std::chrono::steady_clock::now() + (1s * duration);
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     std::cout << "[" << NOW() << "] Waiting on cv..." << std::endl;
 
     while (true) {
         cv.wait_until(lk, wait_end);
+        std::cout << "actual duration rx: " << actual_duration_rx << std::endl;
+        std::cout << "actual duration tx: " << actual_duration_tx << std::endl;
         if (actual_duration_rx > 0.0 && actual_duration_tx > 0.0) {
             std::cout << "[" << NOW() << "] Got durations" << std::endl;
             break;
@@ -891,11 +891,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // thread_group.join_all();
     std::cout << "DONE SLEEP2 AT: " << NOW() << std::endl;
 
-    const int64_t rx_secs = int64_t(rx_actual_duration);
-    const int64_t rx_usecs = int64_t((rx_actual_duration - rx_secs) * 1e6);
+    const int64_t rx_secs = int64_t(actual_duration_rx);
+    const int64_t rx_usecs = int64_t((actual_duration_rx - rx_secs) * 1e6);
     std::cout << "Actual Rx Duration after thread: " << rx_secs << "s and " << rx_usecs << "ms" << std::endl;
-    const int64_t tx_secs = int64_t(tx_actual_duration);
-    const int64_t tx_usecs = int64_t((tx_actual_duration - tx_secs) * 1e6);
+    const int64_t tx_secs = int64_t(actual_duration_tx);
+    const int64_t tx_usecs = int64_t((actual_duration_tx - tx_secs) * 1e6);
     std::cout << "Actual Tx Duration after thread: " << tx_secs << "s and " << tx_usecs << "ms" << std::endl;
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
