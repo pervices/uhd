@@ -860,9 +860,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
-    std::cout << "[" << NOW() << "]Waiting on cv..." << std::endl;
-    cv.wait(lk, []{ return actual_duration_rx > 0.0 && actual_duration_tx > 0.0; });
-    std::cout << "[" << NOW() << "]Finished waiting" << std::endl;
+    std::cout << "[" << NOW() << "] Waiting on cv..." << std::endl;
+    cv.wait_for(lk, duration, []{ return actual_duration_rx > 0.0 && actual_duration_tx > 0.0; });
+    std::cout << "[" << NOW() << "] Finished waiting" << std::endl;
 
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
