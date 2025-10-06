@@ -843,7 +843,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         duration += adjusted_tx_delay;
     }
 
-    const int64_t secs  = int64_t(duration) + 5;
+    const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
     std::this_thread::sleep_for(
         std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
