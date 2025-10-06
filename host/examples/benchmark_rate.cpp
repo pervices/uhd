@@ -635,7 +635,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_time_now(0.0);
     }
 
-    std::cout << "START TIME: " << NOW() << std::endl;
+    const auto rx_thread_start_time = std::chrono::steady_clock::now();
     // spawn the receive test thread
     if (vm.count("rx_rate")) {
         usrp->set_rx_rate(rx_rate);
@@ -735,6 +735,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         auto rate = usrp->get_tx_rate();
         size_t spc = duration*rate;
         std::cout << "Samples per Tx channel: " << spc << std::endl;
+
+        const auto tx_thread_start_time = std::chrono::steady_clock::now();
+
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
                 std::vector<size_t> this_streamer_channels{tx_channel_nums[count]};
@@ -843,6 +846,25 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     } else {
         duration += adjusted_tx_delay;
     }
+
+    float rx_thread_actual_duration;
+    float tx_thread_actual_duration;
+    while (true) {
+        if (rx_actual_duration > 0.0 && !rx_thread_actual_duration) {
+            const auto actual_rx_thread_stop_time = std::chrono::steady_clock::now();
+            rx_thread_actual_duration = std::chrono::duration<float>(actual_rx_thread_stop_time - rx_thread_start_time).count();
+        }
+        if (tx_actual_duration > 0.0 && !tx_thread_actual_duration) {
+             const auto actual_tx_thread_stop_time = std::chrono::steady_clock::now();
+             tx_thread_actual_duration = std::chrono::duration<float>(actual_tx_thread_stop_time - tx_thread_start_time).count();
+        }
+        if (rx_actual_duration > 0.0 && tx_actual_duration > 0.0) {
+            break;
+        }
+    }
+
+    std::cout << "RX THREAD DURATION: " << rx_thread_actual_duration << std::endl;
+    std::cout << "TX THREAD DURATION: " << tx_thread_actual_duration << std::endl;
 
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
