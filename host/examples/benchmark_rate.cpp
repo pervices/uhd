@@ -846,15 +846,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         duration += adjusted_tx_delay;
     }
 
-    float rx_thread_actual_duration;
-    float tx_thread_actual_duration;
+    float rx_thread_actual_duration = 0.0;
+    float tx_thread_actual_duration = 0.0;
     while (true) {
-        if (rx_actual_duration > 0.0 && !rx_thread_actual_duration) {
+        if (rx_actual_duration > 0.0 && rx_thread_actual_duration == 0.0) {
             std::cout << "rx_actual_duration set at: " << NOW() << std::endl;
             const auto actual_rx_thread_stop_time = std::chrono::steady_clock::now();
             rx_thread_actual_duration = std::chrono::duration<float>(actual_rx_thread_stop_time - rx_thread_start_time).count();
         }
-        if (tx_actual_duration > 0.0 && !tx_thread_actual_duration) {
+        if (tx_actual_duration > 0.0 && tx_thread_actual_duration == 0.0) {
             std::cout << "tx_actual_duration set at: " << NOW() << std::endl;
             const auto actual_tx_thread_stop_time = std::chrono::steady_clock::now();
             tx_thread_actual_duration = std::chrono::duration<float>(actual_tx_thread_stop_time - tx_thread_start_time).count();
