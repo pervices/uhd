@@ -717,6 +717,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
+    const auto tx_thread_start_time = std::chrono::steady_clock::now();
     // spawn the transmit test thread
     if (vm.count("tx_rate")) {
         usrp->set_tx_rate(tx_rate);
@@ -735,8 +736,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         auto rate = usrp->get_tx_rate();
         size_t spc = duration*rate;
         std::cout << "Samples per Tx channel: " << spc << std::endl;
-
-        const auto tx_thread_start_time = std::chrono::steady_clock::now();
 
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
