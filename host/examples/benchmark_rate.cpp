@@ -860,10 +860,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // const auto wait_end = std::chrono::steady_clock::now() + (1s * duration);
-    const auto wait_end = std::chrono::steady_clock::now() + (2s);
+    const auto test_time = (1s * 1.05);
+    std::cout << "float x 1s: " << test_time.count() << std::endl;
+    const auto wait_end = std::chrono::steady_clock::now() + (1s * duration);
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     std::cout << "[" << NOW() << "] Waiting on cv..." << std::endl;
-    // cv.wait(lk, [wait_end]{ return (actual_duration_rx > 0.0 && actual_duration_tx > 0.0) || (std::chrono::steady_clock::now() >= wait_end); });
+
     while (true) {
         cv.wait_until(lk, wait_end);
         if (actual_duration_rx > 0.0 && actual_duration_tx > 0.0) {
