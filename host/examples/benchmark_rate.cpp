@@ -231,10 +231,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     }
     const auto actual_stop_time = std::chrono::steady_clock::now();
     rx_actual_duration = std::chrono::duration<float>(actual_stop_time - rx_start_time).count();
+    rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     actual_duration_rx = rx_actual_duration;
     cv.notify_all();
-    rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     return;
 
     // while (true) {
