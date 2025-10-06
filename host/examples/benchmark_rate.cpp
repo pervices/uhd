@@ -864,15 +864,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     std::cout << "[" << NOW() << "] Waiting on cv..." << std::endl;
 
-    while (true) {
+    while (actual_duration_rx == 0.0 && actual_duration_tx == 0.0 && std::chrono::steady_clock::now() < wait_end) {
         cv.wait_until(lk, wait_end);
         std::cout << "actual duration rx: " << actual_duration_rx << std::endl;
         std::cout << "actual duration tx: " << actual_duration_tx << std::endl;
         if (actual_duration_rx > 0.0 && actual_duration_tx > 0.0) {
             std::cout << "[" << NOW() << "] Got durations" << std::endl;
-            break;
-        } else {
-            std::cout << "[" << NOW() << "] Too fast" << std::endl;
             break;
         }
     }
