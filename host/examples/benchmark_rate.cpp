@@ -853,8 +853,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // interrupt and join the threads
     burst_timer_elapsed = true;
-    thread_group.join_all();
-    std::cout << "THREADS DONE AT: " << NOW() << std::endl;
+    std::this_thread::sleep_for(std::chrono::microseconds(300));
+    // thread_group.join_all();
+    std::cout << "DONE SLEEP2 AT: " << NOW() << std::endl;
 
     std::cout << "Actual Rx Duration after thread: " << rx_actual_duration << std::endl;
     std::cout << "Actual Tx Duration after thread: " << tx_actual_duration << std::endl;
