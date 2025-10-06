@@ -23,6 +23,8 @@
 #include <functional>
 #include <iostream>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 
 namespace po = boost::program_options;
 using namespace std::chrono_literals;
@@ -46,6 +48,13 @@ std::atomic_ullong num_seqrx_errors{0}; // "D"s
 std::atomic_ullong num_late_commands{0};
 std::atomic_ullong num_timeouts_rx{0};
 std::atomic_ullong num_timeouts_tx{0};
+
+std::condition_variable cv;
+std::mutex thread_duration_mutex;
+
+float actual_duration_rx = 0.0;
+float actual_duration_tx = 0.0;
+
 
 inline auto time_delta(const start_time_type& ref_time)
 {
@@ -222,6 +231,9 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     }
     const auto actual_stop_time = std::chrono::steady_clock::now();
     rx_actual_duration = std::chrono::duration<float>(actual_stop_time - rx_start_time).count();
+    std::unique_lock<std::mutex> lk(thread_duration_mutex);
+    actual_duration_rx = rx_actual_duration;
+    cv.notify_all();
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     return;
 
@@ -359,6 +371,9 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     tx_stream->send(buffs, 0, md);
     const auto actual_stop_time = std::chrono::steady_clock::now();
     tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
+    std::unique_lock<std::mutex> lk(thread_duration_mutex);
+    actual_duration_rx = tx_actual_duration;
+    cv.notify_all();
 }
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
@@ -635,7 +650,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_time_now(0.0);
     }
 
-    const auto rx_thread_start_time = std::chrono::steady_clock::now();
     // spawn the receive test thread
     if (vm.count("rx_rate")) {
         usrp->set_rx_rate(rx_rate);
@@ -717,7 +731,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
-    const auto tx_thread_start_time = std::chrono::steady_clock::now();
     // spawn the transmit test thread
     if (vm.count("tx_rate")) {
         usrp->set_tx_rate(tx_rate);
@@ -846,26 +859,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         duration += adjusted_tx_delay;
     }
 
-    float rx_thread_actual_duration = 0.0;
-    float tx_thread_actual_duration = 0.0;
-    while (true) {
-        if (rx_actual_duration > 0.0 && rx_thread_actual_duration == 0.0) {
-            std::cout << "rx_actual_duration set at: " << NOW() << std::endl;
-            const auto actual_rx_thread_stop_time = std::chrono::steady_clock::now();
-            rx_thread_actual_duration = std::chrono::duration<float>(actual_rx_thread_stop_time - rx_thread_start_time).count();
-        }
-        if (tx_actual_duration > 0.0 && tx_thread_actual_duration == 0.0) {
-            std::cout << "tx_actual_duration set at: " << NOW() << std::endl;
-            const auto actual_tx_thread_stop_time = std::chrono::steady_clock::now();
-            tx_thread_actual_duration = std::chrono::duration<float>(actual_tx_thread_stop_time - tx_thread_start_time).count();
-        }
-        if (rx_actual_duration > 0.0 && tx_actual_duration > 0.0) {
-            break;
-        }
-    }
-
-    std::cout << "RX THREAD DURATION: " << rx_thread_actual_duration << std::endl;
-    std::cout << "TX THREAD DURATION: " << tx_thread_actual_duration << std::endl;
+    std::unique_lock<std::mutex> lk(thread_duration_mutex);
+    std::cout << "[" << NOW() << "]Waiting on cv..." << std::endl;
+    cv.wait(lk, []{ return actual_duration_rx > 0.0 && actual_duration_tx > 0.0; });
+    std::cout << "[" << NOW() << "]Finished waiting" << std::endl;
 
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
