@@ -877,8 +877,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // thread_group.join_all();
     std::cout << "DONE SLEEP2 AT: " << NOW() << std::endl;
 
-    std::cout << "Actual Rx Duration after thread: " << rx_actual_duration << std::endl;
-    std::cout << "Actual Tx Duration after thread: " << tx_actual_duration << std::endl;
+    const int64_t rx_secs = int64_t(rx_actual_duration);
+    const int64_t rx_usecs = int64_t((rx_actual_duration - rx_secs) * 1e6);
+    std::cout << "Actual Rx Duration after thread: " << rx_secs << "s and " << rx_usecs << "ms" << std::endl;
+    const int64_t tx_secs = int64_t(tx_actual_duration);
+    const int64_t tx_usecs = int64_t((tx_actual_duration - tx_secs) * 1e6);
+    std::cout << "Actual Tx Duration after thread: " << tx_secs << "s and " << tx_usecs << "ms" << std::endl;
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
