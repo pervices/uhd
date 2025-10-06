@@ -859,9 +859,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         duration += adjusted_tx_delay;
     }
 
+    const auto wait_end = std::chrono::steady_clock::now() + (1s * duration);
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     std::cout << "[" << NOW() << "] Waiting on cv..." << std::endl;
-    cv.wait_for(lk, duration, []{ return actual_duration_rx > 0.0 && actual_duration_tx > 0.0; });
+    cv.wait(lk, [wait_end]{ return (actual_duration_rx > 0.0 && actual_duration_tx > 0.0) || (std::chrono::steady_clock::now() >= wait_end); });
     std::cout << "[" << NOW() << "] Finished waiting" << std::endl;
 
     const int64_t secs  = int64_t(duration);
