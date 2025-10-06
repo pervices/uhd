@@ -850,12 +850,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     float tx_thread_actual_duration;
     while (true) {
         if (rx_actual_duration > 0.0 && !rx_thread_actual_duration) {
+            std::cout << "rx_actual_duration set at: " << NOW() << std::endl;
             const auto actual_rx_thread_stop_time = std::chrono::steady_clock::now();
             rx_thread_actual_duration = std::chrono::duration<float>(actual_rx_thread_stop_time - rx_thread_start_time).count();
         }
         if (tx_actual_duration > 0.0 && !tx_thread_actual_duration) {
-             const auto actual_tx_thread_stop_time = std::chrono::steady_clock::now();
-             tx_thread_actual_duration = std::chrono::duration<float>(actual_tx_thread_stop_time - tx_thread_start_time).count();
+            std::cout << "tx_actual_duration set at: " << NOW() << std::endl;
+            const auto actual_tx_thread_stop_time = std::chrono::steady_clock::now();
+            tx_thread_actual_duration = std::chrono::duration<float>(actual_tx_thread_stop_time - tx_thread_start_time).count();
         }
         if (rx_actual_duration > 0.0 && tx_actual_duration > 0.0) {
             break;
@@ -867,14 +869,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     const int64_t secs  = int64_t(duration);
     const int64_t usecs = int64_t((duration - secs) * 1e6);
-    std::this_thread::sleep_for(
-        std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
+    // std::this_thread::sleep_for(
+    //     std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
 
-    std::cout << "DONE SLEEP AT: " << NOW() << std::endl;
+    // std::cout << "DONE SLEEP AT: " << NOW() << std::endl;
 
     // interrupt and join the threads
     burst_timer_elapsed = true;
-    std::this_thread::sleep_for(std::chrono::microseconds(300));
     // thread_group.join_all();
     std::cout << "DONE SLEEP2 AT: " << NOW() << std::endl;
 
