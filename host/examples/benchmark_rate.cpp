@@ -848,6 +848,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::this_thread::sleep_for(
         std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
 
+    std::cout << "DONE SLEEP" << std::endl;
+
     // interrupt and join the threads
     burst_timer_elapsed = true;
     thread_group.join_all();
