@@ -372,7 +372,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const auto actual_stop_time = std::chrono::steady_clock::now();
     tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
-    actual_duration_rx = tx_actual_duration;
+    actual_duration_tx = tx_actual_duration;
     cv.notify_all();
 }
 
