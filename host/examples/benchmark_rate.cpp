@@ -852,7 +852,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // interrupt and join the threads
     burst_timer_elapsed = true;
-    thread_group.join_all();
+    // thread_group.join_all();
 
     std::cout << "Actual Rx Duration after thread: " << rx_actual_duration << std::endl;
     std::cout << "Actual Tx Duration after thread: " << tx_actual_duration << std::endl;
