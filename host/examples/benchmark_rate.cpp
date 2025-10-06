@@ -650,6 +650,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_time_now(0.0);
     }
 
+    const auto rx_thread_start = std::chrono::steady_clock::now();
     // spawn the receive test thread
     if (vm.count("rx_rate")) {
         usrp->set_rx_rate(rx_rate);
@@ -731,6 +732,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
+    const auto tx_thread_start = std::chrono::steady_clock::now();
     // spawn the transmit test thread
     if (vm.count("tx_rate")) {
         usrp->set_tx_rate(tx_rate);
@@ -866,6 +868,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     while ((actual_duration_rx == 0.0 || actual_duration_tx == 0.0) && std::chrono::steady_clock::now() < wait_end) {
         cv.wait_until(lk, wait_end);
+        if (actual_duration_rx > 0.0) {
+            const auto rx_thread_time = std::chrono::steady_clock::now() - rx_thread_start;
+            std::cout << "RX THREAD DURATION: " << rx_thread_time.count() << std::endl;
+        }
+        if (actual_duration_tx > 0.0) {
+            const auto tx_thread_time = std::chrono::steady_clock::now() - tx_thread_start;
+            std::cout << "TX THREAD DURATION: " << tx_thread_time.count() << std::endl;
+        }
         std::cout << "actual duration rx: " << actual_duration_rx << std::endl;
         std::cout << "actual duration tx: " << actual_duration_tx << std::endl;
         if (actual_duration_rx > 0.0 && actual_duration_tx > 0.0) {
