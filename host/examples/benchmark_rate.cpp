@@ -859,6 +859,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
         }
     }
+    std::cout << "RX THREADS ACTIVE: " << rx_threads_active << std::endl;
+    std::cout << "TX THREADS ACTIVE: " << tx_threads_active << std::endl;
+
     std::cout << "Expected rx duration in main: " << duration + adjusted_rx_delay << std::endl;
     std::cout << "Expected tx duration in main: " << duration + adjusted_tx_delay << std::endl;
     // Sleep for the required duration (add any initial delay).
@@ -887,6 +890,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     while ((rx_threads_active || tx_threads_active) && std::chrono::steady_clock::now() < threads_timeout) {
         // Notified at end of every thread, so loop back and wait until no active threads or timeout is reached
         threads_cv.wait_until(duration_lock, threads_timeout);
+        std::cout << "RX THREADS ACTIVE: " << rx_threads_active << std::endl;
+        std::cout << "TX THREADS ACTIVE: " << tx_threads_active << std::endl;
+        
         // Both of these are only true simultaneously while rx threads are still alive or when the final one has ended
         if (!rx_threads_active && !rx_threads_done) {
             rx_threads_end = std::chrono::steady_clock::now();
@@ -935,13 +941,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // interrupt and join the threads
     burst_timer_elapsed = true;
     // thread_group.join_all();
-
-    const int64_t rx_secs = int64_t(actual_duration_rx);
-    const int64_t rx_usecs = int64_t((actual_duration_rx - rx_secs) * 1e6);
-    std::cout << "Actual Rx Duration after thread: " << rx_secs << "s and " << rx_usecs << "ms" << std::endl;
-    const int64_t tx_secs = int64_t(actual_duration_tx);
-    const int64_t tx_usecs = int64_t((actual_duration_tx - tx_secs) * 1e6);
-    std::cout << "Actual Tx Duration after thread: " << tx_secs << "s and " << tx_usecs << "ms" << std::endl;
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
