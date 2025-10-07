@@ -147,7 +147,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     size_t streamed_rx_samps = 0;
     // Loop until all samples have been sent
     while (streamed_rx_samps < total_rx_samps) {
-        size_t samps_left = (total_rx_samps - num_rx_samps) / num_channels;
+        size_t samps_left = (total_rx_samps - streamed_rx_samps) / num_channels;
 
         if (random_nsamps) {
             cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(user_rx_delay);
@@ -325,7 +325,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     size_t streamed_tx_samps = 0;
     while (streamed_tx_samps < total_tx_samps) {
-        size_t samps_left = (total_tx_samps - num_tx_samps) / num_channels;
+        size_t samps_left = (total_tx_samps - streamed_tx_samps) / num_channels;
         size_t nsamps_send;
 
         if (random_nsamps) {
@@ -891,7 +891,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::chrono::time_point<std::chrono::steady_clock> rx_threads_end;
     std::chrono::time_point<std::chrono::steady_clock> tx_threads_end;
-    while ((rx_threads_active || tx_threads_active) && std::chrono::steady_clock::now() < threads_timeout) {
+    while ((rx_threads_active || tx_threads_active) && (std::chrono::steady_clock::now() < threads_timeout)) {
         // Notified at end of every thread, so loop back and wait until no active threads or timeout is reached
         threads_cv.wait_until(duration_lock, threads_timeout);
         std::cout << "NOTIFIED" << std::endl;
