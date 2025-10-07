@@ -143,9 +143,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const float burst_pkt_time = std::max<float>(0.100f, (2 * spb / rate));
     float recv_timeout         = burst_pkt_time + (adjusted_rx_delay);
    
-    const auto rx_start_time = std::chrono::steady_clock::now();
+    // Track number of samples sent for this stream instead of total from num_rx_samps
+    size_t streamed_rx_samps = 0;
     // Loop until all samples have been sent
-    while (num_rx_samps < total_rx_samps) {
+    while (streamed_rx_samps < total_rx_samps) {
         size_t samps_left = (total_rx_samps - num_rx_samps) / num_channels;
 
         if (random_nsamps) {
@@ -159,8 +160,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         }
 
         try {
-            num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
+            const auto samps_sent_now = rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout) 
                             * rx_stream->get_num_channels();
+            num_rx_samps += samps_sent_now;
+            streamed_rx_samps += samps_sent_now;
             recv_timeout = burst_pkt_time;
         } catch (uhd::io_error& e) {
             UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Caught an IO exception. " << std::endl;
@@ -320,8 +323,8 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         std::srand((unsigned int)time(NULL));
     }
 
-    const auto tx_start_time = std::chrono::steady_clock::now();
-    while (num_tx_samps < total_tx_samps) {
+    size_t streamed_tx_samps = 0;
+    while (streamed_tx_samps < total_tx_samps) {
         size_t samps_left = (total_tx_samps - num_tx_samps) / num_channels;
         size_t nsamps_send;
 
@@ -338,6 +341,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         const size_t num_tx_samps_sent_now =
                 tx_stream->send(buffs, nsamps_send, md, timeout) * tx_stream->get_num_channels();
         num_tx_samps += num_tx_samps_sent_now;
+        streamed_tx_samps += num_tx_samps_sent_now;
         if (num_tx_samps_sent_now == 0) {
             num_timeouts_tx++;
             if ((num_timeouts_tx % 10000) == 1) {
