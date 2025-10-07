@@ -819,11 +819,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         random_nsamps);
                 });
                 std::cout << "TX THREAD ID: " << tx_thread->get_id() << std::endl;
+                const auto thread_id = tx_thread->get_id();
+                
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
                 std::thread *tx_async_thread =
                     &thread_group.emplace_back([=, &burst_timer_elapsed]() {
                         benchmark_tx_rate_async_helper(
-                            tx_stream, start_time, burst_timer_elapsed, tx_thread->get_id());
+                            tx_stream, start_time, burst_timer_elapsed, thread_id);
                     });
                 uhd::set_thread_name(
                     tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
@@ -866,11 +868,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     random_nsamps);
             });
             std::cout << "TX THREAD ID: " << tx_thread->get_id() << std::endl;
+            const auto thread_id = tx_thread->get_id();
             uhd::set_thread_name(tx_thread, "bmark_tx_stream");
             std::thread *tx_async_thread =
                 &thread_group.emplace_back([=, &burst_timer_elapsed]() {
                     benchmark_tx_rate_async_helper(
-                        tx_stream, start_time, burst_timer_elapsed, tx_thread->get_id());
+                        tx_stream, start_time, burst_timer_elapsed, thread_id);
                 });
             uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
         }
