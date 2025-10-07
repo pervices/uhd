@@ -16,6 +16,7 @@
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <complex>
@@ -24,6 +25,7 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include <vector>
 #include <condition_variable>
 
 namespace po = boost::program_options;
@@ -55,9 +57,8 @@ std::mutex thread_duration_mutex;
 // Counters incremented by tx/rx threads when finished to track when streaming is finished
 std::atomic_size_t rx_threads_active{0};
 std::atomic_size_t tx_threads_active{0};
-
-float actual_duration_rx = 0.0;
-float actual_duration_tx = 0.0;
+std::vector<std::thread::id> rx_thread_ids;
+std::vector<std::thread::id> tx_thread_ids;
 
 
 inline auto time_delta(const start_time_type& ref_time)
@@ -105,7 +106,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_affinity_active_core();
     }
 
-    rx_threads_active++;
+    const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -243,7 +244,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
-    rx_threads_active--;
+    rx_thread_ids.erase(id_pos);
     std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_threads_active << std::endl;
     // actual_duration_rx = rx_actual_duration;
     threads_cv.notify_all();
@@ -290,7 +291,8 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_priority_safe();
         uhd::set_thread_affinity_active_core();
     }
-    tx_threads_active++;
+    const auto id_pos = tx_thread_ids.emplace(tx_thread_ids.end(), std::this_thread::get_id());
+    std::cout << "STANDARD THREAD ID: " << std::this_thread::get_id() << std::endl;
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -387,14 +389,14 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
-    tx_threads_active--;
-    std::cout << "[" << NOW() << "] TX THREADS ACTIVE: " << tx_threads_active << std::endl;
+    tx_thread_ids.erase(id_pos);
     threads_cv.notify_all();
 }
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
     const start_time_type& start_time,
-    std::atomic<bool>& burst_timer_elapsed)
+    std::atomic<bool>& burst_timer_elapsed,
+    boost::thread::id thread_id)
 {
     // setup variables and allocate buffer
     uhd::async_metadata_t async_md;
@@ -809,10 +811,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         random_nsamps);
                 });
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
+                std::cout << "BOOST THREAD ID: " << tx_thread->get_id() << std::endl;
                 auto tx_async_thread =
                     thread_group.create_thread([=, &burst_timer_elapsed]() {
                         benchmark_tx_rate_async_helper(
-                            tx_stream, start_time, burst_timer_elapsed);
+                            tx_stream, start_time, burst_timer_elapsed, tx_thread->get_id());
                     });
                 uhd::set_thread_name(
                     tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
@@ -858,7 +861,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             auto tx_async_thread =
                 thread_group.create_thread([=, &burst_timer_elapsed]() {
                     benchmark_tx_rate_async_helper(
-                        tx_stream, start_time, burst_timer_elapsed);
+                        tx_stream, start_time, burst_timer_elapsed, tx_thread->get_id());
                 });
             uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
         }
@@ -880,70 +883,33 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         duration += adjusted_tx_delay;
     }
 
-    // const auto wait_end = std::chrono::steady_clock::now() + (1s * duration);
-    // Gives threads 10s above expected duration to finish
+    // Give threads 10s above expected duration to finish
     const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration) + 10s;
     std::unique_lock<std::mutex> duration_lock(thread_duration_mutex);
-    std::cout << "[" << NOW() << "] Waiting on cv..." << std::endl;
     // If rx or tx was not run, set to true to avoid assigning end time
     bool rx_threads_done = vm.count("rx_rate") ? false : true;
     bool tx_threads_done = vm.count("tx_rate") ? false : true;
 
     std::chrono::time_point<std::chrono::steady_clock> rx_threads_end;
     std::chrono::time_point<std::chrono::steady_clock> tx_threads_end;
-    while ((rx_threads_active || tx_threads_active) && (std::chrono::steady_clock::now() < threads_timeout)) {
+    while ((rx_thread_ids.size() || tx_thread_ids.size()) && (std::chrono::steady_clock::now() < threads_timeout)) {
         // Notified at end of every thread, so loop back and wait until no active threads or timeout is reached
         threads_cv.wait_until(duration_lock, threads_timeout);
-        std::cout << "NOTIFIED" << std::endl;
         
-        // Both of these are only true simultaneously while rx threads are still alive or when the final one has ended
-        if (!rx_threads_active && !rx_threads_done) {
-            rx_threads_end = std::chrono::steady_clock::now();
+        // Both of these are only true simultaneously while threads are still alive or when the final one has ended
+        if (!rx_thread_ids.size() && !rx_threads_done) {
+            rx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - rx_threads_start).count();
             rx_threads_done = true;
         }
-        if (!tx_threads_active && !tx_threads_done) {
-            tx_threads_end = std::chrono::steady_clock::now();
+        if (!tx_thread_ids.size() && !tx_threads_done) {
+            tx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - tx_threads_start).count();
             tx_threads_done = true;
         }
     
     }
-    const auto tx_duration = std::chrono::duration<float>(tx_threads_end - tx_threads_start).count();
-    const auto rx_duration = std::chrono::duration<float>(rx_threads_end - rx_threads_start).count();
-
-    std::cout << "RX DURATION: " << rx_duration << std::endl;
-    std::cout << "TX DURATION: " << tx_duration << std::endl;
-
-    // while ((actual_duration_rx == 0.0 || actual_duration_tx == 0.0) && (std::chrono::steady_clock::now() < threads_timeout)) {
-    //     // cv is notified whenever a tx or rx thread is done, so loop again if 
-    //     cv.wait_until(duration_lock, threads_timeout);
-    //     if (actual_duration_rx > 0.0) {
-    //         const auto rx_thread_time = std::chrono::duration<float>(std::chrono::steady_clock::now() - rx_thread_start).count();
-    //         std::cout << "RX THREAD DURATION: " << rx_thread_time << std::endl;
-    //     }
-    //     if (actual_duration_tx > 0.0) {
-    //         const auto tx_thread_time = std::chrono::duration<float>(std::chrono::steady_clock::now() - tx_thread_start).count();
-    //         std::cout << "TX THREAD DURATION: " << tx_thread_time << std::endl;
-    //     }
-    //     std::cout << "actual duration rx: " << actual_duration_rx << std::endl;
-    //     std::cout << "actual duration tx: " << actual_duration_tx << std::endl;
-    //     if (actual_duration_rx > 0.0 && actual_duration_tx > 0.0) {
-    //         std::cout << "[" << NOW() << "] Got durations" << std::endl;
-    //         break;
-    //     }
-    // }
-
-    std::cout << "[" << NOW() << "] Finished waiting" << std::endl;
-
-    const int64_t secs  = int64_t(duration);
-    const int64_t usecs = int64_t((duration - secs) * 1e6);
-    // std::this_thread::sleep_for(
-    //     std::chrono::seconds(secs) + std::chrono::microseconds(usecs));
-
-    // std::cout << "DONE SLEEP AT: " << NOW() << std::endl;
 
     // interrupt and join the threads
     burst_timer_elapsed = true;
-    // thread_group.join_all();
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
@@ -966,10 +932,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                                "  Num underruns detected:   %u\n" //-- checked - num_underruns
                                "  Num late commands:        %u\n" //-- need to check -- late_cmd_threshold
                                "  Num timeouts (Tx):        %u\n" //-- need to check
-                               "  Num timeouts (Rx):        %u\n") //-- need to check
+                               "  Num timeouts (Rx):        %u\n" //-- need to check
+                               "  Time elapsed (Tx):        %u\n"
+                               "  Time elapsed (Rx):        %u\n")
                      % num_rx_samps % num_dropped_samps % num_overruns % num_tx_samps
                      % num_seq_errors % num_seqrx_errors % num_underruns
                      % num_late_commands % num_timeouts_tx % num_timeouts_rx
+                     % tx_actual_duration % rx_actual_duration
               << std::endl;
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
