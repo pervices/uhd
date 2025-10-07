@@ -920,15 +920,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             tx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - tx_threads_start).count();
             tx_threads_done = true;
         }
-    
     }
 
     if (!rx_threads_done || !tx_threads_done) {
         std::cout << "THREADS DID NOT FINISH" << std::endl;
     }
+
     for (auto &th : thread_group) {
+        std::cout << "JOINING THREAD: " << th.get_id() << std::endl;
         th.join();
     }
+    std::cout << "Threads terminated" << std::endl;
     // interrupt and join the threads
     burst_timer_elapsed = true;
 
