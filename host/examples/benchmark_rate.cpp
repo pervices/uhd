@@ -393,6 +393,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     tx_thread_ids.erase(id_pos);
+    std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
     threads_cv.notify_all();
 }
 
