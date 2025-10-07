@@ -799,7 +799,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     spb = spb - (spb % tx_align);
                 }
                 std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-                std::thread& tx_thread = thread_group.emplace_back([=, &burst_timer_elapsed, &tx_actual_duration]() {
+                std::thread *tx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed, &tx_actual_duration]() {
                     benchmark_tx_rate(usrp,
                         tx_cpu,
                         tx_stream,
@@ -814,15 +814,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         random_nsamps);
                 });
                 
-                uhd::set_thread_name(&tx_thread, "bmark_tx_strm" + std::to_string(count));
-                std::cout << "BOOST THREAD ID: " << tx_thread.get_id() << std::endl;
-                std::thread& tx_async_thread =
-                    thread_group.emplace_back([=, &burst_timer_elapsed]() {
+                uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
+                std::cout << "BOOST THREAD ID: " << tx_thread->get_id() << std::endl;
+                std::thread *tx_async_thread =
+                    &thread_group.emplace_back([=, &burst_timer_elapsed]() {
                         benchmark_tx_rate_async_helper(
-                            tx_stream, start_time, burst_timer_elapsed, tx_thread.get_id());
+                            tx_stream, start_time, burst_timer_elapsed, tx_thread->get_id());
                     });
                 uhd::set_thread_name(
-                    &tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
+                    tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
             }
         } else {
             // create a transmit streamer
@@ -847,7 +847,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 spb = spb - (spb % tx_align);
             }
             std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-            std::thread &tx_thread = thread_group.emplace_back([=, &burst_timer_elapsed, &tx_actual_duration]() {
+            std::thread *tx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed, &tx_actual_duration]() {
                 benchmark_tx_rate(usrp,
                     tx_cpu,
                     tx_stream,
@@ -861,11 +861,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     tx_actual_duration,
                     random_nsamps);
             });
-            uhd::set_thread_name(&tx_thread, "bmark_tx_stream");
+            uhd::set_thread_name(tx_thread, "bmark_tx_stream");
             std::thread& tx_async_thread =
                 thread_group.emplace_back([=, &burst_timer_elapsed]() {
                     benchmark_tx_rate_async_helper(
-                        tx_stream, start_time, burst_timer_elapsed, tx_thread.get_id());
+                        tx_stream, start_time, burst_timer_elapsed, tx_thread->get_id());
                 });
             uhd::set_thread_name(&tx_async_thread, "bmark_tx_helper");
         }
