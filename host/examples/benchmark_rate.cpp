@@ -404,6 +404,8 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
     uhd::async_metadata_t async_md;
     bool exit_flag = false;
 
+    std::cout << "ASYNC THREAD ID: " << thread_id << std::endl;
+
     while (true) {
         if (burst_timer_elapsed) {
             exit_flag = true;
