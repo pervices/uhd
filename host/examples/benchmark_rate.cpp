@@ -917,6 +917,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     
     }
 
+    if (!rx_threads_done || !tx_threads_done) {
+        std::cout << "THREADS DID NOT FINISH" << std::endl;
+    }
+
     // interrupt and join the threads
     burst_timer_elapsed = true;
 
