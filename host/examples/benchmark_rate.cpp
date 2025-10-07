@@ -744,7 +744,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     rx_stream_now,
                     rx_actual_duration);
             });
-            rx_threads_active++;
             uhd::set_thread_name(rx_thread, "bmark_rx_stream");
         }
     }
@@ -855,7 +854,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     tx_actual_duration,
                     random_nsamps);
             });
-            tx_threads_active++;
             uhd::set_thread_name(tx_thread, "bmark_tx_stream");
             auto tx_async_thread =
                 thread_group.create_thread([=, &burst_timer_elapsed]() {
