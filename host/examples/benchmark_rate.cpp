@@ -105,6 +105,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_affinity_active_core();
     }
 
+    rx_threads_active++;
+
     // print pre-test summary
     auto time_stamp   = NOW();
     auto rx_rate      = usrp->get_rx_rate() / 1e6;
@@ -239,7 +241,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     rx_threads_active--;
-    std::cout << "RX THREADS ACTIVE: " << rx_threads_active << std::endl;
+    std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_threads_active << std::endl;
     // actual_duration_rx = rx_actual_duration;
     threads_cv.notify_all();
     return;
@@ -285,6 +287,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_priority_safe();
         uhd::set_thread_affinity_active_core();
     }
+    tx_threads_active++;
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -381,7 +384,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     tx_threads_active--;
-    std::cout << "TX THREADS ACTIVE: " << tx_threads_active << std::endl;
+    std::cout << "[" << NOW() << "] TX THREADS ACTIVE: " << tx_threads_active << std::endl;
     threads_cv.notify_all();
 }
 
@@ -714,8 +717,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         rx_stream_now,
                         rx_actual_duration);
                 });
-                // Increment thread counter for each thread spawned
-                rx_threads_active++;
                 uhd::set_thread_name(rx_thread, "bmark_rx_strm" + std::to_string(count));
             }
         } else {
@@ -810,7 +811,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         benchmark_tx_rate_async_helper(
                             tx_stream, start_time, burst_timer_elapsed);
                     });
-                tx_threads_active++;
                 uhd::set_thread_name(
                     tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
             }
@@ -892,8 +892,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     while ((rx_threads_active || tx_threads_active) && std::chrono::steady_clock::now() < threads_timeout) {
         // Notified at end of every thread, so loop back and wait until no active threads or timeout is reached
         threads_cv.wait_until(duration_lock, threads_timeout);
-        std::cout << "RX THREADS ACTIVE: " << rx_threads_active << std::endl;
-        std::cout << "TX THREADS ACTIVE: " << tx_threads_active << std::endl;
+        std::cout << "NOTIFIED" << std::endl;
         
         // Both of these are only true simultaneously while rx threads are still alive or when the final one has ended
         if (!rx_threads_active && !rx_threads_done) {
