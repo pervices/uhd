@@ -239,6 +239,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     rx_threads_active--;
+    std::cout << "RX THREADS ACTIVE: " << rx_threads_active << std::endl;
     // actual_duration_rx = rx_actual_duration;
     threads_cv.notify_all();
     return;
@@ -380,6 +381,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     tx_threads_active--;
+    std::cout << "TX THREADS ACTIVE: " << tx_threads_active << std::endl;
     threads_cv.notify_all();
 }
 
