@@ -108,7 +108,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_affinity_active_core();
     }
 
-    // const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
+    const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -246,7 +246,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
-    // rx_thread_ids.erase(id_pos);
+    rx_thread_ids.erase(id_pos);
     std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
     // actual_duration_rx = rx_actual_duration;
     threads_cv.notify_all();
@@ -752,6 +752,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     rx_stream_now,
                     rx_actual_duration);
             });
+            std::cout << "RX THREAD ID: " << rx_thread->get_id() << std::endl;
             uhd::set_thread_name(rx_thread, "bmark_rx_stream");
         }
     }
@@ -818,7 +819,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 });
                 
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
-                std::cout << "BOOST THREAD ID: " << tx_thread->get_id() << std::endl;
+                std::cout << "TX THREAD ID: " << tx_thread->get_id() << std::endl;
                 std::thread *tx_async_thread =
                     &thread_group.emplace_back([=, &burst_timer_elapsed]() {
                         benchmark_tx_rate_async_helper(
@@ -864,6 +865,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     tx_actual_duration,
                     random_nsamps);
             });
+            std::cout << "TX THREAD ID: " << tx_thread->get_id() << std::endl;
             uhd::set_thread_name(tx_thread, "bmark_tx_stream");
             std::thread *tx_async_thread =
                 &thread_group.emplace_back([=, &burst_timer_elapsed]() {
