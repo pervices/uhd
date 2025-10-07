@@ -388,12 +388,13 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send(buffs, 0, md);
+    std::cout << "Done Tx stream" << std::endl;
     // const auto actual_stop_time = std::chrono::steady_clock::now();
     // tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
     tx_thread_ids.erase(id_pos);
-    std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
+    std::cout << "[" << NOW() << "] TX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
     threads_cv.notify_all();
 }
 
