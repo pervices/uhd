@@ -905,9 +905,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::chrono::time_point<std::chrono::steady_clock> rx_threads_end;
     std::chrono::time_point<std::chrono::steady_clock> tx_threads_end;
     while ((rx_thread_ids.size() || tx_thread_ids.size()) && (std::chrono::steady_clock::now() < threads_timeout)) {
+        std::cout << "Before wait" << std::endl;
         // Notified at end of every thread, so loop back and wait until no active threads or timeout is reached
         threads_cv.wait_until(duration_lock, threads_timeout);
-        
+        std::cout << "After wait" << std::endl;
         // Both of these are only true simultaneously while threads are still alive or when the final one has ended
         if (!rx_thread_ids.size() && !rx_threads_done) {
             rx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - rx_threads_start).count();
