@@ -410,7 +410,9 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
     std::cout << "ASYNC THREAD ID: " << thread_id << std::endl;
 
     while (true) {
-        if (burst_timer_elapsed) {
+        // check if thread is in tx_thread_ids or not
+        // if not, then the thread has terminated and this one should too
+        if (std::find(tx_thread_ids.begin(), tx_thread_ids.end(), thread_id) == tx_thread_ids.end()) {
             exit_flag = true;
         }
 
