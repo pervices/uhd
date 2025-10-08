@@ -59,7 +59,7 @@ std::mutex thread_duration_mutex;
 // Counters incremented by tx/rx threads when finished to track when streaming is finished
 std::atomic_size_t rx_threads_active{0};
 std::atomic_size_t tx_threads_active{0};
-std::vector<std::thread::id> rx_thread_ids;
+std::vector<size_t> rx_thread_ids;
 std::vector<std::thread::id> tx_thread_ids;
 
 
@@ -101,7 +101,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     double adjusted_rx_delay,
     double user_rx_delay,
     bool rx_stream_now,
-    double& rx_actual_duration)
+    size_t thread_count=0)
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
@@ -110,7 +110,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     std::cout << "RX INSIDE THREAD ID: " << std::this_thread::get_id() << std::endl;
 
     std::cout << "Rx thread ids vector size before: " << rx_thread_ids.size();
-    const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
+    const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), thread_count);
+    // const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
     std::cout << "Rx thread ids vector size after: " << rx_thread_ids.size();
 
     // print pre-test summary
@@ -700,7 +701,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
 
         // Resize id vector to hold all channels
-        rx_thread_ids.resize(rx_channel_nums.size());
+        rx_thread_ids.reserve(rx_channel_nums.size());
 
         size_t spb = 0;
         if (vm.count("rx_spp")) {
@@ -724,7 +725,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 stream_args.args                 = uhd::device_addr_t(rx_stream_args);
                 uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
                 
-                std::thread *rx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed, &rx_actual_duration]() {
+                std::thread *rx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed]() {
                     benchmark_rx_rate(usrp,
                         rx_cpu,
                         rx_stream,
@@ -737,7 +738,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         adjusted_rx_delay,
                         rx_delay,
                         rx_stream_now,
-                        rx_actual_duration);
+                        count);
                 });
                 std::cout << "RX THREAD ID: " << rx_thread->get_id() << std::endl;
                 uhd::set_thread_name(rx_thread, "bmark_rx_strm" + std::to_string(count));
@@ -748,7 +749,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             stream_args.channels             = rx_channel_nums;
             stream_args.args                 = uhd::device_addr_t(rx_stream_args);
             uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-            std::thread *rx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed, &rx_actual_duration]() {
+            std::thread *rx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed]() {
                 benchmark_rx_rate(usrp,
                     rx_cpu,
                     rx_stream,
@@ -760,8 +761,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     elevate_priority,
                     adjusted_rx_delay,
                     rx_delay,
-                    rx_stream_now,
-                    rx_actual_duration);
+                    rx_stream_now);
             });
             std::cout << "RX THREAD ID: " << rx_thread->get_id() << std::endl;
             uhd::set_thread_name(rx_thread, "bmark_rx_stream");
