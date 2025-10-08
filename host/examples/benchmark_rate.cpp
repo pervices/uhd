@@ -60,7 +60,7 @@ std::mutex thread_duration_mutex;
 std::atomic_size_t rx_threads_active{0};
 std::atomic_size_t tx_threads_active{0};
 std::vector<size_t> rx_thread_ids;
-std::vector<std::thread::id> tx_thread_ids;
+std::vector<size_t> tx_thread_ids;
 
 
 inline auto time_delta(const start_time_type& ref_time)
