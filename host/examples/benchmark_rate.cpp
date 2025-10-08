@@ -991,10 +991,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                                "  Num late commands:        %u\n" //-- need to check -- late_cmd_threshold
                                "  Num timeouts (Tx):        %u\n" //-- need to check
                                "  Num timeouts (Rx):        %u\n" //-- need to check
-                               "  Expected duration (Tx):   %u\n"
-                               "  Actual duration (Tx):     %u\n"
-                               "  Expected duration (Rx):   %u\n"
-                               "  Actual duration (Rx):     %u\n")
+                               "  Expected duration (Tx):   %f\n"
+                               "  Actual duration (Tx):     %f\n"
+                               "  Expected duration (Rx):   %f\n"
+                               "  Actual duration (Rx):     %f\n")
                      % num_rx_samps % num_dropped_samps % num_overruns % num_tx_samps
                      % num_seq_errors % num_seqrx_errors % num_underruns
                      % num_late_commands % num_timeouts_tx % num_timeouts_rx
