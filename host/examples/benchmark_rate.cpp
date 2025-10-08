@@ -9,6 +9,7 @@
 #include <uhd/types/stream_cmd.hpp>
 #include <uhd/types/time_spec.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
+#include <uhd/utils/log.h>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
 #include <boost/algorithm/string.hpp>
@@ -53,15 +54,13 @@ std::atomic_ullong num_late_commands{0};
 std::atomic_ullong num_timeouts_rx{0};
 std::atomic_ullong num_timeouts_tx{0};
 
+// Track active threads using vector that holds an id for each thread
 std::condition_variable threads_cv;
-std::mutex thread_ids_mutex;
-std::mutex tx_thread_ids_mutex;
+std::mutex rx_threads_mutex;
+std::mutex tx_threads_mutex;
 
-// Counters incremented by tx/rx threads when finished to track when streaming is finished
-std::atomic_size_t rx_threads_active{0};
-std::atomic_size_t tx_threads_active{0};
-std::vector<size_t> rx_thread_ids;
-std::vector<size_t> tx_thread_ids;
+std::vector<size_t> rx_active_threads;
+std::vector<size_t> tx_active_threads;
 
 
 inline auto time_delta(const start_time_type& ref_time)
@@ -97,7 +96,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     size_t spc,
     bool random_nsamps,
     const start_time_type& start_time,
-    std::atomic<bool>& burst_timer_elapsed,
+    std::atomic<bool>& timeout_exceeded,
     bool elevate_priority,
     double adjusted_rx_delay,
     double user_rx_delay,
@@ -108,16 +107,11 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_priority_safe();
         uhd::set_thread_affinity_active_core();
     }
-    std::cout << "RX INSIDE THREAD ID: " << std::this_thread::get_id() << std::endl;
 
-    std::cout << "Rx thread ids vector size before: " << rx_thread_ids.size() << std::endl;
-    // Lock to protect the thread ids vector
-    std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
-    const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), thread_count);
-    // unlock until it is needed at end of thread
+    // Indicate thread has started by adding the count number to the vector
+    std::unique_lock<std::mutex> id_lock(rx_threads_mutex);
+    const auto id_pos = rx_active_threads.emplace(rx_active_threads.end(), thread_count);
     id_lock.unlock();
-    // const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
-    std::cout << "Rx thread ids vector size after: " << rx_thread_ids.size() << std::endl;
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -157,10 +151,9 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
    
     // Track number of samples sent for this stream instead of total from num_rx_samps
     size_t streamed_rx_samps = 0;
-    // Loop until all samples have been sent
-    while (streamed_rx_samps < total_rx_samps) {
+    // Continuously stream until all samples are sent or the timeout is exceeded
+    while ((streamed_rx_samps < total_rx_samps) && !timeout_exceeded) {
         size_t samps_left = (total_rx_samps - streamed_rx_samps) / num_channels;
-
         if (random_nsamps) {
             cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(user_rx_delay);
             // Should not exceed the number of samples per channel left, so set as an upper bound
@@ -250,16 +243,14 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
         }
     }
-    // const auto actual_stop_time = std::chrono::steady_clock::now();
-    // rx_actual_duration = std::chrono::duration<float>(actual_stop_time - rx_start_time).count();
+
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
-    // Decrement thread counter when finished
-    std::cout << "ENDING RX THREAD: " << std::this_thread::get_id() << std::endl;
+
+    // Remove thread from the vector to indicate it is finished
     id_lock.lock();
-    rx_thread_ids.erase(id_pos);
+    rx_active_threads.erase(id_pos);
     id_lock.unlock();
-    std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
-    // actual_duration_rx = rx_actual_duration;
+    // Notify waiting threads that the active threads vector was updated
     threads_cv.notify_all();
 
     // while (true) {
@@ -289,7 +280,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     const std::string& tx_cpu,
     uhd::tx_streamer::sptr tx_stream,
-    std::atomic<bool>& burst_timer_elapsed,
+    std::atomic<bool>& timeout_exceeded,
     const start_time_type& start_time,
     const size_t spb,
     const size_t spc,
@@ -303,10 +294,11 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_priority_safe();
         uhd::set_thread_affinity_active_core();
     }
-    std::unique_lock<std::mutex> id_lock(tx_thread_ids_mutex);
-    const auto id_pos = tx_thread_ids.emplace(tx_thread_ids.end(), thread_count);
+
+    // Indicate thread has started by adding the count number to the vector
+    std::unique_lock<std::mutex> id_lock(tx_threads_mutex);
+    const auto id_pos = tx_active_threads.emplace(tx_active_threads.end(), thread_count);
     id_lock.unlock();
-    std::cout << "TX INSIDE THREAD ID: " << std::this_thread::get_id() << std::endl;
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -340,7 +332,8 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     }
 
     size_t streamed_tx_samps = 0;
-    while (streamed_tx_samps < total_tx_samps) {
+    // Continuously stream until all samples are sent or the timeout is exceeded
+    while ((streamed_tx_samps < total_tx_samps) && !timeout_exceeded) {
         size_t samps_left = (total_tx_samps - streamed_tx_samps) / num_channels;
         size_t nsamps_send;
 
@@ -399,36 +392,31 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send(buffs, 0, md);
-    // const auto actual_stop_time = std::chrono::steady_clock::now();
-    // tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
-    // Decrement thread counter when finished
-    std::cout << "ENDING TX THREAD: " << std::this_thread::get_id() << std::endl;
+
+    // Indicate thread is finished by removing from the vector
     id_lock.lock();
-    tx_thread_ids.erase(id_pos);
+    tx_active_threads.erase(id_pos);
     id_lock.unlock();
-    std::cout << "[" << NOW() << "] TX THREADS ACTIVE: " << tx_thread_ids.size() << std::endl;
+    // Notify waiting threads that the active threads vector has been updated
     threads_cv.notify_all();
 }
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
     const start_time_type& start_time,
-    std::atomic<bool>& burst_timer_elapsed,
-    size_t thread_id = 0)
+    std::atomic<bool>& timeout_exceeded,
+    size_t thread_num = 0)
 {
     // setup variables and allocate buffer
     uhd::async_metadata_t async_md;
     bool exit_flag = false;
 
-    std::cout << "ASYNC THREAD ID: " << thread_id << std::endl;
-
     while (true) {
-        // check if thread is in tx_thread_ids or not
-        // if not, then the thread has terminated and this one should too
-        if (std::find(tx_thread_ids.begin(), tx_thread_ids.end(), thread_id) == tx_thread_ids.end()) {
-            std::cout << "Tx thread ID no longer in vector" << std::endl;
+        // Raise exit flag if associated tx thread has finished or timeout is exceeded
+        if ((std::find(tx_active_threads.begin(), tx_active_threads.end(), thread_num) == tx_active_threads.end()) || timeout_exceeded) {
             exit_flag = true;
         }
 
+        // If associated tx thread has finished and async recv times out, return from this helper thread
         if (not tx_stream->recv_async_msg(async_md)) {
             if (exit_flag == true)
                 return;
@@ -475,7 +463,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::string ref, pps;
     std::string channel_list, rx_channel_list, tx_channel_list;
     bool random_nsamps = false;
-    std::atomic<bool> burst_timer_elapsed(false);
+    std::atomic<bool> timeout_exceeded(false);
     size_t overrun_threshold, underrun_threshold, drop_threshold, seq_threshold, late_cmd_threshold, tx_timeout_threshold, rx_timeout_threshold;
     size_t rx_spp, tx_spp, rx_spb, tx_spb, tx_align = 0;
     double tx_delay, rx_delay, adjusted_tx_delay, adjusted_rx_delay;
@@ -588,6 +576,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
     int num_mboards = usrp->get_num_mboards();
 
+    // Manage all spawned threads through this vector
     std::vector<std::thread> thread_group;
 
     if (vm.count("ref")) {
@@ -690,6 +679,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_time_now(0.0);
     }
 
+    // Record time before spawning thread to measure thread run-time
     const auto rx_threads_start = std::chrono::steady_clock::now();
     // spawn the receive test thread
     if (vm.count("rx_rate")) {
@@ -709,11 +699,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             rx_stream_now = true;
         }
 
-        // Resize id vector to hold all channels
-        std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
-        rx_thread_ids.reserve(rx_channel_nums.size());
-        id_lock.unlock();
-
         size_t spb = 0;
         if (vm.count("rx_spp")) {
             std::cout << "Setting RX samples per packet (spp) to " << rx_spp << std::endl;
@@ -723,12 +708,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if (vm.count("rx_spb")) {
             spb = rx_spb;
         }
-        // calculate samples per channel from specified duration and sample rate
-        auto rate = usrp->get_rx_rate();
-        size_t spc = duration*rate;
-        std::cout << "Samples per Rx channel: " << spc << std::endl;
+
+        // Increase active threads capacity to hold an element for each channel in-case of multistreaming
+        std::unique_lock<std::mutex> id_lock(rx_threads_mutex);
+        rx_active_threads.reserve(rx_channel_nums.size());
+        id_lock.unlock();
+        
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < rx_channel_nums.size(); count++) {
+                // Calculate samples per channel from specified duration and actual sample rate
+                double rate = usrp->get_rx_rate(rx_channel_nums[count]);
+                size_t spc = duration*rate;
+                
                 std::vector<size_t> this_streamer_channels{rx_channel_nums[count]};
                 // create a receive streamer
                 uhd::stream_args_t stream_args(rx_cpu, rx_otw);
@@ -736,49 +727,55 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 stream_args.args                 = uhd::device_addr_t(rx_stream_args);
                 uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
                 
-                std::thread *rx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed]() {
-                    benchmark_rx_rate(usrp,
+                std::thread *rx_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
+                    benchmark_rx_rate(
+                        usrp,
                         rx_cpu,
                         rx_stream,
                         spb,
                         spc,
                         random_nsamps,
                         start_time,
-                        burst_timer_elapsed,
+                        timeout_exceeded,
                         elevate_priority,
                         adjusted_rx_delay,
                         rx_delay,
                         rx_stream_now,
                         count);
                 });
-                std::cout << "RX THREAD ID: " << rx_thread->get_id() << std::endl;
                 uhd::set_thread_name(rx_thread, "bmark_rx_strm" + std::to_string(count));
             }
         } else {
+            // Calculate samples per channel from specified duration and actual sample rate
+            // Since there should only be one sample rate per streamer, all channels will have the same rate
+            double rate = usrp->get_rx_rate();
+            size_t spc = duration*rate;
+
             // create a receive streamer
             uhd::stream_args_t stream_args(rx_cpu, rx_otw);
             stream_args.channels             = rx_channel_nums;
             stream_args.args                 = uhd::device_addr_t(rx_stream_args);
             uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
-            std::thread *rx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed]() {
-                benchmark_rx_rate(usrp,
+            std::thread *rx_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
+                benchmark_rx_rate(
+                    usrp,
                     rx_cpu,
                     rx_stream,
                     spb,
                     spc,
                     random_nsamps,
                     start_time,
-                    burst_timer_elapsed,
+                    timeout_exceeded,
                     elevate_priority,
                     adjusted_rx_delay,
                     rx_delay,
                     rx_stream_now);
             });
-            std::cout << "RX THREAD ID: " << rx_thread->get_id() << std::endl;
             uhd::set_thread_name(rx_thread, "bmark_rx_stream");
         }
     }
 
+    // Record time before spawning thread to measure tx run-time
     const auto tx_threads_start = std::chrono::steady_clock::now();
     // spawn the transmit test thread
     if (vm.count("tx_rate")) {
@@ -794,14 +791,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             tx_delay = 0.5;
         }
 
-        // calculate samples per channel from specified duration and sample rate
-        auto rate = usrp->get_tx_rate();
-        size_t spc = duration*rate;
-        std::cout << "Samples per Tx channel: " << spc << std::endl;
-
-        // Resize id vector to hold all channels
-        std::unique_lock<std::mutex> id_lock(tx_thread_ids_mutex);
-        tx_thread_ids.reserve(tx_channel_nums.size());
+        // Increase active threads capacity to hold an element for each channel in-case of multistreaming
+        std::unique_lock<std::mutex> id_lock(tx_threads_mutex);
+        tx_active_threads.reserve(tx_channel_nums.size());
         id_lock.unlock();
 
         if (vm.count("multi_streamer")) {
@@ -830,11 +822,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     spb = spb - (spb % tx_align);
                 }
                 std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-                std::thread *tx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed]() {
-                    benchmark_tx_rate(usrp,
+                
+                // Calculate samples per channel from specified duration and actual sample rate
+                double rate = usrp->get_tx_rate(tx_channel_nums[count]);
+                size_t spc = duration*rate;
+
+                std::thread *tx_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
+                    benchmark_tx_rate(
+                        usrp,
                         tx_cpu,
                         tx_stream,
-                        burst_timer_elapsed,
+                        timeout_exceeded,
                         start_time,
                         spb,
                         spc,
@@ -844,14 +842,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         random_nsamps,
                         count);
                 });
-                std::cout << "TX THREAD ID: " << tx_thread->get_id() << std::endl;
-                const auto thread_id = tx_thread->get_id();
-                
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
-                std::thread *tx_async_thread =
-                    &thread_group.emplace_back([=, &burst_timer_elapsed]() {
+
+                std::thread *tx_async_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
                         benchmark_tx_rate_async_helper(
-                            tx_stream, start_time, burst_timer_elapsed, count);
+                            tx_stream, 
+                            start_time, 
+                            timeout_exceeded, 
+                            count);
                     });
                 uhd::set_thread_name(
                     tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
@@ -879,11 +877,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 spb = spb - (spb % tx_align);
             }
             std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-            std::thread *tx_thread = &thread_group.emplace_back([=, &burst_timer_elapsed]() {
-                benchmark_tx_rate(usrp,
+
+            // Calculate samples per channel from specified duration and actual sample rate
+            // Since there should only be one sample rate per streamer, all channels will have the same rate
+            double rate = usrp->get_tx_rate();
+            size_t spc = duration*rate;
+
+            std::thread *tx_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
+                benchmark_tx_rate(
+                    usrp,
                     tx_cpu,
                     tx_stream,
-                    burst_timer_elapsed,
+                    timeout_exceeded,
                     start_time,
                     spb,
                     spc,
@@ -892,23 +897,21 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     adjusted_tx_delay,
                     random_nsamps);
             });
-            std::cout << "TX THREAD ID: " << tx_thread->get_id() << std::endl;
-            const auto thread_id = tx_thread->get_id();
             uhd::set_thread_name(tx_thread, "bmark_tx_stream");
-            std::thread *tx_async_thread =
-                &thread_group.emplace_back([=, &burst_timer_elapsed]() {
+
+            std::thread *tx_async_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
                     benchmark_tx_rate_async_helper(
-                        tx_stream, start_time, burst_timer_elapsed);
+                        tx_stream, 
+                        start_time, 
+                        timeout_exceeded);
                 });
             uhd::set_thread_name(tx_async_thread, "bmark_tx_helper");
         }
     }
-    std::cout << "RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
-    std::cout << "TX THREADS ACTIVE: " << tx_thread_ids.size() << std::endl;
 
     std::cout << "Expected rx duration in main: " << duration + adjusted_rx_delay << std::endl;
     std::cout << "Expected tx duration in main: " << duration + adjusted_tx_delay << std::endl;
-    // Sleep for the required duration (add any initial delay).
+    // Calculate max expected streaming duration including any initial delay.
     // If you are benchmarking Rx and Tx at the same time, Rx threads will run longer
     // than specified duration if tx_delay > rx_delay because of the overly simplified
     // logic below and vice versa.
@@ -922,39 +925,43 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Give threads 10s above expected duration to finish
     const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration) + 10s;
-    std::unique_lock<std::mutex> duration_lock(thread_ids_mutex);
-    // If rx or tx was not run, set to true to avoid assigning end time
+    std::unique_lock<std::mutex> duration_lock(rx_threads_mutex);
+    // If rx or tx was not run, set to true to avoid falsely assigning end time
     bool rx_threads_done = vm.count("rx_rate") ? false : true;
     bool tx_threads_done = vm.count("tx_rate") ? false : true;
 
-    std::chrono::time_point<std::chrono::steady_clock> rx_threads_end;
-    std::chrono::time_point<std::chrono::steady_clock> tx_threads_end;
-    while ((rx_thread_ids.size() || tx_thread_ids.size()) && (std::chrono::steady_clock::now() < threads_timeout)) {
-        std::cout << "Before wait" << std::endl;
-        // Notified at end of every thread, so loop back and wait until no active threads or timeout is reached
+    // The active threads vectors should only have a length > 0 when a thread is still running
+    // Block here until all threads have finished or the calculated timeout is reached
+    while ((rx_active_threads.size() || tx_active_threads.size()) && (std::chrono::steady_clock::now() < threads_timeout)) {
+        // Notified at the end of every thread, so loop back and wait until no active threads or timeout is reached
         threads_cv.wait_until(duration_lock, threads_timeout);
-        std::cout << "After wait" << std::endl;
-        // Both of these are only true simultaneously while threads are still alive or when the final one has ended
-        if (!rx_thread_ids.size() && !rx_threads_done) {
+
+        // Both of these are only true simultaneously while threads are still active or when the final one has just ended
+        if (!rx_active_threads.size() && !rx_threads_done) {
             rx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - rx_threads_start).count();
             rx_threads_done = true;
         }
-        if (!tx_thread_ids.size() && !tx_threads_done) {
+        if (!tx_active_threads.size() && !tx_threads_done) {
             tx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - tx_threads_start).count();
             tx_threads_done = true;
         }
     }
 
-    if (!rx_threads_done || !tx_threads_done) {
-        std::cout << "THREADS DID NOT FINISH" << std::endl;
+    // Report error if threads are still running after timeout period
+    if (!rx_threads_done) {
+        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Rx threads are still running beyond expected duration.\n"
+                            << "    Number of Rx threads still running: " << rx_active_threads.size() << std::endl;
     }
+    if (!tx_threads_done) {
+        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx threads are still running beyond expected duration.\n"
+                            << "Number of Tx threads still running: " << tx_active_threads.size() << std::endl;
+    }
+
     // interrupt and join the threads
-    burst_timer_elapsed = true;
+    timeout_exceeded = true;
     for (auto &th : thread_group) {
-        std::cout << "JOINING THREAD: " << th.get_id() << std::endl;
         th.join();
     }
-    std::cout << "Threads terminated" << std::endl;
 
     std::cout << "[" << NOW() << "] Benchmark complete." << std::endl << std::endl;
 
