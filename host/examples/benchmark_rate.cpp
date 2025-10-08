@@ -789,8 +789,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << "Samples per Tx channel: " << spc << std::endl;
 
         // Resize id vector to hold all channels
-        std::cout << "Tx channel nums: " << tx_channel_nums.size() << std::endl;
-        tx_thread_ids.resize(tx_channel_nums.size());
+        tx_thread_ids.reserve(tx_channel_nums.size());
 
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
