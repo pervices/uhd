@@ -252,26 +252,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     id_lock.unlock();
     // Notify waiting threads that the active threads vector was updated
     threads_cv.notify_all();
-
-    // while (true) {
-    //     if (burst_timer_elapsed) {
-    //         rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
-    //         return;
-    //     }
-    //     if (random_nsamps) {
-    //         cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(user_rx_delay);
-    //         cmd.num_samps = (rand() % spb) + 1;
-    //         rx_stream->issue_stream_cmd(cmd);
-    //     }
-    //     try {
-    //         num_rx_samps += rx_stream->recv(buffs, cmd.num_samps, md, recv_timeout)
-    //                         * rx_stream->get_num_channels();
-    //         recv_timeout = burst_pkt_time;
-    //     } catch (uhd::io_error& e) {
-    //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Caught an IO exception. " << std::endl;
-    //         UHD_LOGGER_ERROR("BENCHMARK_RATE") << e.what() << std::endl;
-    //         return;
-    //     }
 }
 
 /***********************************************************************
@@ -361,34 +341,6 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         md.has_time_spec = false;
     }
 
-    // if (random_nsamps) {
-    //     std::srand((unsigned int)time(NULL));
-    //     while (not burst_timer_elapsed) {
-    //         size_t num_samps = (rand() % spb) + 1;
-    //         if (sample_align) {
-    //             num_samps =
-    //                 std::max(sample_align, num_samps - (num_samps % sample_align));
-    //         }
-    //         num_tx_samps += tx_stream->send(buffs, num_samps, md, timeout)
-    //                         * tx_stream->get_num_channels();
-    //         md.has_time_spec = false;
-    //     }
-    // } else {
-    //     while (not burst_timer_elapsed) {
-    //         const size_t num_tx_samps_sent_now =
-    //             tx_stream->send(buffs, spb, md, timeout) * tx_stream->get_num_channels();
-    //         num_tx_samps += num_tx_samps_sent_now;
-    //         if (num_tx_samps_sent_now == 0) {
-    //             num_timeouts_tx++;
-    //             if ((num_timeouts_tx % 10000) == 1) {
-    //                 UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx.load()
-    //                           << std::endl;
-    //             }
-    //         }
-    //         md.has_time_spec = false;
-    //     }
-    // }
-
     // send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send(buffs, 0, md);
@@ -472,6 +424,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     bool elevate_priority = false;
     double rx_actual_duration = 0.0;
     double tx_actual_duration = 0.0;
+    double expected_rx_duration = 0;
+    double expected_tx_duration = 0;
 
     // setup the program options
     po::options_description desc("Allowed options");
@@ -698,6 +652,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             && (vm.count("multi_streamer") || rx_channel_nums.size() == 1)) {
             rx_stream_now = true;
         }
+        // Calculate expected rx duration
+        expected_rx_duration = duration + adjusted_rx_delay;
 
         size_t spb = 0;
         if (vm.count("rx_spp")) {
@@ -798,6 +754,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
+                // Calculate samples per channel from specified duration and actual sample rate
+                double rate = usrp->get_tx_rate(tx_channel_nums[count]);
+                size_t spc = duration*rate;
+
                 std::vector<size_t> this_streamer_channels{tx_channel_nums[count]};
 
                 // create a transmit streamer
@@ -820,13 +780,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     }
                 } else if (vm.count("tx_sample_align")) {
                     spb = spb - (spb % tx_align);
+                    // update samples per channel to align
+                    spc = spc - (spc % tx_align);
                 }
                 std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
-                
-                // Calculate samples per channel from specified duration and actual sample rate
-                double rate = usrp->get_tx_rate(tx_channel_nums[count]);
-                size_t spc = duration*rate;
 
+                // Calculate expected tx duration here in-case spc was adjusted to a multiple of alignment
+                expected_tx_duration = (spc / rate) + adjusted_tx_delay;
                 std::thread *tx_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
                     benchmark_tx_rate(
                         usrp,
@@ -856,6 +816,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             }
         } else {
             // create a transmit streamer
+
+            // Calculate samples per channel from specified duration and actual sample rate
+            // Since there should only be one sample rate per streamer, all channels will have the same rate
+            double rate = usrp->get_tx_rate();
+            size_t spc = duration*rate;
+
             uhd::stream_args_t stream_args(tx_cpu, tx_otw);
             stream_args.channels = tx_channel_nums;
             stream_args.args     = uhd::device_addr_t(tx_stream_args);
@@ -875,13 +841,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 }
             } else if (vm.count("tx_sample_align")) {
                 spb = spb - (spb % tx_align);
+                spc = spc - (spc % tx_align);
             }
             std::cout << "Setting TX samples per burst (spb) to " << spb << std::endl;
 
-            // Calculate samples per channel from specified duration and actual sample rate
-            // Since there should only be one sample rate per streamer, all channels will have the same rate
-            double rate = usrp->get_tx_rate();
-            size_t spc = duration*rate;
+            // Calculate expected tx duration here in-case spc was adjusted to a multiple of alignment
+            expected_tx_duration = (spc / rate) + adjusted_tx_delay;
 
             std::thread *tx_thread = &thread_group.emplace_back([=, &timeout_exceeded]() {
                 benchmark_tx_rate(
@@ -913,14 +878,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // If you are benchmarking Rx and Tx at the same time, Rx threads will run longer
     // than specified duration if tx_delay > rx_delay because of the overly simplified
     // logic below and vice versa.
-    double expected_rx_duration = 0;
-    double expected_tx_duration = 0;
-    if (vm.count("rx_rate")) {
-        expected_rx_duration = duration + adjusted_rx_delay;
-    }
-    if (vm.count("tx_rate")) {
-        expected_tx_duration = duration + adjusted_tx_delay;
-    }
     duration = std::max(expected_rx_duration, expected_tx_duration);
 
     // Give threads 10s above expected duration to finish
