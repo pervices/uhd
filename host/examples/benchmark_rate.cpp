@@ -55,6 +55,7 @@ std::atomic_ullong num_timeouts_tx{0};
 
 std::condition_variable threads_cv;
 std::mutex thread_ids_mutex;
+std::mutex tx_thread_ids_mutex;
 
 // Counters incremented by tx/rx threads when finished to track when streaming is finished
 std::atomic_size_t rx_threads_active{0};
@@ -302,7 +303,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_priority_safe();
         uhd::set_thread_affinity_active_core();
     }
-    std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
+    std::unique_lock<std::mutex> id_lock(tx_thread_ids_mutex);
     const auto id_pos = tx_thread_ids.emplace(tx_thread_ids.end(), thread_count);
     id_lock.unlock();
     std::cout << "TX INSIDE THREAD ID: " << std::this_thread::get_id() << std::endl;
@@ -799,7 +800,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << "Samples per Tx channel: " << spc << std::endl;
 
         // Resize id vector to hold all channels
-        std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
+        std::unique_lock<std::mutex> id_lock(tx_thread_ids_mutex);
         tx_thread_ids.reserve(tx_channel_nums.size());
         id_lock.unlock();
 
