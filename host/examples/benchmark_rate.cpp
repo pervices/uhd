@@ -909,22 +909,22 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
-    std::cout << "Expected rx duration in main: " << duration + adjusted_rx_delay << std::endl;
-    std::cout << "Expected tx duration in main: " << duration + adjusted_tx_delay << std::endl;
     // Calculate max expected streaming duration including any initial delay.
     // If you are benchmarking Rx and Tx at the same time, Rx threads will run longer
     // than specified duration if tx_delay > rx_delay because of the overly simplified
     // logic below and vice versa.
-    if (vm.count("rx_rate") and vm.count("tx_rate")) {
-        duration += std::max(adjusted_rx_delay, adjusted_tx_delay);
-    } else if (vm.count("rx_rate")) {
-        duration += adjusted_rx_delay;
-    } else {
-        duration += adjusted_tx_delay;
+    double expected_rx_duration = 0;
+    double expected_tx_duration = 0;
+    if (vm.count("rx_rate")) {
+        expected_rx_duration = duration + adjusted_rx_delay;
     }
+    if (vm.count("tx_rate")) {
+        expected_tx_duration = duration + adjusted_tx_delay;
+    }
+    duration = std::max(expected_rx_duration, expected_tx_duration);
 
     // Give threads 10s above expected duration to finish
-    const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration);
+    const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration) + 10s;
     std::unique_lock<std::mutex> duration_lock(rx_threads_mutex);
     // If rx or tx was not run, set to true to avoid falsely assigning end time
     bool rx_threads_done = vm.count("rx_rate") ? false : true;
@@ -991,12 +991,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                                "  Num late commands:        %u\n" //-- need to check -- late_cmd_threshold
                                "  Num timeouts (Tx):        %u\n" //-- need to check
                                "  Num timeouts (Rx):        %u\n" //-- need to check
-                               "  Time elapsed (Tx):        %u\n"
-                               "  Time elapsed (Rx):        %u\n")
+                               "  Expected duration (Tx):   %u\n"
+                               "  Actual duration (Tx):     %u\n"
+                               "  Expected duration (Rx):   %u\n"
+                               "  Actual duration (Rx):     %u\n")
                      % num_rx_samps % num_dropped_samps % num_overruns % num_tx_samps
                      % num_seq_errors % num_seqrx_errors % num_underruns
                      % num_late_commands % num_timeouts_tx % num_timeouts_rx
-                     % tx_actual_duration % rx_actual_duration
+                     % expected_tx_duration % tx_actual_duration
+                     % expected_rx_duration % rx_actual_duration
               << std::endl;
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
