@@ -949,12 +949,19 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Report error if threads are still running after timeout period
     if (!rx_threads_done) {
-        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Rx threads are still running beyond expected duration.\n"
-                            << "    Number of Rx threads still running: " << rx_active_threads.size() << std::endl;
+        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Rx threads are still running beyond expected duration."
+                            << "\n    Number of Rx threads still running: " << rx_active_threads.size()
+                            << "\n    Interrupting threads..." << std::endl;
+        // Set thread duration to point after timeout
+        rx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - rx_threads_start).count();
+
     }
     if (!tx_threads_done) {
-        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx threads are still running beyond expected duration.\n"
-                            << "Number of Tx threads still running: " << tx_active_threads.size() << std::endl;
+        UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx threads are still running beyond expected duration."
+                            << "\n    Number of Tx threads still running: " << tx_active_threads.size() 
+                            << "\n    Interrupting threads..." << std::endl;
+        // Set thread duration to point after timeout
+        tx_actual_duration = std::chrono::duration<float>(std::chrono::steady_clock::now() - tx_threads_start).count();
     }
 
     // interrupt and join the threads
