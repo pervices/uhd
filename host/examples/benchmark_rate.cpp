@@ -924,7 +924,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // Give threads 10s above expected duration to finish
-    const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration) + 10s;
+    const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration) + 1s;
     std::unique_lock<std::mutex> duration_lock(rx_threads_mutex);
     // If rx or tx was not run, set to true to avoid falsely assigning end time
     bool rx_threads_done = vm.count("rx_rate") ? false : true;
