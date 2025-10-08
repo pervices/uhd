@@ -109,7 +109,9 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     }
     std::cout << "RX INSIDE THREAD ID: " << std::this_thread::get_id() << std::endl;
 
+    std::cout << "Rx thread ids vector size before: " << rx_thread_ids.size();
     const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
+    std::cout << "Rx thread ids vector size after: " << rx_thread_ids.size();
 
     // print pre-test summary
     auto time_stamp   = NOW();
@@ -252,7 +254,6 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
     // actual_duration_rx = rx_actual_duration;
     threads_cv.notify_all();
-    return;
 
     // while (true) {
     //     if (burst_timer_elapsed) {
@@ -698,6 +699,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             rx_stream_now = true;
         }
 
+        // Resize id vector to hold all channels
+        rx_thread_ids.resize(rx_channel_nums.size());
+
         size_t spb = 0;
         if (vm.count("rx_spp")) {
             std::cout << "Setting RX samples per packet (spp) to " << rx_spp << std::endl;
@@ -783,6 +787,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         auto rate = usrp->get_tx_rate();
         size_t spc = duration*rate;
         std::cout << "Samples per Tx channel: " << spc << std::endl;
+
+        // Resize id vector to hold all channels
+        rx_thread_ids.resize(tx_channel_nums.size());
 
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
