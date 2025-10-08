@@ -247,6 +247,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
+    std::cout << "ENDING RX THREAD: " << std::this_thread::get_id() << std::endl;
     rx_thread_ids.erase(id_pos);
     std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
     // actual_duration_rx = rx_actual_duration;
@@ -388,13 +389,13 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // send a mini EOB packet
     md.end_of_burst = true;
     tx_stream->send(buffs, 0, md);
-    std::cout << "Done Tx stream" << std::endl;
     // const auto actual_stop_time = std::chrono::steady_clock::now();
     // tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
     // Decrement thread counter when finished
     std::unique_lock<std::mutex> lk(thread_duration_mutex);
+    std::cout << "ENDING TX THREAD: " << std::this_thread::get_id() << std::endl;
     tx_thread_ids.erase(id_pos);
-    std::cout << "[" << NOW() << "] TX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
+    std::cout << "[" << NOW() << "] TX THREADS ACTIVE: " << tx_thread_ids.size() << std::endl;
     threads_cv.notify_all();
 }
 
@@ -413,6 +414,7 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
         // check if thread is in tx_thread_ids or not
         // if not, then the thread has terminated and this one should too
         if (std::find(tx_thread_ids.begin(), tx_thread_ids.end(), thread_id) == tx_thread_ids.end()) {
+            std::cout << "Tx thread ID no longer in vector" << std::endl;
             exit_flag = true;
         }
 
