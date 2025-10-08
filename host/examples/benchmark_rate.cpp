@@ -115,7 +115,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     // print pre-test summary
     auto time_stamp   = NOW();
-    auto rx_rate      = usrp->get_rx_rate() / 1e6;
+    auto rx_rate      = usrp->get_rx_rate(thread_count) / 1e6;
     auto num_channels = rx_stream->get_num_channels();
     size_t total_rx_samps = spc * num_channels;
     std::cout << boost::format("[%s] Testing receive rate %f Msps on %u channels for %u total samples\n")
@@ -302,7 +302,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     // print pre-test summary
     auto time_stamp   = NOW();
-    auto tx_rate      = usrp->get_tx_rate();
+    auto tx_rate      = usrp->get_tx_rate(thread_count);
     auto num_channels = tx_stream->get_num_channels();
     size_t total_tx_samps = spc*num_channels;
     std::cout << boost::format("[%s] Testing transmit rate %f Msps on %u channels for %u total samples\n")
@@ -741,7 +741,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         adjusted_rx_delay,
                         rx_delay,
                         rx_stream_now,
-                        count);
+                        rx_channel_nums[count]);
                 });
                 uhd::set_thread_name(rx_thread, "bmark_rx_strm" + std::to_string(count));
             }
@@ -840,7 +840,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                         elevate_priority,
                         adjusted_tx_delay,
                         random_nsamps,
-                        count);
+                        tx_channel_nums[count]);
                 });
                 uhd::set_thread_name(tx_thread, "bmark_tx_strm" + std::to_string(count));
 
@@ -849,7 +849,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                             tx_stream, 
                             start_time, 
                             timeout_exceeded, 
-                            count);
+                            tx_channel_nums[count]);
                     });
                 uhd::set_thread_name(
                     tx_async_thread, "bmark_tx_hlpr" + std::to_string(count));
