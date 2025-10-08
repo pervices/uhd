@@ -54,7 +54,7 @@ std::atomic_ullong num_timeouts_rx{0};
 std::atomic_ullong num_timeouts_tx{0};
 
 std::condition_variable threads_cv;
-std::mutex thread_duration_mutex;
+std::mutex thread_ids_mutex;
 
 // Counters incremented by tx/rx threads when finished to track when streaming is finished
 std::atomic_size_t rx_threads_active{0};
@@ -110,7 +110,11 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     std::cout << "RX INSIDE THREAD ID: " << std::this_thread::get_id() << std::endl;
 
     std::cout << "Rx thread ids vector size before: " << rx_thread_ids.size() << std::endl;
+    // Lock to protect the thread ids vector
+    std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
     const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), thread_count);
+    // unlock until it is needed at end of thread
+    id_lock.unlock();
     // const auto id_pos = rx_thread_ids.emplace(rx_thread_ids.end(), std::this_thread::get_id());
     std::cout << "Rx thread ids vector size after: " << rx_thread_ids.size() << std::endl;
 
@@ -249,9 +253,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // rx_actual_duration = std::chrono::duration<float>(actual_stop_time - rx_start_time).count();
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     // Decrement thread counter when finished
-    std::unique_lock<std::mutex> lk(thread_duration_mutex);
     std::cout << "ENDING RX THREAD: " << std::this_thread::get_id() << std::endl;
+    id_lock.lock();
     rx_thread_ids.erase(id_pos);
+    id_lock.unlock();
     std::cout << "[" << NOW() << "] RX THREADS ACTIVE: " << rx_thread_ids.size() << std::endl;
     // actual_duration_rx = rx_actual_duration;
     threads_cv.notify_all();
@@ -297,7 +302,9 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_priority_safe();
         uhd::set_thread_affinity_active_core();
     }
+    std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
     const auto id_pos = tx_thread_ids.emplace(tx_thread_ids.end(), thread_count);
+    id_lock.unlock();
     std::cout << "TX INSIDE THREAD ID: " << std::this_thread::get_id() << std::endl;
 
     // print pre-test summary
@@ -394,9 +401,10 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     // const auto actual_stop_time = std::chrono::steady_clock::now();
     // tx_actual_duration = std::chrono::duration<float>(actual_stop_time - tx_start_time).count();
     // Decrement thread counter when finished
-    std::unique_lock<std::mutex> lk(thread_duration_mutex);
     std::cout << "ENDING TX THREAD: " << std::this_thread::get_id() << std::endl;
+    id_lock.lock();
     tx_thread_ids.erase(id_pos);
+    id_lock.unlock();
     std::cout << "[" << NOW() << "] TX THREADS ACTIVE: " << tx_thread_ids.size() << std::endl;
     threads_cv.notify_all();
 }
@@ -701,7 +709,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
 
         // Resize id vector to hold all channels
+        std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
         rx_thread_ids.reserve(rx_channel_nums.size());
+        id_lock.unlock();
 
         size_t spb = 0;
         if (vm.count("rx_spp")) {
@@ -789,7 +799,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << "Samples per Tx channel: " << spc << std::endl;
 
         // Resize id vector to hold all channels
+        std::unique_lock<std::mutex> id_lock(thread_ids_mutex);
         tx_thread_ids.reserve(tx_channel_nums.size());
+        id_lock.unlock();
 
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < tx_channel_nums.size(); count++) {
@@ -909,7 +921,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Give threads 10s above expected duration to finish
     const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration) + 10s;
-    std::unique_lock<std::mutex> duration_lock(thread_duration_mutex);
+    std::unique_lock<std::mutex> duration_lock(thread_ids_mutex);
     // If rx or tx was not run, set to true to avoid assigning end time
     bool rx_threads_done = vm.count("rx_rate") ? false : true;
     bool tx_threads_done = vm.count("tx_rate") ? false : true;
