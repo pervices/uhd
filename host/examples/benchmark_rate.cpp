@@ -251,12 +251,14 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
 
+    std::cout << "Issued stop command" << std::endl;
     // Remove thread from the vector to indicate it is finished
     id_lock.lock();
     rx_active_threads.erase(id_pos);
     id_lock.unlock();
     // Notify waiting threads that the active threads vector was updated
     threads_cv.notify_all();
+    std::cout << "End of Rx thread" << std::endl;
 }
 
 /***********************************************************************
@@ -356,6 +358,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     id_lock.unlock();
     // Notify waiting threads that the active threads vector has been updated
     threads_cv.notify_all();
+    std::cout << "End of tx thread" << std::endl;
 }
 
 void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
