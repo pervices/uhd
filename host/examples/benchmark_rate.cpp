@@ -253,7 +253,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     std::cout << "Issued stop command" << std::endl;
     // Remove thread from the vector to indicate it is finished
-    id_lock.lock();
+    // id_lock.lock();
     bool got_mutex = id_lock.try_lock_until((std::chrono::steady_clock::now() + 2s));
     if (got_mutex) {
         std::cout << "Have lock" << std::endl;
