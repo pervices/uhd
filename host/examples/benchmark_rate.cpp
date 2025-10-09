@@ -108,6 +108,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_affinity_active_core();
     }
 
+    std::cout << "Starting thread: " << std::this_thread::get_id() << std::endl;
+
     // Indicate thread has started by adding the count number to the vector
     std::unique_lock<std::mutex> id_lock(rx_threads_mutex);
     const auto id_pos = rx_active_threads.emplace(rx_active_threads.end(), thread_count);
@@ -244,6 +246,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 break;
         }
     }
+
+    std::cout << "Out of rx loop" << std::endl;
 
     rx_stream->issue_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
 
@@ -924,6 +928,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // interrupt and join the threads
     timeout_exceeded = true;
     for (auto &th : thread_group) {
+        std::cout << "Joining thread: " << th.get_id() << std::endl;
         th.join();
     }
 
