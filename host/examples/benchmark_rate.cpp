@@ -158,6 +158,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
             cmd.time_spec = usrp->get_time_now() + uhd::time_spec_t(user_rx_delay);
             // Should not exceed the number of samples per channel left, so set as an upper bound
             cmd.num_samps = (rand() % std::clamp(spb, (size_t)0, samps_left)) + 1;
+            std::cout << "Stream cmd num samps: " << cmd.num_samps << std::endl;
             rx_stream->issue_stream_cmd(cmd);
         } else {
             // If the remaining samples per channel are less than spb, send that amount instead to avoid overshooting target
