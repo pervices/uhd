@@ -380,8 +380,10 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
 
         // If associated tx thread has finished and async recv times out, return from this helper thread
         if (not tx_stream->recv_async_msg(async_md)) {
-            if (exit_flag == true)
+            if (exit_flag == true) {
+                std::cout << "Exiting helper thread" << std::endl;
                 return;
+            }
             continue;
         }
 
