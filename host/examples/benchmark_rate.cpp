@@ -108,7 +108,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
         uhd::set_thread_affinity_active_core();
     }
 
-    std::cout << "Starting thread: " << std::this_thread::get_id() << std::endl;
+    std::cout << "Starting thread: " << thread_count << std::endl;
 
     // Indicate thread has started by adding the count number to the vector
     std::unique_lock<std::mutex> id_lock(rx_threads_mutex);
@@ -254,8 +254,10 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     std::cout << "Issued stop command" << std::endl;
     // Remove thread from the vector to indicate it is finished
     id_lock.lock();
+    std::cout << "Locked" << std::endl;
     rx_active_threads.erase(id_pos);
     id_lock.unlock();
+    std::cout << "Unlocked" << std::endl;
     // Notify waiting threads that the active threads vector was updated
     threads_cv.notify_all();
     std::cout << "End of Rx thread" << std::endl;
