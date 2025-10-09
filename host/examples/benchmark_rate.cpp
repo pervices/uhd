@@ -253,16 +253,11 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 
     std::cout << "Issued stop command" << std::endl;
     // Remove thread from the vector to indicate it is finished
-    // id_lock.lock();
-    if (id_lock.try_lock()) {
-        std::cout << "Have lock" << std::endl;
-    } else {
-        std::cout << "Could not get lock" << std::endl;
-    }
-    std::cout << "Locked" << std::endl;
+    std::cout << (id_lock.owns_lock() ? "Already owns lock" : "Locking") << std::endl;
+    id_lock.lock();
     rx_active_threads.erase(id_pos);
     id_lock.unlock();
-    std::cout << "Unlocked" << std::endl;
+    std::cout << (id_lock.owns_lock() ? "Still locked" : "Unlocked") << std::endl;
     // Notify waiting threads that the active threads vector was updated
     threads_cv.notify_all();
     std::cout << "End of Rx thread" << std::endl;
@@ -684,8 +679,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         // Increase active threads capacity to hold an element for each channel in-case of multistreaming
         std::unique_lock<std::mutex> id_lock(rx_threads_mutex);
+        std::cout << (id_lock.owns_lock() ? "owns lock in spawn" : "Does not own lock in spawn") << std::endl;
         rx_active_threads.reserve(rx_channel_nums.size());
         id_lock.unlock();
+        std::cout << (id_lock.owns_lock() ? "Still locked in spawn" : "Unlocked in spawn") << std::endl;
         
         if (vm.count("multi_streamer")) {
             for (size_t count = 0; count < rx_channel_nums.size(); count++) {
@@ -899,7 +896,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Give threads 10s above expected duration to finish
     const auto threads_timeout = std::chrono::steady_clock::now() + (1s * duration) + 10s;
-    std::unique_lock<std::mutex> duration_lock(rx_threads_mutex);
+    // std::unique_lock<std::mutex> duration_lock(rx_threads_mutex);
     // If rx or tx was not run, set to true to avoid falsely assigning end time
     bool rx_threads_done = vm.count("rx_rate") ? false : true;
     bool tx_threads_done = vm.count("tx_rate") ? false : true;
