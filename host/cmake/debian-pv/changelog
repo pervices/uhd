@@ -1,3 +1,10 @@
+uhdpv (4.8.0.22-0ubuntu1) ubuntu_release; urgency=low
+
+  * Improved the warning message for a full recv buffer 
+  * Specified bubblewrap as a make dependency in PKGBUILD
+
+ -- Per Vices <packages@pervices.com>  Thu, 09 Oct 2025 14:43:11 -0400
+
 uhdpv (4.8.0.21-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing not reporting underflow/overflows at the end of tx streaming
