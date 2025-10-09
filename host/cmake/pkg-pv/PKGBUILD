@@ -7,7 +7,7 @@ pkgdesc="Official Per Vices libuhdpv build script supporting all Per Vices SDR p
 arch=('x86_64')
 url="https://www.support.pervices.com"
 license=('GPL')
-makedepends=('cmake' 'glibc' 'git' 'orc' 'libusb' 'boost' 'boost-libs' 'icu' 'python-mako' 'python-requests' 'lapack' 'python-numpy' 'python-retrying' 'python-scipy' 'doxygen' 'gpsd' 'python-setuptools' 'gtk3' 'pkgconf' 'liburing')
+makedepends=('cmake' 'glibc' 'git' 'orc' 'libusb' 'boost' 'boost-libs' 'icu' 'python-mako' 'python-requests' 'lapack' 'python-numpy' 'python-retrying' 'python-scipy' 'doxygen' 'gpsd' 'python-setuptools' 'gtk3' 'pkgconf' 'liburing' 'bubblewrap')
 
 provides=('libuhdpv')
 conflicts=('libuhd')
