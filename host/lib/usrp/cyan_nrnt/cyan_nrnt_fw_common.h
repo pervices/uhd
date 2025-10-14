@@ -56,7 +56,7 @@
 #define CYAN_NRNT_UPDATE_PER_SEC	100
 
 //how full UHD should try to keep the buffer
-#define CYAN_NRNT_BUFF_PERCENT 0.7
+#define CYAN_NRNT_BUFF_PERCENT 0.2
 
 // Cyan NrNt tx RF gain limits, this is definitely wrong
 // TODO: get this info from device
