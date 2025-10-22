@@ -1,3 +1,10 @@
+uhdpv (4.8.0.23-0ubuntu1) ubuntu_release; urgency=low
+
+  * Updated the minimum required Boost version to 1.69
+  * Removes linking of the Boost.System stub library for compatibility with Boost 1.89
+
+ -- Per Vices <packages@pervices.com>  Wed, 22 Oct 2025 09:57:48 -0400
+ 
 uhdpv (4.8.0.22-0ubuntu1) ubuntu_release; urgency=low
 
   * Improved the warning message for a full recv buffer 
