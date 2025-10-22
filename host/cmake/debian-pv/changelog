@@ -1,9 +1,9 @@
-uhdpv (4.8.0.22-0ubuntu1) ubuntu_release; urgency=low
+uhdpv (4.8.0.23-0ubuntu1) ubuntu_release; urgency=low
 
-  * Improved the warning message for a full recv buffer 
-  * Specified bubblewrap as a make dependency in PKGBUILD
+  * Updated the minimum required Boost version to 1.69
+  * Removes linking of the Boost.System stub library for compatibility with Boost 1.89
 
- -- Per Vices <packages@pervices.com>  Thu, 09 Oct 2025 14:43:11 -0400
+ -- Per Vices <packages@pervices.com>  Wed, 22 Oct 2025 09:57:48 -0400
 
 uhdpv (4.8.0.21-0ubuntu1) ubuntu_release; urgency=low
 
