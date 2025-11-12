@@ -279,19 +279,58 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
 
 // Check that all channels for the streamer have the same sample rate. Attempt to find valid rate for all if there is a mismatch.
 void crimson_tng_send_packet_streamer::check_tx_rates() {
-    // TODO: Can I easily find value furthest from target rate using something like std::min_element?
-    for (size_t ch = 0; ch < _eprops.size(); ch++) {
-        // Make sure all channel sample rates match for the streamer
-        double prev_rate = _eprops[0].sample_rate;
-        for (size_t ch = 0; ch < _eprops.size(); ch++) {
-            double current_rate = _eprops[ch].sample_rate;
-            // If there are different rates, error and suggest fixes
-            if (current_rate != prev_rate) {
-                
-            }
-            prev_rate = current_rate;
+    // Max error allowed for difference between specified and actual rates
+    static const double max_allowed_error = 1.0;
+
+    // Copy eprops vector so we can sort by actual rates
+    std::vector<eprops_type> local_eprops(_eprops.size());
+    std::generate(local_eprops.begin(), local_eprops.end(), [&, i=0]() mutable {
+        eprops_type ep = _eprops[ i ];
+        // Convert channel name to lowercase
+        std::transform(ep.name.begin(), ep.name.end(), ep.name.begin(), [](unsigned char c) {
+            return std::tolower(c);
+        });
+        i++;
+        return ep;
+    });
+
+    // Sort the vector in ascending order of sample rates
+    std::sort(local_eprops.begin(), local_eprops.end(), [](eprops_type a, eprops_type b) {
+        return a.sample_rate < b.sample_rate;
+    });
+
+    // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
+    bool mismatch_rates = local_eprops.front().sample_rate != local_eprops.back().sample_rate;
+    // Otherwise, attempt to set the sample rate for all channels from lowest to highest
+    for (size_t ch = 0; ch < local_eprops.size(); ch++) {
+        if (!mismatch_rates) {
+            break;
         }
+        // Try this channels actual rate for all channels
+        bool new_rates_mismatch = false;
+        for (size_t i = 0; i < local_eprops.size(); i++) {
+            eprops_type& e = local_eprops[i];
+            // Channel number associated with channel name
+            size_t channel_num = e.name.at(0) - 'a';
+            _iface->set_double("tx_" + e.name + "/dsp/rate", local_eprops[ch].sample_rate);
+            // Check the new actual rate of the channel matches the target rate
+            double new_rate = _iface->get_double("tx_" + e.name + "/dsp/rate");
+            sync_channel_rate(channel_num, new_rate);
+            set_samp_rate(new_rate);
+            if (std::abs(local_eprops[ch].sample_rate - new_rate) > max_allowed_error) {
+                // If it doesn't match, break out of this loop and try the next rate
+                new_rates_mismatch = true;
+                break;
+            }
+        }
+
+        // If all channels were successfully set to the new rate, break out of loop
+        if (!new_rates_mismatch) {
+            break;
+        }
+        
     }
+    // TODO: Print error if rates still mismatch
 }
 
 /***********************************************************************
