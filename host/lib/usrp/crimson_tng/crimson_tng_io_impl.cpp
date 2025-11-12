@@ -277,6 +277,23 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
     return level;
 }
 
+// Check that all channels for the streamer have the same sample rate. Attempt to find valid rate for all if there is a mismatch.
+void crimson_tng_send_packet_streamer::check_tx_rates() {
+    // TODO: Can I easily find value furthest from target rate using something like std::min_element?
+    for (size_t ch = 0; ch < _eprops.size(); ch++) {
+        // Make sure all channel sample rates match for the streamer
+        double prev_rate = _eprops[0].sample_rate;
+        for (size_t ch = 0; ch < _eprops.size(); ch++) {
+            double current_rate = _eprops[ch].sample_rate;
+            // If there are different rates, error and suggest fixes
+            if (current_rate != prev_rate) {
+                
+            }
+            prev_rate = current_rate;
+        }
+    }
+}
+
 /***********************************************************************
     * buffer_monitor_loop
     * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode
