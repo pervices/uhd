@@ -304,7 +304,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     });
 
     for (auto e : local_eprops) {
-        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, e.name);
+        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Name: " + e.name);
     }
 
     // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
