@@ -290,6 +290,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     for (size_t i=0; i < _eprops.size()-1; i++) {
         local_eprops.at(i).name = std::tolower(_eprops.at(i).name.at(0));
         local_eprops.at(i).sample_rate = _eprops.at(i).sample_rate;
+        std::cout << "Copy eprops no. " << i << std::endl;
     }
     std::cout << "Finished copy" << std::endl;
     // Sort the vector in ascending order of sample rates
