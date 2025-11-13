@@ -320,6 +320,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         // Try this channels actual rate for all channels
         bool matching_new_rates = true;
         for (size_t i = 0; i < local_eprops.size(); i++) {
+            std::cout << "Try rate from channel: " << i << std::endl;
             eprops_type& e = local_eprops[i];
             // Channel number associated with channel name
             std::cout << "CHANNEL NUM: " << e.name << std::endl;
