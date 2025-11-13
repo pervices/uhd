@@ -286,7 +286,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
 
     // Copy eprops vector so we can sort by actual rates
     std::vector<eprops_type> local_eprops(_eprops.size());
-    std::generate(local_eprops.begin(), local_eprops.end(), [=, i=0]() mutable {
+    std::generate(local_eprops.begin(), local_eprops.end(), [this, i=0]() mutable {
         std::cout << "Generator iteration: " << i << std::endl;
         std::cout << "eprops SR: " << _eprops.at(i).sample_rate << std::endl;
         eprops_type ep = _eprops.at(i);
