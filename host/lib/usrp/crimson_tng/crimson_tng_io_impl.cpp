@@ -295,6 +295,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         i++;
         return ep;
     });
+    std::cout << "EPROPS 0: " << _eprops[0].name << std::endl;
 
     // Sort the vector in ascending order of sample rates
     std::sort(local_eprops.begin(), local_eprops.end(), [](eprops_type a, eprops_type b) {
