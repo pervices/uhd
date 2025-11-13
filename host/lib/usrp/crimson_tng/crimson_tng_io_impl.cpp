@@ -35,6 +35,7 @@
 #include <boost/asio.hpp>
 #include <boost/thread/mutex.hpp>
 #include <iostream>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -203,6 +204,7 @@ size_t crimson_tng_send_packet_streamer::send(
         metadata.start_of_burst = true;
 
         // Make sure all channel sample rates match for the streamer
+        check_tx_rates();
         double prev_rate = _eprops[0].sample_rate;
         for (size_t ch = 0; ch < _eprops.size(); ch++) {
             double current_rate = _eprops[ch].sample_rate;
@@ -300,14 +302,23 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     });
 
     // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
-    bool mismatch_rates = local_eprops.front().sample_rate != local_eprops.back().sample_rate;
+    bool matching_rates = local_eprops.front().sample_rate == local_eprops.back().sample_rate;
     // Otherwise, attempt to set the sample rate for all channels from lowest to highest
     for (size_t ch = 0; ch < local_eprops.size(); ch++) {
-        if (!mismatch_rates) {
+        if (matching_rates) {
+            // Rates were already matching if this is the first iteration, so only print message if they were adjusted
+            if (ch > 0) {
+                std::string message = "Using a sample rate of " + std::to_string(_eprops[0].sample_rate / 1e6) + " on streamer.";
+                UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
+            }
             break;
+        } else {
+            std::string message = "Multiple sample rates detected, but a streamer can only handle one.\n"
+                "Attempting to find a valid common rate...";
+            UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
         }
         // Try this channels actual rate for all channels
-        bool new_rates_mismatch = false;
+        bool matching_new_rates = true;
         for (size_t i = 0; i < local_eprops.size(); i++) {
             eprops_type& e = local_eprops[i];
             // Channel number associated with channel name
@@ -319,18 +330,19 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
             set_samp_rate(new_rate);
             if (std::abs(local_eprops[ch].sample_rate - new_rate) > max_allowed_error) {
                 // If it doesn't match, break out of this loop and try the next rate
-                new_rates_mismatch = true;
+                matching_new_rates = false;
                 break;
             }
         }
-
-        // If all channels were successfully set to the new rate, break out of loop
-        if (!new_rates_mismatch) {
-            break;
-        }
-        
+        matching_rates = matching_new_rates;
     }
-    // TODO: Print error if rates still mismatch
+    // Print error if rates still mismatch
+    if (!matching_rates) {
+        std::string message = "Could not find a valid common sample rate for all channels on this streamer.\n"
+            "Make sure the specified sample rate is valid for all channels on this streamer or use multiple streamers instead.";
+        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
+        throw uhd::runtime_error(message);
+    }
 }
 
 /***********************************************************************
