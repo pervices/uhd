@@ -303,6 +303,10 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         return a.sample_rate < b.sample_rate;
     });
 
+    for (auto e : local_eprops) {
+        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, e.name);
+    }
+
     // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
     bool matching_rates = local_eprops.front().sample_rate == local_eprops.back().sample_rate;
     // Otherwise, attempt to set the sample rate for all channels from lowest to highest
