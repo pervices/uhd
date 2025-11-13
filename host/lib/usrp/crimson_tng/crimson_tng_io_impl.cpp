@@ -303,7 +303,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         return a.sample_rate < b.sample_rate;
     });
 
-    for (auto e : local_eprops) {
+    for (auto &e : local_eprops) {
         UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Name: " + e.name);
     }
     std::cout << "after checking sort" << std::endl;
