@@ -285,17 +285,19 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     static const double max_allowed_error = 1.0;
 
     // Copy eprops vector so we can sort by actual rates
-    std::vector<eprops_type> local_eprops;
-    local_eprops.reserve(_eprops.size());
-    for (size_t i=0; i < _eprops.size()-1; i++) {
+    std::vector<eprops_type> local_eprops(_eprops.size());
+    for (size_t i=0; i < _eprops.size(); i++) {
         local_eprops.at(i).name = std::tolower(_eprops.at(i).name.at(0));
         local_eprops.at(i).sample_rate = _eprops.at(i).sample_rate;
-        std::cout << "Copy eprops no. " << i << std::endl;
     }
-    std::cout << "Finished copy" << std::endl;
+
+    std::cout << "eprops 0 name: " << _eprops[0].name << std::endl;
+    std::cout << "local eprops size: " << local_eprops.size() << std::endl;
+    std::cout << "local eprops 0 sr: " << local_eprops[0].sample_rate << std::endl;
+    std::cout << "local eprops 0 name: " << local_eprops[0].name << std::endl;
+
     // Sort the vector in ascending order of sample rates
     std::sort(local_eprops.begin(), local_eprops.end(), [](eprops_type a, eprops_type b) {
-        std::cout << "Checking if " << a.sample_rate << " < " << b.sample_rate << std::endl;
         return a.sample_rate < b.sample_rate;
     });
 
@@ -315,6 +317,9 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
                 "Attempting to find a valid common rate...";
             UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
         }
+        std::transform(local_eprops[ch].name.begin(), local_eprops[ch].name.end(), local_eprops[ch].name.begin(), [](unsigned char c) {
+            return std::tolower(c);
+        });
         // Try this channels actual rate for all channels
         bool matching_new_rates = true;
         for (size_t i = 0; i < local_eprops.size(); i++) {
