@@ -300,6 +300,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     // Sort the vector in ascending order of sample rates
     std::sort(local_eprops.begin(), local_eprops.end(), [](eprops_type &a, eprops_type &b) {
         UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + a.name + " and " + b.name);
+                UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(a.sample_rate) + " and " + std::to_string(b.sample_rate));
         return a.sample_rate < b.sample_rate;
     });
 
