@@ -322,6 +322,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         for (size_t i = 0; i < local_eprops.size(); i++) {
             eprops_type& e = local_eprops[i];
             // Channel number associated with channel name
+            std::cout << "CHANNEL NUM: " << e.name << std::endl;
             size_t channel_num = e.name.at(0) - 'a';
             _iface->set_double("tx_" + e.name + "/dsp/rate", local_eprops[ch].sample_rate);
             // Check the new actual rate of the channel matches the target rate
