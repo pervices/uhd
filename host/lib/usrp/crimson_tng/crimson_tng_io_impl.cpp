@@ -287,7 +287,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     // Copy eprops vector so we can sort by actual rates
     std::vector<eprops_type> local_eprops;
     local_eprops.reserve(_eprops.size());
-    for (size_t i=0; i < _eprops.size(); i++) {
+    for (size_t i=0; i < _eprops.size()-1; i++) {
         local_eprops.at(i).name = std::tolower(_eprops.at(i).name.at(0));
         local_eprops.at(i).sample_rate = _eprops.at(i).sample_rate;
     }
