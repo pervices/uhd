@@ -302,13 +302,13 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     //             UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(a.sample_rate) + " and " + std::to_string(b.sample_rate));
     //     return a.sample_rate < b.sample_rate;
     // });
-
-    std::sort(_eprops.begin(), _eprops.end(), [](const auto a, const auto b) {
-        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + a.name + " and " + b.name);
-        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(a.sample_rate) + " and " + std::to_string(b.sample_rate));
-        return a.sample_rate < b.sample_rate;
-    });
-    for (auto &e : _eprops) {
+    struct {
+        bool operator()(const eprops_type& lhs, const eprops_type& rhs) const {
+            return lhs.sample_rate < rhs.sample_rate;
+        }
+    } customLess;
+    std::sort(local_eprops.begin(), local_eprops.end(), customLess);
+    for (const auto &e : local_eprops) {
         UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Name: " + e.name);
     }
     std::cout << "after checking sort" << std::endl;
