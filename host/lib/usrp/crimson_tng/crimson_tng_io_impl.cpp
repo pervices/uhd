@@ -279,17 +279,32 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
     return level;
 }
 
+
+// Gets the issuers used by the channels used by this server
+    std::vector<uhd::usrp::stream_cmd_issuer> issuers;
+    issuers.reserve(args.channels.size());
+    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
+        const size_t chan = args.channels[chan_i];
+
+        issuers.emplace_back(rx_stream_cmd_issuer[chan]);
+    }
+
 // Check that all channels for the streamer have the same sample rate. Attempt to find valid rate for all if there is a mismatch.
 void crimson_tng_send_packet_streamer::check_tx_rates() {
     // Max error allowed for difference between specified and actual rates
     static const double max_allowed_error = 1.0;
 
     // Copy eprops vector so we can sort by actual rates
-    std::vector<eprops_type> local_eprops(_eprops.size());
+    std::vector<eprops_type> local_eprops;
+    local_eprops.reserve(_eprops.size());
     for (size_t i=0; i < _eprops.size(); i++) {
-        local_eprops.at(i).name = std::tolower(_eprops.at(i).name.at(0));
-        local_eprops.at(i).sample_rate = _eprops.at(i).sample_rate;
+        local_eprops.emplace_back(_eprops[i]);
     }
+
+    // for (size_t i=0; i < _eprops.size(); i++) {
+    //     local_eprops.at(i).name = std::tolower(_eprops.at(i).name.at(0));
+    //     local_eprops.at(i).sample_rate = _eprops.at(i).sample_rate;
+    // }
 
     UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "eprops 0 name: " + _eprops[0].name);
     std::cout << "local eprops size: " << local_eprops.size() << std::endl;
