@@ -290,6 +290,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         local_eprops[e.name] = e.sample_rate;
     }
     std::cout << local_eprops.at(0) << std::endl;
+    return;
 
     // for (size_t i=0; i < _eprops.size(); i++) {
     //     local_eprops.at(i).name = std::tolower(_eprops.at(i).name.at(0));
@@ -307,21 +308,22 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     //             UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(a.sample_rate) + " and " + std::to_string(b.sample_rate));
     //     return a.sample_rate < b.sample_rate;
     // });
-    struct {
-        bool operator()(const eprops_type& lhs, const eprops_type& rhs) const {
-            UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + lhs.name + " and " + rhs.name);
-            UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(lhs.sample_rate) + " and " + std::to_string(rhs.sample_rate));
-            return lhs.sample_rate < rhs.sample_rate;
-        }
-    } customLess;
-    std::sort(local_eprops.begin(), local_eprops.end(), customLess);
-    for (const auto &e : local_eprops) {
-        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Name: " + e.name);
-    }
+    // struct {
+    //     bool operator()(const eprops_type& lhs, const eprops_type& rhs) const {
+    //         UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + lhs.name + " and " + rhs.name);
+    //         UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(lhs.sample_rate) + " and " + std::to_string(rhs.sample_rate));
+    //         return lhs.sample_rate < rhs.sample_rate;
+    //     }
+    // } customLess;
+    // std::sort(local_eprops.begin(), local_eprops.end(), customLess);
+    // for (const auto &e : local_eprops) {
+    //     UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Name: " + e.name);
+    // }
     std::cout << "after checking sort" << std::endl;
 
     // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
-    bool matching_rates = local_eprops.front().sample_rate == local_eprops.back().sample_rate;
+    // bool matching_rates = local_eprops.front().sample_rate == local_eprops.back().sample_rate;
+    bool matching_rates = true;
     // Otherwise, attempt to set the sample rate for all channels from lowest to highest
     for (size_t ch = 0; ch < local_eprops.size(); ch++) {
         if (matching_rates) {
