@@ -279,16 +279,6 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
     return level;
 }
 
-
-// Gets the issuers used by the channels used by this server
-    std::vector<uhd::usrp::stream_cmd_issuer> issuers;
-    issuers.reserve(args.channels.size());
-    for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
-        const size_t chan = args.channels[chan_i];
-
-        issuers.emplace_back(rx_stream_cmd_issuer[chan]);
-    }
-
 // Check that all channels for the streamer have the same sample rate. Attempt to find valid rate for all if there is a mismatch.
 void crimson_tng_send_packet_streamer::check_tx_rates() {
     // Max error allowed for difference between specified and actual rates
