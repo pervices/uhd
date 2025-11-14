@@ -285,16 +285,19 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     // Max error allowed for difference between specified and actual rates
     static const double max_allowed_error = 1.0;
 
+    UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Before creating local eprops");
     // Copy eprops vector so we can sort by actual rates
     std::vector<std::pair<std::string, double>> local_eprops;
     for (auto &e : _eprops) {
         std::cout << e.name << std::endl;
         local_eprops.emplace_back(std::make_pair(std::string(1, std::tolower(e.name[0])), e.sample_rate));
     }
+    UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "After local eprops");
 
     std::sort(local_eprops.begin(), local_eprops.end(), [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
         return a.second < b.second;
     });
+    UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "After sort");
 
     // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
     bool matching_rates = local_eprops.front().second == local_eprops.back().second;
