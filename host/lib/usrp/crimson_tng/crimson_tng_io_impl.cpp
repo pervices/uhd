@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 
+#include <cctype>
 #include <iomanip>
 #include <mutex>
 
@@ -288,7 +289,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     std::map<std::string, double> local_eprops;
     for (auto &e : _eprops) {
         std::cout << e.name << std::endl;
-        local_eprops[e.name] = e.sample_rate;
+        local_eprops[std::string(1, std::tolower(e.name[0]))] = e.sample_rate;
     }
     std::cout << local_eprops.at(0) << std::endl;
     return;
