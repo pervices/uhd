@@ -238,7 +238,7 @@ void crimson_tng_send_packet_streamer::set_channel_name( size_t chan, std::strin
     _eprops.at(chan).name = name;
 }
 void crimson_tng_send_packet_streamer::sync_channel_rate( size_t chan, double rate ) {
-    // _eprops.at(chan).sample_rate = rate;
+    _eprops.at(chan).sample_rate = rate;
 }
 void crimson_tng_send_packet_streamer::resize(const size_t size){
     _eprops.resize( size );
@@ -271,6 +271,9 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
 
 // Check that all channels for the streamer have the same sample rate. Attempt to find valid rate for all if there is a mismatch.
 void crimson_tng_send_packet_streamer::check_tx_rates() {
+    for (auto &i : _channels) {
+        std::cout << "Channel: " << i << std::endl;
+    }
     // Max error allowed for difference between specified and actual rates
     // static const double max_allowed_error = 1.0;
 
