@@ -272,71 +272,62 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
 
 // Check that all channels for the streamer have the same sample rate. Attempt to find valid rate for all if there is a mismatch.
 void crimson_tng_send_packet_streamer::check_tx_rates() {
-    for (auto &i : _channels) {
-        std::cout << "Channel: " << i << std::endl;
-    }
     // Max error allowed for difference between specified and actual rates
     static const double max_allowed_error = 1.0;
 
-    UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Before creating local eprops");
-    // Copy eprops vector so we can sort by actual rates
-    std::vector<std::pair<std::string, double>> local_eprops;
+    // Copy the actual rates to a vector for sorting and to keep original rates after updating to a new one.
+    // The first element of the pair is the channel name and the second is the rate
+    std::vector<std::pair<std::string, double>> actual_rates;
     for (auto &e : _eprops) {
-        std::cout << e.name << std::endl;
-        local_eprops.emplace_back(std::make_pair(std::string(1, std::tolower(e.name[0])), e.sample_rate));
+        actual_rates.emplace_back(std::make_pair(std::string(1, std::tolower(e.name.at(0))), e.sample_rate));
     }
-    UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "After local eprops");
-    std::cout << "After local" << std::endl;
 
-    std::sort(local_eprops.begin(), local_eprops.end(), [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
+    // Sort the rates from lowest to highest
+    std::sort(actual_rates.begin(), actual_rates.end(), [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
         return a.second < b.second;
     });
-    UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "After sort");
 
-    // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
-    bool matching_rates = local_eprops.front().second == local_eprops.back().second;
-    std::cout << "Front: " << local_eprops.front().second << std::endl;
-    std::cout << "Back: " << local_eprops.back().second << std::endl;
-    // Otherwise, attempt to set the sample rate for all channels from lowest to highest
-    for (size_t ch = 0; ch < local_eprops.size(); ch++) {
-        if (matching_rates) {
-            // Rates were already matching if this is the first iteration, so only print message if they were adjusted
-            if (ch > 0) {
-                std::string message = "Using a sample rate of " + std::to_string(_eprops[0].sample_rate / 1e6) + " on streamer.";
-                UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
+    // Since it's sorted in ascending order, if the first and last rates match then all rates do.
+    bool matching_rates = actual_rates.front().second == actual_rates.back().second;
+    // If there is a mismatch, try each of the original actual rates until a common valid rate is found
+    if (!matching_rates) {
+        std::string message = "Multiple sample rates detected, but a streamer can only handle one.\n"
+            "Attempting to find a valid common sample rate...";
+        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
+
+        for (size_t ch = 0; ch < actual_rates.size(); ch++) {
+            bool matching_new_rates = true;
+            for (auto &e : actual_rates) {
+                // Get the channel number associated with this channel name
+                size_t channel_num = e.first.at(0) - 'a';
+
+                // Set new sample rate to one of the original actual rates
+                _iface->set_double("tx_" + e.first + "/dsp/rate", actual_rates.at(ch).second);
+                // Check the new actual rate of the channel matches what was just set
+                double new_rate = _iface->get_double("tx_" + e.first + "/dsp/rate");
+                if (std::abs(actual_rates[ch].second - new_rate) > max_allowed_error) {
+                    // If it doesn't match, break out of this loop and try the next rate
+                    matching_new_rates = false;
+                    break;
+                }
+                // Store the new sample rate for this channel on _eprops
+                sync_channel_rate(channel_num, new_rate);
             }
-            break;
-        } else if (ch == 0) {
-            std::string message = "Multiple sample rates detected, but a streamer can only handle one.\n"
-                "Attempting to find a valid common rate...";
-            UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
-        }
-        // Try this channels actual rate for all channels
-        bool matching_new_rates = true;
-        for (size_t i = 0; i < local_eprops.size(); i++) {
-            std::pair<std::string, double> &e = local_eprops.at(i);
-            // Channel number associated with channel name
-            size_t channel_num = e.first[0] - 'a';
-                        size_t channel_index = std::distance(_channels.begin(), std::find(_channels.begin(), _channels.end(), channel_num));
+            matching_rates = matching_new_rates;
+            // If a valid common rate was found, update the streamer sample rate, inform user, and stop trying new rates
+            if (matching_rates) {
+                set_samp_rate(_eprops[0].sample_rate);
 
-            std::cout << "CHANNEL NUM: " << channel_num << std::endl;
-            std::cout << "CHANNEL NUM INDEX:" << channel_index << std::endl;
-            _iface->set_double("tx_" + e.first + "/dsp/rate", local_eprops.at(ch).second);
-            // Check the new actual rate of the channel matches the target rate
-            double new_rate = _iface->get_double("tx_" + e.first + "/dsp/rate");
-            sync_channel_rate(channel_num, new_rate);
-            set_samp_rate(new_rate);
-            if (std::abs(local_eprops[ch].second - new_rate) > max_allowed_error) {
-                // If it doesn't match, break out of this loop and try the next rate
-                matching_new_rates = false;
+                std::string message = "Found a valid common sample rate of " + std::to_string(_eprops[0].sample_rate / 1e6) + " Msps.\n"
+                    "All channels on this streamer will now use this rate.";
+                UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
                 break;
             }
         }
-        matching_rates = matching_new_rates;
     }
-    // Print error if rates still mismatch
+    // Throw an error if rates still mismatch
     if (!matching_rates) {
-        std::string message = "Could not find a valid common sample rate for all channels on this streamer.\n"
+        std::string message = "Could not find a valid common sample rate.\n"
             "Make sure the specified sample rate is valid for all channels on this streamer or use multiple streamers instead.";
         UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
         throw uhd::runtime_error(message);
