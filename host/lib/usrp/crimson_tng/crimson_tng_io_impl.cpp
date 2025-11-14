@@ -292,7 +292,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         local_eprops[std::string(1, std::tolower(e.name[0]))] = e.sample_rate;
     }
 
-    std::sort(local_eprops.begin(), local_eprops.end(), [](const auto a, const auto b) {
+    std::sort(local_eprops.begin(), local_eprops.end(), [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
         return a.second < b.second;
     });
     
