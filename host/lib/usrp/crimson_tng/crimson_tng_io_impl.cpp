@@ -288,7 +288,10 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     std::vector<eprops_type> local_eprops;
     local_eprops.reserve(_eprops.size());
     for (size_t i=0; i < _eprops.size(); i++) {
-        local_eprops.emplace_back(_eprops[i]);
+        eprops_type e = eprops_type();
+        e.name = _eprops[i].name;
+        e.sample_rate = _eprops[i].sample_rate;
+        local_eprops.emplace_back(e);
     }
 
     // for (size_t i=0; i < _eprops.size(); i++) {
