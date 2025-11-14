@@ -288,12 +288,12 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Before creating local eprops");
     // Copy eprops vector so we can sort by actual rates
     std::vector<std::pair<std::string, double>> local_eprops;
-    local_eprops.reserve(_eprops.size());
     for (auto &e : _eprops) {
         std::cout << e.name << std::endl;
         local_eprops.emplace_back(std::make_pair(std::string(1, std::tolower(e.name[0])), e.sample_rate));
     }
     UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "After local eprops");
+    std::cout << "After local" << std::endl;
 
     std::sort(local_eprops.begin(), local_eprops.end(), [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
         return a.second < b.second;
