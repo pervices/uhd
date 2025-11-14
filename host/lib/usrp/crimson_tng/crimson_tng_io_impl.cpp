@@ -296,11 +296,10 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         return a.second < b.second;
     });
 
-
     // Since it's sorted in ascending order, if the first and last elements match there are no mismatch rates
-    bool matching_rates = local_eprops.begin()->second == local_eprops.end()->second;
-    std::cout << "Beginning: " << local_eprops.begin()->second << std::endl;
-    std::cout << "Ending: " << local_eprops.end()->second << std::endl;
+    bool matching_rates = local_eprops.front().second == local_eprops.back().second;
+    std::cout << "Front: " << local_eprops.front().second << std::endl;
+    std::cout << "Back: " << local_eprops.back().second << std::endl;
     // Otherwise, attempt to set the sample rate for all channels from lowest to highest
     for (size_t ch = 0; ch < local_eprops.size(); ch++) {
         if (matching_rates) {
