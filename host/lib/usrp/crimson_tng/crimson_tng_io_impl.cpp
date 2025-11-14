@@ -286,10 +286,10 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     static const double max_allowed_error = 1.0;
 
     // Copy eprops vector so we can sort by actual rates
-    std::map<std::string, double> local_eprops;
+    std::vector<std::pair<std::string, double>> local_eprops;
     for (auto &e : _eprops) {
         std::cout << e.name << std::endl;
-        local_eprops[std::string(1, std::tolower(e.name[0]))] = e.sample_rate;
+        local_eprops.emplace_back(std::make_pair(std::string(1, std::tolower(e.name[0])), e.sample_rate));
     }
 
     std::sort(local_eprops.begin(), local_eprops.end(), [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
