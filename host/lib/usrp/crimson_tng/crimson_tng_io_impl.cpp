@@ -238,7 +238,7 @@ void crimson_tng_send_packet_streamer::set_channel_name( size_t chan, std::strin
     _eprops.at(chan).name = name;
 }
 void crimson_tng_send_packet_streamer::sync_channel_rate( size_t chan, double rate ) {
-    _eprops.at(chan).sample_rate = rate;
+    // _eprops.at(chan).sample_rate = rate;
 }
 void crimson_tng_send_packet_streamer::resize(const size_t size){
     _eprops.resize( size );
