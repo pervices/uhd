@@ -362,12 +362,12 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     //     matching_rates = matching_new_rates;
     // }
     // Print error if rates still mismatch
-    if (!matching_rates) {
-        std::string message = "Could not find a valid common sample rate for all channels on this streamer.\n"
-            "Make sure the specified sample rate is valid for all channels on this streamer or use multiple streamers instead.";
-        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
-        throw uhd::runtime_error(message);
-    }
+    // if (!matching_rates) {
+    //     std::string message = "Could not find a valid common sample rate for all channels on this streamer.\n"
+    //         "Make sure the specified sample rate is valid for all channels on this streamer or use multiple streamers instead.";
+    //     UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
+    //     throw uhd::runtime_error(message);
+    // }
 }
 
 /***********************************************************************
