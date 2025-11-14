@@ -291,7 +291,6 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         local_eprops.at(i).sample_rate = _eprops.at(i).sample_rate;
     }
 
-    
     UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "eprops 0 name: " + _eprops[0].name);
     std::cout << "local eprops size: " << local_eprops.size() << std::endl;
     std::cout << "local eprops 0 sr: " << local_eprops[0].sample_rate << std::endl;
@@ -304,7 +303,12 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     //     return a.sample_rate < b.sample_rate;
     // });
 
-    for (auto &e : local_eprops) {
+    std::sort(_eprops.begin(), _eprops.end(), [](const auto &a, const auto &b) {
+        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + a.name + " and " + b.name);
+        UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(a.sample_rate) + " and " + std::to_string(b.sample_rate));
+        return a.sample_rate < b.sample_rate;
+    });
+    for (auto &e : _eprops) {
         UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Name: " + e.name);
     }
     std::cout << "after checking sort" << std::endl;
@@ -320,7 +324,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
                 UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
             }
             break;
-        } else {
+        } else if (ch == 0) {
             std::string message = "Multiple sample rates detected, but a streamer can only handle one.\n"
                 "Attempting to find a valid common rate...";
             UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, message);
