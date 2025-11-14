@@ -291,7 +291,7 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         std::cout << e.name << std::endl;
         local_eprops[std::string(1, std::tolower(e.name[0]))] = e.sample_rate;
     }
-    std::cout << local_eprops.at(0) << std::endl;
+    std::cout << local_eprops.begin()->first << std::endl;
     return;
 
     // for (size_t i=0; i < _eprops.size(); i++) {
