@@ -35,6 +35,7 @@
 #include <boost/asio.hpp>
 #include <boost/thread/mutex.hpp>
 #include <iostream>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -233,7 +234,11 @@ void crimson_tng_send_packet_streamer::set_xport_chan_fifo_lvl_abs( size_t chan,
 void crimson_tng_send_packet_streamer::set_channel_name( size_t chan, std::string name ) {
     _eprops.at(chan).name = name;
 }
-
+// Stores the channel sample rate in eprops variable
+void crimson_tng_send_packet_streamer::sync_channel_rate( size_t chan, double rate ) {
+    size_t channel_index = std::distance(_channels.begin(), std::find(_channels.begin(), _channels.end(), chan));
+    _eprops.at(channel_index).sample_rate = rate;
+}
 void crimson_tng_send_packet_streamer::resize(const size_t size){
     _eprops.resize( size );
 }
@@ -464,7 +469,8 @@ void crimson_tng_impl::update_tx_samp_rate(const size_t chan, const double rate 
     std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = _mbc.tx_streamers[chan].lock();
     // if shared_ptr is false then no streamer is using this ch
     if (!my_streamer) return;
-
+    // Store specified channels sample rate
+    my_streamer->sync_channel_rate(chan, rate);
     // Inform the streamer of the sample rate change
     my_streamer->set_samp_rate(rate);
 }
