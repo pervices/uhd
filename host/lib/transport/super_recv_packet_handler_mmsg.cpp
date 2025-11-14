@@ -281,7 +281,8 @@ void recv_packet_handler_mmsg::check_pre_empt() {
 
     if(file == NULL) {
         if(errno == EACCES) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting. Check " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.\nTo allow this check to work successfully either run this program with sudo or give this user read access to " + path);
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting. Check " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.\nTo give non root users access to said file run \"sudo mount -o remount,mode=0755 -t debugfs none /sys/kernel/debug/\". \"remount\" is required in order to update permissions due to a bug affecting most variants of kernel 6.);
+            // Discussion of the kernel bug mentioned above: https://bugzilla.kernel.org/show_bug.cgi?id=220406
             return;
         } else if (errno == ENOENT) {
             // Do nothing
