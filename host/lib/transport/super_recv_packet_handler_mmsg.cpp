@@ -279,16 +279,26 @@ void recv_packet_handler_mmsg::check_pre_empt() {
 
     file = fopen(path.c_str(), "r");
 
+    std::string debugfs_mount = "To mount debugfs run \"sudo mount -t debugfs none /sys/kernel/debug/\"";
+    std::string update_debugfs_permissions = "To set the permission of debugfs to allow non root users to read preemption setting run \"sudo mount -o remount,mode=0755 -t debugfs none /sys/kernel/debug/\". \"remount\" is required due to a bug affecting most kernel 6. versions.";
+    std::string read_preempt = "To check current preemption setting run \"cat " + path + "\". It must be set to none or voluntary for optimal performance.";
+    // Discussion of the kernel bug requiring remount: https://bugzilla.kernel.org/show_bug.cgi?id=220406
+    std::string set_preempt = "To change preemption you must echo none or voluntary to " + path + " as root (sudo will not work).";
+
+    // Unable to check preempt setting
     if(file == NULL) {
+        // Insufficient permission
         if(errno == EACCES) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting. Check " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.\nTo allow this check to work successfully either run this program with sudo or give this user read access to " + path);
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Insufficient permission to check preemption setting.\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+
             return;
+        // File missing (probably because debugfs isn't mounted)
         } else if (errno == ENOENT) {
-            // Do nothing
-            // If the file does not exist assume that the kernel is to old to have this feature and therefore skip the warning message
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "debugfs is not mounted or not mounted in it's usual location, unable to check preemption setting.\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
             return;
+        // Unexpected error when attempting to open file
         } else {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code: " + std::string(strerror(errno)) + "\nCheck " + path + " to manually check it's current setting. It must be set to none or voluntary for optimal performance.");
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code: " + std::to_string(errno) + ": " + std::string(strerror(errno)) + "\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
             return;
         }
     }
@@ -303,7 +313,7 @@ void recv_packet_handler_mmsg::check_pre_empt() {
     }
 
     if(value.find("(none)") == std::string::npos && value.find("(voluntary)") == std::string::npos) {
-        UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this may cause infrequent performance issues. Run \"echo voluntary > " + path + "\" as root. Said command must be run as root user, sudo will not work.");
+        UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption is currently enabled, this will cause unreliable performance.\n\t" + read_preempt + "\n\t" + set_preempt);
     }
 }
 
