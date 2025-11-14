@@ -206,17 +206,6 @@ size_t crimson_tng_send_packet_streamer::send(
 
         // Make sure all channel sample rates match for the streamer
         check_tx_rates();
-        double prev_rate = _eprops[0].sample_rate;
-        for (size_t ch = 0; ch < _eprops.size(); ch++) {
-            double current_rate = _eprops[ch].sample_rate;
-            // If there are different rates, error and suggest fixes
-            if (current_rate != prev_rate) {
-                std::string message = "Multiple sample rates are detected, but a streamer can only handle one.\nMake sure the specified sample rate is valid and identical for all channels or use multiple streamers instead.";
-                UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
-                throw uhd::runtime_error(message);
-            }
-            prev_rate = current_rate;
-        }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
             uhd::time_spec_t now = get_device_time();
