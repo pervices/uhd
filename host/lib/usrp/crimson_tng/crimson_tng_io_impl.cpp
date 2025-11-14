@@ -304,6 +304,8 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     // });
     struct {
         bool operator()(const eprops_type& lhs, const eprops_type& rhs) const {
+            UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + lhs.name + " and " + rhs.name);
+            UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "Comparing sample rates of " + std::to_string(lhs.sample_rate) + " and " + std::to_string(rhs.sample_rate));
             return lhs.sample_rate < rhs.sample_rate;
         }
     } customLess;
