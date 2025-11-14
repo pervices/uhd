@@ -291,14 +291,10 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
         std::cout << e.name << std::endl;
         local_eprops[std::string(1, std::tolower(e.name[0]))] = e.sample_rate;
     }
-    std::cout << local_eprops.begin()->first << std::endl;
-    return;
 
-    // for (size_t i=0; i < _eprops.size(); i++) {
-    //     local_eprops.at(i).name = std::tolower(_eprops.at(i).name.at(0));
-    //     local_eprops.at(i).sample_rate = _eprops.at(i).sample_rate;
-    // }
-
+    std::sort(local_eprops.begin(), local_eprops.end(), [](const auto a, const auto b) {
+        return a->second < b->second;
+    });
     // UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, "eprops 0 name: " + _eprops[0].name);
     // std::cout << "local eprops size: " << local_eprops.size() << std::endl;
     // std::cout << "local eprops 0 sr: " << local_eprops[0].sample_rate << std::endl;
