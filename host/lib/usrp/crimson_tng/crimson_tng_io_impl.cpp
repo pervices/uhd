@@ -204,8 +204,9 @@ size_t crimson_tng_send_packet_streamer::send(
     if ( _first_call_to_send || metadata.start_of_burst ) {
         metadata.start_of_burst = true;
 
-        // Make sure all channel sample rates match for the streamer
-        check_tx_rates();
+        // Make sure all channel sample rates match for this streamer. No need if there is only one channel.
+        if (_eprops.size() > 1)
+            check_matching_rates();
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
             uhd::time_spec_t now = get_device_time();
@@ -270,8 +271,8 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
     return level;
 }
 
-// Check that all channels for the streamer have the same sample rate. Attempt to find valid rate for all if there is a mismatch.
-void crimson_tng_send_packet_streamer::check_tx_rates() {
+// Check that all channels on a streamer have the same sample rate. Automatically adjust to a common valid rate if they mismatch.
+void crimson_tng_send_packet_streamer::check_matching_rates() {
     // Max error allowed for difference between specified and actual rates
     static const double max_allowed_error = 1.0;
 
@@ -283,7 +284,8 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
     }
 
     // Sort the rates from lowest to highest
-    std::sort(actual_rates.begin(), actual_rates.end(), [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
+    std::sort(actual_rates.begin(), actual_rates.end(), 
+    [](const std::pair<std::string, double> a, const std::pair<std::string, double> b) {
         return a.second < b.second;
     });
 
@@ -300,7 +302,6 @@ void crimson_tng_send_packet_streamer::check_tx_rates() {
             for (auto &e : actual_rates) {
                 // Get the channel number associated with this channel name
                 size_t channel_num = e.first.at(0) - 'a';
-
                 // Set new sample rate to one of the original actual rates
                 _iface->set_double("tx_" + e.first + "/dsp/rate", actual_rates.at(ch).second);
                 // Check the new actual rate of the channel matches what was just set

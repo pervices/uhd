@@ -96,7 +96,7 @@ public:
 
     void stop_buffer_monitor_thread();
 
-    void check_tx_rates();
+    void check_matching_rates();
 
 protected:
     void if_hdr_pack(uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
