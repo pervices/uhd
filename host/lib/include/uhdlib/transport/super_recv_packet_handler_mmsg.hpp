@@ -320,10 +320,14 @@ public:
 
         if(!tmp_msg_printed) {
             tmp_msg_printed = true;
-            UHD_LOG_ERROR("STREAMER", "T1");
+            UHD_LOG_INFO("STREAMER", "I1");
+            UHD_LOG_WARNING("STREAMER", "W1");
+            UHD_LOG_ERROR("STREAMER", "E1");
         }
         if(!error_code_printed && metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) {
             error_code_printed = true;
+            UHD_LOG_INFO("STREAMER", "metadata.error_code: " + std::to_string(metadata.error_code));
+            UHD_LOG_WARNING("STREAMER", "metadata.error_code: " + std::to_string(metadata.error_code));
             UHD_LOG_ERROR("STREAMER", "metadata.error_code: " + std::to_string(metadata.error_code));
         }
 
