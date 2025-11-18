@@ -59,6 +59,9 @@ public:
 
     ~recv_packet_handler_mmsg(void);
 
+    bool tmp_msg_printed = false;
+    bool error_code_printed = false;
+
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
                            const size_t nsamps_per_buff,
                            uhd::rx_metadata_t& metadata,
@@ -313,6 +316,15 @@ public:
                 break;
             }
 
+        }
+
+        if(!tmp_msg_printed) {
+            tmp_msg_printed = true;
+            UHD_LOG_ERROR("STREAMER", "T1");
+        }
+        if(!error_code_printed && metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) {
+            error_code_printed = true;
+            UHD_LOG_ERROR("STREAMER", "metadata.error_code: " + std::to_string(metadata.error_code));
         }
 
         return samples_received;
