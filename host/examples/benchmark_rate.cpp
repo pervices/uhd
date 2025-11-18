@@ -806,7 +806,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                       << std::endl;
         }
         if (seq_threshold_err) {
-            std::cout << boost::format("  * Dropped packets (TX) (%d/%d)")
+            std::cout << boost::format("  * Sequence errors (TX) (%d/%d)")
                              % num_seq_errors % seq_threshold
                       << std::endl;
         }
