@@ -54,6 +54,7 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
 
         // Repeatedly receives packets on the socket to flush it
         while(true) {
+            ::usleep(100000);
             uint8_t flush_buffer[1];
             r = recv(_recv_sockets[ch], flush_buffer, 1, MSG_DONTWAIT);
             // No packets received, flush complete
