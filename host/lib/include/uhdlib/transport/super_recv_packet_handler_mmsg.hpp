@@ -198,7 +198,7 @@ public:
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-                    std::string msg = "OVERFLOW. Packet count: " + std::to_string(vita_md[ch].packet_count);
+                    std::string msg = "OVERFLOW CH" + std::to_string(ch) + ". Samples received: " + std::to_string(samples_received);
                     UHD_LOG_WARNING("RECV_PACKET_HANDLER", msg);
                     _overflow_occured = true;
                     overflow_detected = true;
