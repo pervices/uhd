@@ -322,6 +322,7 @@ public:
         if(!tmp_msg_printed) {
             tmp_msg_printed = true;
             UHD_LOG_INFO("STREAMER", "I1");
+            std::cout << "I1";
             UHD_LOG_WARNING("STREAMER", "W1");
             UHD_LOG_ERROR("STREAMER", "E1");
         }
