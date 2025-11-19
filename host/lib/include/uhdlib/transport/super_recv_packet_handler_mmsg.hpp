@@ -155,6 +155,7 @@ public:
 
             // Check if timeout occured (Any channels not ready)
             if(ch_not_ready) [[unlikely]] {
+                UHD_LOG_INFO("RECV_PACKET_HANDLER", "CHANNEL NOT READY");
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
                     return samples_received;
