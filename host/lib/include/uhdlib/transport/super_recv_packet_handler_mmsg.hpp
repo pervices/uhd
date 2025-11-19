@@ -19,6 +19,7 @@
 
 // Manages sending streaming commands
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
+#include <string>
 #ifdef HAVE_LIBURING
     #include <uhd/transport/io_uring_recv_manager.hpp>
 #else
@@ -197,6 +198,8 @@ public:
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                    std::string msg = "OVERFLOW. Packet count: " + std::to_string(vita_md[ch].packet_count);
+                    UHD_LOG_WARNING("RECV_PACKET_HANDLER", msg);
                     _overflow_occured = true;
                     overflow_detected = true;
                 }
