@@ -278,6 +278,7 @@ public:
                     message += "\n\t" + std::to_string(vita_md[ch].num_payload_bytes / _BYTES_PER_SAMPLE);
                 }
                 UHD_LOG_ERROR("STREAMER", message);
+                std::cout << ("T1" + message);
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
