@@ -170,6 +170,8 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
                 // check out_of_sequence flag to see if it was a sequence error or
                 // overflow
                 if (!md.out_of_sequence) {
+                    std::cout << "OVERRUN AT: " << num_rx_samps << std::endl;
+                    std::cout << md.to_pp_string() << std::endl;
                     num_overruns++;
                 } else {
                     num_seqrx_errors++;
