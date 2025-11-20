@@ -323,12 +323,14 @@ public:
             UHD_LOG_INFO("STREAMER", "I1");
             UHD_LOG_WARNING("STREAMER", "W1");
             UHD_LOG_ERROR("STREAMER", "E1");
+            std::cout << "S1\n";
         }
         if(!error_code_printed && metadata.error_code != rx_metadata_t::ERROR_CODE_NONE) {
             error_code_printed = true;
             UHD_LOG_INFO("STREAMER", "metadata.error_code: " + std::to_string(metadata.error_code));
             UHD_LOG_WARNING("STREAMER", "metadata.error_code: " + std::to_string(metadata.error_code));
             UHD_LOG_ERROR("STREAMER", "metadata.error_code: " + std::to_string(metadata.error_code));
+            std::cout << ("metadata.error_code: " + std::to_string(metadata.error_code));
         }
 
         return samples_received;
