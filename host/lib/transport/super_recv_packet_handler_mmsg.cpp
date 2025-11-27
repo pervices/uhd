@@ -294,11 +294,11 @@ void recv_packet_handler_mmsg::check_pre_empt() {
             return;
         // File missing (probably because debugfs isn't mounted)
         } else if (errno == ENOENT) {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "debugfs is not mounted or not mounted in it's usual location, unable to check preemption setting.\n\t" + debugfs_mount + "\n\t" update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "debugfs is not mounted or not mounted in it's usual location, unable to check preemption setting.\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
             return;
         // Unexpected error when attempting to open file
         } else {
-            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code: " + std::to_string(errno) + ": " + std::string(strerror(errno)) + "\n\t" + debugfs_mount + "\n\t" update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+            UHD_LOG_WARNING("RECV_PACKET_HANDLER", "Preemption check failed with error code: " + std::to_string(errno) + ": " + std::string(strerror(errno)) + "\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
             return;
         }
     }
