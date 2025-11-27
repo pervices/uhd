@@ -1,3 +1,11 @@
+uhdpv (4.8.0.25-0ubuntu1) ubuntu_release; urgency=low
+
+  * Added error detection for mismatch in sample rate between channels in a tx streamer
+  * Added instructions for how to give non root users the ability to check if preemption is enable
+  * Added a warning for if debugfs is not mounted. Previously if it wasn't mounted there would be no warning when UHD was unable to check if preemption was enabled
+
+ -- Per Vices <packages@pervices.com>  Thu, 27 Nov 2025 16:48:40 -0500
+
 uhdpv (4.8.0.24-0ubuntu1) ubuntu_release; urgency=low
 
   * Improve amplitude reproducibility in loopback testing
