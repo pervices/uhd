@@ -100,6 +100,7 @@ std::string pv_iface::peek_str() {
 
 // Gets a property on the device
 std::string pv_iface::get_string(std::string req) {
+    UHD_LOG_INFO(PV_IFACE_DEBUG_NAME_C, "getting property: " + req);
 
     std::lock_guard<std::mutex> _lock( _iface_lock );
 
@@ -124,7 +125,7 @@ std::string pv_iface::get_string(std::string req) {
 }
 // Sets a property on the device
 void pv_iface::set_string(const std::string pre, std::string data) {
-
+    UHD_LOG_INFO(PV_IFACE_DEBUG_NAME_C, "setting property: " + pre + " = " + data);
 	std::lock_guard<std::mutex> _lock( _iface_lock );
 
 	// Send the set request
