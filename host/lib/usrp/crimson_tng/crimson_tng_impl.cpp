@@ -326,7 +326,10 @@ device_addrs_t crimson_tng_impl::crimson_tng_find_with_addr(const device_addr_t 
         if (tokens[1].c_str()[0] == CMD_ERROR) {
             continue;
         }
-        if (tokens[2] != "crimson_tng") {
+        // calamine_tng is Calamine RTM2 or later
+        // Currently there are no UHD differences between Calamine and Crimson
+        // If Crimson and Calamine end up with meaningful differences in the future separate Calamine into a subclass like Chestnut is to Cyan
+        if (tokens[2] != "crimson_tng" && tokens[2] != "calamine" && tokens[2] != "calamine_tng") {
             continue;
         }
 
