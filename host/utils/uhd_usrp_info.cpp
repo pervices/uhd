@@ -221,7 +221,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             std::cout << "FPGA Revision" << server_version.substr(fpga_rev_start, server_version.find('\n', fpga_rev_start) - fpga_rev_start) << std::endl;
             std::cout << "FPGA Sample Rate: " << get_from_tree_double(tree, i, "system/max_rate") << std::endl;
 
-            if (device_type == "crimson_tng") {
+            if (device_type == "crimson_tng" || device_type == "calamine" || device_type == "calamine_tng") {
                 std::cout << "FPGA Flags: " << (get_from_tree_int(tree, i, "system/is_full_tx") == "1" ? "Full Tx" : "Production") << '\n' << std::endl;
             } else {
                 size_t fpga_jesd_start = server_version.find("JESD:");
