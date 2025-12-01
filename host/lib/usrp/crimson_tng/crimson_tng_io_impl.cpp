@@ -92,8 +92,9 @@ std::ostream & operator<<( std::ostream & os, const uhd::time_spec_t & ts ) {
     return os;
 }
 
-crimson_tng_recv_packet_streamer::crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dsp_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
+crimson_tng_recv_packet_streamer::crimson_tng_recv_packet_streamer(const std::string product_name_c, const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dsp_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
 : sph::recv_packet_streamer_mmsg(recv_sockets, dsp_ip, max_sample_bytes_per_packet, CRIMSON_TNG_HEADER_SIZE, CRIMSON_TNG_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
+_product_name_c(product_name_c),
 _channels(channels),
 _iface(iface)
 {
@@ -124,9 +125,10 @@ void crimson_tng_recv_packet_streamer::teardown() {
     }
 }
 
-crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info)
+crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info)
 :
 sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info ),
+_product_name_c(product_name_c),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
 _stop_buffer_monitor( false ),
@@ -160,7 +162,7 @@ void crimson_tng_send_packet_streamer::teardown() {
             break;
         // If it is taking to long for the buffer to empty, continue anyway with an error message
         } else if(timeout_time < uhd::get_system_time()) {
-            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples_i]) + " to finish");
+            UHD_LOG_ERROR(_product_name_c, "Timeout while waiting for tx " + std::to_string(_channels[buffer_with_samples_i]) + " to finish");
             break;
         }
         usleep(10);
@@ -216,7 +218,7 @@ size_t crimson_tng_send_packet_streamer::send(
         } else {
             double current_time = get_device_time().get_real_secs();
             if (metadata.time_spec.get_real_secs() < current_time + CRIMSON_TNG_MIN_TX_DELAY && _first_call_to_send) {
-                UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CRIMSON_TNG_MIN_TX_DELAY);
+                UHD_LOGGER_WARNING(_product_name_c) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CRIMSON_TNG_MIN_TX_DELAY);
                 metadata.time_spec = uhd::time_spec_t(current_time + CRIMSON_TNG_MIN_TX_DELAY);
             }
         }
@@ -280,7 +282,7 @@ void crimson_tng_send_packet_streamer::check_matching_rates() {
     double prev_rate = _eprops[0].sample_rate;
     for (auto &e : _eprops) {
         if (e.sample_rate != prev_rate) {
-            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, mismatch_message);
+            UHD_LOG_ERROR(_product_name_c, mismatch_message);
             throw uhd::runtime_error(mismatch_message);
         }
         prev_rate = e.sample_rate;
@@ -360,7 +362,7 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
                         }
                     }
                     if(!using_performance_governor) {
-                        UHD_LOG_WARNING(CRIMSON_TNG_DEBUG_NAME_C, "\nSend underflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        UHD_LOG_WARNING(self->_product_name_c, "\nSend underflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
                     }
                     self->_performance_warning_printed = true;
                 }
@@ -394,7 +396,7 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
                         }
                     }
                     if(!using_performance_governor) {
-                        UHD_LOG_WARNING(CRIMSON_TNG_DEBUG_NAME_C, "\nSend overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
+                        UHD_LOG_WARNING(self->_product_name_c, "\nSend overflow detected while not using performance cpu governor. Using governors other than performance can cause spikes in latency which can cause overflows\n");
                     }
                     self->_performance_warning_printed = true;
                 }
@@ -439,7 +441,7 @@ void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
 
     if(rate_used * CRIMSON_TNG_RX_SAMPLE_BITS * 2 > get_link_rate()) {
 
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C)
+        UHD_LOGGER_WARNING(product_name_c)
                 << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
                                 "exceeds the maximum capacity of the connection.\n"
                                 "This can cause overflows.")
@@ -471,7 +473,7 @@ void crimson_tng_impl::tx_rate_check(size_t ch, double rate_samples) {
 
     if(rate_used * CRIMSON_TNG_TX_SAMPLE_BITS * 2 > get_link_rate() && !tx_rate_warning_printed) {
 
-        UHD_LOGGER_WARNING(CRIMSON_TNG_DEBUG_NAME_C)
+        UHD_LOGGER_WARNING(product_name_c)
                 << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
                                 "exceeds the maximum capacity of the connection.\n"
                                 "This can cause underruns.")
@@ -577,17 +579,17 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         const size_t chan = args.channels[chan_i];
         if(chan > num_rx_channels) {
             std::string message = "Requested rx streamer with channel " + std::to_string(chan) + " but only " + std::to_string(num_rx_channels) + " channels exist";
-            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
+            UHD_LOG_ERROR(product_name_c, message);
             throw uhd::index_error(message);
         } else if(chan > 1 && is_full_tx) {
             std::string message = "Requested rx streamer with channel " + std::to_string(chan) + " but only rx channels A and B work on a full tx device. Change the rx channel requests or reconfigure Crimson as a non full tx Crimson";
-            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, message);
+            UHD_LOG_ERROR(product_name_c, message);
             throw uhd::index_error(message);
         }
     }
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Crimson TNG RX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(product_name_c + " RX cannot handle requested wire format: " + args.otw_format);
     }
 
     std::vector<std::string> dst_ip(args.channels.size());
@@ -617,7 +619,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         std::string src_ip = _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
 
         if(!ping_check(sfp, src_ip)) {
-            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Unable to ping " + src_ip + " on " + sfp + ". RX channel " + std::to_string(args.channels[n]) + " will not work");
+            UHD_LOG_ERROR(product_name_c, "Unable to ping " + src_ip + " on " + sfp + ". RX channel " + std::to_string(args.channels[n]) + " will not work");
         }
     }
 
@@ -652,7 +654,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
             // If a bind error occured pick a new
             if(bind_r < 0 && errno == EADDRINUSE && bind_attempts < max_band_attempts) {
                 std::string error_message = "Channel " + std::to_string(args.channels[n]) + " IP address " + dst_ip[n] + " and port " + std::to_string(dst_port[n]) + " is already in use. UHD will change the channel's port and trying again. The most likely causes are either there are multiple instances of UHD running or the OS has not cleaned up a previous UHD program's binds";
-                UHD_LOG_INFO(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+                UHD_LOG_INFO(product_name_c, error_message);
 
                 // Pick new port to attempt that shouldn't interfere with other channels
                 int desired_new_port = dst_port[n] + 32;
@@ -661,7 +663,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
             } else if (bind_r < 0) {
                 std::string error_message = "Channel " + std::to_string(args.channels[n]) + " bind to IP address " + dst_ip[n] + " and port " + std::to_string(dst_port[n]) + " failed with error code: " + std::string(strerror(errno));
-                UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, error_message);
+                UHD_LOG_ERROR(product_name_c, error_message);
                 throw uhd::io_error( error_message );
             }
 
@@ -710,7 +712,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::shared_ptr<crimson_tng_recv_packet_streamer>(new crimson_tng_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers));
+    std::shared_ptr<crimson_tng_recv_packet_streamer> my_streamer = std::shared_ptr<crimson_tng_recv_packet_streamer>(new crimson_tng_recv_packet_streamer(product_name_c, args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
@@ -810,7 +812,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
     sfp_control_mutex->unlock();
 
     if ( 0 == r ) {
-        UHD_LOGGER_ERROR(CRIMSON_TNG_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
+        UHD_LOGGER_ERROR("SEND_PACKET_STREAMER") << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
         throw new io_error( "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) );
     }
 
@@ -877,7 +879,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     args.channels = args.channels.empty()? std::vector<size_t>(1, 0) : args.channels;
 
     if (args.otw_format != "sc16"){
-        throw uhd::value_error("Crimson TNG TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(product_name_c + " TX cannot handle requested wire format: " + args.otw_format);
     }
 
     const size_t spp = CRIMSON_TNG_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);
@@ -892,7 +894,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
 
         // Verify the destination of tx packets can be pinged
         if(!ping_check(sfps[n], dst_ips[n])) {
-            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Unable to ping " + dst_ips[n] + " on " + sfps[n] + ". TX channel " + std::to_string(args.channels[n]) + " will not work");
+            UHD_LOG_ERROR(product_name_c, "Unable to ping " + dst_ips[n] + " on " + sfps[n] + ". TX channel " + std::to_string(args.channels[n]) + " will not work");
         }
     }
 
@@ -932,7 +934,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::shared_ptr<bounded_buffer<async_metadata_t>>(new bounded_buffer<async_metadata_t>(1000)/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::shared_ptr<crimson_tng_send_packet_streamer>(new crimson_tng_send_packet_streamer( args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info ));
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::shared_ptr<crimson_tng_send_packet_streamer>(new crimson_tng_send_packet_streamer( product_name_c, args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info ));
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

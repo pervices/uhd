@@ -33,7 +33,7 @@ public:
     /**
     * @param iface The interface to access thes server
     */
-    crimson_tng_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer);
+    crimson_tng_recv_packet_streamer(const std::string product_name_c, const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer);
 
     ~crimson_tng_recv_packet_streamer();
 
@@ -42,6 +42,10 @@ public:
     void teardown();
 
 private:
+
+    // The product name in all capitals
+    // Used for messages to the user, should not be used for anything else
+    const std::string _product_name_c;
 
     std::vector<size_t> _channels;
     std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
@@ -62,7 +66,7 @@ public:
     /**
     * @param iface The interface to access thes server
     */
-    crimson_tng_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info);
+    crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info);
 
     ~crimson_tng_send_packet_streamer();
 
@@ -104,6 +108,10 @@ protected:
     int64_t get_buffer_level_from_device(const size_t ch_i);
 
 private:
+    // The product name in all capitals
+    // Used for messages to the user, should not be used for anything else
+    const std::string _product_name_c;
+
     bool _first_call_to_send;
     bool _buffer_monitor_running;
     bool _stop_buffer_monitor;

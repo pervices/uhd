@@ -21,6 +21,7 @@
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
+#include <bits/stdc++.h>
 
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
@@ -279,7 +280,7 @@ void crimson_tng_impl::set_properties_from_addr() {
 
             std::string actual_string = _mbc.iface->get_string( key );
             if ( actual_string != expected_string ) {
-                UHD_LOGGER_ERROR("CRIMSON_IMPL")
+                UHD_LOGGER_ERROR(product_name_c + "_IMPL")
                     << __func__ << "(): "
                     << "Setting Crimson property failed: "
                     << "key: '"<< key << "', "
@@ -345,6 +346,14 @@ device_addrs_t crimson_tng_impl::crimson_tng_find_with_addr(const device_addr_t 
 
     // Gets the Serial number for all connected Crimsons found in the previous loop, and adds them to the return list if all required parameters match filters
     for(auto& addr : crimson_addrs) {
+
+        // The product name in all capitals
+        // Used for messages to the user, should not be used for anything else
+        // _l is used to avoid confusion with the class variable of a similar name and purpose
+        std::string product_name = addr["type"];
+        std::string product_name_c_l;
+        std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c_l), ::toupper);
+
         udp_simple::sptr comm = udp_simple::make_connected(
         addr["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
 
@@ -362,11 +371,11 @@ device_addrs_t crimson_tng_impl::crimson_tng_find_with_addr(const device_addr_t 
         std::vector<std::string> tokens;
         tng_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL" " failed to get serial number");
+            UHD_LOGGER_ERROR(product_name + "_IMPL" " failed to get serial number");
             addr["serial"]  = "0000000000000000";
         }
         else if (tokens[1].c_str()[0] == CMD_ERROR) {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL" " failed to get serial number");
+            UHD_LOGGER_ERROR(product_name + "_IMPL" " failed to get serial number");
             addr["serial"]  = "0000000000000000";
         } else {
             addr["serial"] = tokens[2];
@@ -426,11 +435,11 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
         }
         catch(const std::exception &ex)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery error " << ex.what() << std::endl;
+            UHD_LOGGER_ERROR("PV_IMPL") << "CRIMSON_TNG Network discovery error " << ex.what() << std::endl;
         }
         catch(...)
         {
-            UHD_LOGGER_ERROR("CRIMSON_IMPL") << "CRIMSON_TNG Network discovery unknown error " << std::endl;
+            UHD_LOGGER_ERROR("PV_IMPL") << "CRIMSON_TNG Network discovery unknown error " << std::endl;
         }
         BOOST_FOREACH(const device_addr_t &reply_addr, reply_addrs)
         {
@@ -689,7 +698,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         if (reply_good) {
             dev->time_diff_process( tdr, now );
         } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
-            UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Failed to receive packet used by clock synchronization");
+            UHD_LOG_ERROR(dev->product_name_c, "Failed to receive packet used by clock synchronization");
             dropped_recv_message_printed = true;
         }
         // lfence to update _bm_thread_should_exit for the for loop
@@ -798,6 +807,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
+    TREE_CREATE_RO("/name", "fpga/about/name", std::string, string);
+    std::string product_name = _tree->access<std::string>("/name").get();
+    // Convert product_name to all capitals and store in product_name_c for use in debug messages
+    std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c), ::toupper);
+
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
 
@@ -886,8 +900,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     _tree->create<std::vector<double> >(CRIMSON_TNG_MB_PATH / "clock_source" / "external" / "freq" / "options");
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CRIMSON_TNG_MB_PATH / "clock_source" / "options").set(clock_source_options);
-
-    TREE_CREATE_ST("/name", std::string, "Crimson_TNG Device");
 
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
@@ -985,7 +997,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     if(_which_time_diff_iface < 0) {
         // TODO: only print this warning when using regular streaming
-        UHD_LOG_WARNING(CRIMSON_TNG_DEBUG_NAME_C, "Unable to ping any SFP ports. Only force stream will work. Normal streaming will not");
+        UHD_LOG_WARNING(product_name_c, "Unable to ping any SFP ports. Only force stream will work. Normal streaming will not");
         // Attempt to use SFPA for time diff if unable to reach any
         // TODO: Don't run time diffs if unable to ping any SFP ports
         _which_time_diff_iface = 0;
@@ -1648,7 +1660,7 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
     const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
     if(actual_rf_freq == 0 && target_rf_freq != 0) {
-        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Error when attempting to set lo on channel " + std::string(1, chan + 'A') + ". The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
+        UHD_LOG_ERROR(product_name_c, "Error when attempting to set lo on channel " + std::string(1, chan + 'A') + ". The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
     }
 
     //------------------------------------------------------------------
@@ -1949,7 +1961,7 @@ bool crimson_tng_impl::ping_check(std::string sfp, std::string ip) {
 
     size_t sfp_num = sfp.back() - 'a';
     if(sfp_num > NUMBER_OF_XG_CONTROL_INTF) {
-        UHD_LOG_ERROR(CRIMSON_TNG_DEBUG_NAME_C, "Ping check requested for sfp port that does not exist: " + sfp);
+        UHD_LOG_ERROR(product_name_c, "Ping check requested for sfp port that does not exist: " + sfp);
         return false;
     }
     // This sfp port has already been pinged, do not check again

@@ -172,8 +172,6 @@
                 ( CRIMSON_TNG_VITA_TLR_E      << 7) |\
                 ( CRIMSON_TNG_VITA_TLR_PCKCNT << 0) )
 
-#define CRIMSON_TNG_DEBUG_NAME_C "CRIMSON_TNG"
-
 #define CRIMSON_TNG_MB_PATH   fs_path("/mboards/0")
 #define CRIMSON_TNG_TIME_PATH fs_path(CRIMSON_TNG_MB_PATH / "time")
 
