@@ -291,43 +291,43 @@ void benchmark_tx_rate_async_helper(uhd::tx_streamer::sptr tx_stream,
     const start_time_type& start_time,
     std::atomic<bool>& burst_timer_elapsed)
 {
-    // setup variables and allocate buffer
-    uhd::async_metadata_t async_md;
-    bool exit_flag = false;
-
-    while (true) {
-        if (burst_timer_elapsed) {
-            exit_flag = true;
-        }
-
-        if (not tx_stream->recv_async_msg(async_md)) {
-            if (exit_flag == true)
-                return;
-            continue;
-        }
-
-        // handle the error codes
-        switch (async_md.event_code) {
-            case uhd::async_metadata_t::EVENT_CODE_BURST_ACK:
-                return;
-
-            case uhd::async_metadata_t::EVENT_CODE_UNDERFLOW:
-            case uhd::async_metadata_t::EVENT_CODE_UNDERFLOW_IN_PACKET:
-                num_underruns++;
-                break;
-
-            case uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR:
-            case uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR_IN_BURST:
-                num_seq_errors++;
-                break;
-
-            default:
-                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Event code: " << async_md.event_code
-                          << std::endl;
-                UHD_LOGGER_ERROR("BENCHMARK_RATE") << "Unexpected event on async recv, continuing..." << std::endl;
-                break;
-        }
-    }
+    // // setup variables and allocate buffer
+    // uhd::async_metadata_t async_md;
+    // bool exit_flag = false;
+    //
+    // while (true) {
+    //     if (burst_timer_elapsed) {
+    //         exit_flag = true;
+    //     }
+    //
+    //     if (not tx_stream->recv_async_msg(async_md)) {
+    //         if (exit_flag == true)
+    //             return;
+    //         continue;
+    //     }
+    //
+    //     // handle the error codes
+    //     switch (async_md.event_code) {
+    //         case uhd::async_metadata_t::EVENT_CODE_BURST_ACK:
+    //             return;
+    //
+    //         case uhd::async_metadata_t::EVENT_CODE_UNDERFLOW:
+    //         case uhd::async_metadata_t::EVENT_CODE_UNDERFLOW_IN_PACKET:
+    //             num_underruns++;
+    //             break;
+    //
+    //         case uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR:
+    //         case uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR_IN_BURST:
+    //             num_seq_errors++;
+    //             break;
+    //
+    //         default:
+    //             UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Event code: " << async_md.event_code
+    //                       << std::endl;
+    //             UHD_LOGGER_ERROR("BENCHMARK_RATE") << "Unexpected event on async recv, continuing..." << std::endl;
+    //             break;
+    //     }
+    // }
 }
 
 /***********************************************************************
