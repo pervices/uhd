@@ -22,6 +22,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhdlib/utils/system_time.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
+#include <uhdlib/utils/tx_async_msg_queue.hpp>
 
 
 #define MIN_MTU 9000
