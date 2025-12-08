@@ -18,10 +18,10 @@
 
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/transport/buffer_tracker.hpp>
-#include <uhd/transport/bounded_buffer.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/utils/system_time.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
+#include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
 
 
 #define MIN_MTU 9000
@@ -54,7 +54,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner);
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner);
 
     ~send_packet_handler_mmsg(void);
 
@@ -195,7 +195,7 @@ protected:
     size_t _NUM_CHANNELS;
 
     // Buffer containing asynchronous messages related to underflows/overflows
-    const std::shared_ptr<bounded_buffer<async_metadata_t>> _async_msg_fifo;
+    const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
 
     // Gets the the time on the unit when a packet sent now would arrive
     uhd::time_spec_t get_device_time();
@@ -676,7 +676,7 @@ private:
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info);
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info);
 
     size_t get_num_channels(void) const override {
         return _NUM_CHANNELS;
@@ -690,7 +690,7 @@ public:
     bool recv_async_msg(uhd::async_metadata_t &async_metadata, double timeout = 0.1) override;
 
     // Asynchronously send messages notifying of overflow/underflows
-    bool push_async_msg( uhd::async_metadata_t &async_metadata);
+    void push_async_msg( uhd::async_metadata_t &async_metadata);
 
     // Makes sure the correct enable_blocking_fc is used instead of the one from tx_streamer
     void enable_blocking_fc(uint64_t blocking_setpoint) override;
