@@ -29,7 +29,7 @@ namespace uhd {
 namespace transport {
 namespace sph {
 
-send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner)
+send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner)
     // Ensure max_samples_per_packet is a multiple of the number of samples allowed per packet
     : _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
     _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
@@ -280,7 +280,7 @@ int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
 }
 
 
-send_packet_streamer_mmsg::send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<bounded_buffer<async_metadata_t>> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info):
+send_packet_streamer_mmsg::send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info):
 sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info)
 {
 }
@@ -288,12 +288,17 @@ sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_si
 bool send_packet_streamer_mmsg::recv_async_msg(
     uhd::async_metadata_t &async_metadata, double timeout
 ){
-    boost::this_thread::disable_interruption di; //disable because the wait can throw
-    return _async_msg_fifo->pop_with_timed_wait(async_metadata, timeout);
+    // TODO: add wait and timeout
+    // Return !pop because in this case pop return 0 on success, this function returns true on success
+    return !_async_msg_fifo->pop(&async_metadata, timeout);
 }
 
 bool send_packet_streamer_mmsg::push_async_msg( uhd::async_metadata_t &async_metadata ){
-    return _async_msg_fifo->push_with_pop_on_full(async_metadata);
+    _async_msg_fifo->push(&async_metadata);
+
+    // pv_tx_async_msg_queue->push will never fail
+    // TODO: change this function to void
+    return true;
 }
 
 void send_packet_streamer_mmsg::enable_blocking_fc(uint64_t blocking_setpoint) {
