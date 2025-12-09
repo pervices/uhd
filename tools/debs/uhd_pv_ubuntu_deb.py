@@ -21,23 +21,14 @@ import sys
 import tarfile
 
 supported_ubuntu_releases = ["focal", "jammy", "noble"]
-# Command to create compressed source code to ship with the package
-# The command must result in a deterministic checksum for any given commit
-# tar.xz adds the tar.xz format, git archive creates the source code tarball
-prep_command = ["git", "config", "tar.tar.xz.command", "xz -c"]
-archive_command =  "git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
+#tar_command = "tar --exclude='.git*' --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
+tar_command = "tar --exclude='./debian' --exclude='*.swp' --exclude='fpga' --exclude='build' --exclude='./images/*.pyc' --exclude='./images/uhd-*' --exclude='tags' --exclude='.ci' --exclude='.clang*' -cJf {}/uhdpv_{}.orig.tar.xz ."
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
+copy_command = "cp -r {}/uhdpv_{}.orig.tar.xz {}"
 
 
 def main(args):
-    # Ubuntu requires that the source tarball have the same checksum in each version's package
-    # Previously we used tar directly to create the tarball which resulted in different checksums
-    # As a workaround we would use the tarball from 1 of them for the others
-    # The workaround has been disabled since git archive doesn't have this issue
-    if(args.tarfile):
-        print("Building package using an existing source tarball has been disabled since the new archive command can create determistic tarballs of source code. This argument will be ignored.")
-
     if not pathlib.Path("host").exists():
         print("Check path. This script must be run on uhd base path")
         sys.exit(1)
@@ -72,17 +63,20 @@ def main(args):
     if pathlib.Path(args.buildpath).exists():
         shutil.rmtree(args.buildpath)
     os.mkdir(args.buildpath)
-
-    print("Compressing UHD Source...")
-    result = subprocess.run(prep_command)
-    if result.returncode:
-        print("Compressing source prep failed")
-        sys.exit(result.returncode)
-    result = subprocess.run(shlex.split(
-        archive_command.format(args.buildpath, uhd_version)))
-    if result.returncode:
-        print("Compressing source failed")
-        sys.exit(result.returncode)
+    if not args.tarfile:
+        print("Compressing UHD Source...")
+        result = subprocess.run(shlex.split(
+            tar_command.format(args.buildpath, uhd_version)))
+        if result.returncode:
+            print("Compressing source failed")
+            sys.exit(result.returncode)
+    else:
+        print("Retrieving existing UHD Source...")
+        result = subprocess.run(shlex.split(
+            copy_command.format(args.tarfile, uhd_version, args.buildpath)))
+        if result.returncode:
+            print("Retrieving source failed")
+            sys.exit(result.returncode)
 
     # Extract UHD source to build folder
     print("Extractubg UHD source to build folder...")
@@ -155,7 +149,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tarfile", type=str,
-                        help="Deprecated, ignored")
+                        help="Specify existing tar file")
     parser.add_argument("--repo", type=str, required=True,
                         help="Specify ppa repository")
     parser.add_argument("--nightly", action='store_true',
