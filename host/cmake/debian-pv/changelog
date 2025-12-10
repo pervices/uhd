@@ -1,3 +1,9 @@
+uhdpv (4.8.0.26-0ubuntu1) ubuntu_release; urgency=low
+
+  * Revert changes to fix version build issue on Ubuntu
+
+ -- Per Vices <packages@pervices.com>  Thu, 10 Dec 2025 11:19:48 -0500
+
 uhdpv (4.8.0.25-0ubuntu1) ubuntu_release; urgency=low
 
   * Added error detection for mismatch in sample rate between channels in a tx streamer
