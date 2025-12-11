@@ -20,7 +20,7 @@ namespace uhd {
 
     }
 
-    pv_tx_async_msg_queue::push(const size_t ch, const uhd::async_metadata_t msg) {
+    void pv_tx_async_msg_queue::push(const size_t ch, const uhd::async_metadata_t msg) {
 
         // 0 for the first message, 1 for the second, 2 for the third...
         const size_t message_number = messages_written[ch];
