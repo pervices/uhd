@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <cstddef>
+
 namespace uhd {
 
     /**
@@ -17,13 +19,16 @@ namespace uhd {
      * Also it skips the entire buffer when full instead of overwriting the last element.
      * The above compromises are deemed worth it to fix a bug that can cause programs to hang if reading and writing to much
      */
-    class async_lossy_fifo_swmr {
+    class tx_async_msg_queue {
     public:
 
         /**
-         * Constructor of async_lossy_fifo_swmr
+         * Constructor of tx_async_msg_queue
+         *
+         * @param num_channels The number of channels to manage
+         * @param max_messages_per_channel The maximum number of messages per channel
          */
-        async_lossy_fifo_swmr(size_t num_channels, size_t max_messages_per_channel);
+        tx_async_msg_queue(size_t num_channels, size_t max_messages_per_channel = 1000);
 
         /**
          * Adds a message to the FIFO.
@@ -36,7 +41,9 @@ namespace uhd {
         void push(size_t ch, uhd::async_metadata_t msg);
 
         /**
-         * Removeds a message from the FIFO.
+         * Removes a message from the FIFO.
+         *
+         * Any number of threads can read from this at once, although contention may make timeouts likely
          *
          * @param msg A pointer to where to store the message
          * @return 0 indicates success, non 0 indicates an error
