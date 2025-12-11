@@ -99,7 +99,7 @@ def main(args):
 
     # Copy UHDVersion.cmake to the build folder since it may have an updated patch number
     print("Copying UHD version number to build folder...")
-    shutil.copy2("host/cmake/Modules/UHDVersion.cmake", uhd_deb_build_path / "cmake/Modules/UHDVersion.cmake")
+    shutil.copy2("host/cmake/Modules/UHDVersion.cmake", uhd_deb_build_path / "host/cmake/Modules/UHDVersion.cmake")
 
     # Copy debian build files to build folder
     print("Copying debian build files to the build folder...")
