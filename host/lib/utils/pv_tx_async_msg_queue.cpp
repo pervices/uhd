@@ -6,6 +6,9 @@
 
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
 
+// Fences
+#include <immintrin.h>
+
 namespace uhd {
     pv_tx_async_msg_queue::pv_tx_async_msg_queue(size_t num_channels, size_t max_messages_per_channel)
     :
@@ -26,14 +29,19 @@ namespace uhd {
         // Performance shouldn't matter where this is called. If it ends up mattering replace % with power of 2 bit mask
         const size_t message_location = message_number % _max_messages_per_channel;
 
+        // Increments count indicating that writing this message has begun
         messages[ch][message_location].message_writes_started = message_number + 1;
 
-        // TODO: sfence
+        // Ensures that the write start counter is incremented before the write begins
+        _mm_sfence();
 
+        // Copys the message to the buffer
         messages[ch][message_location].msg = msg;
 
-        // TODO: sfence
+        // Ensures that the message is written before the write complete counter is incremented
+        _mm_sfence();
 
+        // Increment the count indicating that this message has been written
         messages[ch][message_location].message_writes_completed = message_number + 1;
 
         // Record that a message was written for use by the writer (this function/thread)

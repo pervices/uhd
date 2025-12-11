@@ -40,7 +40,7 @@ namespace uhd {
          * @param ch The channel the message is for
          * @param msg The message to add to the fifo
          */
-        void push(size_t ch, uhd::async_metadata_t msg);
+        void push(const size_t ch, const uhd::async_metadata_t msg);
 
         /**
          * Removes a message from the FIFO.
