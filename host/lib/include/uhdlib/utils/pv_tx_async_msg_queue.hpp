@@ -54,11 +54,18 @@ namespace uhd {
 
     private:
 
-        struct checksum_msg {
+        struct tracked_msg {
+            // The message
             uhd::async_metadata_t msg;
-            size_t checksum;
+            // The number of messages that have begun to be written to this buffer. Used to check if the message overflowed
+            size_t message_writes_started = 0;
+            // The number of messages that have been finished being written to this buffer. Used to check if a message is ready
+            size_t message_writes_completed = 0;
         };
         // The inner vector stores per channel messages, the outer vector is used to select the channel
-        std::vector<std::vector<checksum_msg>> messages;
+        std::vector<std::vector<tracked_msg>> messages;
+
+        // The number of messages read for each channel's buffer
+        std::vector<size_t> messages_read;
     };
 }
