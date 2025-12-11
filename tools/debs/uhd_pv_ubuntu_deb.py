@@ -85,13 +85,21 @@ def main(args):
         sys.exit(result.returncode)
 
     # Extract UHD source to build folder
-    print("Extractubg UHD source to build folder...")
+    print("Extracting UHD source to build folder...")
     uhd_deb_build_path = pathlib.Path(
         args.buildpath, "uhdpv-{}".format(uhd_version))
     if uhd_deb_build_path.exists():
         shutil.rmtree(uhd_deb_build_path)
     with tarfile.open(args.buildpath + "/uhdpv_{}.orig.tar.xz".format(uhd_version), "r:xz") as uhd_archive:
         uhd_archive.extractall(path=uhd_deb_build_path)
+
+    # Copy Git repo (.git/) to build folder for version detection during build
+    print("Copying Git repository to the build folder...")
+    shutil.copytree(".git", uhd_deb_build_path / ".git")
+
+    # Copy UHDVersion.cmake to the build folder since it may have an updated patch number
+    print("Copying UHD version number to build folder...")
+    shutil.copy2("host/cmake/Modules/UHDVersion.cmake", uhd_deb_build_path / "cmake/Modules/UHDVersion.cmake")
 
     # Copy debian build files to build folder
     print("Copying debian build files to the build folder...")
