@@ -40,7 +40,7 @@
 #include <uhdlib/utils/system_time.hpp>
 #include <uhd/transport/bounded_buffer.hpp>
 #include <immintrin.h>
-#include <uhdlib/utils/tx_async_msg_queue.hpp>
+#include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
 
 typedef std::pair<uint8_t, uint32_t> user_reg_t;
 

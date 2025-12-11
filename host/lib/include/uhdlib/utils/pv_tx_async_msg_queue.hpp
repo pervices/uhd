@@ -55,5 +55,5 @@ namespace uhd {
     private:
         // The inner vector stores per channel messages, the outer vector is used to select the channel
         std::vector<std::vector<uhd::async_metadata_t>> messages;
-    }
+    };
 }
