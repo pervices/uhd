@@ -21,16 +21,27 @@ namespace uhd {
     public:
 
         /**
-         * Adds a message to the FIFO.
-         *
-         * The message
+         * Constructor of async_lossy_fifo_swmr
          */
-        push(size_t ch, uhd::async_metadata_t a);
+        async_lossy_fifo_swmr(size_t num_channels, size_t max_messages_per_channel);
 
         /**
+         * Adds a message to the FIFO.
          *
+         * It is thread safe with respect to pop but not with respect to itself
+         *
+         * @param ch The channel the message is for
+         * @param msg The message to add to the fifo
          */
-        pop(uhd::async_metadata_t* a);
+        void push(size_t ch, uhd::async_metadata_t msg);
+
+        /**
+         * Removeds a message from the FIFO.
+         *
+         * @param msg A pointer to where to store the message
+         * @return 0 indicates success, non 0 indicates an error
+         */
+        int pop(uhd::async_metadata_t* msg);
 
     private:
         // The inner vector stores per channel messages, the outer vector is used to select the channel
