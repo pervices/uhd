@@ -7,6 +7,8 @@
 #pragma once
 
 #include <cstddef>
+#include <vector>
+#include <uhd/types/metadata.hpp>
 
 namespace uhd {
 
@@ -19,7 +21,7 @@ namespace uhd {
      * Also it skips the entire buffer when full instead of overwriting the last element.
      * The above compromises are deemed worth it to fix a bug that can cause programs to hang if reading and writing to much
      */
-    class tx_async_msg_queue {
+    class pv_tx_async_msg_queue {
     public:
 
         /**
@@ -28,7 +30,7 @@ namespace uhd {
          * @param num_channels The number of channels to manage
          * @param max_messages_per_channel The maximum number of messages per channel
          */
-        tx_async_msg_queue(size_t num_channels, size_t max_messages_per_channel = 1000);
+        pv_tx_async_msg_queue(size_t num_channels, size_t max_messages_per_channel = 1000);
 
         /**
          * Adds a message to the FIFO.
