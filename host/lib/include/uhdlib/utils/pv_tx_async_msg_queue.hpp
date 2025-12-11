@@ -53,7 +53,12 @@ namespace uhd {
         int pop(uhd::async_metadata_t* msg);
 
     private:
+
+        struct checksum_msg {
+            uhd::async_metadata_t msg;
+            size_t checksum;
+        };
         // The inner vector stores per channel messages, the outer vector is used to select the channel
-        std::vector<std::vector<uhd::async_metadata_t>> messages;
+        std::vector<std::vector<checksum_msg>> messages;
     };
 }
