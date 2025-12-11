@@ -10,8 +10,33 @@ namespace uhd {
     pv_tx_async_msg_queue::pv_tx_async_msg_queue(size_t num_channels, size_t max_messages_per_channel)
     :
     messages(num_channels, std::vector<tracked_msg>(max_messages_per_channel)),
-    messages_read(num_channels, 0)
+    messages_written(num_channels, 0),
+    messages_read(num_channels, 0),
+    _max_messages_per_channel(max_messages_per_channel)
     {
 
+    }
+
+    pv_tx_async_msg_queue::push(const size_t ch, const uhd::async_metadata_t msg) {
+
+        // 0 for the first message, 1 for the second, 2 for the third...
+        const size_t message_number = messages_written[ch];
+
+        // Location in the buffer to store the message
+        // Performance shouldn't matter where this is called. If it ends up mattering replace % with power of 2 bit mask
+        const size_t message_location = message_number % _max_messages_per_channel;
+
+        messages[ch][message_location].message_writes_started = message_number + 1;
+
+        // TODO: sfence
+
+        messages[ch][message_location].msg = msg;
+
+        // TODO: sfence
+
+        messages[ch][message_location].message_writes_completed = message_number + 1;
+
+        // Record that a message was written for use by the writer (this function/thread)
+        messages_written[ch]++;
     }
 }

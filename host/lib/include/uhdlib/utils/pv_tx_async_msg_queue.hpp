@@ -45,7 +45,7 @@ namespace uhd {
         /**
          * Removes a message from the FIFO.
          *
-         * Any number of threads can read from this at once, although contention may make timeouts likely
+         * It is thread safe with respect to push but not with respect to itself
          *
          * @param msg A pointer to where to store the message
          * @return 0 indicates success, non 0 indicates an error
@@ -65,7 +65,13 @@ namespace uhd {
         // The inner vector stores per channel messages, the outer vector is used to select the channel
         std::vector<std::vector<tracked_msg>> messages;
 
+        // Number of messages written to the buffer
+        std::vector<size_t> messages_written;
+
         // The number of messages read for each channel's buffer
         std::vector<size_t> messages_read;
+
+        // The maximum number of messages per channel
+        const size_t _max_messages_per_channel;
     };
 }
