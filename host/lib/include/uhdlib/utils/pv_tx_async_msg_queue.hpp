@@ -30,7 +30,7 @@ namespace uhd {
          * @param num_channels The number of channels to manage
          * @param max_messages_per_channel The maximum number of messages per channel
          */
-        pv_tx_async_msg_queue(size_t num_channels, size_t max_messages_per_channel = 1000);
+        pv_tx_async_msg_queue(size_t max_messages = 1000);
 
         /**
          * Adds a message to the FIFO.
@@ -61,19 +61,16 @@ namespace uhd {
             // The number of messages that have been finished being written to this buffer. Used to check if a message is ready
             size_t message_writes_completed = 0;
         };
-        // The inner vector stores per channel messages, the outer vector is used to select the channel
-        std::vector<std::vector<tracked_msg>> messages;
+        // Message FIFO queue
+        std::vector<tracked_msg> messages;
 
         // Number of messages written to the buffer
-        std::vector<size_t> messages_written;
+        size_t messages_written = 0;
 
         // The number of messages read for each channel's buffer
-        std::vector<size_t> messages_read;
-
-        // Number of channels
-        const size_t _num_channels;
+        size_t messages_read = 0;
 
         // The maximum number of messages per channel
-        const size_t _max_messages_per_channel;
+        const size_t _max_messages;
     };
 }
