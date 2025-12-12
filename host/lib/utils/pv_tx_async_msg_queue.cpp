@@ -6,6 +6,10 @@
 
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
 
+// For timeout calculation
+#include <uhdlib/utils/system_time.hpp>
+#include <uhd/types/time_spec.hpp>
+
 // Fences
 #include <immintrin.h>
 
@@ -60,12 +64,26 @@ namespace uhd {
         // Performance shouldn't matter where this is called. If it ends up mattering replace % with power of 2 bit mask
         size_t message_location = messages_read % _max_messages;
 
+
+        // Wait until the next message is ready
+        time_spec_t timeout_time = uhd::get_system_time() + timeout;
+        // Fence to ensure this thread is updating message_writes_completed
+        _mm_lfence();
+        while(messages[message_location].message_writes_completed <= messages_read) {
+            if(timeout_time > uhd::get_system_time()) {
+                // TODO: replace 1 with proper error code for empty queue
+                return 1;
+            }
+            // Delay to reduce resource usage
+            ::usleep(1000);
+            _mm_lfence();
+        }
+
         size_t writes_started;
         size_t writes_completed;
+
         size_t copy_attempts = 0;
         do {
-            // TODO: check if a packet is ready (currently it only checks if the packet was modified while copying)
-
 
             writes_started = messages[message_location].message_writes_started;
 
@@ -78,7 +96,7 @@ namespace uhd {
             // Ensures that write completed counter is read before the message is copied
             _mm_lfence();
 
-            writes_completed = messages[message_location].message_writes_started;
+            writes_completed = messages[message_location].message_writes_completed;
 
             copy_attempts++;
 
@@ -93,8 +111,8 @@ namespace uhd {
 
         // Copy oldest message to caller specified location
         *msg = next_msg;
-        // Record that we read this message
-        messages_read++;
+        // Advance the queue
+        messages_read = writes_completed;
 
         return 0;
     }
