@@ -70,24 +70,45 @@ namespace uhd {
             size_t copy_attempts = 0;
             do {
                 writes_started = messages[ch][message_location].message_writes_started;
-                // TODO: fence
 
+                // Ensures that write started counter is read before the message is copied
+                _mm_lfence();
+
+                // Copy the message from the shared buffer to memory only used by this thread
                 next_msg[ch] = messages[ch][message_location].msg;
-                // TODO: fence
+
+                // Ensures that write completed counter is read before the message is copied
+                _mm_lfence();
 
                 writes_completed = messages[ch][message_location].message_writes_started;
 
                 copy_attempts++;
 
+                // Retry if the message was edited while copying
             } while(writes_started != writes_completed && copy_attempts <= max_interrupted_copies);
 
             if(copy_attempts > max_interrupted_copies) {
+                // TODO: warning message
 
                 return 1;
             }
         }
 
-        // TODO: select oldest message
+        // The channel of the oldest message
+        size_t oldest_ch = 0;
+
+        for(size_t ch = 1; ch < _num_channels; ch++) {
+            // TODO: handle case where has_time_spec is false
+
+            if(next_msg[ch].time_spec < next_msg[oldest_ch].time_spec) {
+                oldest_ch = ch;
+            }
+        }
+
+        // Copy oldest message to caller specified location
+        *msg = next_msg[oldest_ch];
+        // Record that we read this message
+        messages_read[oldest_ch]++;
 
         return 0;
     }
