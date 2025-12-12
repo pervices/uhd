@@ -21,7 +21,11 @@ namespace uhd {
 
     }
 
-    void pv_tx_async_msg_queue::push(const size_t ch, const uhd::async_metadata_t msg) {
+    void pv_tx_async_msg_queue::push(const uhd::async_metadata_t* msg) {
+        // TODO: remove channels
+
+        size_t ch = msg->channel;
+        // TODO: verify ch < _num_channels
 
         // 0 for the first message, 1 for the second, 2 for the third...
         const size_t message_number = messages_written[ch];
@@ -37,7 +41,7 @@ namespace uhd {
         _mm_sfence();
 
         // Copys the message to the buffer
-        messages[ch][message_location].msg = msg;
+        messages[ch][message_location].msg = *msg;
 
         // Ensures that the message is written before the write complete counter is incremented
         _mm_sfence();
@@ -49,7 +53,7 @@ namespace uhd {
         messages_written[ch]++;
     }
 
-    int pv_tx_async_msg_queue::pop(async_metadata_t* msg) {
+    int pv_tx_async_msg_queue::pop(async_metadata_t* msg, const double timeout) {
 
         // Buffer to store the next message in each channel
         std::vector<async_metadata_t> next_msg(_num_channels);
@@ -69,6 +73,9 @@ namespace uhd {
             size_t writes_completed;
             size_t copy_attempts = 0;
             do {
+                // TODO: check if a packet is ready (currently it only checks if the packet was modified while copying)
+
+
                 writes_started = messages[ch][message_location].message_writes_started;
 
                 // Ensures that write started counter is read before the message is copied

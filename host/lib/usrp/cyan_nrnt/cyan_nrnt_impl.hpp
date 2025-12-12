@@ -38,7 +38,6 @@
 #include "cyan_nrnt_io_impl.hpp"
 #include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
-#include <uhd/transport/bounded_buffer.hpp>
 #include <immintrin.h>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
 
@@ -100,7 +99,7 @@ public:
     virtual uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 
     bool recv_async_msg_deprecated_warning = false;
-    std::shared_ptr<uhd::transport::bounded_buffer<async_metadata_t>> _async_msg_fifo;
+    std::shared_ptr<uhd::pv_tx_async_msg_queue> _async_msg_fifo;
     bool recv_async_msg(uhd::async_metadata_t &, double);
 
     uhd::device_addr_t device_addr;

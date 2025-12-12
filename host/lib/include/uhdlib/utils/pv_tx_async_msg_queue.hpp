@@ -37,10 +37,9 @@ namespace uhd {
          *
          * It is thread safe with respect to pop but not with respect to itself
          *
-         * @param ch The channel the message is for
          * @param msg The message to add to the fifo
          */
-        void push(const size_t ch, const uhd::async_metadata_t msg);
+        void push(const uhd::async_metadata_t* msg);
 
         /**
          * Removes a message from the FIFO.
@@ -50,7 +49,7 @@ namespace uhd {
          * @param msg A pointer to where to store the message
          * @return 0 indicates success, non 0 indicates an error
          */
-        int pop(uhd::async_metadata_t* msg);
+        int pop(uhd::async_metadata_t* msg, const double timeout);
 
     private:
 
