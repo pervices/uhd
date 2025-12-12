@@ -71,6 +71,9 @@ namespace uhd {
         // The number of messages read for each channel's buffer
         std::vector<size_t> messages_read;
 
+        // Number of channels
+        const size_t _num_channels;
+
         // The maximum number of messages per channel
         const size_t _max_messages_per_channel;
     };

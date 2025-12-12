@@ -47,4 +47,44 @@ namespace uhd {
         // Record that a message was written for use by the writer (this function/thread)
         messages_written[ch]++;
     }
+
+    int pop(uhd::async_metadata_t* msg) {
+
+        // Buffer to store the next message in each channel
+        std::vector<tracked_msg> next_msg(_num_channels);
+
+        // Maximum number of attempts to copy data from the buffer that can be interrupted by the message being modified.
+        // This should never be encountered, since having it interrupted more than once would mean that in the time it takes
+        // to copy a message in this thread, the pushing thread wrote the entire ring buffer
+        constexpr max_interrupted_copies = 3;
+
+        for(size_t ch = 0; ch < _num_channels; ch++) {
+
+            // Location in the buffer to read the message
+            // Performance shouldn't matter where this is called. If it ends up mattering replace % with power of 2 bit mask
+            size_t message_location = messages_read[ch] % _max_messages_per_channel;
+
+            size_t writes_started;
+            size_t writes_completed;
+            size_t copy_attempts = 0;
+            do {
+                size_t writes_started = messages[ch][message_location].message_writes_started;
+                // TODO: fence
+
+                next_msg[ch] = messages[ch][message_location].msg;
+                // TODO: fence
+
+                size_t writes_completed = messages[ch][message_location].message_writes_started;
+
+                copy_attempts++;
+
+            } while(writes_started != writes_completed && copy_attempts <= max_interrupted_copies);
+
+            if(copy_attempts > max_interrupted_copies) {
+
+            }
+        }
+
+        // TODO: select oldest message
+    }
 }
