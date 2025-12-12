@@ -1,0 +1,4 @@
+PATCH_VER=$1
+BUILD_PATH=$2
+
+sed -i s/UHD_VERSION_PATCH\ \ \ \ \ \ 0/UHD_VERSION_PATCH\ \ \ \ \ \ $PATCH_VER/g $BUILD_PATH
