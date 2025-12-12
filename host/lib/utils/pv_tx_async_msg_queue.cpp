@@ -15,6 +15,7 @@ namespace uhd {
     messages(num_channels, std::vector<tracked_msg>(max_messages_per_channel)),
     messages_written(num_channels, 0),
     messages_read(num_channels, 0),
+    _num_channels(num_channels),
     _max_messages_per_channel(max_messages_per_channel)
     {
 
@@ -48,10 +49,10 @@ namespace uhd {
         messages_written[ch]++;
     }
 
-    int pop(uhd::async_metadata_t* msg) {
+    int pv_tx_async_msg_queue::pop(async_metadata_t* msg) {
 
         // Buffer to store the next message in each channel
-        std::vector<tracked_msg> next_msg(_num_channels);
+        std::vector<tuhd::tracked_msg> next_msg(_num_channels);
 
         // Maximum number of attempts to copy data from the buffer that can be interrupted by the message being modified.
         // This should never be encountered, since having it interrupted more than once would mean that in the time it takes
