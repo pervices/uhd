@@ -52,12 +52,12 @@ namespace uhd {
     int pv_tx_async_msg_queue::pop(async_metadata_t* msg) {
 
         // Buffer to store the next message in each channel
-        std::vector<tuhd::tracked_msg> next_msg(_num_channels);
+        std::vector<async_metadata_t> next_msg(_num_channels);
 
         // Maximum number of attempts to copy data from the buffer that can be interrupted by the message being modified.
         // This should never be encountered, since having it interrupted more than once would mean that in the time it takes
         // to copy a message in this thread, the pushing thread wrote the entire ring buffer
-        constexpr max_interrupted_copies = 3;
+        constexpr size_t max_interrupted_copies = 3;
 
         for(size_t ch = 0; ch < _num_channels; ch++) {
 
@@ -69,13 +69,13 @@ namespace uhd {
             size_t writes_completed;
             size_t copy_attempts = 0;
             do {
-                size_t writes_started = messages[ch][message_location].message_writes_started;
+                writes_started = messages[ch][message_location].message_writes_started;
                 // TODO: fence
 
                 next_msg[ch] = messages[ch][message_location].msg;
                 // TODO: fence
 
-                size_t writes_completed = messages[ch][message_location].message_writes_started;
+                writes_completed = messages[ch][message_location].message_writes_started;
 
                 copy_attempts++;
 
@@ -83,9 +83,12 @@ namespace uhd {
 
             if(copy_attempts > max_interrupted_copies) {
 
+                return 1;
             }
         }
 
         // TODO: select oldest message
+
+        return 0;
     }
 }
