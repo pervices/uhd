@@ -690,7 +690,7 @@ public:
     bool recv_async_msg(uhd::async_metadata_t &async_metadata, double timeout = 0.1) override;
 
     // Asynchronously send messages notifying of overflow/underflows
-    bool push_async_msg( uhd::async_metadata_t &async_metadata);
+    void push_async_msg( uhd::async_metadata_t &async_metadata);
 
     // Makes sure the correct enable_blocking_fc is used instead of the one from tx_streamer
     void enable_blocking_fc(uint64_t blocking_setpoint) override;

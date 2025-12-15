@@ -293,12 +293,8 @@ bool send_packet_streamer_mmsg::recv_async_msg(
     return !_async_msg_fifo->pop(&async_metadata, timeout);
 }
 
-bool send_packet_streamer_mmsg::push_async_msg( uhd::async_metadata_t &async_metadata ){
+void send_packet_streamer_mmsg::push_async_msg( uhd::async_metadata_t &async_metadata ){
     _async_msg_fifo->push(&async_metadata);
-
-    // pv_tx_async_msg_queue->push will never fail
-    // TODO: change this function to void
-    return true;
 }
 
 void send_packet_streamer_mmsg::enable_blocking_fc(uint64_t blocking_setpoint) {
