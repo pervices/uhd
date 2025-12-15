@@ -71,8 +71,8 @@ namespace uhd {
         _mm_lfence();
         while(messages[message_location].message_writes_completed <= messages_read) {
             if(timeout_time > uhd::get_system_time()) {
-                // TODO: replace 1 with proper error code for empty queue
-                return 1;
+                // Return an error indicating the timeout expired (asme as recvmmsg)
+                return EAGAIN;
             }
             // Delay to reduce resource usage
             ::usleep(1000);
@@ -104,9 +104,9 @@ namespace uhd {
         } while(writes_started != writes_completed && copy_attempts <= max_interrupted_copies);
 
         if(copy_attempts > max_interrupted_copies) {
-            // TODO: warning message
-
-            return 1;
+            // The message kept being overwritten
+            // Endlessly retrying risks a deadlock
+            return EDEADLK;
         }
 
         // Copy oldest message to caller specified location
