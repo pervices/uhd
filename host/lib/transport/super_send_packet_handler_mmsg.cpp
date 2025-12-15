@@ -288,7 +288,6 @@ sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_si
 bool send_packet_streamer_mmsg::recv_async_msg(
     uhd::async_metadata_t &async_metadata, double timeout
 ){
-    // TODO: add wait and timeout
     // Return !pop because in this case pop return 0 on success, this function returns true on success
     return !_async_msg_fifo->pop(&async_metadata, timeout);
 }
