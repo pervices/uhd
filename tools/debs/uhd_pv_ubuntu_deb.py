@@ -67,6 +67,21 @@ def main(args):
                 "orig_release in changelog malformed. Check host/cmake/debian-pv/changelog")
             sys.exit(1)
         orig_release = orig_release[0].replace(";", "")
+
+    # Changelog does not have version number format MAJOR.API.ABI.PATCH if nightly, so get values from UHDVersion.cmake
+    uhd_version_rel = uhd_version
+    if args.nightly:
+        with open("host/cmake/Modules/UHDVersion.cmake") as uv:
+            uv_text = uv.read()
+            version_major = re.match(r"UHD_VERSION_MAJOR      (\d+)", uv_text)
+            version_api = re.match(r"UHD_VERSION_API        (\d+)", uv_text)
+            version_abi = re.match(r"UHD_VERSION_ABI        (\d+)", uv_text)
+            version_patch = re.match(r"UHD_VERSION_PATCH      (\d+)", uv_text)
+            if version_major != None and version_api != None and version_abi != None and version_patch != None:
+                uhd_version_rel = version_major.group(0) + '.' + version_api.group(0) + '.' + version_abi.group(0) + '.' + version_patch.group(0)
+            else:
+                print("Could not get UHD version number from UHDVersion.cmake.")
+                sys.exit(1)
     
     # Get git count and hash to set the correct UHD version number.
     # This will only work if run within a git repo
@@ -75,7 +90,7 @@ def main(args):
     if not result.returncode:
         uhd_git_count = result.stdout.split('-')[-2]
         uhd_git_hash = result.stdout.split('-')[-1].strip()
-        custom_uhd_version = uhd_version + '-' + uhd_git_count + '-' + uhd_git_hash
+        custom_uhd_version = uhd_version_rel + '-' + uhd_git_count + '-' + uhd_git_hash
 
     # Compress UHD source
     if pathlib.Path(args.buildpath).exists():
