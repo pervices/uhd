@@ -128,7 +128,7 @@ def main(args):
     if custom_uhd_version != "":
         print("Modifying rules for the UHD version...")
         with open(uhd_deb_build_path / "debian/rules", 'r+') as rl:
-            rl_text = cl.read()
+            rl_text = rl.read()
             rl_text = re.sub('UHD_CUSTOM_VERSION=""', 'UHD_CUSTOM_VERSION="{}"'.format(custom_uhd_version), rl_text)
             rl.seek(0)
             rl.write(rl_text)
