@@ -28,8 +28,6 @@ prep_command = ["git", "config", "tar.tar.xz.command", "xz -c"]
 archive_command =  "git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
-debuild_dpkg = "--dpkg-buildpackage-hook=update_patch_number.sh {} {}"
-
 
 def main(args):
     # Ubuntu requires that the source tarball have the same checksum in each version's package
@@ -68,6 +66,16 @@ def main(args):
                 "orig_release in changelog malformed. Check host/cmake/debian-pv/changelog")
             sys.exit(1)
         orig_release = orig_release[0].replace(";", "")
+    
+    uhd_git_count = ""
+    uhd_git_hash = ""
+    custom_uhd_version = ""
+    result = subprocess.run("git describe --always --abbrev=8 --long", shell=True, text=True)
+    # Should this still work when not in a repo though?
+    if not result.returncode:
+        uhd_git_count = result.stdout.split('-')[-2]
+        uhd_git_hash = result.stdout.split('-')[-1]
+        custom_uhd_version = uhd_version + '-' + uhd_git_count + '-' + uhd_git_hash
 
     # Compress UHD source
     if pathlib.Path(args.buildpath).exists():
@@ -117,19 +125,21 @@ def main(args):
         cl.write(cl_text)
         cl.truncate()
 
-    # Get patch version from CMake file
-    patch_ver=""
-    with open("host/cmake/Modules/UHDVersion.cmake") as uv:
-        uv_text = uv.read()
-        uv_text = re.findall("UHD_VERSION_PATCH      \\d+", uv_text)[0]
-        patch_ver = uv_text.split(' ')[-1]
+    if custom_uhd_version != "":
+        print("Modifying rules for the UHD version...")
+        with open(uhd_deb_build_path / "debian/rules", 'r+') as rl:
+            rl_text = cl.read()
+            rl_text = re.sub('UHD_CUSTOM_VERSION=""', 'UHD_CUSTOM_VERSION="{}"'.format(custom_uhd_version), rl_text)
+            rl.seek(0)
+            rl.write(rl_text)
+            rl.truncate()
 
     # Generate dsc file
     result = ""
     print("Running debuild / dsc generation")
     if args.sign:
         result = subprocess.run(shlex.split(
-            debuild_command + debuild_dpkg.format(patch_ver, "host/cmake/Modules/UHDVersion.cmake")), cwd=uhd_deb_build_path)
+            debuild_command), cwd=uhd_deb_build_path)
     else:
         result = subprocess.run(shlex.split(
             debuild_command + debuild_nosign), cwd=uhd_deb_build_path)

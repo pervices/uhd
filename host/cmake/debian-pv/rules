@@ -2,8 +2,10 @@
 include /usr/share/dpkg/pkg-info.mk
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 export DEB_HOST_MULTIARCH
+UHD_CUSTOM_VERSION=""
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
 DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
+DEB_UHD_CUSTOM_VERSION=$(shell if [ -n $(UHD_CUSTOM_VERSION) ]; then echo "-DUHD_VERSION=$(UHD_CUSTOM_VERSION)"; else echo ""; fi)
 DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
                                         -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
                                         -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
@@ -33,7 +35,8 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
 	dh $@ --parallel --sourcedirectory=host --builddirectory=build
 
 override_dh_auto_configure:
-	dh_auto_configure -- $(DEB_UHD_PACKAGE_CONFIGURATION)
+# Allow manual setting of UHD version CMake variables through UHD_CUSTOM_VERSION
+	dh_auto_configure -- $(DEB_UHD_CUSTOM_VERSION) $(DEB_UHD_PACKAGE_CONFIGURATION)
 
 # The test suite for this package is busted on powerpc.
 override_dh_auto_test:
