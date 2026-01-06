@@ -68,6 +68,30 @@ def main(args):
             sys.exit(1)
         orig_release = orig_release[0].replace(";", "")
 
+    # Changelog does not have version number format MAJOR.API.ABI.PATCH if nightly, so get values from UHDVersion.cmake
+    uhd_version_rel = uhd_version
+    if args.nightly:
+        with open("host/cmake/Modules/UHDVersion.cmake") as uv:
+            uv_text = uv.read()
+            version_major = re.search(r"UHD_VERSION_MAJOR      (?P<major>\d+)", uv_text)
+            version_api = re.search(r"UHD_VERSION_API        (?P<api>\d+)", uv_text)
+            version_abi = re.search(r"UHD_VERSION_ABI        (?P<abi>\d+)", uv_text)
+            version_patch = re.search(r"UHD_VERSION_PATCH      (?P<patch>\d+)", uv_text)
+            if version_major != None and version_api != None and version_abi != None and version_patch != None:
+                uhd_version_rel = "{}.{}.{}.{}".format(version_major.group("major"), version_api.group("api"), version_abi.group("abi"), version_patch.group("patch"))
+            else:
+                print("Could not get UHD version number from UHDVersion.cmake.")
+                sys.exit(1)
+    
+    # Get git count and hash to set the correct UHD version number.
+    # This will only work if run within a git repo
+    custom_uhd_version = ""
+    result = subprocess.run("git describe --always --abbrev=8 --long", shell=True, capture_output=True, text=True)
+    if not result.returncode:
+        uhd_git_count = result.stdout.split('-')[-2]
+        uhd_git_hash = result.stdout.split('-')[-1].strip()
+        custom_uhd_version = uhd_version_rel + '-' + uhd_git_count + '-' + uhd_git_hash
+
     # Compress UHD source
     if pathlib.Path(args.buildpath).exists():
         shutil.rmtree(args.buildpath)
@@ -85,7 +109,7 @@ def main(args):
         sys.exit(result.returncode)
 
     # Extract UHD source to build folder
-    print("Extractubg UHD source to build folder...")
+    print("Extracting UHD source to build folder...")
     uhd_deb_build_path = pathlib.Path(
         args.buildpath, "uhdpv-{}".format(uhd_version))
     if uhd_deb_build_path.exists():
@@ -115,6 +139,16 @@ def main(args):
         cl.seek(0)
         cl.write(cl_text)
         cl.truncate()
+
+    # Modify the rules to use a manually set UHD version if it was able to be detected
+    if custom_uhd_version != "":
+        print("Modifying rules for the UHD version...")
+        with open(uhd_deb_build_path / "debian/rules", 'r+') as rl:
+            rl_text = rl.read()
+            rl_text = re.sub('UHD_CUSTOM_VERSION=""', 'UHD_CUSTOM_VERSION="{}"'.format(custom_uhd_version), rl_text)
+            rl.seek(0)
+            rl.write(rl_text)
+            rl.truncate()
 
     # Generate dsc file
     result = ""
