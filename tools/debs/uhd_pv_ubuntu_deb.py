@@ -67,14 +67,13 @@ def main(args):
             sys.exit(1)
         orig_release = orig_release[0].replace(";", "")
     
-    uhd_git_count = ""
-    uhd_git_hash = ""
+    # Get git count and hash to set the correct UHD version number.
+    # This will only work if run within a git repo
     custom_uhd_version = ""
     result = subprocess.run("git describe --always --abbrev=8 --long", shell=True, capture_output=True, text=True)
-    # Should this still work when not in a repo though?
     if not result.returncode:
         uhd_git_count = result.stdout.split('-')[-2]
-        uhd_git_hash = result.stdout.split('-')[-1]
+        uhd_git_hash = result.stdout.split('-')[-1].strip()
         custom_uhd_version = uhd_version + '-' + uhd_git_count + '-' + uhd_git_hash
 
     # Compress UHD source
@@ -125,6 +124,7 @@ def main(args):
         cl.write(cl_text)
         cl.truncate()
 
+    # Modify the rules to use a manually set UHD version if it was able to be detected
     if custom_uhd_version != "":
         print("Modifying rules for the UHD version...")
         with open(uhd_deb_build_path / "debian/rules", 'r+') as rl:
