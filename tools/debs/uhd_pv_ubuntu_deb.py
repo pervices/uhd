@@ -70,7 +70,7 @@ def main(args):
     uhd_git_count = ""
     uhd_git_hash = ""
     custom_uhd_version = ""
-    result = subprocess.run("git describe --always --abbrev=8 --long", shell=True, text=True)
+    result = subprocess.run("git describe --always --abbrev=8 --long", shell=True, capture_output=True, text=True)
     # Should this still work when not in a repo though?
     if not result.returncode:
         uhd_git_count = result.stdout.split('-')[-2]
