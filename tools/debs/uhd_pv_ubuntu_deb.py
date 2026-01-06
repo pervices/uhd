@@ -73,12 +73,12 @@ def main(args):
     if args.nightly:
         with open("host/cmake/Modules/UHDVersion.cmake") as uv:
             uv_text = uv.read()
-            version_major = re.match(r"UHD_VERSION_MAJOR      (\d+)", uv_text)
-            version_api = re.match(r"UHD_VERSION_API        (\d+)", uv_text)
-            version_abi = re.match(r"UHD_VERSION_ABI        (\d+)", uv_text)
-            version_patch = re.match(r"UHD_VERSION_PATCH      (\d+)", uv_text)
+            version_major = re.search(r"UHD_VERSION_MAJOR      (?P<major>\d+)", uv_text)
+            version_api = re.search(r"UHD_VERSION_API        (?P<api>\d+)", uv_text)
+            version_abi = re.search(r"UHD_VERSION_ABI        (?P<abi>\d+)", uv_text)
+            version_patch = re.search(r"UHD_VERSION_PATCH      (?P<patch>\d+)", uv_text)
             if version_major != None and version_api != None and version_abi != None and version_patch != None:
-                uhd_version_rel = version_major.group(0) + '.' + version_api.group(0) + '.' + version_abi.group(0) + '.' + version_patch.group(0)
+                uhd_version_rel = "{}.{}.{}.{}".format(version_major.group("major"), version_api.group("api"), version_abi.group("abi"), version_patch.group("patch"))
             else:
                 print("Could not get UHD version number from UHDVersion.cmake.")
                 sys.exit(1)
