@@ -67,6 +67,15 @@ def main(args):
                 "orig_release in changelog malformed. Check host/cmake/debian-pv/changelog")
             sys.exit(1)
         orig_release = orig_release[0].replace(";", "")
+    
+    # Get git count and hash to set the correct UHD version number.
+    # This will only work if run within a git repo
+    custom_uhd_version = ""
+    result = subprocess.run("git describe --always --abbrev=8 --long", shell=True, capture_output=True, text=True)
+    if not result.returncode:
+        uhd_git_count = result.stdout.split('-')[-2]
+        uhd_git_hash = result.stdout.split('-')[-1].strip()
+        custom_uhd_version = uhd_version + '-' + uhd_git_count + '-' + uhd_git_hash
 
     # Compress UHD source
     if pathlib.Path(args.buildpath).exists():
@@ -85,7 +94,7 @@ def main(args):
         sys.exit(result.returncode)
 
     # Extract UHD source to build folder
-    print("Extractubg UHD source to build folder...")
+    print("Extracting UHD source to build folder...")
     uhd_deb_build_path = pathlib.Path(
         args.buildpath, "uhdpv-{}".format(uhd_version))
     if uhd_deb_build_path.exists():
@@ -115,6 +124,16 @@ def main(args):
         cl.seek(0)
         cl.write(cl_text)
         cl.truncate()
+
+    # Modify the rules to use a manually set UHD version if it was able to be detected
+    if custom_uhd_version != "":
+        print("Modifying rules for the UHD version...")
+        with open(uhd_deb_build_path / "debian/rules", 'r+') as rl:
+            rl_text = rl.read()
+            rl_text = re.sub('UHD_CUSTOM_VERSION=""', 'UHD_CUSTOM_VERSION="{}"'.format(custom_uhd_version), rl_text)
+            rl.seek(0)
+            rl.write(rl_text)
+            rl.truncate()
 
     # Generate dsc file
     result = ""
