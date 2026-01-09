@@ -971,6 +971,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Link max rate refers to ethernet link rate
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link_max_rate", "fpga/link/rate", double, double);
 
+    // Ethernet FIFO level and overflow counter
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link/qa/fifo_lvl", "fpga/link/qa/fifo_lvl", std::string, string);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link/qa/oflow", "fpga/link/qa/oflow", std::string, string);
+
     // SFP settings
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "ip_addr",  "fpga/link/sfpa/ip_addr", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
