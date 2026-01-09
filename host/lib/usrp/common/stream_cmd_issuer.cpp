@@ -102,10 +102,10 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
 
 	uhd::usrp::rx_stream_cmd rx_stream_cmd;
 
-    if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
-        UHD_LOGGER_WARNING("STREAM_CMD_ISSUER") << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
-        stream_cmd.stream_now = true;
-    }
+    // if (stream_cmd.time_spec.get_real_secs() < current_time + 0.01 && stream_cmd.stream_mode != uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS && !stream_cmd.stream_now) {
+    //     UHD_LOGGER_WARNING("STREAM_CMD_ISSUER") << "Requested rx start time of " + std::to_string(stream_cmd.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Ignoring start time and enabling stream_now";
+    //     stream_cmd.stream_now = true;
+    // }
 
     // Due to FPGA issues send a stop command before the actual command
     // The issue is most likely to occur with 1Gsps JESD and 100G SFP
