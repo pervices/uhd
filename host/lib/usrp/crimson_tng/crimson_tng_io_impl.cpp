@@ -214,11 +214,11 @@ size_t crimson_tng_send_packet_streamer::send(
             metadata.time_spec = now + CRIMSON_TNG_MIN_TX_DELAY;
             metadata.has_time_spec = true;
         } else {
-            double current_time = get_device_time().get_real_secs();
-            if (metadata.time_spec.get_real_secs() < current_time + CRIMSON_TNG_MIN_TX_DELAY && _first_call_to_send) {
-                UHD_LOGGER_WARNING(_product_name_c) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CRIMSON_TNG_MIN_TX_DELAY);
-                metadata.time_spec = uhd::time_spec_t(current_time + CRIMSON_TNG_MIN_TX_DELAY);
-            }
+            // double current_time = get_device_time().get_real_secs();
+            // if (metadata.time_spec.get_real_secs() < current_time + CRIMSON_TNG_MIN_TX_DELAY && _first_call_to_send) {
+            //     UHD_LOGGER_WARNING(_product_name_c) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CRIMSON_TNG_MIN_TX_DELAY);
+            //     metadata.time_spec = uhd::time_spec_t(current_time + CRIMSON_TNG_MIN_TX_DELAY);
+            // }
         }
     }
 
