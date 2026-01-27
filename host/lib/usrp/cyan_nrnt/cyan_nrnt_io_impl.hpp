@@ -107,6 +107,8 @@ private:
     bool _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
     timenow_type _time_now;
+    // The ethernet oflow counter value at start of streamer. Must be tracked since value only resets on reboot.
+    uint16_t _eth_oflow_start;
 
     // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
     struct eprops_type{

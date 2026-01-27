@@ -125,6 +125,16 @@ _iface(iface)
     for(size_t n = 0; n < channels.size(); n++) {
         _tx_streamer_channel_in_use->at(channels[n]) = true;
     }
+
+    // Get ethernet oflow counter value at initialization to track increase from this streamer
+    _iface->set_int("fpga/link/qa/oflow", 0);
+    _eth_oflow_start = _iface->get_int("fpga/link/qa/oflow");
+
+    // If overflow counter itself has overflowed (exceeded 0x7ff), value will be -1 and overflows will not be tracked
+    if (_eth_oflow_start == 0xffff) {
+        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
+            "Ethernet overflow counter has exceeded it's max count (0x7ff) and will not be reset until the unit reboots.\n    Ethernet overflows will not be tracked.");
+    }
 }
 
 cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
@@ -169,6 +179,31 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         std::cout << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
 
+    // Check for ethernet FIFO buffer overflows if tracking was enabled for this streamer
+    if (_eth_oflow_start != 0xffff) {
+        // Write to property to force update, then get updated value
+        _iface->set_int("fpga/link/qa/oflow", 0);
+        uint16_t eth_total_oflow = _iface->get_int("fpga/link/qa/oflow");
+        uint16_t num_eth_oflow;
+        std::string eth_oflow_message;
+
+        if (eth_total_oflow == 0xffff) {
+            // If counter limit was exceeded during stream, warn user of number of overflows tracked until it was exceeded
+            num_eth_oflow = 0x7ff - _eth_oflow_start;
+            eth_oflow_message = "Ethernet overflow counter exceeded limit during streaming.\n    Counted " 
+                + std::to_string(num_eth_oflow) + " overflows before tracking stopped.";
+        } else {
+            // The ethernet buffer overflow counter does not reset until reboot, so ignore oflows from before streamer
+            num_eth_oflow = eth_total_oflow - _eth_oflow_start;
+            eth_oflow_message = "Ethernet buffer overflowed during streaming.\n    Ethernet Overflow Count: " + std::to_string(num_eth_oflow);
+        }
+
+        // Only print warning when the count has increased since streamer initialization
+        if (num_eth_oflow > 0) {
+            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, eth_oflow_message);
+        }
+    }
+    
     for(size_t n = 0; n < _channels.size(); n++) {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
