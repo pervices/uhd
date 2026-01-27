@@ -125,6 +125,15 @@ _iface(iface)
     for(size_t n = 0; n < channels.size(); n++) {
         _tx_streamer_channel_in_use->at(channels[n]) = true;
     }
+
+    // Get ethernet oflow counter value at initialization to track increase from this streamer
+    _iface->set_int("fpga/link/qa/oflow", 0);
+    _eth_oflow_start = _iface->get_int("fpga/link/qa/oflow");
+    // If overflow counter itself has overflowed (exceeded 0x7ff), value will be -1 and overflows will not be tracked
+    if (_eth_oflow_start == 0xffffffff) {
+        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
+            "Ethernet overflow counter has exceeded it's max count (0x7ff) and will not be reset until the unit reboots.\nEthernet overflows will not be tracked.");
+    }
 }
 
 cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
@@ -169,6 +178,20 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         std::cout << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
 
+    // Check for ethernet FIFO buffer overflows if counter has not exceeded limit
+    if (_eth_oflow_start != 0xffffffff) {
+        // Write to property to force update, then get updated value
+        _iface->set_int("fpga/link/qa/oflow", 0);
+        uint32_t eth_total_oflow = _iface->get_int("fpga/link/qa/oflow");
+        // The ethernet buffer overflow counter does not reset until reboot, so ignore oflows from before streamer
+        uint32_t num_eth_oflow = eth_total_oflow - _eth_oflow_start;
+        // Only warn the user when there have been ethernet overflows during this stream
+        if (num_eth_oflow > 0) {
+            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C,
+                "Ethernet buffer overflowed during streaming.\nEthernet Overflow Count: " + std::to_string(num_eth_oflow));
+        }
+    }
+    
     for(size_t n = 0; n < _channels.size(); n++) {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
