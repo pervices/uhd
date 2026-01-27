@@ -130,7 +130,7 @@ _iface(iface)
     _iface->set_int("fpga/link/qa/oflow", 0);
     _eth_oflow_start = _iface->get_int("fpga/link/qa/oflow");
     // If overflow counter itself has overflowed (exceeded 0x7ff), value will be -1 and overflows will not be tracked
-    if (_eth_oflow_start == 0xffffffff) {
+    if (_eth_oflow_start == 0xffff) {
         UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
             "Ethernet overflow counter has exceeded it's max count (0x7ff) and will not be reset until the unit reboots.\nEthernet overflows will not be tracked.");
     }
@@ -179,14 +179,14 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     }
 
     // Check for ethernet FIFO buffer overflows if counter has not exceeded limit
-    if (_eth_oflow_start != 0xffffffff) {
+    if (_eth_oflow_start != 0xffff) {
         // Write to property to force update, then get updated value
         _iface->set_int("fpga/link/qa/oflow", 0);
-        uint32_t eth_total_oflow = _iface->get_int("fpga/link/qa/oflow");
-        uint32_t num_eth_oflow;
+        uint16_t eth_total_oflow = _iface->get_int("fpga/link/qa/oflow");
+        uint16_t num_eth_oflow;
         std::string eth_oflow_message;
-
-        if (eth_total_oflow == 0xffffffff) {
+        std::cout << "DEBUG: ETH TOTAL OFLOW: " << eth_total_oflow << std::endl;
+        if (eth_total_oflow == 0xffff) {
             // If counter was exceeded during stream, warn user of number of overflows tracked until it was exceeded
             num_eth_oflow = 0x7ff - _eth_oflow_start;
             eth_oflow_message = "Ethernet overflow counter exceeded limit during streaming.\nCounted " 
@@ -196,6 +196,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
             num_eth_oflow = eth_total_oflow - _eth_oflow_start;
             eth_oflow_message = "Ethernet buffer overflowed during streaming.\nEthernet Overflow Count: " + std::to_string(num_eth_oflow);
         }
+        std::cout << "DEBUG: NUM ETH OFLOW: " << num_eth_oflow << std::endl;
         
         // Only warn the user when there have been ethernet overflows during this stream
         if (num_eth_oflow > 0) {
