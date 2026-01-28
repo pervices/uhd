@@ -140,7 +140,6 @@ _iface(iface)
     // Get ethernet oflow counter value at initialization to track increase from this streamer
     _iface->set_int("fpga/link/qa/oflow", 0);
     _eth_oflow_start = _iface->get_int("fpga/link/qa/oflow");
-    _eth_oflow_start = 30;
 
     // If overflow counter itself has overflowed (exceeded 0x7ff), value will be -1 and overflows will not be tracked
     if (_eth_oflow_start == 0xffff) {
