@@ -116,7 +116,7 @@ public:
         ssize_t data_received = 0;
         if(_connected) {
             // MSG_DONTWAIT since wait_for_recv_ready will already wait for data to be ready. If this would block something has gone wrong and return to avoid blocking
-            data_received = ::recv(socket_fd, buff, size, MSG_DONTWAIT);
+            data_received = ::recv(socket_fd, buff, size, 0);
             if(data_received == -1) {
                 UHD_LOG_ERROR("UDP", "Attempt to recv UDP control packet failed with: " + std::string(strerror(errno)));
                 data_received = 0;
