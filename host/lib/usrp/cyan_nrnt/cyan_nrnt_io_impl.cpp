@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 
+#include <cstdint>
 #include <iomanip>
 #include <mutex>
 
@@ -126,14 +127,14 @@ _iface(iface)
         _tx_streamer_channel_in_use->at(channels[n]) = true;
     }
 
-    // Get ethernet oflow counter value at initialization to track increase from this streamer
-    _iface->set_int("fpga/link/qa/oflow", 0);
-    _eth_oflow_start = _iface->get_int("fpga/link/qa/oflow");
+    // Get SFP oflow counter value at initialization to track increase during streamer lifetime
+    _iface->set_int("fpga/link/qa/sfp_oflow", 0);
+    _sfp_oflow_start = _iface->get_int("fpga/link/qa/sfp_oflow");
 
-    // If overflow counter itself has overflowed (exceeded 0x7ff), value will be -1 and overflows will not be tracked
-    if (_eth_oflow_start == 0xffff) {
+    // If overflow counter itself has overflowed (exceeded 2047), value will be -1 and overflows will not be tracked
+    if (_sfp_oflow_start == uint16_t(-1)) {
         UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
-            "Ethernet overflow counter has exceeded its max count (0x7ff) and will not be reset until the unit reboots.\n    Ethernet overflows will not be tracked.");
+            "SFP overflow counter has exceeded its max count (2047) and will not be reset until the unit reboots.\n    SFP overflows will not be tracked.");
     }
 }
 
@@ -179,28 +180,29 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         std::cout << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
 
-    // Check for ethernet FIFO buffer overflows if tracking was enabled for this streamer
-    if (_eth_oflow_start != 0xffff) {
+    // Check for SFP FIFO buffer overflows if tracking was enabled for this streamer
+    if (_sfp_oflow_start != uint16_t(-1)) {
         // Write to property to force update, then get updated value
-        _iface->set_int("fpga/link/qa/oflow", 0);
-        uint16_t eth_total_oflow = _iface->get_int("fpga/link/qa/oflow");
-        uint16_t num_eth_oflow;
-        std::string eth_oflow_message;
+        _iface->set_int("fpga/link/qa/sfp_oflow", 0);
+        uint16_t sfp_total_oflow = _iface->get_int("fpga/link/qa/sfp_oflow");
+        uint16_t num_sfp_oflow;
+        std::string sfp_oflow_message;
+        uint16_t max_sfp_oflow_count = 2047;
 
-        if (eth_total_oflow == 0xffff) {
+        if (sfp_total_oflow == uint16_t(-1)) {
             // If counter limit was exceeded during stream, warn user of number of overflows tracked until it was exceeded
-            num_eth_oflow = 0x7ff - _eth_oflow_start;
-            eth_oflow_message = "Ethernet overflow counter exceeded limit during streaming.\n    Counted " 
-                + std::to_string(num_eth_oflow) + " overflows before tracking stopped.";
+            num_sfp_oflow = max_sfp_oflow_count - _sfp_oflow_start;
+            sfp_oflow_message = "SFP overflow counter exceeded limit during streaming.\n    Counted " 
+                + std::to_string(num_sfp_oflow) + " overflows before tracking stopped.";
         } else {
-            // The ethernet buffer overflow counter does not reset until reboot, so ignore oflows from before streamer
-            num_eth_oflow = eth_total_oflow - _eth_oflow_start;
-            eth_oflow_message = "Ethernet buffer overflowed during streaming.\n    Ethernet Overflow Count: " + std::to_string(num_eth_oflow);
+            // The SFP buffer overflow counter does not reset until reboot, so ignore oflows from before streamer
+            num_sfp_oflow = sfp_total_oflow - _sfp_oflow_start;
+            sfp_oflow_message = "SFP buffer overflowed during streaming.\n    SFP Overflow Count: " + std::to_string(num_sfp_oflow);
         }
 
         // Only print warning when the count has increased since streamer initialization
-        if (num_eth_oflow > 0) {
-            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, eth_oflow_message);
+        if (num_sfp_oflow > 0) {
+            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, sfp_oflow_message);
         }
     }
     
