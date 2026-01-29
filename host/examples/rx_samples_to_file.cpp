@@ -49,6 +49,13 @@ void sig_int_handler(int)
     stop_signal_called = true;
 }
 
+void spam_set_freq(uhd::usrp::multi_usrp::sptr usrp, double freq, size_t channel) {
+    while(!stop_signal_called) {
+        uhd::tune_request_t tune_request(freq);
+        usrp->set_rx_freq(tune_request, channel);
+    }
+}
+
 #ifdef __linux__
 /*
  * Very simple disk write test using dd for at most 1 second.
@@ -667,6 +674,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 0));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 1));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 2));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 3));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 0));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 1));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 2));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 3));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 0));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 1));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 2));
+    threads.push_back(std::thread(spam_set_freq, usrp, freq, 3));
 
     if (total_time == 0) {
         if (total_num_samps > 0) {
