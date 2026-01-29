@@ -102,72 +102,8 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
 
         const auto now = std::chrono::steady_clock::now();
 
-        size_t num_rx_samps =
-            rx_stream->recv(&buff.front(), buff.size(), md, start_delay + 3, enable_size_map);
-
-        if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_EINTR) {
-            // recv exited due to EINTR (interrupt received while waiting for data, usually the result of ctrl c)
-            continue;
-        }
-        else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-            std::cout << boost::format("Timeout while streaming") << std::endl;
-            if(continue_on_bad_packet) continue;
-            else {
-                std::cout << num_total_samps << " samples received before timeout" << std::endl;
-                break;
-            }
-        }
-        else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_OVERFLOW) {
-            if (overflow_message) {
-                overflow_message = false;
-                std::cerr
-                    << boost::format(
-                           "Got an overflow indication. Please consider the following:\n"
-                           "  Your write medium must sustain a rate of %fMB/s.\n"
-                           "  Dropped samples will not be written to the file.\n"
-                           "  Please modify this example for your purposes.\n"
-                           "  This message will not appear again.\n")
-                           % (usrp->get_rx_rate(channel) * sizeof(samp_type) / 1e6);
-            }
-            continue;
-        }
-        else if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
-            std::string error = str(boost::format("Receiver error: %s") % md.strerror());
-            if (continue_on_bad_packet) {
-                std::cerr << error << std::endl;
-                continue;
-            } else
-
-                throw std::runtime_error(error);
-        }
-
-        if (enable_size_map) {
-            SizeMap::iterator it = mapSizes.find(num_rx_samps);
-            if (it == mapSizes.end())
-                mapSizes[num_rx_samps] = 0;
-            mapSizes[num_rx_samps] += 1;
-        }
-
-        num_total_samps += num_rx_samps;
-
-        if (outfile.is_open()) {
-            outfile.write((const char*)&buff.front(), num_rx_samps * sizeof(samp_type));
-
-        }
-
-        if (bw_summary) {
-            last_update_samps += num_rx_samps;
-            const auto time_since_last_update = now - last_update;
-            if (time_since_last_update > std::chrono::seconds(1)) {
-                const double time_since_last_update_s =
-                    std::chrono::duration<double>(time_since_last_update).count();
-                const double rate = double(last_update_samps) / time_since_last_update_s;
-
-                std::cout << "\t" << (rate / 1e6) << " Msps" << std::endl;
-                last_update_samps = 0;
-                last_update       = now;
-            }
-        }
+        uhd::tune_request_t tune_request(1.8e9);
+        usrp->set_rx_freq(tune_request, channel);
     }
 
     const auto actual_stop_time = std::chrono::steady_clock::now();
