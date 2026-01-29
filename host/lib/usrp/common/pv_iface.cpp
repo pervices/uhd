@@ -101,7 +101,7 @@ std::string pv_iface::peek_str() {
 // Gets a property on the device
 std::string pv_iface::get_string(std::string req) {
 
-    std::lock_guard<std::mutex> _lock( _iface_lock );
+    // std::lock_guard<std::mutex> _lock( _iface_lock );
 
     // Send the get request
     poke_str("get," + req);
@@ -125,7 +125,7 @@ std::string pv_iface::get_string(std::string req) {
 // Sets a property on the device
 void pv_iface::set_string(const std::string pre, std::string data) {
 
-	std::lock_guard<std::mutex> _lock( _iface_lock );
+	// std::lock_guard<std::mutex> _lock( _iface_lock );
 
 	// Send the set request
 	poke_str("set," + pre + "," + data);
