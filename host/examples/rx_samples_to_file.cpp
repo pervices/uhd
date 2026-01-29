@@ -52,7 +52,9 @@ void sig_int_handler(int)
 void spam_set_freq(uhd::usrp::multi_usrp::sptr usrp, double freq, size_t channel) {
     while(!stop_signal_called) {
         uhd::tune_request_t tune_request(freq);
-        usrp->set_rx_freq(tune_request, channel);
+        try {
+            usrp->set_rx_freq(tune_request, channel);
+        } catch (...) {}
     }
 }
 
