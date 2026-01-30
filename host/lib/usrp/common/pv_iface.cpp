@@ -175,6 +175,7 @@ void pv_iface::set_bool(const std::string pre, bool data){
 int pv_iface::get_int(std::string req) {
 	try { return boost::lexical_cast<int>( get_string(req) );
     } catch(boost::bad_lexical_cast &e) {
+        std::cout << "req: " << req << std::endl;
         UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get int property: " << e.what();
     }
     return 0;
