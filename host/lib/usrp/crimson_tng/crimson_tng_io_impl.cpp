@@ -137,11 +137,11 @@ _iface(iface)
         _tx_streamer_channel_in_use->at(channels[n]) = true;
     }
 
-    // Get SFP overflow counter value at initialization to track increase from this streamer
+    // Get SFP oflow counter value at initialization to track increase from this streamer
     _iface->set_int("fpga/link/qa/sfp_oflow", 0);
     _sfp_oflow_start = _iface->get_int("fpga/link/qa/sfp_oflow");
     _max_sfp_oflow_count = _iface->get_int("fpga/link/max_sfp_oflow_count");
-    
+    _sfp_oflow_start = 30;
     // If overflow counter itself has overflowed, value will be -1 and overflows will not be tracked
     if (_sfp_oflow_start == uint16_t(-1)) {
         UHD_LOG_WARNING(_product_name_c, 
