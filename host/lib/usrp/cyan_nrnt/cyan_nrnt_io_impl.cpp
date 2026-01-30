@@ -130,11 +130,12 @@ _iface(iface)
     // Get SFP oflow counter value at initialization to track increase during streamer lifetime
     _iface->set_int("fpga/link/qa/sfp_oflow", 0);
     _sfp_oflow_start = _iface->get_int("fpga/link/qa/sfp_oflow");
+    _max_sfp_oflow_count = _iface->get_int("fpga/link/max_sfp_oflow_count");
 
-    // If overflow counter itself has overflowed (exceeded 2047), value will be -1 and overflows will not be tracked
+    // If overflow counter itself has overflowed, value will be -1 and overflows will not be tracked
     if (_sfp_oflow_start == uint16_t(-1)) {
         UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
-            "SFP overflow counter has exceeded its max count (2047) and will not be reset until the unit reboots.\n    SFP overflows will not be tracked.");
+            "SFP overflow counter has exceeded its max count and will not be reset until the unit reboots.\n    SFP overflows will not be tracked.");
     }
 }
 
@@ -187,11 +188,10 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         uint16_t sfp_total_oflow = _iface->get_int("fpga/link/qa/sfp_oflow");
         uint16_t num_sfp_oflow;
         std::string sfp_oflow_message;
-        uint16_t max_sfp_oflow_count = 2047;
 
         if (sfp_total_oflow == uint16_t(-1)) {
             // If counter limit was exceeded during stream, warn user of number of overflows tracked until it was exceeded
-            num_sfp_oflow = max_sfp_oflow_count - _sfp_oflow_start;
+            num_sfp_oflow = _max_sfp_oflow_count - _sfp_oflow_start;
             sfp_oflow_message = "SFP overflow counter exceeded limit during streaming.\n    Counted " 
                 + std::to_string(num_sfp_oflow) + " overflows before tracking stopped.";
         } else {
