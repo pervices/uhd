@@ -203,16 +203,16 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
     // All buffers are used (should be unreachable)
     } else if (-cqe_ptr->res == ENOBUFS) {
+        // DEBUG MESSAGES
+        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CHANNEL: " + std::to_string(ch));
+        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "cached_cqe_consumed: " + std::to_string(cached_cqe_consumed[ch]));
+        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "_total_cached_cqe: " + std::to_string(_total_cached_cqe[ch]));
+        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "cqe_ptr->flags: " + std::to_string(cqe_ptr->flags));
         // Clear this request
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
         io_uring_cq_advance(ring, 1);
 
         if(!slow_consumer_warning_printed) {
-            // DEBUG MESSAGES
-            UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CHANNEL: " + std::to_string(ch));
-            UHD_LOG_INFO("IO_URING_RECV_MANAGER", "cached_cqe_consumed: " + std::to_string(cached_cqe_consumed[ch]));
-            UHD_LOG_INFO("IO_URING_RECV_MANAGER", "_total_cached_cqe: " + std::to_string(_total_cached_cqe[ch]));
-            UHD_LOG_INFO("IO_URING_RECV_MANAGER", "cqe_ptr->flags: " + std::to_string(cqe_ptr->flags));
             // This is an error because io_uring recv_manager cannot recover from this
             // TODO: downgrade to warning once io_uring_recv_manager can recover
             UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Reducing time between and/or increase the samples requested between recv calls");
