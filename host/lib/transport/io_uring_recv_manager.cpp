@@ -3,6 +3,7 @@
 #include <uhd/transport/io_uring_recv_manager.hpp>
 
 #include <iostream>
+#include <liburing.h>
 #include <unistd.h>
 #include <uhd/exception.hpp>
 #include <string.h>
@@ -173,10 +174,24 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     for(size_t ch = 0; ch < _num_ch && io_uring_unarmed; ch++) {
         arm_recv_multishot(ch, _recv_sockets[ch]);
     }
-    io_uring_unarmed = false;
 
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
+
+    // DEBUG PRINT
+    if (io_uring_unarmed) {
+        // print available buffers first time
+        
+        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), 0);
+        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ", RINGS AVAILABLE: " + std::to_string(rings_available));
+    }
+    io_uring_unarmed = false;
+
+    // Print available after warning to see if ever available
+    if (slow_consumer_warning_printed) {
+        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), 0);
+        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ", RINGS AVAILABLE: " + std::to_string(rings_available));
+    }
 
     // Checks if a packet is ready
     int r = peek_next_cqe(ch, &cqe_ptr);
@@ -204,10 +219,10 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     // All buffers are used (should be unreachable)
     } else if (-cqe_ptr->res == ENOBUFS) {
         // DEBUG MESSAGES
-        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CHANNEL: " + std::to_string(ch));
-        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "cached_cqe_consumed: " + std::to_string(cached_cqe_consumed[ch]));
-        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "_total_cached_cqe: " + std::to_string(_total_cached_cqe[ch]));
-        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "cqe_ptr->flags: " + std::to_string(cqe_ptr->flags));
+        // std::string message = "CH: " + std::to_string(ch)
+        //     + ", _total_cached_cqe: " + std::to_string(_total_cached_cqe[ch])
+        //     + ", cqe_ptr->flags: " + std::to_string(cqe_ptr->flags);
+        // UHD_LOG_INFO("IO_URING_RECV_MANAGER", message);
         // Clear this request
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
         io_uring_cq_advance(ring, 1);
