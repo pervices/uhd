@@ -205,14 +205,11 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
     // All buffers are used (should be unreachable)
     } else if (-cqe_ptr->res == ENOBUFS) {
-        // DEBUG MESSAGES
-        // std::string message = "CH: " + std::to_string(ch)
-        //     + ", _total_cached_cqe: " + std::to_string(_total_cached_cqe[ch])
-        //     + ", cqe_ptr->flags: " + std::to_string(cqe_ptr->flags);
-        // UHD_LOG_INFO("IO_URING_RECV_MANAGER", message);
         // Clear this request
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
         io_uring_cq_advance(ring, 1);
+
+        arm_recv_multishot(ch, _recv_sockets[ch]);
 
         if(!slow_consumer_warning_printed) {
             // This is an error because io_uring recv_manager cannot recover from this
