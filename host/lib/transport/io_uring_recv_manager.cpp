@@ -119,7 +119,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
 
         // Adds the packet to the list for registration (added to the ring buffer)
         // Use whichever number the buffer is (buffers_added) as it's bid
-        io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, buffers_added, io_uring_buf_ring_mask(PACKET_BUFFER_SIZE), p);
+        io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, p, io_uring_buf_ring_mask(PACKET_BUFFER_SIZE), p);
 
     }
     // Commits registration of the ring buffers added by io_uring_buf_ring_add
@@ -187,12 +187,6 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     }
     io_uring_unarmed = false;
 
-    // Print available after warning to see if ever available
-    if (slow_consumer_warning_printed) {
-        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), ch);
-        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ", RINGS AVAILABLE SLOW: " + std::to_string(rings_available));
-    }
-
     // Checks if a packet is ready
     int r = peek_next_cqe(ch, &cqe_ptr);
 
@@ -218,6 +212,8 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
     // All buffers are used (should be unreachable)
     } else if (-cqe_ptr->res == ENOBUFS) {
+        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), ch);
+        UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ", RINGS AVAILABLE SLOW: " + std::to_string(rings_available));
         // DEBUG MESSAGES
         // std::string message = "CH: " + std::to_string(ch)
         //     + ", _total_cached_cqe: " + std::to_string(_total_cached_cqe[ch])
