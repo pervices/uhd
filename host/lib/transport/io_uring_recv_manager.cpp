@@ -182,14 +182,14 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     if (io_uring_unarmed) {
         // print available buffers first time
         
-        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), 0);
+        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), ch);
         UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ", RINGS AVAILABLE START: " + std::to_string(rings_available));
     }
     io_uring_unarmed = false;
 
     // Print available after warning to see if ever available
     if (slow_consumer_warning_printed) {
-        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), 0);
+        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), ch);
         UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ", RINGS AVAILABLE SLOW: " + std::to_string(rings_available));
     }
 
