@@ -175,17 +175,19 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         arm_recv_multishot(ch, _recv_sockets[ch]);
     }
 
+    io_uring_unarmed = false;
+
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
 
+    
     // DEBUG PRINT
-    if (io_uring_unarmed) {
-        // print available buffers first time
-        
+    for(size_t ch = 0; ch < _num_ch; ch++) {
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), ch);
+        std::string message = "CH" + std::to_string(ch) + " bufs: " + std::to_string(rings_available);
         UHD_LOG_INFO("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ", RINGS AVAILABLE START: " + std::to_string(rings_available));
+        
     }
-    io_uring_unarmed = false;
 
     // Checks if a packet is ready
     int r = peek_next_cqe(ch, &cqe_ptr);
