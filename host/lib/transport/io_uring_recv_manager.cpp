@@ -207,9 +207,11 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     } else if (-cqe_ptr->res == ENOBUFS) {
         // Clear this request
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-        io_uring_cq_advance(ring, 1);
-        // Still need to increment position in cache
-        cached_cqe_consumed[ch]++;
+        //io_uring_cq_advance(ring, 1);
+        
+
+        // Ignore last cached batch and retrieve again
+        _total_cached_cqe[ch] = 0;
 
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
         if (rings_available >= PACKET_BUFFER_SIZE/2) {
