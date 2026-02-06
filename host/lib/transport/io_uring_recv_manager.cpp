@@ -208,6 +208,8 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // Clear this request
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
         io_uring_cq_advance(ring, 1);
+        // Still need to increment position in cache
+        cached_cqe_consumed[ch]++;
 
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
         if (rings_available >= PACKET_BUFFER_SIZE/2) {
@@ -218,7 +220,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         if(!slow_consumer_warning_printed) {
             // This is an error because io_uring recv_manager cannot recover from this
             // TODO: downgrade to warning once io_uring_recv_manager can recover
-            UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Sample consumer thread to slow. Reducing time between and/or increase the samples requested between recv calls");
+            UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "CH" + std::to_string(ch) + ": Sample consumer thread to slow. Reducing time between and/or increase the samples requested between recv calls");
             slow_consumer_warning_printed = true;
         }
         info->length = 0;
