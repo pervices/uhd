@@ -207,11 +207,14 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     } else if (-cqe_ptr->res == ENOBUFS) {
         // Clear this request
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-        io_uring_cq_advance(ring, 1);
+        // io_uring_cq_advance(ring, 1);
+        io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), 1);
 
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), ch);
-        if (rings_available > PACKET_BUFFER_SIZE/2)
+        if (rings_available >= PACKET_BUFFER_SIZE/2) {
+            UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": Rearming with" + std::to_string(rings_available) + " buffs");
             arm_recv_multishot(ch, _recv_sockets[ch]);
+        }
 
         if(!slow_consumer_warning_printed) {
             // This is an error because io_uring recv_manager cannot recover from this
