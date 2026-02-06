@@ -211,6 +211,10 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         
 
         // Ignore last cached batch and retrieve again
+        if(_total_cached_cqe[ch] > 0) {
+            // Only advancing cq
+            io_uring_cq_advance(ring, _total_cached_cqe[ch]);
+        }
         _total_cached_cqe[ch] = 0;
 
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
