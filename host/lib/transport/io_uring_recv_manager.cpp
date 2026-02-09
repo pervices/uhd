@@ -210,12 +210,13 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         //io_uring_cq_advance(ring, 1);
         
 
-        // Ignore last cached batch and retrieve again
+        // Discard last cached completion events to re-retrieve
         if(_total_cached_cqe[ch] > 0) {
             // Only advancing cq
-            io_uring_cq_advance(ring, _total_cached_cqe[ch]);
+            // Marks the cache as empty and that no samples from it have been consumed since io_uring_peek_batch_cqe cleared it
+            _total_cached_cqe[ch] = 0;
+            cached_cqe_consumed[ch] = 0;
         }
-        _total_cached_cqe[ch] = 0;
 
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
         if (rings_available >= PACKET_BUFFER_SIZE/2) {
