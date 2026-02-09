@@ -227,7 +227,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
         // Wait to rearm recv until more than 1/4 of the buffers are available to avoid further ENOBUFS
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-        if (rings_available >= PACKET_BUFFER_SIZE/4) {
+        if (rings_available < PACKET_BUFFER_SIZE/2) {
             UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": Rearming with " + std::to_string(rings_available) + " buffs. Flags=" + std::to_string(cqe_ptr->flags));
             for(size_t ch = 0; ch < _num_ch; ch++) {
                 size_t bufs_available = io_uring_buf_ring_available(access_io_urings(ch, 0), *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
