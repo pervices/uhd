@@ -210,16 +210,16 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         //io_uring_cq_advance(ring, 1);
         
 
-        // Discard last cached completion events to re-retrieve
-        if(_total_cached_cqe[ch] > 0) {
-            // Only advancing cq
-            // Marks the cache as empty and that no samples from it have been consumed since io_uring_peek_batch_cqe cleared it
-            _total_cached_cqe[ch] = 0;
-            cached_cqe_consumed[ch] = 0;
-        }
+        // Advance buffer ring and completion event cache by number of successful recv so far since the completion events are received in batches
+        io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), cached_cqe_consumed[ch]);
+        // Discard remaining completion events and reset the rest of the cache so next call to peek_next_cqe will get new completion events
+        // Not advancing buf_ring for these events since we have not processed the buf_ring data yet
+        // NOTE: Without recovery implemented, I did not see _total_cached_cqe > 1 when ENOBUFS happened, but this will handle it either way
+        io_uring_cq_advance(ring, _total_cached_cqe[ch] - cached_cqe_consumed[ch]);
+        _total_cached_cqe[ch] = 0;
 
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-        if (rings_available >= PACKET_BUFFER_SIZE/2) {
+        if (rings_available >= PACKET_BUFFER_SIZE/4) {
             UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": Rearming with " + std::to_string(rings_available) + " buffs. Flags=" + std::to_string(cqe_ptr->flags));
             arm_recv_multishot(ch, _recv_sockets[ch]);
         }
