@@ -236,7 +236,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
             arm_recv_multishot(ch, _recv_sockets[ch]);
         } else {
             // Print B when ENOBUF and less than 1/4 available
-            std::cout << "B";
+            std::cout << std::to_string(rings_available) + ", ";
         }
 
         info->length = 0;
