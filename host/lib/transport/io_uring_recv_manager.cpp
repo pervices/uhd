@@ -208,21 +208,15 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // Clear this request
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
         //io_uring_cq_advance(ring, 1);
-        
 
         // Advance buffer ring and completion event cache by number of successful recv so far since the completion events are received in batches
         io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), cached_cqe_consumed[ch]);
         // Discard remaining completion events and reset the rest of the cache so next call to peek_next_cqe will get new completion events
         // Not advancing buf_ring for these events since we have not processed the buf_ring data yet
-        // NOTE: Without recovery implemented, I did not see _total_cached_cqe > 1 when ENOBUFS happened, but this will handle it either way
+        // NOTE: Without recovery implemented, I did not see _total_cached_cqe > 1 when ENOBUFS happened. I think there should only be ENOBUFS cqes
+        //      after initial failure until recv is rearmed, so should be fine to discard completion events after ENOBUF.
         io_uring_cq_advance(ring, _total_cached_cqe[ch] - cached_cqe_consumed[ch]);
         _total_cached_cqe[ch] = 0;
-
-        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-        if (rings_available >= PACKET_BUFFER_SIZE/4) {
-            UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": Rearming with " + std::to_string(rings_available) + " buffs. Flags=" + std::to_string(cqe_ptr->flags));
-            arm_recv_multishot(ch, _recv_sockets[ch]);
-        }
 
         if(!slow_consumer_warning_printed) {
             // This is an error because io_uring recv_manager cannot recover from this
@@ -230,6 +224,21 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
             UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "CH" + std::to_string(ch) + ": Sample consumer thread to slow. Reducing time between and/or increase the samples requested between recv calls");
             slow_consumer_warning_printed = true;
         }
+
+        // Wait to rearm recv until more than 1/4 of the buffers are available to avoid further ENOBUFS
+        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
+        if (rings_available >= PACKET_BUFFER_SIZE/4) {
+            UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": Rearming with " + std::to_string(rings_available) + " buffs. Flags=" + std::to_string(cqe_ptr->flags));
+            for(size_t ch = 0; ch < _num_ch; ch++) {
+                size_t bufs_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
+                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": " + std::to_string(rings_available) + " buffs. Flags=" + std::to_string(cqe_ptr->flags));
+            }
+            arm_recv_multishot(ch, _recv_sockets[ch]);
+        } else {
+            // Print B when ENOBUF and less than 1/4 available
+            std::cout << "B";
+        }
+
         info->length = 0;
         info->vita_header = nullptr;
         info->samples = nullptr;
