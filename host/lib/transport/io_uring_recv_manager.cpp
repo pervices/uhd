@@ -2,8 +2,10 @@
 
 #include <uhd/transport/io_uring_recv_manager.hpp>
 
+#include <cerrno>
 #include <iostream>
 #include <liburing.h>
+#include <system_error>
 #include <unistd.h>
 #include <uhd/exception.hpp>
 #include <string.h>
@@ -212,7 +214,8 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         //io_uring_cq_advance(ring, 1);
 
         // Advance buffer ring and completion event cache by number of successful recv so far since the completion events are received in batches
-        io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
+        if (_cached_buff_consumed[ch] > 0)
+            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
         // Add total cached cqe back to _available_buffers since we assumed all were successful when caching the events, so now all must be released
         _available_buffers[ch] += _cached_buff_consumed[ch];
         _cached_buff_consumed[ch] = 0;

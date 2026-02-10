@@ -120,9 +120,9 @@ private:
 
         // Marks all events in the cache as completed
         io_uring* ring = access_io_urings(ch);
-        if(_cached_buff_consumed[ch] > 0) {
+        if(_total_cached_cqe[ch] > 0) {
             io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
-            _available_buffers[ch] += _total_cached_cqe[ch];
+            _available_buffers[ch] += _cached_buff_consumed[ch];
         }
 
         // Get new completion events
@@ -149,6 +149,7 @@ private:
             // Marks the cache as empty and that no samples from it have been consumed since io_uring_peek_batch_cqe cleared it
             _total_cached_cqe[ch] = 0;
             cached_cqe_consumed[ch] = 0;
+            _cached_buff_consumed[ch] = 0;
             // No events are ready, inform the user via returning -EAGAIN
             return -EAGAIN;
         }
