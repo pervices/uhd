@@ -179,6 +179,9 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     }
     io_uring_unarmed = false;
 
+    struct io_uring* ring = access_io_urings(ch, 0);
+    struct io_uring_cqe *cqe_ptr;
+    
     // Rearm multishot for channel if flag was set
     if (_rearm_recv[ch]) {
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
@@ -196,9 +199,6 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // arm_recv_multishot(ch, _recv_sockets[ch]);
         _rearm_recv[ch] = false;
     }
-
-    struct io_uring* ring = access_io_urings(ch, 0);
-    struct io_uring_cqe *cqe_ptr;
 
     // Checks if a packet is ready
     int r = peek_next_cqe(ch, &cqe_ptr);
