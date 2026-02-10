@@ -191,6 +191,11 @@ private:
     size_t _available_buffers[MAX_CHANNELS];
 
     /**
+     * Flag to indicate if recv needs to be rearmed.
+     */
+    bool _rearm_recv[MAX_CHANNELS];
+
+    /**
      * Cache completion events to minimize the number of calls of call for getting/clearing completion events
      * Make sure this is last in the class since it is massive to aviod spreading out all the other variables in the class
      */

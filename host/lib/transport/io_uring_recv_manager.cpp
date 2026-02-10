@@ -37,6 +37,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         cached_cqe_consumed[ch] = 0;
         _available_buffers[ch] = 0;
         _cached_buff_consumed[ch] = 0;
+        _rearm_recv[ch] = false;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
@@ -176,8 +177,25 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     for(size_t ch = 0; ch < _num_ch && io_uring_unarmed; ch++) {
         arm_recv_multishot(ch, _recv_sockets[ch]);
     }
-
     io_uring_unarmed = false;
+
+    // Rearm multishot for channel if flag was set
+    if (_rearm_recv[ch]) {
+        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
+        if (rings_available >= PACKET_BUFFER_SIZE/4) {
+            for(size_t ch = 0; ch < _num_ch; ch++) {
+                size_t bufs_available = io_uring_buf_ring_available(access_io_urings(ch, 0), *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
+                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": " + std::to_string(bufs_available) + " buffs, " + std::to_string(_available_buffers[ch]) + " estimated.");
+            }
+            arm_recv_multishot(ch, _recv_sockets[ch]);
+            _rearm_recv[ch] = false;
+        } else {
+            // Print when ENOBUF and less than 1/4 available
+            std::cout << std::to_string(rings_available) + ":" + std::to_string(_available_buffers[ch]) + ", ";
+        }
+        // arm_recv_multishot(ch, _recv_sockets[ch]);
+        _rearm_recv[ch] = false;
+    }
 
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
@@ -211,7 +229,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
         //io_uring_cq_advance(ring, 1);
 
-        // Advance buffer ring and completion event cache by number of successful recv so far since the completion events are received in batches
+        // Advance buffer ring and completion event cache by number of successful recv so far
         if (_cached_buff_consumed[ch] > 0) {
             io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
             // Add total cached cqe back to _available_buffers since we assumed all were successful when caching the events, so now all must be released
@@ -221,25 +239,17 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
         io_uring_cq_advance(ring, 1);
         cached_cqe_consumed[ch]++;
+        // Available buffers was changed assuming all cqes were successful events, so mark buffer as freed
+        _available_buffers[ch]++;
+
+        // Indicate multishot needs to be rearmed
+        _rearm_recv[ch] = true;
 
         if(!slow_consumer_warning_printed) {
             // This is an error because io_uring recv_manager cannot recover from this
             // TODO: downgrade to warning once io_uring_recv_manager can recover
             UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "CH" + std::to_string(ch) + ": Sample consumer thread to slow. Reducing time between and/or increase the samples requested between recv calls");
             slow_consumer_warning_printed = true;
-        }
-
-        // Wait to rearm recv until more than 1/4 of the buffers are available to avoid further ENOBUFS
-        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-        if (rings_available >= PACKET_BUFFER_SIZE/4) {
-            for(size_t ch = 0; ch < _num_ch; ch++) {
-                size_t bufs_available = io_uring_buf_ring_available(access_io_urings(ch, 0), *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": " + std::to_string(bufs_available) + " buffs, " + std::to_string(_available_buffers[ch]) + " estimated.");
-            }
-            arm_recv_multishot(ch, _recv_sockets[ch]);
-        } else {
-            // Print when ENOBUF and less than 1/4 available
-            std::cout << std::to_string(rings_available) + ":" + std::to_string(_available_buffers[ch]) + ", ";
         }
 
         info->length = 0;
