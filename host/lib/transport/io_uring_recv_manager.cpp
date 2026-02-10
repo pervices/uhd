@@ -181,24 +181,24 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
-    
-    // Rearm multishot for channel if flag was set
-    if (_rearm_recv[ch]) {
-        size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-        if (rings_available >= PACKET_BUFFER_SIZE/4) {
-            for(size_t ch = 0; ch < _num_ch; ch++) {
-                size_t bufs_available = io_uring_buf_ring_available(access_io_urings(ch, 0), *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
+
+    // Rearm multishot for channel if flag was set for any channel
+    for(size_t ch = 0; ch < _num_ch; ch++) {
+        if (_rearm_recv[ch]) {
+            size_t bufs_available = io_uring_buf_ring_available(access_io_urings(ch, 0), *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
+            if (bufs_available >= PACKET_BUFFER_SIZE/4) {
                 UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": " + std::to_string(bufs_available) + " buffs, " + std::to_string(_available_buffers[ch]) + " estimated.");
+                arm_recv_multishot(ch, _recv_sockets[ch]);
+                _rearm_recv[ch] = false;
+            } else {
+                // Print when ENOBUF and less than 1/4 available
+                std::cout << std::to_string(bufs_available) + ":" + std::to_string(_available_buffers[ch]) + ", ";
             }
-            arm_recv_multishot(ch, _recv_sockets[ch]);
-            _rearm_recv[ch] = false;
-        } else {
-            // Print when ENOBUF and less than 1/4 available
-            std::cout << std::to_string(rings_available) + ":" + std::to_string(_available_buffers[ch]) + ", ";
+            // arm_recv_multishot(ch, _recv_sockets[ch]);
+            // _rearm_recv[ch] = false;
         }
-        // arm_recv_multishot(ch, _recv_sockets[ch]);
-        _rearm_recv[ch] = false;
     }
+    
 
     // Checks if a packet is ready
     int r = peek_next_cqe(ch, &cqe_ptr);
