@@ -120,14 +120,15 @@ private:
 
         // Marks all events in the cache as completed
         io_uring* ring = access_io_urings(ch);
-        if(_total_cached_cqe[ch] > 0) {
+        if(_cached_buff_consumed[ch] > 0) {
             io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
             _available_buffers[ch] += _cached_buff_consumed[ch];
+            _cached_buff_consumed[ch] = 0;
         }
 
         // Get new completion events
         int r = io_uring_peek_batch_cqe(ring, completion_cache[ch], COMPLETION_EVENT_CACHE_SIZE);
-
+        
         // If events ready
         // Not actually likely, just marked as such since it is more important
         if(r > 0) [[likely]] {
