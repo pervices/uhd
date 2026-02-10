@@ -96,6 +96,9 @@ public:
 
         // Increment where in the cache we are
         cached_cqe_consumed[ch]++;
+
+        // Increment number of buffers consumed
+        _cached_buff_consumed[ch]++;
     }
 
 private:
@@ -117,8 +120,8 @@ private:
 
         // Marks all events in the cache as completed
         io_uring* ring = access_io_urings(ch);
-        if(_total_cached_cqe[ch] > 0) {
-            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
+        if(_cached_buff_consumed[ch] > 0) {
+            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
             _available_buffers[ch] += _total_cached_cqe[ch];
         }
 
@@ -130,6 +133,7 @@ private:
         if(r > 0) [[likely]] {
             // Reset the number of cached events consumed
             cached_cqe_consumed[ch] = 0;
+            _cached_buff_consumed[ch] = 0;
             // Update the number of events in the cache
             _total_cached_cqe[ch] = r;
             // Number of completion queue events does not necessarily equal number of buffers used if there were failing cqes, but include anyway for an estimate.
@@ -171,6 +175,11 @@ private:
      * Number of completion events in the cache that are full
      */
     int cached_cqe_consumed[MAX_CHANNELS];
+
+    /**
+     * Number of buffs and cqes awaiting release
+     */
+    size_t _cached_buff_consumed[MAX_CHANNELS];
 
     /**
      * Estimated number of buffers that should be available to the kernel.
