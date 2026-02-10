@@ -35,6 +35,7 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         _num_packets_consumed[ch] = 0;
         _total_cached_cqe[ch] = 0;
         cached_cqe_consumed[ch] = 0;
+        _available_buffers[ch] = 0;
     }
 
     // Set entire buffer to 0 to avoid issues with lazy allocation
@@ -120,7 +121,7 @@ void io_uring_recv_manager::uring_init(size_t ch) {
         // Adds the packet to the list for registration (added to the ring buffer)
         // Use whichever number the buffer is (buffers_added) as it's bid
         io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, p, io_uring_buf_ring_mask(PACKET_BUFFER_SIZE), p);
-
+         _available_buffers[ch]++;
     }
     // Commits registration of the ring buffers added by io_uring_buf_ring_add
     io_uring_buf_ring_advance(*buffer_ring, PACKET_BUFFER_SIZE);
@@ -216,6 +217,8 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         // NOTE: Without recovery implemented, I did not see _total_cached_cqe > 1 when ENOBUFS happened. I think there should only be ENOBUFS cqes
         //      after initial failure until recv is rearmed, so should be fine to discard completion events after ENOBUF.
         io_uring_cq_advance(ring, _total_cached_cqe[ch] - cached_cqe_consumed[ch]);
+        // Add total cached cqe back to _available_buffers since we assumed all were successful when caching the events, so now all must be released
+        _available_buffers[ch] += _total_cached_cqe[ch];
         _total_cached_cqe[ch] = 0;
 
         if(!slow_consumer_warning_printed) {
@@ -227,16 +230,15 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
         // Wait to rearm recv until more than 1/4 of the buffers are available to avoid further ENOBUFS
         size_t rings_available = io_uring_buf_ring_available(ring, *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-        if (rings_available < PACKET_BUFFER_SIZE/2) {
-            UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": Rearming with " + std::to_string(rings_available) + " buffs. Flags=" + std::to_string(cqe_ptr->flags));
+        if (rings_available >= PACKET_BUFFER_SIZE/2) {
             for(size_t ch = 0; ch < _num_ch; ch++) {
                 size_t bufs_available = io_uring_buf_ring_available(access_io_urings(ch, 0), *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": " + std::to_string(bufs_available) + " buffs. Flags=" + std::to_string(cqe_ptr->flags));
+                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": " + std::to_string(bufs_available) + " buffs, " + std::to_string(_available_buffers[ch]) + "estimated.");
             }
             arm_recv_multishot(ch, _recv_sockets[ch]);
         } else {
-            // Print B when ENOBUF and less than 1/4 available
-            std::cout << std::to_string(rings_available) + ", ";
+            // Print when ENOBUF and less than 1/4 available
+            std::cout << std::to_string(rings_available) + ":" + std::to_string(_available_buffers[ch]) + ", ";
         }
 
         info->length = 0;

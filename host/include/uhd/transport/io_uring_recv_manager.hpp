@@ -119,6 +119,7 @@ private:
         io_uring* ring = access_io_urings(ch);
         if(_total_cached_cqe[ch] > 0) {
             io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
+            _available_buffers[ch] += _total_cached_cqe[ch];
         }
 
         // Get new completion events
@@ -131,6 +132,9 @@ private:
             cached_cqe_consumed[ch] = 0;
             // Update the number of events in the cache
             _total_cached_cqe[ch] = r;
+            // Number of completion queue events does not necessarily equal number of buffers used if there were failing cqes, but include anyway for an estimate.
+            // Since _available_buffers represents buffers available to the kernel, subtract since they must now be processed by us
+            _available_buffers[ch] -= r;
             // Provide the first event in the cache to the requester
             *cqe_ptr = completion_cache[ch][0];
             return 0;
@@ -167,6 +171,13 @@ private:
      * Number of completion events in the cache that are full
      */
     int cached_cqe_consumed[MAX_CHANNELS];
+
+    /**
+     * Estimated number of buffers that should be available to the kernel.
+     * Must be updated after releasing buffers or when getting new successful cqes. Alternative to io_uring_buf_ring_available without querying the kernel.
+     * Only an estimate since the actual number requires a kernel query and it is unknown if all cqes are for successful events or not.
+     */
+    size_t _available_buffers[MAX_CHANNELS];
 
     /**
      * Cache completion events to minimize the number of calls of call for getting/clearing completion events
