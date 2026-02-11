@@ -408,7 +408,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     return_error = test_strings(usrp);
     return_error = test_ints(usrp);
     return_error = test_doubles(usrp);
-    return error = test_led_blink(usrp);
+    return_error = test_led_blink(usrp);
     return_error = test_bools(usrp);
     return_error = test_stream_cmd(usrp);
     return_error = test_time_specs(usrp);
