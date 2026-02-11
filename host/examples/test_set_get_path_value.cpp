@@ -352,6 +352,41 @@ namespace
 
         return UHD_ERROR_NONE;
     }
+
+    uhd_error test_led_blinker(uhd::usrp::multi_usrp::sptr& usrp)
+    {
+        std::cout << __FUNCTION__ << std::endl;
+        for(const auto& channel : channels)
+        {
+            const std::string path = "/mboards/0/tx/" + channel + "/board/led_blink_enable";
+
+            std::string value;
+
+            try {
+                usrp->get_tree_value(path, value);
+                usrp->set_tree_value(path, value);
+
+                std::cout << "Write 1 OR on  to enable led blinker" << std::endl;
+                std::cout << "Write 0 OR off to enable led blinker" << std::endl;
+                std::cout << "The value is: " << value << std::endl;
+            } catch (uhd::runtime_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_RUNTIME;
+            } catch(uhd::type_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\"  in function \"" + __FUNCTION__ + "\"with error: " + err.what());
+
+                return UHD_ERROR_TYPE;
+            } catch(uhd::lookup_error &err) {
+                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+                return UHD_ERROR_LOOKUP;
+            }
+        }
+
+        return UHD_ERROR_NONE;
+    }
 }
 
 int UHD_SAFE_MAIN(int argc, char *argv[])
@@ -375,6 +410,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     return_error = test_time_specs(usrp);
     return_error = test_sfpa_port_change(usrp);
     return_error = test_trigger_settings(usrp);
+    return_error = test_led_blinker(usrp);
 
     return return_error;
 }

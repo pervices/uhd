@@ -1222,6 +1222,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         // Power status
         TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
+        // LED blinker On/Off
+        TREE_CREATE_RW(tx_path / dspno / "board/led_blink_enable", "tx_"+lc_num+"/board/led_blink_enable", std::string, string);
+
         // Codecs, phony properties for Crimson
         TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
         TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
