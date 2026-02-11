@@ -954,6 +954,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "sw_version", "time/about/sw_ver", std::string, string);
     TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "eeprom", "time/about/eeprom", std::string, string);
 
+    TREE_CREATE_RW(CRIMSON_TNG_TIME_PATH / "led_blink_enable", "time/board/led_blink_enable", std::string, string);
+
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
     TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 322MHz BW and DC-6GHz each");
     TREE_CREATE_RW(rx_path / "id",         "rx_a/about/id",     std::string, string);

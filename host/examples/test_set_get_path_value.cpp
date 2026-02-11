@@ -97,6 +97,44 @@ namespace
         }
     }
 
+    uhd_error test_led_blink(uhd::usrp::multi_usrp::sptr& usrp)
+    {
+        std::cout << __FUNCTION__ << std::endl;
+        const std::string path = "/mboards/0/time/led_blink_enable";
+
+        std::string value;
+
+        try {
+            usrp->get_tree_value(path, value);
+            std::cout<<"current value: "<<value<<std::endl;
+
+            // set the value to 1
+            usrp->set_tree_value(path, std::string("1"));
+            usrp->get_tree_value(path, value);
+            std::cout<<"led blink after setting to 1 ...";
+
+            // setting the value to 0
+            usrp->set_tree_value(path, std::string("0"));
+            usrp->get_tree_value(path, value);
+            std::cout<<"led blink after setting to 0 ...";
+
+            std::cout << value << std::endl;
+            return UHD_ERROR_NONE;
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch(uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
+        }
+    }
+
     uhd_error test_bools(uhd::usrp::multi_usrp::sptr& usrp)
     {
         std::cout << __FUNCTION__ << std::endl;
@@ -370,6 +408,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     return_error = test_strings(usrp);
     return_error = test_ints(usrp);
     return_error = test_doubles(usrp);
+    return error = test_led_blink(usrp);
     return_error = test_bools(usrp);
     return_error = test_stream_cmd(usrp);
     return_error = test_time_specs(usrp);
