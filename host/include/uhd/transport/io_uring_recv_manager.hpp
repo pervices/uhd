@@ -96,8 +96,6 @@ public:
 
         // Increment where in the cache we are
         cached_cqe_consumed[ch]++;
-
-        _mm_sfence();
     }
 
 private:

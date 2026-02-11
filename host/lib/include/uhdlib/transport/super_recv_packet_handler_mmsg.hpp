@@ -130,6 +130,7 @@ public:
             size_t ch_not_ready = (((size_t) 1) << _NUM_CHANNELS) - 1;
             // While not all channels have been obtained and timeout has not been reached
             do {
+                _mm_lfence();
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch ++) {
                     // Mask blocking everything in ch_not_ready except the channel being checked
                     size_t ch_not_ready_mask = ((size_t) 1) << ch;
@@ -289,6 +290,7 @@ public:
                 // Moves to the next packet
                 recv_manager->advance_packet(ch);
             }
+            _mm_sfence();
 
             // Set the timepec to that of the first packet received if not already set from the cache
             // They should be equal to the only the first channel's is used

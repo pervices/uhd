@@ -174,8 +174,6 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     }
     io_uring_unarmed = false;
 
-    _mm_lfence();
-
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
 
