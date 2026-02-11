@@ -399,6 +399,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     uhd::set_thread_priority_safe();
 
+    std::cout<< === "==LED BLINK USAGE== \n"
+    <<" Current Value: ./utils/uhd_manual_get --args="addr=192.168.10.2" --path="mboards/0/time/led_blink_enable" \n"
+    <<" Enable Blinking: ./utils/uhd_manual_set --args="addr=192.168.10.2" --path="mboards/0/time/led_blink_enable" --value="1"\n"
+    <<" Disable Blinking: ./utils/uhd_manual_set --args="addr=192.168.10.2" --path="mboards/0/time/led_blink_enable" --value="0"\n"
+    <<" Also you can use (on or off) with --value\n\n"
+
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(""));
 
     usrp->dump_tree("");
