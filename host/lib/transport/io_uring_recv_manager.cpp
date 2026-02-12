@@ -227,7 +227,7 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
         _rearm_recv[ch] = true;
 
         if(!slow_consumer_warning_printed) {
-            UHD_LOG_WARNING("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": Sample consumer thread too slow. Reduce time between and/or increase the samples requested between recv calls");
+            UHD_LOG_WARNING("IO_URING_RECV_MANAGER", "Sample consumer thread too slow. Reduce time between and/or increase the samples requested between recv calls");
             slow_consumer_warning_printed = true;
         }
 
