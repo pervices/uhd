@@ -35,7 +35,6 @@ _io_uring_control_structs((uint8_t*) allocate_buffer(_num_ch * _padded_io_uring_
         _num_packets_consumed[ch] = 0;
         _total_cached_cqe[ch] = 0;
         cached_cqe_consumed[ch] = 0;
-        _available_buffers[ch] = 0;
         _cached_buff_consumed[ch] = 0;
         _rearm_recv[ch] = false;
     }
@@ -116,14 +115,12 @@ void io_uring_recv_manager::uring_init(size_t ch) {
         throw uhd::system_error("io_uring_setup_buf_ring");
     }
 
-    int buffers_added = 0;
     for(uint32_t p = 0; p < PACKET_BUFFER_SIZE; p++) {
         uint8_t* packet_buffer_to_add = access_packet_vita_header(ch, 0, p);
 
         // Adds the packet to the list for registration (added to the ring buffer)
-        // Use whichever number the buffer is (buffers_added) as it's bid
+        // Use whichever number the buffer is (p) as it's bid
         io_uring_buf_ring_add(*buffer_ring, packet_buffer_to_add, _header_size + _packet_data_size, p, io_uring_buf_ring_mask(PACKET_BUFFER_SIZE), p);
-         _available_buffers[ch]++;
     }
     // Commits registration of the ring buffers added by io_uring_buf_ring_add
     io_uring_buf_ring_advance(*buffer_ring, PACKET_BUFFER_SIZE);
@@ -171,34 +168,24 @@ void io_uring_recv_manager::arm_recv_multishot(size_t ch, int fd) {
 }
 
 void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
-    // arm_recv_multishot the first time this is called (which will be part of the first recv)
-    // For unknown reasons arming from a different thread causes sleeps in that thread to hang forever
-    // This is a workaround since the user is unlikely to change the thread they are calling recv on
-    for(size_t ch = 0; ch < _num_ch && io_uring_unarmed; ch++) {
-        arm_recv_multishot(ch, _recv_sockets[ch]);
-    }
-    io_uring_unarmed = false;
-
     struct io_uring* ring = access_io_urings(ch, 0);
     struct io_uring_cqe *cqe_ptr;
 
-    // Rearm multishot for channel if flag was set for any channel
-    for(size_t ch = 0; ch < _num_ch; ch++) {
-        if (_rearm_recv[ch]) {
-            size_t bufs_available = io_uring_buf_ring_available(access_io_urings(ch, 0), *access_io_uring_buf_rings(ch, 0), _bgid_storage[ch]);
-            if (bufs_available >= PACKET_BUFFER_SIZE/4) {
-                UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "CH" + std::to_string(ch) + ": " + std::to_string(bufs_available) + " buffs, " + std::to_string(_available_buffers[ch]) + " estimated.");
-                arm_recv_multishot(ch, _recv_sockets[ch]);
-                _rearm_recv[ch] = false;
-            } else {
-                // Print when ENOBUF and less than 1/4 available
-                std::cout << std::to_string(bufs_available) + ":" + std::to_string(_available_buffers[ch]) + ", ";
+    // Rearm multishot for any channel with the rearm flag set or the first time this function is called, which will be part of the first recv (io_uring_unarmed).
+    // For unknown reasons arming from a different thread causes sleeps in that thread to hang forever
+    // This (io_uring_unarmed) is a workaround since the user is unlikely to change the thread they are calling recv on.
+    // All channels are checked so a channel that needs to be rearmed does not have to wait until the next time this function is called for them
+    for(size_t chan = 0; chan < _num_ch; chan++) {
+        if (_rearm_recv[chan] || io_uring_unarmed) {
+            size_t available_buffers = PACKET_BUFFER_SIZE - _cached_buff_consumed[chan];
+            // Make sure there are enough buffers available before rearming to avoid further ENOBUFS errors
+            if (available_buffers >= PACKET_BUFFER_SIZE/4) {
+                arm_recv_multishot(chan, _recv_sockets[chan]);
+                _rearm_recv[chan] = false;
             }
-            // arm_recv_multishot(ch, _recv_sockets[ch]);
-            // _rearm_recv[ch] = false;
         }
     }
-    
+    io_uring_unarmed = false;
 
     // Checks if a packet is ready
     int r = peek_next_cqe(ch, &cqe_ptr);
@@ -225,24 +212,20 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
     // All buffers are used (should be unreachable)
     } else if (-cqe_ptr->res == ENOBUFS) {
-        // Clear this request
-        // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
-        //io_uring_cq_advance(ring, 1);
-
-        // Advance buffer ring and completion event cache by number of successful recv so far
+        // Advance buffer ring and completion queue by number of successful recv so far that have not already been released
         if (_cached_buff_consumed[ch] > 0) {
             io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
-            // Add total cached cqe back to _available_buffers since we assumed all were successful when caching the events, so now all must be released
-            _available_buffers[ch] += _cached_buff_consumed[ch];
+            // Reset consumed buffer count since they have now been released
             _cached_buff_consumed[ch] = 0;
         }
 
+        // Clear this request
+        // This function is responsible for marking failed recvs are complete, advance_packet is responsible for marking successful events as complete
         io_uring_cq_advance(ring, 1);
+        // Usually incremented in advance_packet, but still need to mark it as consumed so we can advance further in the completion queue
         cached_cqe_consumed[ch]++;
-        // Available buffers was changed assuming all cqes were successful events, so mark buffer as freed
-        _available_buffers[ch]++;
 
-        // Indicate multishot needs to be rearmed
+        // Indicate multishot needs to be rearmed for this channel
         _rearm_recv[ch] = true;
 
         if(!slow_consumer_warning_printed) {
