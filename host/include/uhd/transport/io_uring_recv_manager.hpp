@@ -96,6 +96,9 @@ public:
 
         // Increment where in the cache we are
         cached_cqe_consumed[ch]++;
+
+        // Increment number of buffers consumed 
+        _cached_buff_consumed[ch]++;
     }
 
 private:
@@ -115,10 +118,13 @@ private:
             return 0;
         }
 
-        // Marks all events in the cache as completed
+        // Mark all remaining events in the cache as complete and release the buffers
+        // Only advancing by the number of buffers consumed since we already advance the completion queue during ENOBUFS handling
         io_uring* ring = access_io_urings(ch);
-        if(_total_cached_cqe[ch] > 0) {
-            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _total_cached_cqe[ch]);
+        if(_cached_buff_consumed[ch] > 0) {
+            io_uring_buf_ring_cq_advance(ring, *access_io_uring_buf_rings(ch, 0), _cached_buff_consumed[ch]);
+            // Reset the consumed buffer counter since they have all now been released
+            _cached_buff_consumed[ch] = 0;
         }
 
         // Get new completion events
@@ -131,6 +137,8 @@ private:
             cached_cqe_consumed[ch] = 0;
             // Update the number of events in the cache
             _total_cached_cqe[ch] = r;
+            // Reset the number of buffers consumed
+            _cached_buff_consumed[ch] = 0;
             // Provide the first event in the cache to the requester
             *cqe_ptr = completion_cache[ch][0];
             return 0;
@@ -141,6 +149,7 @@ private:
             // Marks the cache as empty and that no samples from it have been consumed since io_uring_peek_batch_cqe cleared it
             _total_cached_cqe[ch] = 0;
             cached_cqe_consumed[ch] = 0;
+            _cached_buff_consumed[ch] = 0;
             // No events are ready, inform the user via returning -EAGAIN
             return -EAGAIN;
         }
@@ -167,6 +176,17 @@ private:
      * Number of completion events in the cache that are full
      */
     int cached_cqe_consumed[MAX_CHANNELS];
+
+    /**
+     * Number of buffs and associated cqes awaiting release
+     * This indicates the number of successfully processed recvs
+     */
+    size_t _cached_buff_consumed[MAX_CHANNELS];
+
+    /**
+     * Flag to indicate if multishot recv needs to be rearmed.
+     */
+    bool _rearm_recv[MAX_CHANNELS];
 
     /**
      * Cache completion events to minimize the number of calls of call for getting/clearing completion events
