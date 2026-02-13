@@ -130,6 +130,7 @@ public:
             size_t ch_not_ready = (((size_t) 1) << _NUM_CHANNELS) - 1;
             // While not all channels have been obtained and timeout has not been reached
             do {
+                uint_fast8_t any_data_ready = 0;
                 for(size_t ch = 0; ch < _NUM_CHANNELS; ch ++) {
                     // Mask blocking everything in ch_not_ready except the channel being checked
                     size_t ch_not_ready_mask = ((size_t) 1) << ch;
@@ -142,11 +143,19 @@ public:
                         // All are checked to make behaviour more predictable if there is an earlier bug
                         if(next_packet[ch].length && next_packet[ch].vita_header && next_packet[ch].samples) {
                             ch_not_ready = ch_not_ready & ~ch_not_ready_mask;
+
+                            // Indicates that data has been received on any channel this pass
+                            any_data_ready = 1;
                         } else {
                             // Do nothing
                             // _mm_pause (which marks this as a polling loop) might help, but it appears to make performance worse
                         }
                     }
+                }
+                // _mm_pause (indicate this is a polling loop) if all channels had no data
+                // TODO: write explaination about why this is done if this works
+                if(any_data_ready) {
+                    _mm_pause();
                 }
             } while(ch_not_ready && recv_start_time + timeout > get_system_time());
 
