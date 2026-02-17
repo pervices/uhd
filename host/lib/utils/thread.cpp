@@ -129,9 +129,10 @@ void uhd::set_thread_priority_non_realtime(float priority) {
         target_niceness = 19;
     }
 
+    // Set to schedueller that supports niceness
+    // TODO: investigate if SCHED_BATCH is viable
     int policy = SCHED_OTHER;
 
-    // set the new priority and policy
     sched_param sp;
 
     // Only realtime scheduling has priority levels
@@ -139,24 +140,30 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     int ret = pthread_setschedparam(pthread_self(), policy, &sp);
 
     if (ret != 0) {
-        throw uhd::os_error("error in pthread_setschedparam SCHED_OTHER: " + std::string(strerror(errno)));
+        throw uhd::os_error("Error when attempting to call pthread_setschedparam to set the schedueller to SCHED_OTHER: " + std::string(strerror(errno)));
     }
+
+    // As per the manual: set errno to 0 before calling nice
+    // -1 is returned by nice on both error, and a valid return value
+    // Use errno to figure out if -1 was a correct value or an error occured
+    errno = 0;
+
+    // Get current niceness
     int current_niceness = nice(0);
+    if(current_niceness == -1 && errno != 0) {
+        throw uhd::os_error("Failed to get current nice value: " + std::string(strerror(errno)));
+    }
 
-    int new_niceness(target_niceness - current_niceness);
+    int nice_change = target_niceness - current_niceness;
 
-    // Nice returns -1 to indicated an errors, however -1 is also a very reasonable return value
-    // Workaround required to verify niceness can be set
-    if(new_niceness == -1 ) {
-        // Attempt to reduce niceness further (verifying it can be done)
-        int test_niceness = nice(-1);
-        // If niceness still -1 an error occured
-        if(test_niceness == -1) {
-            throw uhd::os_error("error in nice (thread priority): " + std::string(strerror(errno)));
-        } else {
-            // return niceness to intended value
-            nice(1);
-        }
+    errno = 0;
+    // Shift nice value to the target
+    int new_niceness = nice(nice_change);
+
+    if(new_niceness == -1 && errno != 0) {
+        throw uhd::os_error("Failed to set nice value: " + std::string(strerror(errno)));
+    } else if(new_niceness != target_niceness) {
+        throw uhd::os_error("Unable to set nice value to desired value. Target: " + std::to_string(target_niceness) + ", Actual: " + std::to_string(new_niceness));
     }
 }
 #endif /* HAVE_PTHREAD_SETSCHEDPARAM */
