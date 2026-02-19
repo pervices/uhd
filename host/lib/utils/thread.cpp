@@ -140,7 +140,9 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     int ret = pthread_setschedparam(pthread_self(), policy, &sp);
 
     if (ret != 0) {
-        throw uhd::os_error("Error when attempting to call pthread_setschedparam to set the schedueller to SCHED_OTHER: " + std::string(strerror(errno)));
+        std::string msg = "Error when attempting to call pthread_setschedparam to set the schedueller to SCHED_OTHER: " + std::string(strerror(errno));
+        UHD_LOG_ERROR("THREAD", msg);
+        throw uhd::os_error(msg);
     }
 
     // As per the manual: set errno to 0 before calling nice
@@ -151,7 +153,9 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     // Get current niceness
     int current_niceness = nice(0);
     if(current_niceness == -1 && errno != 0) {
-        throw uhd::os_error("Failed to get current nice value: " + std::string(strerror(errno)));
+        std::string msg = "Failed to get current nice value: " + std::string(strerror(errno));
+        UHD_LOG_ERROR("THREAD", msg);
+        throw uhd::os_error(msg);
     }
 
     int nice_change = target_niceness - current_niceness;
@@ -162,12 +166,18 @@ void uhd::set_thread_priority_non_realtime(float priority) {
 
     if(new_niceness == -1 && errno != 0) {
         if(errno == EPERM) {
-            throw uhd::access_error("Insufficient permision to set thread prioirty. Ensure the user (and docker if applicable) has CAP_SYS_NICE capability");
+            std::string msg = "Insufficient permision to set thread prioirty. Ensure the user (and docker if applicable) has CAP_SYS_NICE capability";
+            UHD_LOG_ERROR("THREAD", msg);
+            throw uhd::access_error(msg);
         } else {
-            throw uhd::os_error("Failed to set nice value: " + std::string(strerror(errno)));
+            std::string msg = "Failed to set nice value: " + std::string(strerror(errno));
+            UHD_LOG_ERROR("THREAD", msg);
+            throw uhd::os_error(msg);
         }
     } else if(new_niceness != target_niceness) {
-        throw uhd::os_error("Unable to set nice value to desired value. Target: " + std::to_string(target_niceness) + ", Actual: " + std::to_string(new_niceness));
+        std::string msg = "Unable to set nice value to desired value. Target: " + std::to_string(target_niceness) + ", Actual: " + std::to_string(new_niceness);
+        UHD_LOG_ERROR("THREAD", msg);
+        throw uhd::os_error(msg);
     }
 }
 #endif /* HAVE_PTHREAD_SETSCHEDPARAM */
