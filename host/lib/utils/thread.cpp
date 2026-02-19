@@ -161,7 +161,11 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     int new_niceness = nice(nice_change);
 
     if(new_niceness == -1 && errno != 0) {
-        throw uhd::os_error("Failed to set nice value: " + std::string(strerror(errno)));
+        if(errno == EPERM) {
+            throw uhd::access_error("Insufficient permision to set thread prioirty. Ensure the user (and docker if applicable) has CAP_SYS_NICE capability");
+        } else {
+            throw uhd::os_error("Failed to set nice value: " + std::string(strerror(errno)));
+        }
     } else if(new_niceness != target_niceness) {
         throw uhd::os_error("Unable to set nice value to desired value. Target: " + std::to_string(target_niceness) + ", Actual: " + std::to_string(new_niceness));
     }
