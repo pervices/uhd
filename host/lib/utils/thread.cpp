@@ -128,6 +128,8 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     if(target_niceness == 20) {
         target_niceness = 19;
     }
+    UHD_LOG_ERROR("THREAD", "priority: " + std::to_string(priority));
+    UHD_LOG_ERROR("THREAD", "target_niceness: " + std::to_string(target_niceness));
 
     // Set to schedueller that supports niceness
     // TODO: investigate if SCHED_BATCH is viable
