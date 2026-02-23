@@ -74,9 +74,6 @@ namespace
 
 int UHD_SAFE_MAIN(int argc, char *argv[])
 {
-
-    uhd::set_thread_priority_safe();
-
     //variables to be set by po
     std::string args, path, value, type;
 
