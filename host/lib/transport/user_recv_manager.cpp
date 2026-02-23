@@ -114,6 +114,7 @@ void user_recv_manager::init_mmsghdr_iovecs() {
 }
 
 void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int> sockets, const size_t ch_offset) {
+    UHD_LOG_ERROR("THREAD", "T1A");
 
     // Number of channels received by this thread
     size_t ch_this_thread = sockets.size();
