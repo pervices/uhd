@@ -165,6 +165,7 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     int new_niceness = nice(nice_change);
 
     if(new_niceness == -1 && errno != 0) {
+        UHD_LOG_ERROR("THREAD", "Program name: " + std::string(program_invocation_name));
         if(errno == EPERM) {
             std::string msg = "Insufficient permision to set thread prioirty. Ensure the user (and docker if applicable) has CAP_SYS_NICE capability";
             UHD_LOG_ERROR("THREAD", msg);
