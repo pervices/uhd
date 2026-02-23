@@ -143,7 +143,7 @@ async_recv_manager* async_recv_manager::auto_make( const size_t total_rx_channel
         }
     }
 
-    if(io_uring_supported) {
+    if(io_uring_supported && false) {
         // Prefered recv manager using io_uring
         return io_uring_recv_manager::make(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
     } else {
