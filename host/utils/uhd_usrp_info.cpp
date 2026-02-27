@@ -10,6 +10,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <regex>
 namespace po = boost::program_options;
 
 namespace {
@@ -214,7 +215,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             if (pwd != NULL) {
                 username = pwd->pw_name;
             }
-            
             std::cout << username << "@" << std::ifstream("/etc/hostname").rdbuf() << std::endl;
 
             std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl;
@@ -237,10 +237,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             } else {
                 size_t fpga_jesd_start = server_version.find("JESD:");
                 std::string backplane = get_from_tree_int(tree, i, "imgparam/backplane_pinout");
+                std::string fpga_hw_ver = silent_get_from_tree(tree, i, "hw_version");
 
                 std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
                 std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
                 std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane + "G")) << '\n' << std::endl;
+
+                // First character will be b or c if valid eeprom
+                if (fpga_hw_ver.at(0) == 'b' || fpga_hw_ver.at(0) == 'c') {
+                    std::cout << "FPGA MPN: " << std::regex_search(fpga_hw_ver, std::regex(" 1SX[[:alnum:]]{13} ")) << std::endl;
+                }
             }
 
             // Time board version info
