@@ -241,11 +241,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
                 std::cout << "FPGA Ethernet Flags: " << get_from_tree_double(tree, i, "link_max_rate") << std::endl;
                 std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
-                std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane + "G")) << '\n' << std::endl;
+                std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane + "G")) << std::endl;
 
                 // First character will be b or c if valid eeprom
                 if (fpga_hw_ver.at(0) == 'b' || fpga_hw_ver.at(0) == 'c') {
-                    std::cout << "FPGA MPN: " << std::regex_search(fpga_hw_ver, std::regex(" 1SX[[:alnum:]]{13} ")) << std::endl;
+                    std::smatch mpn_match;
+                    std::regex_search(fpga_hw_ver, mpn_match, std::regex(" 1SX[[:alnum:]]{13} "));
+                    // Only print if a match was found. If there's every more than one match the pattern is probably wrong
+                    if (mpn_match.size() == 1) {
+                        std::cout << "FPGA MPN: " <<  mpn_match[0] << '\n' << std::endl;
+                    }
                 }
             }
 
