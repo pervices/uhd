@@ -3,6 +3,7 @@
 #include <uhd/property_tree.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/version.hpp>
+#include <pwd.h>
 #include <boost/program_options.hpp>
 #include <boost/format.hpp>
 #include <cstdlib>
@@ -132,7 +133,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     desc.add_options()
         ("help,h", "help message")
         ("all,v", "prints information for all subsystems")
-	("hwinfo,p", "prints formatted versioning info")
+        ("hwinfo,p", "prints formatted versioning info")
         ("git,g", "prints only the git hash instead of full version info for subsystems")
         ("server,s", "prints all information related to the server")
         ("fpga,f", "prints all information related to the fpga")
@@ -148,7 +149,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
 
-        //print the help message
+    //print the help message
     if (vm.count("help") || argc <= 1) {
         std::cout << boost::format("UHD_USRP_INFO %s") % desc << std::endl;
                 std::cout << std::endl
@@ -205,7 +206,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if (hw_info) {
             std::time_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
             std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
-            std::cout << std::getenv("LOGNAME") << "@" << std::ifstream("/etc/hostname").rdbuf() << std::endl;
+
+            // Get the username for the current uid from its password file entry.
+            // This method is preferable to environment variables since they may not be consistent across distros or users
+            std::string username = "";
+            struct passwd *password_entry = getpwuid(getuid());
+            if (password_entry != NULL) {
+                username = password_entry->pw_name;
+            }
+            std::cout << username << "@" << std::ifstream("/etc/hostname").rdbuf() << std::endl;
+
             std::cout << "UHD Library Version: " << uhd::get_version_string() << std::endl;
             std::cout << "Device Type: " << device_type << std::endl;
             std::cout << "Serial: " << dit->first << std::endl;
