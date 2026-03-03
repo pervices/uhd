@@ -207,9 +207,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if (hw_info) {
             std::time_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
             std::cout << std::put_time(std::gmtime(&timestamp), "\n%Y%m%dT%H%M%S") << std::endl;
-            // std::cout << std::getenv("LOGNAME") << "@" << std::ifstream("/etc/hostname").rdbuf() << std::endl;
-            
-            // Get the username for the current uid
+
+            // Get the username for the current uid.
+            // This method is preferable to environment variables since they may not be consistent across distros or users
             std::string username = "";
             struct passwd *pwd = getpwuid(getuid());
             if (pwd != NULL) {
@@ -243,13 +243,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 std::cout << "FPGA " << server_version.substr(fpga_jesd_start, server_version.find('\n', fpga_jesd_start) - fpga_jesd_start) << std::endl;
                 std::cout << "FPGA BP: " << (backplane == "0" ? "Lily" : ("Tate" + backplane + "G")) << std::endl;
 
-                // First character will be b or c if valid eeprom
+                // First character will be b or c if valid eeprom, could not get MPN otherwise
                 if (fpga_hw_ver.at(0) == 'b' || fpga_hw_ver.at(0) == 'c') {
                     std::smatch mpn_match;
-                    std::regex_search(fpga_hw_ver, mpn_match, std::regex(" 1SX[[:alnum:]]{13} "));
-                    // Only print if a match was found. If there's every more than one match the pattern is probably wrong
+                    // All MPNs start with 1SX and are 16 characters long. Pattern will need to be updated if this changes.
+                    std::regex_search(fpga_hw_ver, mpn_match, std::regex("1SX[[:alnum:]]{13}"));
+                    // If there is more or less than one match then we've parsed hw_ver incorrectly or when we shouldn't have, so don't print anything
                     if (mpn_match.size() == 1) {
-                        std::cout << "FPGA MPN: " <<  mpn_match[0] << '\n' << std::endl;
+                        std::cout << "FPGA MPN: " << mpn_match[0] << '\n' << std::endl;
                     }
                 }
             }
