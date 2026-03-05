@@ -21,15 +21,17 @@
 #include <cmath>
 
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <sys/file.h>
 
 namespace uhd {
 namespace transport {
 namespace sph {
 
-send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner)
+send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner, pv_iface::sptr iface)
     // Ensure max_samples_per_packet is a multiple of the number of samples allowed per packet
     : _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
     _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
@@ -40,6 +42,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _DEVICE_TARGET_NSAMPS(device_target_nsamps),
     _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
     _TICK_RATE(tick_rate),
+    _iface(iface),
     _intermediate_send_buffer_pointers(_NUM_CHANNELS),
     _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
     _clock_sync_info(clock_sync_info_owner.get())
@@ -55,11 +58,30 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Create or check for existing lock on this channel
         // Lock path includes channel letter and MCU serial number
-        std::string serial_num = get_tx_serial_number(n);
+        std::string serial_num;
+        std::string channel_name = std::string(1, ('a' + _channels[n]));
+        std::string tx_serial = _iface->get_string("tx/" + channel_name + "/about/serial");
+        // Trim newline and check that a serial number was found
+        serial_num = tx_serial.substr(0, tx_serial.find('\n'));
+        // If no serial number was found, use time board instead
+        if (serial_num.empty()) {
+            std::string time_serial = _iface->get_string("time/about/serial");
+            serial_num = time_serial.substr(0, time_serial.find('\n'));
+            // If no time board serial number was found throw an error
+            if (serial_num.empty()) {
+                std::string err_msg = "Failed to get serial number for tx or time board.\n";
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", err_msg);
+                throw uhd::runtime_error(err_msg);
+            }
+        }
 
         std::string lock_path = "/var/lock/tx" + std::string(1, ('a' + _channels[n])) + "_" + serial_num;
         std::cout << "TX SERIAL NUM: " << serial_num << std::endl;
         std::cout << "LOCK PATH: " << lock_path << std::endl;
+
+        // int lock_fd = -1;
+        // lock_fd = open(lock_path, O_CREAT | O_RDONLY, 1);
+        // flock(lock_fd, LOCK_EX);
 
         struct sockaddr_in dst_address;
         int send_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -288,8 +310,8 @@ int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
 }
 
 
-send_packet_streamer_mmsg::send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info):
-sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info)
+send_packet_streamer_mmsg::send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, pv_iface::sptr iface):
+sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface)
 {
 }
     

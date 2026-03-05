@@ -125,12 +125,11 @@ void crimson_tng_recv_packet_streamer::teardown() {
 
 crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info)
 :
-sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info ),
+sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface ),
 _product_name_c(product_name_c),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
 _stop_buffer_monitor( false ),
-_iface(iface)
 {
     _tx_streamer_channel_in_use = tx_channel_in_use;
     for(size_t n = 0; n < channels.size(); n++) {
@@ -312,27 +311,6 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
     uhd::time_spec_t then;
     _eprops[ch_i].xport_chan_fifo_lvl_abs(level, uflow, oflow, then);
     return level;
-}
-
-// Get the MCU serial number for the channels board or time board as a fallback
-std::string crimson_tng_send_packet_streamer::get_tx_serial_number(size_t ch_i) {
-    std::string serial_num;
-    std::string channel_name = std::string(1, ('a' + _channels[ch_i]));
-    std::string tx_serial = _iface->get_string("tx/" + channel_name + "/about/serial");
-    // Trim newline and check that a serial number was found
-    serial_num = tx_serial.substr(0, tx_serial.find('\n'));
-    // If no serial number was found, use time board instead
-    if (serial_num.empty()) {
-        std::string time_serial = _iface->get_string("time/about/serial");
-        serial_num = time_serial.substr(0, time_serial.find('\n'));
-        // If no time board serial number was found throw an error
-        if (serial_num.empty()) {
-            std::string err_msg = "Failed to get serial number for tx or time board.\n";
-            UHD_LOG_ERROR(_product_name_c, err_msg);
-            throw uhd::runtime_error(err_msg);
-        }
-    }
-    return serial_num;
 }
 
 // Check that all channels on a streamer have the same sample rate.

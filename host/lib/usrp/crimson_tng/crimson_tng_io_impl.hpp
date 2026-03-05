@@ -108,8 +108,6 @@ protected:
 
     int64_t get_buffer_level_from_device(const size_t ch_i);
 
-    std::string get_tx_serial_number(size_t ch_i);
-
 private:
     // The product name in all capitals
     // Used for messages to the user, should not be used for anything else
@@ -148,12 +146,6 @@ private:
     std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
 
     bool _performance_warning_printed = false;
-
-    /**
-    * A shared pointer to the interface used to access the server.
-    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-    */
-    pv_iface::sptr _iface;
 
     /***********************************************************************
     * buffer_monitor_loop
