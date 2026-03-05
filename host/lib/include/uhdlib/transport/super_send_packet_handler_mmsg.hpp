@@ -223,6 +223,8 @@ private:
     int _ACTUAL_SEND_BUFFER_SIZE;
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
     std::vector<int> send_sockets;
+    // Lock file paths for each channel
+    std::vector<int> channel_locks;
 protected:
     std::vector<size_t> _channels;
     /**

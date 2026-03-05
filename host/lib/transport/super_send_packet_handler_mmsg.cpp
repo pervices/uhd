@@ -38,11 +38,11 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _NUM_CHANNELS(channels.size()),
     _async_msg_fifo(async_msg_fifo),
     _channels(channels),
+    _iface(iface),
     _DEVICE_BUFFER_SIZE(device_buffer_size),
     _DEVICE_TARGET_NSAMPS(device_target_nsamps),
     _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
     _TICK_RATE(tick_rate),
-    _iface(iface),
     _intermediate_send_buffer_pointers(_NUM_CHANNELS),
     _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
     _clock_sync_info(clock_sync_info_owner.get())
@@ -79,9 +79,18 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
         std::cout << "TX SERIAL NUM: " << serial_num << std::endl;
         std::cout << "LOCK PATH: " << lock_path << std::endl;
 
-        int lock_fd = -1;
-        lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, 1);
-        flock(lock_fd, LOCK_EX);
+        // Create lock for channel
+        int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, 1);
+        if(lock_fd == -1) {
+            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+            throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+        }
+        int r = flock(lock_fd, LOCK_EX);
+        if (r == -1) {
+            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "flock " + lock_path + "failed: " + std::string(strerror(errno)));
+            throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+        }
+        channel_locks.push_back(lock_fd);
 
         struct sockaddr_in dst_address;
         int send_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -141,6 +150,11 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
         if(r) {
             fprintf(stderr, "close failed on data send socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
         }
+        r = flock(channel_locks[n], LOCK_UN);
+        if (r == -1) {
+            fprintf(stderr, "flock unlock failed: %s\nThe program may not have closed cleanly\n", strerror(errno));
+        }
+        close(channel_locks[n]);
     }
 
     // The destructor must be manually called when using placement new
