@@ -108,6 +108,8 @@ protected:
 
     int64_t get_buffer_level_from_device(const size_t ch_i);
 
+    std::string get_tx_serial_number(size_t ch_i);
+
 private:
     // The product name in all capitals
     // Used for messages to the user, should not be used for anything else

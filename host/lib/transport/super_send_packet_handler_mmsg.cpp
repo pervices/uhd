@@ -53,6 +53,14 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
 
     // Creates and binds to sockets
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+        // Create or check for existing lock on this channel
+        // Lock path includes channel letter and MCU serial number
+        std::string serial_num = get_tx_serial_number(n);
+
+        std::string lock_path = "/var/lock/tx" + std::string(1, ('a' + _channels[n])) + "_" + serial_num;
+        std::cout << "TX SERIAL NUM: " << serial_num << std::endl;
+        std::cout << "LOCK PATH: " << lock_path << std::endl;
+
         struct sockaddr_in dst_address;
         int send_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
         if(send_socket_fd < 0) {
@@ -62,7 +70,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
         dst_address.sin_family = AF_INET;
         dst_address.sin_addr.s_addr = inet_addr(dst_ips[n].c_str());
         dst_address.sin_port = htons(dst_ports[n]);
-
+        
         if(connect(send_socket_fd, (struct sockaddr*)&dst_address, sizeof(dst_address)) < 0)
         {
             fprintf(stderr, "ERROR Unable to connect to IP address %s and port %i\n", dst_ips[n].c_str(), dst_ports[n]);

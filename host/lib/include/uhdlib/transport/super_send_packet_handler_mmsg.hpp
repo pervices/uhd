@@ -209,6 +209,8 @@ protected:
 
     // Sends a request for the buffer level from the device, returns the result of that request
     virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
+    // Gets the serial number for the channels tx board or the time board as a fallback
+    std::string get_tx_serial_number(size_t ch_i);
 
 private:
     int64_t blocking_setpoint = 0;

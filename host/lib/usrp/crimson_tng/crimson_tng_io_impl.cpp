@@ -314,6 +314,27 @@ int64_t crimson_tng_send_packet_streamer::get_buffer_level_from_device(const siz
     return level;
 }
 
+// Get the MCU serial number for the channels board or time board as a fallback
+std::string crimson_tng_send_packet_streamer::get_tx_serial_number(size_t ch_i) {
+    std::string serial_num;
+    std::string channel_name = std::string(1, ('a' + _channels[ch_i]));
+    std::string tx_serial = _iface->get_string("tx/" + channel_name + "/about/serial");
+    // Trim newline and check that a serial number was found
+    serial_num = tx_serial.substr(0, tx_serial.find('\n'));
+    // If no serial number was found, use time board instead
+    if (serial_num.empty()) {
+        std::string time_serial = _iface->get_string("time/about/serial");
+        serial_num = time_serial.substr(0, time_serial.find('\n'));
+        // If no time board serial number was found throw an error
+        if (serial_num.empty()) {
+            std::string err_msg = "Failed to get serial number for tx or time board.\n";
+            UHD_LOG_ERROR(_product_name_c, err_msg);
+            throw uhd::runtime_error(err_msg);
+        }
+    }
+    return serial_num;
+}
+
 // Check that all channels on a streamer have the same sample rate.
 void crimson_tng_send_packet_streamer::check_matching_rates() {
     const std::string mismatch_message = "Multiple sample rates are detected, but a streamer can only handle one.\n"
