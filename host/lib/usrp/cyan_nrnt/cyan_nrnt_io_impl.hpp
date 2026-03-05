@@ -135,12 +135,6 @@ private:
 
     bool _performance_warning_printed = false;
 
-    /**
-    * A shared pointer to the interface used to access the server.
-    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-    */
-    pv_iface::sptr _iface;
-
     /***********************************************************************
     * buffer_monitor_loop
     * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode

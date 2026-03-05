@@ -225,7 +225,11 @@ private:
     std::vector<int> send_sockets;
 protected:
     std::vector<size_t> _channels;
-
+    /**
+    * A shared pointer to the interface used to access the server.
+    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
+    */
+    pv_iface::sptr _iface;
 private:
     // Device buffer size
     const int64_t _DEVICE_BUFFER_SIZE;
@@ -243,12 +247,6 @@ private:
     size_t dropped_nsamps_in_cache = 0;
 
     double _sample_rate = 0;
-
-    /**
-    * A shared pointer to the interface used to access the server.
-    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-    */
-    pv_iface::sptr _iface;
 
     // Sequence number for next packet
     uint64_t next_sequence_number = 0;

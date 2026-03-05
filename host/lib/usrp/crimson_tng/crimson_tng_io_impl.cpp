@@ -129,7 +129,7 @@ sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_po
 _product_name_c(product_name_c),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
-_stop_buffer_monitor( false ),
+_stop_buffer_monitor( false )
 {
     _tx_streamer_channel_in_use = tx_channel_in_use;
     for(size_t n = 0; n < channels.size(); n++) {

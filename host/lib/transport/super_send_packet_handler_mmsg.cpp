@@ -57,7 +57,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     // Creates and binds to sockets
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Create or check for existing lock on this channel
-        // Lock path includes channel letter and MCU serial number
+        // Attempt to get tx boards serial number
         std::string serial_num;
         std::string channel_name = std::string(1, ('a' + _channels[n]));
         std::string tx_serial = _iface->get_string("tx/" + channel_name + "/about/serial");
@@ -75,13 +75,13 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
             }
         }
 
-        std::string lock_path = "/var/lock/tx" + std::string(1, ('a' + _channels[n])) + "_" + serial_num;
+        std::string lock_path = "/var/lock/tx" + channel_name + "_" + serial_num;
         std::cout << "TX SERIAL NUM: " << serial_num << std::endl;
         std::cout << "LOCK PATH: " << lock_path << std::endl;
 
-        // int lock_fd = -1;
-        // lock_fd = open(lock_path, O_CREAT | O_RDONLY, 1);
-        // flock(lock_fd, LOCK_EX);
+        int lock_fd = -1;
+        lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, 1);
+        flock(lock_fd, LOCK_EX);
 
         struct sockaddr_in dst_address;
         int send_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
