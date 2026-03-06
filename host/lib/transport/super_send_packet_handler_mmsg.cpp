@@ -80,7 +80,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
         std::cout << "LOCK PATH: " << lock_path << std::endl;
 
         // Create lock for channel
-        int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IROTH);
+        int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR, 1);
         if(lock_fd == -1) {
             UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
             throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
