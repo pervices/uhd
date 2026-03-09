@@ -18,12 +18,14 @@
 
 #include <boost/assign.hpp>
 #include <boost/asio.hpp>
+#include <filesystem>
 #include <functional>
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 
 #include <numeric>
+#include <sys/file.h>
 
 #include "cyan_nrnt_impl.hpp"
 #include "cyan_nrnt_fw_common.h"
@@ -825,6 +827,30 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
+    // Get time board serial number for device-specific lockfile
+    std::string serial_num = _mbc.iface->get_string("time/about/serial");
+    serial_num = serial_num.substr(0, serial_num.find('\n'));
+    if (serial_num.empty()) {
+        std::string err_msg = "Failed to get time board serial number to create device lockfile.";
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
+        throw uhd::runtime_error(err_msg);
+    }
+
+    // Make sure lockfile uhd subdir exists or create with perms for all if not so all users can access it
+    std::filesystem::create_directories("/var/lock/uhd");
+    // Create device advisory lock with device type and time board serial number (ex/ cyan_nrnt_<serial>)
+    std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
+    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    if(device_lock_fd == -1) {
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+        throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+    }
+    
+    int r = flock(device_lock_fd, LOCK_EX);
+    if (r == -1) {
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "flock " + lock_path + "failed: " + std::string(strerror(errno)));
+        throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+    }
 
     // Create the file tree of properties.
     // Cyan NrNt only has support for one mother board, and the RF chains will show up individually as daughter boards.
@@ -1431,6 +1457,10 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
     // Manually calling destructor when using placement new is required
     _time_diff_pidc->~pidc();
     free(_time_diff_pidc);
+
+    // Remove device advisory lock
+    flock(device_lock_fd, LOCK_UN);
+    close(device_lock_fd);
 }
 
 //gets the jesd number to be used in creating stream command packets

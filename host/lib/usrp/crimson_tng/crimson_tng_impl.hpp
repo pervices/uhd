@@ -118,6 +118,8 @@ private:
     // Used for messages to the user, should not be used for anything else
     // TODO: set this variable
     std::string product_name_c;
+    // Advisory lock file descriptor for the device
+    int device_lock_fd;
 
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);

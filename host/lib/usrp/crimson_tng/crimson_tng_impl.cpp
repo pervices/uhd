@@ -22,10 +22,13 @@
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
 #include <bits/stdc++.h>
+#include <fcntl.h>
+#include <sys/file.h>
 
 #include "crimson_tng_impl.hpp"
 #include "crimson_tng_fw_common.h"
 
+#include "uhd/exception.hpp"
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_simple.hpp"
 #include "uhd/types/stream_cmd.hpp"
@@ -814,6 +817,30 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
+    // Get time board serial number for device-specific lockfile
+    std::string serial_num = _mbc.iface->get_string("time/about/serial");
+    serial_num = serial_num.substr(0, serial_num.find('\n'));
+    if (serial_num.empty()) {
+        std::string err_msg = "Failed to get time board serial number to create device lockfile.";
+        UHD_LOG_ERROR(product_name_c, err_msg);
+        throw uhd::runtime_error(err_msg);
+    }
+
+    // Make sure lockfile uhd subdir exists or create with perms for all if not so all users can access it
+    std::filesystem::create_directories("/var/lock/uhd");
+    // Create device advisory lock with device type and time board serial number (ex/ crimson_tng_<serial>)
+    std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
+    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    if(device_lock_fd == -1) {
+        UHD_LOG_ERROR(product_name_c, "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+        throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+    }
+    
+    int r = flock(device_lock_fd, LOCK_EX);
+    if (r == -1) {
+        UHD_LOG_ERROR(product_name_c, "flock " + lock_path + "failed: " + std::string(strerror(errno)));
+        throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+    }
 
     // Property paths
     const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
@@ -1414,6 +1441,10 @@ crimson_tng_impl::~crimson_tng_impl(void)
     // Manually calling destructor when using placement new is required
     _time_diff_pidc->~pidc();
     free(_time_diff_pidc);
+
+    // Remove device advisory lock
+    flock(device_lock_fd, LOCK_UN);
+    close(device_lock_fd);
 }
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
