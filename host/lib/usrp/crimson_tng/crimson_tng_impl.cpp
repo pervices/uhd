@@ -815,8 +815,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Convert product_name to all capitals and store in product_name_c for use in debug messages
     std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c), ::toupper);
 
-    // TODO check if locked already
-    // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
     // Get time board serial number for device-specific lockfile
     std::string serial_num = _mbc.iface->get_string("time/about/serial");
     serial_num = serial_num.substr(0, serial_num.find('\n'));
@@ -826,20 +824,45 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         throw uhd::runtime_error(err_msg);
     }
 
-    // Make sure lockfile uhd subdir exists or create with perms for all if not so all users can access it
+    // Make sure lockfile uhd subdir exists or create one if it does not.
+    // Lockfiles should be placed in subdir with access for all so any user can check the device is locked.
     std::filesystem::create_directories("/var/lock/uhd");
+    std::cout << "/var/lock/uhd perms: ";
+    std::filesystem::perms p = std::filesystem::status("/var/lock/uhd").permissions();
+    auto show = [=](char op, std::filesystem::perms perm)
+    {
+        std::cout << (std::filesystem::perms::none == (perm & p) ? '-' : op);
+    };
+    show('r', std::filesystem::perms::owner_read);
+    show('w', std::filesystem::perms::owner_write);
+    show('x', std::filesystem::perms::owner_exec);
+    show('r', std::filesystem::perms::group_read);
+    show('w', std::filesystem::perms::group_write);
+    show('x', std::filesystem::perms::group_exec);
+    show('r', std::filesystem::perms::others_read);
+    show('w', std::filesystem::perms::others_write);
+    show('x', std::filesystem::perms::others_exec);
+    std::cout << '\n';
+
     // Create device advisory lock with device type and time board serial number (ex/ crimson_tng_<serial>)
     std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
-    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR, 0777);
     if(device_lock_fd == -1) {
-        UHD_LOG_ERROR(product_name_c, "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
-        throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+        std::string err_msg = "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno));
+        UHD_LOG_ERROR(product_name_c, err_msg);
+        throw uhd::runtime_error(err_msg);
     }
     
-    int r = flock(device_lock_fd, LOCK_EX);
+    int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
     if (r == -1) {
-        UHD_LOG_ERROR(product_name_c, "flock " + lock_path + "failed: " + std::string(strerror(errno)));
-        throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+        // Ran with with FLOCK_NB, so it is expected to fail if another process already has a lock on the device lockfile
+        if (errno == EWOULDBLOCK) {
+            UHD_LOG_WARNING(product_name_c, "There is already a lock placed for this device.")
+        } else {
+            std::string err_msg =  "Placing advisory lock for device at " + lock_path + "failed: " + std::string(strerror(errno));
+            UHD_LOG_ERROR(product_name_c, err_msg);
+            throw uhd::runtime_error(err_msg);
+        }
     }
 
     // Property paths
