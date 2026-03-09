@@ -827,32 +827,19 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Make sure lockfile uhd subdir exists or create one if it does not.
     // Lockfiles should be placed in subdir with access for all so any user can check the device is locked.
     std::filesystem::create_directories("/var/lock/uhd");
-    std::filesystem::permissions("/var/lock/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
-    std::cout << "/var/lock/uhd perms: ";
-    std::filesystem::perms p = std::filesystem::status("/var/lock/uhd").permissions();
-    auto show = [=](char op, std::filesystem::perms perm)
-    {
-        std::cout << (std::filesystem::perms::none == (perm & p) ? '-' : op);
-    };
-    show('r', std::filesystem::perms::owner_read);
-    show('w', std::filesystem::perms::owner_write);
-    show('x', std::filesystem::perms::owner_exec);
-    show('r', std::filesystem::perms::group_read);
-    show('w', std::filesystem::perms::group_write);
-    show('x', std::filesystem::perms::group_exec);
-    show('r', std::filesystem::perms::others_read);
-    show('w', std::filesystem::perms::others_write);
-    show('x', std::filesystem::perms::others_exec);
-    std::cout << '\n';
 
     // Create device advisory lock with device type and time board serial number (ex/ crimson_tng_<serial>)
     std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
-    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR, 0777);
+    // Allow all users to read/write lockfile
+    int lockfile_access = (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, lockfile_access);
     if(device_lock_fd == -1) {
         std::string err_msg = "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno));
         UHD_LOG_ERROR(product_name_c, err_msg);
         throw uhd::runtime_error(err_msg);
     }
+    // // If the lockfile did not already exist, 
+    // fchmod(device_lock_fd, lockfile_access);
     
     int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
     if (r == -1) {
