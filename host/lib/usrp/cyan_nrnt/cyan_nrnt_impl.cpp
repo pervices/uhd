@@ -840,16 +840,24 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     std::filesystem::create_directories("/var/lock/uhd");
     // Create device advisory lock with device type and time board serial number (ex/ cyan_nrnt_<serial>)
     std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
-    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
     if(device_lock_fd == -1) {
-        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
-        throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+        std::string err_msg = "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno));
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
+        throw uhd::runtime_error(err_msg);
     }
     
-    int r = flock(device_lock_fd, LOCK_EX);
+    int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
     if (r == -1) {
-        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "flock " + lock_path + "failed: " + std::string(strerror(errno)));
-        throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+        // Ran with with FLOCK_NB, so it is expected to fail if another process already has a lock on the device lockfile
+        if (errno == EWOULDBLOCK) {
+            std::string warning_msg = "There is already a lock placed for this device: " + lock_path + "\nIs another instance of UHD already running?";
+            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, warning_msg);
+        } else {
+            std::string err_msg =  "Placing advisory lock for device at " + lock_path + "failed: " + std::string(strerror(errno));
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
+            throw uhd::runtime_error(err_msg);
+        }
     }
 
     // Create the file tree of properties.

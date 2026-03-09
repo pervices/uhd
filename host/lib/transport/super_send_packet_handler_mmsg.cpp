@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include "uhd/exception.hpp"
 #include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/utils/byteswap.hpp>
@@ -80,15 +81,21 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
         std::cout << "LOCK PATH: " << lock_path << std::endl;
 
         // Create lock for channel
-        int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRWXU | S_IRWXG | S_IRWXO);
+        int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
         if(lock_fd == -1) {
             UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
             throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
         }
-        int r = flock(lock_fd, LOCK_EX);
+        int r = flock(lock_fd, LOCK_EX | LOCK_NB);
         if (r == -1) {
-            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "flock " + lock_path + "failed: " + std::string(strerror(errno)));
-            throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+            if (errno == EWOULDBLOCK) {
+                std::string err_msg = "There is already a lock placed for this channel: " + lock_path + "\nIs another instance of UHD already streaming on this channel?";
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", err_msg);
+                throw uhd::runtime_error(err_msg);
+            } else {
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "flock " + lock_path + "failed: " + std::string(strerror(errno)));
+                throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+            }
         }
         channel_locks.push_back(lock_fd);
 
