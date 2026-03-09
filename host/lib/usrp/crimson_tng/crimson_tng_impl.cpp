@@ -805,6 +805,44 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         )
     );
 
+    // Check if another program has a lock on the device already
+    try {
+        // Make sure lockfile uhd subdir exists with permissions for all so other users can create new lockfiles
+        std::filesystem::create_directories("/var/lock/uhd");
+        std::filesystem::permissions("/var/lock/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
+
+        // Get time board serial number for device-specific lockfile.
+        std::string serial_num = _mbc.iface->get_string("time/about/serial");
+        serial_num = serial_num.substr(0, serial_num.find('\n'));
+
+        if (serial_num.empty()) {
+            throw uhd::runtime_error("Failed to get time board serial number for device lockfile.");
+        }
+
+        // Create device advisory lock with device type and time board serial number (ex/ crimson_tng_<serial>)
+        std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
+        device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+        if(device_lock_fd == -1) {
+            std::string err_msg = "Opening lock " + lock_path + " failed: " + std::string(strerror(errno));
+            throw uhd::runtime_error(err_msg);
+        }
+
+        int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
+        if (r == -1) {
+            // Ran with with FLOCK_NB, so it is expected to fail if another process already has a lock on the device lockfile
+            if (errno == EWOULDBLOCK) {
+                std::string warning_msg = "There is already a lock placed for this device: " + lock_path + "\nIs another instance of UHD already running?";
+                UHD_LOG_WARNING(product_name_c, warning_msg);
+            } else {
+                std::string err_msg =  "Placing advisory lock for device at " + lock_path + "failed: " + std::string(strerror(errno));
+                throw uhd::runtime_error(err_msg);
+            }
+        }
+    } catch(uhd::runtime_error &e) {
+        // Catch any runtime errors we threw since only a warning is printed even if a lock has been placed already, so should still proceed
+        UHD_LOG_ERROR(product_name_c, "Unable to check if lock already placed on device.\n" + std::string(e.what()));
+    }
+
     // Create the file tree of properties.
     // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
@@ -814,40 +852,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     std::string product_name = _tree->access<std::string>("/name").get();
     // Convert product_name to all capitals and store in product_name_c for use in debug messages
     std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c), ::toupper);
-
-    // Get time board serial number for device-specific lockfile
-    std::string serial_num = _mbc.iface->get_string("time/about/serial");
-    serial_num = serial_num.substr(0, serial_num.find('\n'));
-    if (serial_num.empty()) {
-        std::string err_msg = "Failed to get time board serial number to create device lockfile.";
-        UHD_LOG_ERROR(product_name_c, err_msg);
-        throw uhd::runtime_error(err_msg);
-    }
-
-    // Make sure lockfile uhd subdir exists or create one if it does not.
-    std::filesystem::create_directories("/var/lock/uhd");
-
-    // Create device advisory lock with device type and time board serial number (ex/ crimson_tng_<serial>)
-    std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
-    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
-    if(device_lock_fd == -1) {
-        std::string err_msg = "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno));
-        UHD_LOG_ERROR(product_name_c, err_msg);
-        throw uhd::runtime_error(err_msg);
-    }
-    
-    int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
-    if (r == -1) {
-        // Ran with with FLOCK_NB, so it is expected to fail if another process already has a lock on the device lockfile
-        if (errno == EWOULDBLOCK) {
-            std::string warning_msg = "There is already a lock placed for this device: " + lock_path + "\nIs another instance of UHD already running?";
-            UHD_LOG_WARNING(product_name_c, warning_msg);
-        } else {
-            std::string err_msg =  "Placing advisory lock for device at " + lock_path + "failed: " + std::string(strerror(errno));
-            UHD_LOG_ERROR(product_name_c, err_msg);
-            throw uhd::runtime_error(err_msg);
-        }
-    }
 
     // Property paths
     const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";

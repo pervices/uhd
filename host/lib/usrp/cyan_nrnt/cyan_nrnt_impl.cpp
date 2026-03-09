@@ -30,6 +30,7 @@
 #include "cyan_nrnt_impl.hpp"
 #include "cyan_nrnt_fw_common.h"
 
+#include "uhd/exception.hpp"
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_simple.hpp"
 #include "uhd/types/stream_cmd.hpp"
@@ -824,40 +825,43 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
             BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
         )
     );
-
-    // TODO check if locked already
-    // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
-    // Get time board serial number for device-specific lockfile
-    std::string serial_num = _mbc.iface->get_string("time/about/serial");
-    serial_num = serial_num.substr(0, serial_num.find('\n'));
-    if (serial_num.empty()) {
-        std::string err_msg = "Failed to get time board serial number to create device lockfile.";
-        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
-        throw uhd::runtime_error(err_msg);
-    }
-
-    // Make sure lockfile uhd subdir exists or create with perms for all if not so all users can access it
-    std::filesystem::create_directories("/var/lock/uhd");
-    // Create device advisory lock with device type and time board serial number (ex/ cyan_nrnt_<serial>)
-    std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
-    device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
-    if(device_lock_fd == -1) {
-        std::string err_msg = "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno));
-        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
-        throw uhd::runtime_error(err_msg);
-    }
     
-    int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
-    if (r == -1) {
-        // Ran with with FLOCK_NB, so it is expected to fail if another process already has a lock on the device lockfile
-        if (errno == EWOULDBLOCK) {
-            std::string warning_msg = "There is already a lock placed for this device: " + lock_path + "\nIs another instance of UHD already running?";
-            UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, warning_msg);
-        } else {
-            std::string err_msg =  "Placing advisory lock for device at " + lock_path + "failed: " + std::string(strerror(errno));
-            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
+    // Check if another program has a lock on the device already
+    try {
+        // Make sure lockfile uhd subdir exists with permissions for all so other users can create new lockfiles
+        std::filesystem::create_directories("/var/lock/uhd");
+        std::filesystem::permissions("/var/lock/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
+
+        // Get time board serial number for device-specific lockfile.
+        std::string serial_num = _mbc.iface->get_string("time/about/serial");
+        serial_num = serial_num.substr(0, serial_num.find('\n'));
+
+        if (serial_num.empty()) {
+            throw uhd::runtime_error("Failed to get time board serial number for device lockfile.");
+        }
+
+        // Create device advisory lock with device type and time board serial number (ex/ cyan_nrnt_<serial>)
+        std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
+        device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+        if(device_lock_fd == -1) {
+            std::string err_msg = "Opening lock " + lock_path + " failed: " + std::string(strerror(errno));
             throw uhd::runtime_error(err_msg);
         }
+
+        int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
+        if (r == -1) {
+            // Ran with with FLOCK_NB, so it is expected to fail if another process already has a lock on the device lockfile
+            if (errno == EWOULDBLOCK) {
+                std::string warning_msg = "There is already a lock placed for this device: " + lock_path + "\nIs another instance of UHD already running?";
+                UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, warning_msg);
+            } else {
+                std::string err_msg =  "Placing advisory lock for device at " + lock_path + "failed: " + std::string(strerror(errno));
+                throw uhd::runtime_error(err_msg);
+            }
+        }
+    } catch(uhd::runtime_error &e) {
+        // Catch any runtime errors we threw since only a warning is printed even if a lock has been placed already, so should still proceed
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to check if lock already placed on device: " + std::string(e.what()));
     }
 
     // Create the file tree of properties.
