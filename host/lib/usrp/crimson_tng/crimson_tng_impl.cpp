@@ -827,6 +827,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Make sure lockfile uhd subdir exists or create one if it does not.
     // Lockfiles should be placed in subdir with access for all so any user can check the device is locked.
     std::filesystem::create_directories("/var/lock/uhd");
+    std::filesystem::permissions("/var/lock/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
     std::cout << "/var/lock/uhd perms: ";
     std::filesystem::perms p = std::filesystem::status("/var/lock/uhd").permissions();
     auto show = [=](char op, std::filesystem::perms perm)
