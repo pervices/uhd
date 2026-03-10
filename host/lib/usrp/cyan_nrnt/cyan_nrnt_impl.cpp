@@ -829,12 +829,12 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     // Check if another program has a lock on the device already
     try {
         // Make sure lockfile uhd subdir exists
-        bool dir_created = std::filesystem::create_directories("/var/lock/uhd");
+        bool dir_created = std::filesystem::create_directories("/tmp/uhd");
         // If the uhd subdir was just created, set permissions for all so other users can create new lockfiles
         if (dir_created) {
-            std::filesystem::permissions("/var/lock/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
+            std::filesystem::permissions("/tmp/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
         }
-        
+
         // Get time board serial number for device-specific lockfile.
         std::string serial_num = _mbc.iface->get_string("time/about/serial");
         serial_num = serial_num.substr(0, serial_num.find('\n'));
@@ -844,7 +844,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         }
 
         // Create device advisory lock with device type and time board serial number (ex/ cyan_nrnt_<serial>)
-        std::string lock_path = "/var/lock/uhd/" + _device_addr["type"] + '_' + serial_num;
+        std::string lock_path = "/tmp/uhd/" + _device_addr["type"] + '_' + serial_num;
         device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
         if(device_lock_fd == -1) {
             std::string err_msg = "Opening lock " + lock_path + " failed: " + std::string(strerror(errno));
