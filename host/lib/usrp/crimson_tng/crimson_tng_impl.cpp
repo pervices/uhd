@@ -807,9 +807,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // Check if another program has a lock on the device already
     try {
-        // Make sure lockfile uhd subdir exists with permissions for all so other users can create new lockfiles
-        std::filesystem::create_directories("/var/lock/uhd");
-        std::filesystem::permissions("/var/lock/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
+        // Make sure lockfile uhd subdir exists
+        bool dir_created = std::filesystem::create_directories("/var/lock/uhd");
+        // If the uhd subdir was just created, set permissions for all so other users can create new lockfiles
+        if (dir_created) {
+            std::filesystem::permissions("/var/lock/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
+        }
 
         // Get time board serial number for device-specific lockfile.
         std::string serial_num = _mbc.iface->get_string("time/about/serial");
