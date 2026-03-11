@@ -55,7 +55,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner, pv_iface::sptr iface);
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner, pv_iface::sptr iface, std::vector<int> channel_locks);
 
     ~send_packet_handler_mmsg(void);
 
@@ -223,8 +223,6 @@ private:
     int _ACTUAL_SEND_BUFFER_SIZE;
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
     std::vector<int> send_sockets;
-    // Lock file paths for each channel
-    std::vector<int> channel_locks;
 protected:
     std::vector<size_t> _channels;
     /**
@@ -232,6 +230,8 @@ protected:
     * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
     */
     pv_iface::sptr _iface;
+     // Lock file paths for each channel
+    std::vector<int> channel_locks;
 private:
     // Device buffer size
     const int64_t _DEVICE_BUFFER_SIZE;
@@ -683,7 +683,7 @@ private:
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, pv_iface::sptr iface);
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, pv_iface::sptr iface, std::vector<int> channel_locks);
 
     size_t get_num_channels(void) const override {
         return _NUM_CHANNELS;
