@@ -57,47 +57,48 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
 
     // Creates and binds to sockets
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-        // Create or check for existing lock on this channel
-        // Attempt to get tx boards serial number
-        std::string serial_num;
+        // Check if another program has a lock on the channel already
+        // Use tx board serial number to identify channel lockfile
         std::string channel_name = std::string(1, ('a' + _channels[n]));
         std::string tx_serial = _iface->get_string("tx/" + channel_name + "/about/serial");
-        // Trim newline and check that a serial number was found
-        serial_num = tx_serial.substr(0, tx_serial.find('\n'));
+        std::string serial_num = tx_serial.substr(0, tx_serial.find('\n'));
         // If no serial number was found, use time board instead
         if (serial_num.empty()) {
             std::string time_serial = _iface->get_string("time/about/serial");
             serial_num = time_serial.substr(0, time_serial.find('\n'));
-            // If no time board serial number was found throw an error
+            // Throw an error if no time board serial number could be found either
             if (serial_num.empty()) {
-                std::string err_msg = "Failed to get serial number for tx or time board.\n";
-                UHD_LOG_ERROR("SEND_PACKET_HANDLER", err_msg);
-                throw uhd::runtime_error(err_msg);
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Unable to determine lockfile path for this channel.");
+                throw uhd::runtime_error("Failed to get serial number for tx or time board.");
             }
         }
 
+        // Create or open lockfiles for channel
+        // Lockfiles are placed in /tmp/uhd since all users should have access to /tmp
+        // Alternative location would be /var/lock but permissions vary by distro so using /tmp ensures lockfiles can be created by anyone running UHD
         std::string lock_path = "/tmp/uhd/tx" + channel_name + "_" + serial_num;
-        std::cout << "TX SERIAL NUM: " << serial_num << std::endl;
-        std::cout << "LOCK PATH: " << lock_path << std::endl;
-
-        // Create lock for channel
         int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
         if(lock_fd == -1) {
-            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
-            throw uhd::runtime_error("Opening lock " + lock_path + "failed. Error code: " + std::string(strerror(errno)));
+            int err = errno;
+            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Failed to open lockfile " + lock_path);
+            throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
         }
+        // Store lock file descriptors for later teardown
+        channel_locks.push_back(lock_fd);
+
+        // Attempt to place lock for channel
         int r = flock(lock_fd, LOCK_EX | LOCK_NB);
         if (r == -1) {
-            if (errno == EWOULDBLOCK) {
-                std::string err_msg = "There is already a lock placed for this channel: " + lock_path + "\nIs another instance of UHD already streaming on this channel?";
+            int err = errno;
+            if (err == EWOULDBLOCK) {
+                std::string err_msg = "There is already a lock placed for this channel: " + lock_path + ". Is another instance of UHD already streaming on this channel?";
                 UHD_LOG_ERROR("SEND_PACKET_HANDLER", err_msg);
-                throw uhd::runtime_error(err_msg);
+                throw uhd::access_error("Attempted to lock an already locked file.");
             } else {
-                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "flock " + lock_path + "failed: " + std::string(strerror(errno)));
-                throw uhd::runtime_error("flock " + lock_path + "failed: " + std::string(strerror(errno)));
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Failed to place lock on channel lockfile: " + lock_path);
+                throw uhd::runtime_error("flock failed with error: " + std::string(strerror(err)));
             }
         }
-        channel_locks.push_back(lock_fd);
 
         struct sockaddr_in dst_address;
         int send_socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -157,11 +158,16 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
         if(r) {
             fprintf(stderr, "close failed on data send socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
         }
+        // Cleanup channel locks
         r = flock(channel_locks[n], LOCK_UN);
         if (r == -1) {
+
             fprintf(stderr, "flock unlock failed: %s\nThe program may not have closed cleanly\n", strerror(errno));
         }
-        close(channel_locks[n]);
+        r = close(channel_locks[n]);
+        if (r == -1) {
+            fprintf(stderr, "close failed on channel lockfile: %s\nThe program may not have closed cleanly\n", strerror(errno));
+        }
     }
 
     // The destructor must be manually called when using placement new
