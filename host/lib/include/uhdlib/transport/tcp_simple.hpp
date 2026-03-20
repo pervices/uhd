@@ -61,7 +61,7 @@ class tcp_simple {
      *
      * @throws TODO TODO this comment
      */
-    size_t recv(void* buff, size_t size, double timeout = 0.1)
+    size_t recv(void* buff, size_t size, double timeout = 0.1);
 }
 
 
