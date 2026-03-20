@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <string>
+#include <stdint.h>
+
 namespace uhd { namespace transport {
 
 /**
@@ -62,7 +65,7 @@ class tcp_simple {
      * @throws TODO TODO this comment
      */
     size_t recv(void* buff, size_t size, double timeout = 0.1);
-}
+};
 
 
 }} // namespace uhd::transport
