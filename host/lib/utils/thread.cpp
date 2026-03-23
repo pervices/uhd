@@ -17,7 +17,8 @@ bool uhd::set_thread_priority_safe(float priority, bool realtime)
         set_thread_priority(priority, realtime);
         return true;
     } catch (const uhd::access_error &e) {
-        UHD_LOGGER_WARNING("UHD") << "Unable to set thread priority due to insufficient permission, performance will be negatively affected. Run the program with sudo or add the required permissions to this user";
+        // TODO: update instruction once realtime priority is re-enabled
+        UHD_LOGGER_WARNING("UHD") << "Unable to set thread priority due to insufficient permission, performance will be negatively affected. Run the program with sudo or give the user or program CAP_SYS_NICE";
         return false;
     } catch (const uhd::os_error& e) {
         UHD_LOGGER_WARNING("UHD")
@@ -161,7 +162,7 @@ void uhd::set_thread_priority_non_realtime(float priority) {
     int new_niceness = nice(nice_change);
 
     if(new_niceness == -1 && errno != 0) {
-        throw uhd::os_error("Failed to set nice value: " + std::string(strerror(errno)));
+        throw uhd::access_error("Failed to set nice value: " + std::string(strerror(errno)));
     } else if(new_niceness != target_niceness) {
         throw uhd::os_error("Unable to set nice value to desired value. Target: " + std::to_string(target_niceness) + ", Actual: " + std::to_string(new_niceness));
     }
