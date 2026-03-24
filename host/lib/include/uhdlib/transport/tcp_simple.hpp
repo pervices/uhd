@@ -26,6 +26,13 @@ namespace uhd { namespace transport {
  */
 class tcp_simple {
 
+private:
+
+    // File descriptor of the tcp socket
+    int tcp_socket_fd = -1;
+
+public:
+
     /**
      * Make a new TCP connection
      *
