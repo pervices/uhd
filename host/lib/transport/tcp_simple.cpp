@@ -28,17 +28,17 @@ tcp_simple::tcp_simple(const std::string& addr, const uint16_t port) {
     struct addrinfo* host_address = NULL;
 
     // Create string from port here to ensure it exists while c_str is in use
-    std::string port_s = std::to_string(port)
+    std::string port_s = std::to_string(port);
 
     // Convert addr to a struct usable by connect, and get whether it is ipv4 or ipv6
     int addr_info_ret = getaddrinfo(addr.c_str(), port_s.c_str(), &hint, &host_address);
     // TODO: error check
 
     // Create tcp socket
-    tcp_socket_fd = socket(host_address->ai_family, SOCKET_STREAM, 0);
+    tcp_socket_fd = socket(host_address->ai_family, SOCK_STREAM, 0);
     // TODO: error check
 
-    int connect_r = connect(tcp_socket_fd, host_address.ai_addr, host_address.ai_addrlen);
+    int connect_r = connect(tcp_socket_fd, host_address->ai_addr, host_address->ai_addrlen);
     // TODO: error check
 
     // Frees the host_addressults of getaddrinfo
