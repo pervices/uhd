@@ -27,8 +27,11 @@ tcp_simple::tcp_simple(const std::string& addr, const uint16_t port) {
 
     struct addrinfo* host_address = NULL;
 
+    // Create string from port here to ensure it exists while c_str is in use
+    std::string port_s = std::to_string(port)
+
     // Convert addr to a struct usable by connect, and get whether it is ipv4 or ipv6
-    int addr_info_ret = getaddrinfo(addr.c_str(), std::to_string(port), &hint, &host_address);
+    int addr_info_ret = getaddrinfo(addr.c_str(), port_s.c_str(), &hint, &host_address);
     // TODO: error check
 
     // Create tcp socket
