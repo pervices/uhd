@@ -4,14 +4,17 @@
 #include <uhdlib/transport/tcp_simple.hpp>
 
 // Standard library
+#include <cstring>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <unistd.h>
 
 namespace uhd { namespace transport {
 
 tcp_simple::tcp_simple(const std::string& addr, const uint16_t port) {
 
+    // Struct containing info used to generate
     struct addrinfo hint;
     memset(&hint, 0, sizeof(hint));
 
@@ -25,7 +28,7 @@ tcp_simple::tcp_simple(const std::string& addr, const uint16_t port) {
     struct addrinfo* host_address = NULL;
 
     // Convert addr to a struct usable by connect, and get whether it is ipv4 or ipv6
-    int addr_info_ret = getaddrinfo(addr.c_str(), NULL, &hint, &host_address);
+    int addr_info_ret = getaddrinfo(addr.c_str(), std::to_string(port), &hint, &host_address);
     // TODO: error check
 
     // Create tcp socket
