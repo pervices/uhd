@@ -858,7 +858,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to determine if a lock has already been placed on this device.\n" + std::string(e.what()));
     }
 
-    tx_lock_fd->resize(num_tx_channels);
+    tx_lock_fd = std::shared_ptr<std::vector<int>>(new std::vector<int>(num_tx_channels));
     // Create/open channel lock files but do not attempt to lock
     // The channels will only be locked when they are streaming
     for (size_t n = 0; n < num_tx_channels; n++) {
