@@ -2041,6 +2041,7 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
             lock_tx_channel(chan);
         } catch (uhd::runtime_error &err) {
             UHD_LOG_ERROR(product_name_c, "Failed to set tx rate for channel " + std::to_string(chan) + ".\n" + std::string(err.what()));
+            throw err;
         } 
 
         _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
