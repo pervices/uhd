@@ -124,6 +124,9 @@ private:
     // lock file descriptors to be locked while a channel is streaming
     std::vector<int> tx_lock_fd;
 
+    // Lock the specified tx channel. Throws a runtime error if channel is already locked.
+    void lock_tx_channel(size_t channel_num);
+
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_dsp_root(const size_t channel, const size_t mboard = 0);

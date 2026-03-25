@@ -19,6 +19,7 @@
 #include <boost/asio.hpp>
 #include <functional>
 #include <memory>
+#include <string>
 #include <boost/foreach.hpp>
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
@@ -121,6 +122,20 @@ static size_t pre_to_ch( const std::string & pre ) {
     size_t ch = x - 'a';
 
     return ch;
+}
+
+void crimson_tng_impl::lock_tx_channel(size_t channel_num) {
+    // Set an exclusive lock on the channel lockfile. Nonblocking so it fails if already locked instead of waiting for it to be unlocked.
+    int r = flock(tx_lock_fd[channel_num], LOCK_EX | LOCK_NB);
+    if (r == -1) {
+        int err = errno;
+        // EWOULDBLOCK is expected if there is already a lock since we ran with the LOCK_NB flag.
+        if (err == EWOULDBLOCK) {
+            throw uhd::runtime_error("Attempted to lock channel " + std::to_string(channel_num) + " but it was already locked. Does another UHD instance already have a lock?");
+        } else {
+            throw uhd::runtime_error("flock failed to lock channel " + std::to_string(channel_num) + " with error: " + std::string(strerror(err)));
+        }
+    }
 }
 
 // TODO: refactor so this function can be called even if this has been destructed
@@ -806,6 +821,16 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         )
     );
 
+    // Create the file tree of properties.
+    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
+    // All the initial settings are read from the current status of the board.
+    _tree = uhd::property_tree::make();
+
+    TREE_CREATE_RO("/name", "fpga/about/name", std::string, string);
+    std::string product_name = _tree->access<std::string>("/name").get();
+    // Convert product_name to all capitals and store in product_name_c for use in debug messages
+    std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c), ::toupper);
+
     // Make sure lockfile uhd subdir exists
     // Lockfiles are placed in /tmp/uhd since all users should have access to /tmp
     // Alternative location would be /var/lock but permissions vary by distro so using /tmp ensures lockfiles can be created by anyone running UHD
@@ -846,16 +871,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         // Catch any runtime errors we threw since only a warning is printed even if a lock has been placed already, so we should still proceed
         UHD_LOG_ERROR(product_name_c, "Unable to determine if a lock has already been placed on this device.\n" + std::string(e.what()));
     }
-
-    // Create the file tree of properties.
-    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
-    // All the initial settings are read from the current status of the board.
-    _tree = uhd::property_tree::make();
-
-    TREE_CREATE_RO("/name", "fpga/about/name", std::string, string);
-    std::string product_name = _tree->access<std::string>("/name").get();
-    // Convert product_name to all capitals and store in product_name_c for use in debug messages
-    std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c), ::toupper);
 
     // Property paths
     const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
@@ -2021,18 +2036,12 @@ double crimson_tng_impl::get_rx_rate(size_t chan) {
 void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
     if (chan != multi_usrp::ALL_CHANS) {
         // Check for lock on channel before setting rate
-        // An error should be thrown if the channel is locked to prevent unexpected behaviour for the other UHD instance mid-stream
-        int r = flock(tx_lock_fd[chan], LOCK_EX | LOCK_NB);
-        if (r == -1) {
-            int err = errno;
-            if (err == EWOULDBLOCK) {
-                UHD_LOG_ERROR(product_name_c, "Attempted to set tx rate for an already locked channel. Is another instance of UHD already streaming on this channel?");
-                throw uhd::access_error("Failed to set tx rate because channel was already locked.");
-            } else {
-                UHD_LOG_ERROR(product_name_c, "Failed to place lock on channel while setting tx rate.");
-                throw uhd::runtime_error("flock failed with error: " + std::string(strerror(err)));
-            }
-        }
+        // An error should be thrown if the channel is already locked to prevent disrupting the other UHD instance mid-stream
+        try {
+            lock_tx_channel(chan);
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR(product_name_c, "Failed to set tx rate for channel " + std::to_string(chan) + ".\n" + std::string(e.what()));
+        } 
 
         _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 
@@ -2043,6 +2052,7 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
 
         update_tx_samp_rate(chan, actual_rate);
 
+        // 
         flock(tx_lock_fd[chan], LOCK_UN);
 
         return;
