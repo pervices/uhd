@@ -18,6 +18,7 @@
 #ifndef INCLUDED_CRIMSON_TNG_IMPL_HPP
 #define INCLUDED_CRIMSON_TNG_IMPL_HPP
 
+#include <memory>
 #include <set>
 #include <vector>
 #include <thread>
@@ -120,6 +121,8 @@ private:
     std::string product_name_c;
     // Advisory lock file descriptor for the device
     int device_lock_fd;
+    // lock file descriptors to be locked while a channel is streaming
+    std::shared_ptr<std::vector<int>> tx_lock_fd;
 
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);
