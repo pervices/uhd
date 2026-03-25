@@ -911,6 +911,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     std::cout << "NUM_TX_CHANNELS: " << num_tx_channels << std::endl;
     std::cout << "LOCK_FD SIZE: " << tx_lock_fd.size() << std::endl;
     std::cout << "LOCK 0: " << tx_lock_fd[0] << std::endl;
+    std::cout << "LOCK 1: " << tx_lock_fd[1] << std::endl;
 
     _mbc.rx_streamers.resize( num_rx_channels );
     _mbc.tx_streamers.resize( num_tx_channels );
