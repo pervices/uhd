@@ -1833,6 +1833,14 @@ double crimson_tng_impl::get_rx_freq(size_t chan) {
 uhd::tune_result_t crimson_tng_impl::set_tx_freq(
     const uhd::tune_request_t &tune_request, size_t chan
 ) {
+    // Check for lock on channel before setting freq
+    // An error should be thrown if the channel is already locked to prevent disrupting the other UHD instance mid-stream
+    try {
+        lock_tx_channel(chan);
+    } catch (uhd::runtime_error &err) {
+        UHD_LOG_ERROR(product_name_c, "Failed to set tx freq for channel " + std::to_string(chan));
+        throw err;
+    }
 
     tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
             _tree->subtree(tx_dsp_root(chan)),
@@ -1841,6 +1849,9 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
             &tx_gain_is_set[chan],
             &last_set_tx_band[chan],
             chan);
+
+    // Unlock the channel
+    flock(tx_lock_fd[chan], LOCK_UN);
     return result;
 
 }
@@ -1861,6 +1872,15 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
     if ( multi_usrp::ALL_CHANS != chan ) {
         (void)name;
 
+        // Check for lock on channel before setting gain
+        // An error should be thrown if the channel is already locked to prevent disrupting the other UHD instance mid-stream
+        try {
+            lock_tx_channel(chan);
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR(product_name_c, "Failed to set tx gain for channel " + std::to_string(chan));
+            throw err;
+        } 
+
         // Used to decide if a warning should be printed when changing bands
         if(gain != 0) {
             tx_gain_is_set[chan] = true;
@@ -1876,11 +1896,10 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
         else if (gain < MIN_GAIN) gain = MIN_GAIN;
 
         gain = round(gain / 0.25);
-        //if ( 0 == _tree->access<int>( cm_root() / "chanmask-tx" ).get() ) {
-            _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
-        //} else {
-        //    _tree->access<double>( cm_root() / "tx/gain/val").set(gain);
-        //}
+        _tree->access<double>(tx_rf_fe_root(chan) / "gain" / "value").set(gain);
+
+        // Unlock the channel
+        flock(tx_lock_fd[chan], LOCK_UN);
         return;
     }
     for (size_t c = 0; c < num_tx_channels; c++){
