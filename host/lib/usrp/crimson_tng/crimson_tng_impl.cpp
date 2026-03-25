@@ -2052,7 +2052,7 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
 
         update_tx_samp_rate(chan, actual_rate);
 
-        // 
+        // Unlock the channel
         flock(tx_lock_fd[chan], LOCK_UN);
 
         return;
