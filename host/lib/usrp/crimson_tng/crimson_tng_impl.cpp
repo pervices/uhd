@@ -847,9 +847,38 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         UHD_LOG_ERROR(product_name_c, "Unable to determine if a lock has already been placed on this device.\n" + std::string(e.what()));
     }
 
-    tx_lock_fd.resize(num_tx_channels);
+    // Create the file tree of properties.
+    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
+    // All the initial settings are read from the current status of the board.
+    _tree = uhd::property_tree::make();
+
+    TREE_CREATE_RO("/name", "fpga/about/name", std::string, string);
+    std::string product_name = _tree->access<std::string>("/name").get();
+    // Convert product_name to all capitals and store in product_name_c for use in debug messages
+    std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c), ::toupper);
+
+    // Property paths
+    const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
+    const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
+
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/num_rx", "system/num_rx", int, int);
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/num_tx", "system/num_tx", int, int);
+    try {
+        num_rx_channels = (size_t) (_tree->access<int>(CRIMSON_TNG_MB_PATH / "system/num_rx").get());
+    } catch(uhd::lookup_error &e) {
+        num_rx_channels = CRIMSON_TNG_FALLBACK_RX_CHANNELS;
+    }
+    is_num_rx_channels_set = true;
+    try {
+        num_tx_channels = (size_t) (_tree->access<int>(CRIMSON_TNG_MB_PATH / "system/num_tx").get());
+    } catch(uhd::lookup_error &e) {
+        num_tx_channels = CRIMSON_TNG_FALLBACK_TX_CHANNELS;
+    }
+    is_num_tx_channels_set = true;
+
     // Create/open channel lock files but do not attempt to lock
     // The channels will only be locked when they are streaming
+    tx_lock_fd.resize(num_tx_channels);
     for (size_t n = 0; n < num_tx_channels; n++) {
         std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
         try {
@@ -882,35 +911,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     std::cout << "NUM_TX_CHANNELS: " << num_tx_channels << std::endl;
     std::cout << "LOCK_FD SIZE: " << tx_lock_fd.size() << std::endl;
     std::cout << "LOCK 0: " << tx_lock_fd[0] << std::endl;
-
-    // Create the file tree of properties.
-    // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.
-    // All the initial settings are read from the current status of the board.
-    _tree = uhd::property_tree::make();
-
-    TREE_CREATE_RO("/name", "fpga/about/name", std::string, string);
-    std::string product_name = _tree->access<std::string>("/name").get();
-    // Convert product_name to all capitals and store in product_name_c for use in debug messages
-    std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c), ::toupper);
-
-    // Property paths
-    const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
-    const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
-
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/num_rx", "system/num_rx", int, int);
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/num_tx", "system/num_tx", int, int);
-    try {
-        num_rx_channels = (size_t) (_tree->access<int>(CRIMSON_TNG_MB_PATH / "system/num_rx").get());
-    } catch(uhd::lookup_error &e) {
-        num_rx_channels = CRIMSON_TNG_FALLBACK_RX_CHANNELS;
-    }
-    is_num_rx_channels_set = true;
-    try {
-        num_tx_channels = (size_t) (_tree->access<int>(CRIMSON_TNG_MB_PATH / "system/num_tx").get());
-    } catch(uhd::lookup_error &e) {
-        num_tx_channels = CRIMSON_TNG_FALLBACK_TX_CHANNELS;
-    }
-    is_num_tx_channels_set = true;
 
     _mbc.rx_streamers.resize( num_rx_channels );
     _mbc.tx_streamers.resize( num_tx_channels );
