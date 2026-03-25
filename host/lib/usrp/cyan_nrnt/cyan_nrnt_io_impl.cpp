@@ -115,13 +115,29 @@ void cyan_nrnt_recv_packet_streamer::teardown() {
     }
 }
 
-cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const size_t nsamp_multiple, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> channel_locks)
+cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const size_t nsamp_multiple, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::shared_ptr<std::vector<int>> channel_locks)
 :
-sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, nsamp_multiple, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface, channel_locks ),
+sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, nsamp_multiple, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface ),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
-_stop_buffer_monitor( false )
+_stop_buffer_monitor( false ),
+_channel_locks(channel_locks)
 {
+    // Attempt to lock each channel for streamer
+    for (size_t n = 0; n < channels.size(); n++) {
+        int lock_fd = _channel_locks->at(channels[n]);
+        int r = flock(lock_fd, LOCK_EX | LOCK_NB);
+        if (r == -1) {
+            int err = errno;
+            if (err == EWOULDBLOCK) {
+                std::string err_msg = "There is already a lock placed for this channel (" + std::string(1, ('A' + _channels[n])) + "). Is another instance of UHD already streaming on this channel?";
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
+            } else {
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to place lock on channel lockfile.\nflock failed with error: " + std::string(strerror(err)));
+            }
+        }
+    }
+
     _tx_streamer_channel_in_use = tx_channel_in_use;
     for(size_t n = 0; n < channels.size(); n++) {
         _tx_streamer_channel_in_use->at(channels[n]) = true;
@@ -215,19 +231,8 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     for(size_t n = 0; n < _channels.size(); n++) {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
-    }
-
-    // unlock channels
-    for(size_t n = 0; n < _channels.size(); n++) {
-        int r = flock(channel_locks[n], LOCK_UN);
-        if (r == -1) {
-
-            fprintf(stderr, "flock unlock failed: %s\nThe program may not have closed cleanly\n", strerror(errno));
-        }
-        r = close(channel_locks[n]);
-        if (r == -1) {
-            fprintf(stderr, "close failed on channel lockfile: %s\nThe program may not have closed cleanly\n", strerror(errno));
-        }
+        // Release channel locks
+        flock(_channel_locks->at(_channels[n]), LOCK_UN);
     }
 }
 
@@ -936,53 +941,6 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
         }
     }
 
-    std::vector<int> channel_locks;
-    // Make sure another stream does not have a lock on the channel
-    for (size_t n = 0; n < args.channels.size(); n++) {
-        // Check if another program has a lock on the channel already
-        // Use tx board serial number to identify channel lockfile
-        std::string channel_name = std::string(1, ('a' + args.channels[n]));
-        std::string tx_serial = _mbc.iface->get_string("tx/" + channel_name + "/about/serial");
-        std::string serial_num = tx_serial.substr(0, tx_serial.find('\n'));
-        // If no serial number was found, use time board instead
-        if (serial_num.empty()) {
-            std::string time_serial = _mbc.iface->get_string("time/about/serial");
-            serial_num = time_serial.substr(0, time_serial.find('\n'));
-            // Throw an error if no time board serial number could be found either
-            if (serial_num.empty()) {
-                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Unable to determine lockfile path for this channel.");
-                throw uhd::runtime_error("Failed to get serial number for tx or time board.");
-            }
-        }
-
-        // Create or open lockfiles for channel
-        // Lockfiles are placed in /tmp/uhd since all users should have access to /tmp
-        // Alternative location would be /var/lock but permissions vary by distro so using /tmp ensures lockfiles can be created by anyone running UHD
-        std::string lock_path = "/tmp/uhd/tx" + channel_name + "_" + serial_num;
-        int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
-        if(lock_fd == -1) {
-            int err = errno;
-            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Failed to open lockfile " + lock_path);
-            throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
-        }
-        // Store lock file descriptors for later teardown
-        channel_locks.push_back(lock_fd);
-
-        // Attempt to place lock for channel
-        int r = flock(lock_fd, LOCK_EX | LOCK_NB);
-        if (r == -1) {
-            int err = errno;
-            if (err == EWOULDBLOCK) {
-                std::string err_msg = "There is already a lock placed for this channel: " + lock_path + ". Is another instance of UHD already streaming on this channel?";
-                UHD_LOG_ERROR("SEND_PACKET_HANDLER", err_msg);
-                throw uhd::access_error("Attempted to lock an already locked file.");
-            } else {
-                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Failed to place lock on channel lockfile: " + lock_path);
-                throw uhd::runtime_error("flock failed with error: " + std::string(strerror(err)));
-            }
-        }
-    }
-
     bool little_endian_supported;
     // There is no converter for little endian for sc12, even though Cyan is capable of it
     if(args.otw_format == "sc12" && args.cpu_format != "sc12") {
@@ -1033,7 +991,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::shared_ptr<pv_tx_async_msg_queue>(new pv_tx_async_msg_queue(1000)/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_send_packet_streamer>(new cyan_nrnt_send_packet_streamer(args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), nsamp_multiple, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info, channel_locks));
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_send_packet_streamer>(new cyan_nrnt_send_packet_streamer(args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), nsamp_multiple, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info, tx_lock_fd));
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

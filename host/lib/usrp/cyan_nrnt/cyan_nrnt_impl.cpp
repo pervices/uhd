@@ -828,15 +828,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     // Check if another program has a lock on the device already
     try {
-        // Make sure lockfile uhd subdir exists
-        // Lockfiles are placed in /tmp/uhd since all users should have access to /tmp
-        // Alternative location would be /var/lock but permissions vary by distro so using /tmp ensures lockfiles can be created by anyone running UHD
-        bool dir_created = std::filesystem::create_directories("/tmp/uhd");
-        // If the uhd subdir was just created, set permissions for all so other users can create new lockfiles
-        if (dir_created) {
-            std::filesystem::permissions("/tmp/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
-        }
-
         // Get time board serial number for device-specific lockfile.
         std::string serial_num = _mbc.iface->get_string("time/about/serial");
         serial_num = serial_num.substr(0, serial_num.find('\n'));
@@ -844,7 +835,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
             throw uhd::runtime_error("Failed to get time board serial number.");
         }
 
-        // Create or open lockfile with device type and time board serial number (ex/ cyan_nrnt_<serial>)
+        // Create or open lockfile with device type and time board serial number (ex/ crimson_tng_<serial>)
         std::string lock_path = "/tmp/uhd/" + _device_addr["type"] + '_' + serial_num;
         device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
         if(device_lock_fd == -1) {
@@ -857,14 +848,46 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
             int err = errno;
             // Ran with with LOCK_NB, so errno is set to EWOULDBLOCK if the file is already locked
             if (err == EWOULDBLOCK) {
-                UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "There is already a lock placed for this device: " + lock_path + ". Is another instance of UHD already running?");
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "There is already a lock placed for this device: " + lock_path + ". Is another instance of UHD already running?");
             } else {
                 throw uhd::runtime_error("flock failed for device lockfile " + lock_path + " with error: " + std::string(strerror(errno)));
             }
         }
     } catch(uhd::runtime_error &e) {
         // Catch any runtime errors we threw since only a warning is printed even if a lock has been placed already, so we should still proceed
-        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "Unable to determine if a lock has already been placed on this device.\n" + std::string(e.what()));
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to determine if a lock has already been placed on this device.\n" + std::string(e.what()));
+    }
+
+    tx_lock_fd->resize(num_tx_channels);
+    // Create/open channel lock files but do not attempt to lock
+    // The channels will only be locked when they are streaming
+    for (size_t n = 0; n < num_tx_channels; n++) {
+        std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
+        try {
+            std::string tx_serial = _mbc.iface->get_string("tx/" + channel_name + "/about/serial");
+            std::string serial_num = tx_serial.substr(0, tx_serial.find('\n'));
+            // If no serial number was found, use time board instead
+            if (serial_num.empty()) {
+                std::string time_serial = _mbc.iface->get_string("time/about/serial");
+                serial_num = time_serial.substr(0, time_serial.find('\n'));
+                // Throw an error if no time board serial number could be found either
+                if (serial_num.empty()) {
+                    throw uhd::runtime_error("Failed to get serial number for tx or time board.");
+                }
+            }
+
+            // Create or open lockfiles for channel
+            std::string lock_path = "/tmp/uhd/tx" + channel_name + "_" + serial_num;
+            int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+
+            tx_lock_fd->at(n) = lock_fd;
+        } catch (uhd::runtime_error &e) {
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Could not initialize lock for channel_" + channel_name + ".\n" + std::string(e.what()));
+        }
     }
 
     // Create the file tree of properties.
@@ -1476,6 +1499,11 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
     // Remove device advisory lock
     flock(device_lock_fd, LOCK_UN);
     close(device_lock_fd);
+
+    // Close channel lockfiles
+    for (size_t n = 0; n < num_tx_channels; n++) {
+        close(tx_lock_fd->at(n));
+    }
 }
 
 //gets the jesd number to be used in creating stream command packets
@@ -1982,6 +2010,20 @@ double cyan_nrnt_impl::get_rx_rate(size_t chan) {
 
 void cyan_nrnt_impl::set_tx_rate(double rate, size_t chan) {
     if (chan != multi_usrp::ALL_CHANS) {
+        // Check for lock on channel before setting rate
+        // An error should be thrown if the channel is locked to prevent unexpected behaviour for the other UHD instance mid-stream
+        int r = flock(tx_lock_fd->at(chan), LOCK_EX | LOCK_NB);
+        if (r == -1) {
+            int err = errno;
+            if (err == EWOULDBLOCK) {
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Attempted to set tx rate for an already locked channel. Is another instance of UHD already streaming on this channel?");
+                throw uhd::access_error("Failed to set tx rate because channel was already locked.");
+            } else {
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to place lock on channel while setting tx rate.");
+                throw uhd::runtime_error("flock failed with error: " + std::string(strerror(err)));
+            }
+        }
+
         _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 
         double actual_rate = get_tx_rate(chan);
