@@ -847,7 +847,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         UHD_LOG_ERROR(product_name_c, "Unable to determine if a lock has already been placed on this device.\n" + std::string(e.what()));
     }
 
-    tx_lock_fd = std::shared_ptr<std::vector<int>>(new std::vector<int>(num_tx_channels, -1));
+    tx_lock_fd.resize(num_tx_channels);
     // Create/open channel lock files but do not attempt to lock
     // The channels will only be locked when they are streaming
     for (size_t n = 0; n < num_tx_channels; n++) {
@@ -873,7 +873,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
                 throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
             }
 
-            tx_lock_fd->at(n) = lock_fd;
+            tx_lock_fd[n] = lock_fd;
         } catch (uhd::runtime_error &e) {
             UHD_LOG_ERROR(product_name_c, "Could not initialize lock for channel_" + channel_name + ".\n" + std::string(e.what()));
         }
@@ -1495,7 +1495,7 @@ crimson_tng_impl::~crimson_tng_impl(void)
 
     // Close channel lockfiles
     for (size_t n = 0; n < num_tx_channels; n++) {
-        close(tx_lock_fd->at(n));
+        close(tx_lock_fd[n]);
     }
 }
 
@@ -2017,7 +2017,7 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
     if (chan != multi_usrp::ALL_CHANS) {
         // Check for lock on channel before setting rate
         // An error should be thrown if the channel is locked to prevent unexpected behaviour for the other UHD instance mid-stream
-        int r = flock(tx_lock_fd->at(chan), LOCK_EX | LOCK_NB);
+        int r = flock(tx_lock_fd[chan], LOCK_EX | LOCK_NB);
         if (r == -1) {
             int err = errno;
             if (err == EWOULDBLOCK) {
