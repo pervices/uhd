@@ -134,6 +134,8 @@ _stop_buffer_monitor( false ),
 _channel_locks(channel_locks)
 {
     // Attempt to lock each channel for streamer
+    std::cout << "CHANNELS SIZE: " << channels.size() << std::endl;
+    std::cout << "LAST CHANNEL: " << channels[channels.end()] << std::endl;
     for (size_t n = 0; n < channels.size(); n++) {
         int lock_fd = _channel_locks[channels[n]];
         int r = flock(lock_fd, LOCK_EX | LOCK_NB);
