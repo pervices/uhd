@@ -2043,6 +2043,8 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
 
         update_tx_samp_rate(chan, actual_rate);
 
+        flock(tx_lock_fd[chan], LOCK_UN);
+
         return;
     }
     for (size_t c = 0; c < num_tx_channels; c++) {
