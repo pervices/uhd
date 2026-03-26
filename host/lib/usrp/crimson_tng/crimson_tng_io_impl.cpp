@@ -124,28 +124,27 @@ void crimson_tng_recv_packet_streamer::teardown() {
     }
 }
 
-crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> channel_locks)
+crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> channel_locks, std::vector<int> streaming_locks)
 :
 sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface ),
 _product_name_c(product_name_c),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
 _stop_buffer_monitor( false ),
-_channel_locks(channel_locks)
+_channel_locks(channel_locks),
+_streaming_locks(streaming_locks)
 {
     // Attempt to lock each channel for streamer
-    std::cout << "CHANNELS SIZE: " << channels.size() << std::endl;
-    std::cout << "LAST CHANNEL: " << channels.back() << std::endl;
     for (size_t n = 0; n < channels.size(); n++) {
         int lock_fd = _channel_locks[channels[n]];
         int r = flock(lock_fd, LOCK_EX | LOCK_NB);
         if (r == -1) {
             int err = errno;
             if (err == EWOULDBLOCK) {
-                std::string err_msg = "There is already a lock placed for this channel (" + std::string(1, ('A' + _channels[n])) + "). Is another instance of UHD already streaming on this channel?";
+                std::string err_msg = "Attempted to lock channel " + std::to_string(_channels[n]) + " but it was already locked. Is another instance of UHD already streaming on this channel?";
                 UHD_LOG_ERROR(_product_name_c, err_msg);
             } else {
-                UHD_LOG_ERROR(_product_name_c, "Failed to place lock on channel lockfile.\nflock failed with error: " + std::string(strerror(err)));
+                UHD_LOG_ERROR(_product_name_c, "Failed to place lock on channel " + std::to_string(_channels[n]) + " lockfile.\nflock failed with error: " + std::string(strerror(err)));
             }
         }
     }
@@ -269,6 +268,11 @@ size_t crimson_tng_send_packet_streamer::send(
         // Make sure all channel sample rates match for this streamer. No need if there is only one channel.
         if (_eprops.size() > 1) {
             check_matching_rates();
+        }
+
+        // Lock streamer channels at start of burst
+        for (size_t n = 0; n < _channels.size(); n++) {
+            
         }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
@@ -992,7 +996,7 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     // However there is a deprecated function in device for reading async message
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::shared_ptr<pv_tx_async_msg_queue>(new pv_tx_async_msg_queue(1000)/*Buffer contains 1000 messages*/);
-    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::shared_ptr<crimson_tng_send_packet_streamer>(new crimson_tng_send_packet_streamer( product_name_c, args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info, tx_lock_fd ));
+    std::shared_ptr<crimson_tng_send_packet_streamer> my_streamer = std::shared_ptr<crimson_tng_send_packet_streamer>(new crimson_tng_send_packet_streamer( product_name_c, args.channels, spp, CRIMSON_TNG_BUFF_SIZE , dst_ips, dst_ports, (int64_t) (CRIMSON_TNG_BUFF_PERCENT * CRIMSON_TNG_BUFF_SIZE), _master_tick_rate, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info, tx_lock_fd, tx_streaming_lock_fd ));
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

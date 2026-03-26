@@ -32,13 +32,14 @@ namespace uhd {
 namespace transport {
 namespace sph {
 
-send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner, pv_iface::sptr iface)
+send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner, pv_iface::sptr iface, std::vector<int> streamer_locks)
     // Ensure max_samples_per_packet is a multiple of the number of samples allowed per packet
     : _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
     _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
     _NUM_CHANNELS(channels.size()),
     _async_msg_fifo(async_msg_fifo),
     _channels(channels),
+    _streamer_locks(streamer_locks),
     _iface(iface),
     _DEVICE_BUFFER_SIZE(device_buffer_size),
     _DEVICE_TARGET_NSAMPS(device_target_nsamps),
@@ -140,6 +141,20 @@ void send_packet_handler_mmsg::enable_blocking_fc(int64_t blocking_setpoint) {
 void send_packet_handler_mmsg::disable_blocking_fc() {
     use_blocking_fc = false;
 }
+
+void send_packet_handler_mmsg::lock_streamer_channel(size_t channel_num) {
+    // Set an exclusive lock on the channel lockfile. Nonblocking so it fails if already locked instead of waiting for it to be unlocked.
+    int r = flock(_streamer_locks[channel_num], LOCK_EX | LOCK_NB);
+    if (r == -1) {
+        int err = errno;
+        // EWOULDBLOCK is expected if there is already a lock since we ran with the LOCK_NB flag.
+        if (err == EWOULDBLOCK) {
+            throw uhd::runtime_error("Attempted to lock channel " + std::to_string(channel_num) + " but it was already locked. Does another UHD instance already have a lock?");
+        } else {
+            throw uhd::runtime_error("flock failed to lock channel " + std::to_string(channel_num) + " with error: " + std::string(strerror(err)));
+        }
+    }
+}
     
 uhd::time_spec_t send_packet_handler_mmsg::get_device_time() {
     if(!_clock_sync_info->is_synced()) [[unlikely]] {
@@ -227,6 +242,11 @@ void send_packet_handler_mmsg::send_eob_packet(const uhd::tx_metadata_t &metadat
 
     // Sends the eob packet
     send_multiple_packets(dummy_buff_ptrs, dummy_samples_in_eob, eob_md, timeout, true);
+
+    // Unlock the channels
+    for (size_t n = 0; n < _channels.size(); n++) {
+        flock(_streamer_locks[n], LOCK_UN);
+    }
 }
 
 int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
@@ -284,8 +304,8 @@ int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
 }
 
 
-send_packet_streamer_mmsg::send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, pv_iface::sptr iface):
-sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface)
+send_packet_streamer_mmsg::send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, pv_iface::sptr iface, std::vector<int> streamer_locks):
+sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface, streamer_locks)
 {
 }
     

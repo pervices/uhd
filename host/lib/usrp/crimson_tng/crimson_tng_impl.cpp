@@ -894,6 +894,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Create/open channel lock files but do not attempt to lock
     // The channels will only be locked when they are streaming
     tx_lock_fd.resize(num_tx_channels);
+    tx_streaming_lock_fd.resize(num_tx_channels);
     for (size_t n = 0; n < num_tx_channels; n++) {
         std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
         try {
@@ -910,23 +911,27 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
             }
 
             // Create or open lockfiles for channel
-            std::string lock_path = "/tmp/uhd/tx" + channel_name + "_" + serial_num;
-            int lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
-            if(lock_fd == -1) {
+            // There will be two lockfiles for each channel. tx<ch>_<serial> is an advisory lockfile used to indicate another streamer
+            // has already been initialized using this channel. tx<ch>_<serial>_streaming is only locked when the channel is actively streaming.
+            std::string channel_lock_path = "/tmp/uhd/tx" + channel_name + "_" + serial_num;
+            std::string streaming_lock_path = channel_lock_path + "_streaming";
+            int channel_lock_fd = open(channel_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(channel_lock_fd == -1) {
                 int err = errno;
                 throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
             }
+            tx_lock_fd[n] = channel_lock_fd;
 
-            tx_lock_fd[n] = lock_fd;
+            int streaming_lock_fd = open(channel_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(streaming_lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+            tx_streaming_lock_fd[n] = streaming_lock_fd;
         } catch (uhd::runtime_error &e) {
             UHD_LOG_ERROR(product_name_c, "Could not initialize lock for channel_" + channel_name + ".\n" + std::string(e.what()));
         }
     }
-
-    std::cout << "NUM_TX_CHANNELS: " << num_tx_channels << std::endl;
-    std::cout << "LOCK_FD SIZE: " << tx_lock_fd.size() << std::endl;
-    std::cout << "LOCK 0: " << tx_lock_fd[0] << std::endl;
-    std::cout << "LOCK 1: " << tx_lock_fd[1] << std::endl;
 
     _mbc.rx_streamers.resize( num_rx_channels );
     _mbc.tx_streamers.resize( num_tx_channels );
@@ -1833,15 +1838,6 @@ double crimson_tng_impl::get_rx_freq(size_t chan) {
 uhd::tune_result_t crimson_tng_impl::set_tx_freq(
     const uhd::tune_request_t &tune_request, size_t chan
 ) {
-    // Check for lock on channel before setting freq
-    // An error should be thrown if the channel is already locked to prevent disrupting the other UHD instance mid-stream
-    try {
-        lock_tx_channel(chan);
-    } catch (uhd::runtime_error &err) {
-        UHD_LOG_ERROR(product_name_c, "Failed to set tx freq for channel " + std::to_string(chan));
-        throw err;
-    }
-
     tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
             _tree->subtree(tx_dsp_root(chan)),
             _tree->subtree(tx_rf_fe_root(chan)),
@@ -1849,9 +1845,6 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
             &tx_gain_is_set[chan],
             &last_set_tx_band[chan],
             chan);
-
-    // Unlock the channel
-    flock(tx_lock_fd[chan], LOCK_UN);
     return result;
 
 }
@@ -1871,15 +1864,6 @@ void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t 
 
     if ( multi_usrp::ALL_CHANS != chan ) {
         (void)name;
-
-        // Check for lock on channel before setting gain
-        // An error should be thrown if the channel is already locked to prevent disrupting the other UHD instance mid-stream
-        try {
-            lock_tx_channel(chan);
-        } catch (uhd::runtime_error &err) {
-            UHD_LOG_ERROR(product_name_c, "Failed to set tx gain for channel " + std::to_string(chan));
-            throw err;
-        } 
 
         // Used to decide if a warning should be printed when changing bands
         if(gain != 0) {
