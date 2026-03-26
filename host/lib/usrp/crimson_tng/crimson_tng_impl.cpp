@@ -1797,6 +1797,11 @@ int64_t crimson_tng_impl::get_tx_buff_scale() {
 }
 
 void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t chan) {
+    constexpr double MAX_ATTEN = 31.75;
+    // Low noise amplifier's gain when enabled
+    constexpr double LNA_GAIN = 20;
+    // Maximum variable amplifier gain
+    constexpr double MAX_VARAMP_GAIN = 31.5;
 
     if ( multi_usrp::ALL_CHANS != chan ) {
 
@@ -1811,20 +1816,17 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
         }
 
         double atten_val = 0;
-        double gain_val = 0;
+        double var_amp_val = 0;
         double lna_val = 0;
-
-        gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
-        gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
 
         if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
             // Low-Band
 
-            double low_band_gain = gain > 31.5 ? 31.5 : gain;
+            double low_band_gain = gain > MAX_VARAMP_GAIN ? MAX_VARAMP_GAIN : gain;
 
             if ( low_band_gain != gain ) {
                 boost::format rf_lo_message(
-                    "  The RF Low Band does not support the requested gain:\n"
+                    "RX channel " + std::to_string(chan) + " RF Low Band does not support the requested gain:\n"
                     "    Requested RF Low Band gain: %f dB\n"
                     "    Actual RF Low Band gain: %f dB\n"
                 );
@@ -1833,40 +1835,45 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
                 UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
             }
 
-            // PMA is off (+0dB)
+            // LNA does not exist in low band, set to 0
             lna_val = 0;
-            // BFP is off (+0dB)
-            // PE437 fully attenuates the BFP (-20 dB) AND THEN SOME
-            atten_val = 31.75;
-            // LMH is adjusted from 0dB to 31.5dB
-            gain_val = low_band_gain;
+            // Variable attenuator does not exist in low band
+            // Set it to maximum attenuation to avoid surprises if the band changes
+            atten_val = MAX_ATTEN;
+            var_amp_val = low_band_gain;
 
         // High-Band
         } else {
-            if ( CRIMSON_TNG_RF_RX_GAIN_RANGE_START <= gain && gain <= 31.5 ) {
-                // PMA is off (+0dB)
+            // Adjust the attenuator first, with amplifiers at minimum
+            if(gain <= MAX_ATTEN) {
+                var_amp_val = 0;
                 lna_val = 0;
-                // BFP is on (+20dB)
-                // PE437 fully attenuates BFP (-20dB) AND THEN SOME (e.g. to attenuate interferers)
-                atten_val = 31.75;
-                // LMH is adjusted from 0dB to 31.5dB
-                gain_val = gain;
-            } else if ( 31.5 < gain && gain <= 63.25 ) {
-                // PMA is off (+0dB)
-                lna_val = 0;
-                // BFP is on (+20dB)
-                // PE437 is adjusted from -31.75 dB to 0dB
-                atten_val = 63.25 - gain;
-                // LMH is maxed (+31.5dB)
-                gain_val = 31.5;
-            } else if ( 63.25 < gain && gain <= CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ) {
-                // PMA is on (+20dB)
-                lna_val = 20;
-                // BFP is on (+20dB)
-                // PE437 is adjusted from -20 dB to 0dB
-                atten_val = CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP - gain;
-                // LMH is maxed (+31.5dB)
-                gain_val = 31.5;
+
+                atten_val = MAX_ATTEN - gain;
+            // Use the attenuator + lna with variable amplifier set to minimum
+            // Here I am assuming that using LNA + attenuator is better than the variable amplifier. If that assumption if wrong then this should be changed to be variable amplifier with minimum attenuation and the LNA bypassed
+            } else if(gain <= MAX_ATTEN + LNA_GAIN) {
+                // Check in case the components change to max this forula invalid
+                static_assert(LNA_GAIN < MAX_ATTEN, "The LNA has a higher range than the attenuator. The formula to determine the gain of each component must be rewritten");
+
+                var_amp_val = 0;
+                lna_val = LNA_GAIN;
+                atten_val = MAX_ATTEN  - gain + LNA_GAIN;
+            // Minimum attenuation, LNA enabled, variable amplifier for the rest
+            } else if(gain <= MAX_ATTEN + LNA_GAIN + MAX_VARAMP_GAIN) {
+                var_amp_val = gain - LNA_GAIN - MAX_ATTEN;
+                lna_val = LNA_GAIN;
+                atten_val = 0;
+            } else {
+                UHD_LOG_INFO("MULTI_CRIMSON",
+                             "RX channel " + std::to_string(chan) + " RF Low Band does not support the requested gain:\n"
+                             "Requested RF High Band gain: " + std::to_string(gain) + "\n"
+                             "Acutal RF High Band gain: " + std::to_string(MAX_ATTEN + LNA_GAIN + MAX_VARAMP_GAIN) + "\n"
+                );
+
+                var_amp_val = MAX_VARAMP_GAIN;
+                lna_val = LNA_GAIN;
+                atten_val = 0;
             }
         }
 
@@ -1876,7 +1883,7 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
         // the value written to the state tree for crimson is actually 4 times the desired value
         // this have been changed in cyan, so that you always write the desired gain
         _tree->access<double>( rx_rf_fe_root(chan) / "atten" / "value" ).set( atten_val * 4 );
-        _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( gain_val * 4 );
+        _tree->access<double>( rx_rf_fe_root(chan) / "gain" / "value" ).set( var_amp_val * 4 );
         return;
     }
 
@@ -1896,13 +1903,13 @@ double crimson_tng_impl::get_rx_gain(const std::string &name, size_t chan) {
     double lna_val = lna_bypass_enable ? 0 : 20;
     // the value written to the state tree for crimson is actually 4 times the desired value
     // this have been changed in cyan, so that you always write the desired gain
-    double gain_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
+    double var_amp_val  = _tree->access<double>(rx_rf_fe_root(chan) / "gain"  / "value").get() / 4;
     double atten_val = _tree->access<double>(rx_rf_fe_root(chan) / "atten" / "value").get() / 4;
 
     if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
-        r = gain_val;
+        r = var_amp_val;
     } else {
-        r = 31.75 - atten_val + lna_val + gain_val; // maximum is 83.25
+        r = 31.75 - atten_val + lna_val + var_amp_val; // maximum is 83.25
     }
 
     return r;
