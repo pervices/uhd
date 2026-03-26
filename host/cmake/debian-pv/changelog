@@ -1,3 +1,11 @@
+uhdpv (4.8.0.28-0ubuntu1) ubuntu_release; urgency=low
+
+  * Added overflow detection to SFPs used to streaming. Before data overflows would be detected, but if packets were sent faster than they could be received and processed they would be missed
+  * Fixed a bug where thread priority wasn't being set. You will see error messages about missing that were missing before because it wasn't actually being set
+  * Adding FPGA MPN to uhd_usrp_info
+
+ -- Per Vices <packages@pervices.com>  Thu, 26 Mar 2026 12:03:23 -0400
+
 uhdpv (4.8.0.27-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixed missing version info on Ubuntu
