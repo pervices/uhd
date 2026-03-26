@@ -1819,9 +1819,6 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
         double var_amp_val = 0;
         double lna_val = 0;
 
-        gain = gain < CRIMSON_TNG_RF_RX_GAIN_RANGE_START ? CRIMSON_TNG_RF_RX_GAIN_RANGE_START : gain;
-        gain = gain > CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP ? CRIMSON_TNG_RF_RX_GAIN_RANGE_STOP : gain;
-
         if ( 0 == _tree->access<int>(rx_rf_fe_root(chan) / "freq" / "band").get() ) {
             // Low-Band
 
