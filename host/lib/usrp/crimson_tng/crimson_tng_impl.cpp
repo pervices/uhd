@@ -68,7 +68,7 @@ static void do_samp_rate_warning_message(
 {
     static const double max_allowed_error = 1.0; // Sps
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
-        UHD_LOGGER_WARNING("MULTI_USRP")
+        UHD_LOGGER_WARNING("CRIMSON_TNG")
             << boost::format(
                 "The hardware does not support the requested %s sample rate on ch %li:\n"
                 "Target sample rate: %f MSps\n"
@@ -1832,7 +1832,7 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
                 );
                 rf_lo_message % gain % low_band_gain;
                 std::string results_string = rf_lo_message.str();
-                UHD_LOGGER_INFO("MULTI_CRIMSON") << results_string;
+                UHD_LOGGER_INFO("CRIMSON_TNG") << results_string;
             }
 
             // LNA does not exist in low band, set to 0
@@ -1865,7 +1865,7 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
                 lna_val = LNA_GAIN;
                 atten_val = 0;
             } else {
-                UHD_LOG_INFO("MULTI_CRIMSON",
+                UHD_LOG_INFO("CRIMSON_TNG",
                              "RX channel " + std::to_string(chan) + " RF Low Band does not support the requested gain:\n"
                              "Requested RF High Band gain: " + std::to_string(gain) + "\n"
                              "Acutal RF High Band gain: " + std::to_string(MAX_ATTEN + LNA_GAIN + MAX_VARAMP_GAIN) + "\n"
