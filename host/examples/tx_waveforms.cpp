@@ -285,8 +285,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         UHD_ASSERT_THROW(ref_locked.to_bool());
     }
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     if(pps != "bypass") {
+        std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
         if (channel_nums.size() > 1)
         {
             // Sync times
@@ -327,6 +327,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         double time_offset = converged_time.get_real_secs();
         first+=time_offset;
         last+=time_offset;
+    } else {
+        // Do nothing, the user has requested that we use their exact values for first and last
     }
 
     std::signal(SIGINT, &sig_int_handler);
