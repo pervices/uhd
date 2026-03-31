@@ -115,9 +115,9 @@ void cyan_nrnt_recv_packet_streamer::teardown() {
     }
 }
 
-cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const size_t nsamp_multiple, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::shared_ptr<std::vector<int>> channel_locks)
+cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const size_t nsamp_multiple, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> channel_locks, std::vector<int> streaming_locks)
 :
-sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, nsamp_multiple, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface ),
+sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, nsamp_multiple, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, iface, streaming_locks ),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
 _stop_buffer_monitor( false ),
@@ -125,7 +125,7 @@ _channel_locks(channel_locks)
 {
     // Attempt to lock each channel for streamer
     for (size_t n = 0; n < channels.size(); n++) {
-        int lock_fd = _channel_locks->at(channels[n]);
+        int lock_fd = _channel_locks[channels[n]];
         int r = flock(lock_fd, LOCK_EX | LOCK_NB);
         if (r == -1) {
             int err = errno;
@@ -232,7 +232,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
         // Release channel locks
-        flock(_channel_locks->at(_channels[n]), LOCK_UN);
+        flock(_channel_locks[_channels[n]], LOCK_UN);
     }
 }
 
