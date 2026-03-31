@@ -922,7 +922,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
             }
             tx_lock_fd[n] = channel_lock_fd;
 
-            int streaming_lock_fd = open(channel_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            int streaming_lock_fd = open(streaming_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
             if(streaming_lock_fd == -1) {
                 int err = errno;
                 throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
