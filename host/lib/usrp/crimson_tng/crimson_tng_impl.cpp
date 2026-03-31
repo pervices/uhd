@@ -126,7 +126,7 @@ static size_t pre_to_ch( const std::string & pre ) {
 
 void crimson_tng_impl::lock_tx_channel(size_t channel_num) {
     // Set an exclusive lock on the channel lockfile. Nonblocking so it fails if already locked instead of waiting for it to be unlocked.
-    int r = flock(tx_lock_fd[channel_num], LOCK_EX | LOCK_NB);
+    int r = flock(tx_streaming_lock_fd[channel_num], LOCK_EX | LOCK_NB);
     if (r == -1) {
         int err = errno;
         // EWOULDBLOCK is expected if there is already a lock since we ran with the LOCK_NB flag.
@@ -2057,7 +2057,7 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
         update_tx_samp_rate(chan, actual_rate);
 
         // Unlock the channel
-        flock(tx_lock_fd[chan], LOCK_UN);
+        flock(tx_streaming_lock_fd[chan], LOCK_UN);
 
         return;
     }
