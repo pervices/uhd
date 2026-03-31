@@ -121,7 +121,8 @@ sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_po
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
 _stop_buffer_monitor( false ),
-_channel_locks(channel_locks)
+_channel_locks(channel_locks),
+_streaming_locks(streaming_locks)
 {
     // Attempt to lock each channel for streamer
     for (size_t n = 0; n < channels.size(); n++) {
@@ -991,7 +992,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::shared_ptr<pv_tx_async_msg_queue>(new pv_tx_async_msg_queue(1000)/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_send_packet_streamer>(new cyan_nrnt_send_packet_streamer(args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), nsamp_multiple, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info, tx_lock_fd));
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_send_packet_streamer>(new cyan_nrnt_send_packet_streamer(args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), nsamp_multiple, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info, tx_lock_fd, tx_streaming_lock_fd));
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());

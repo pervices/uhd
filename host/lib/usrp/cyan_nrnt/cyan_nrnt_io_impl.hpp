@@ -133,6 +133,7 @@ private:
 
     std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
     std::vector<int> _channel_locks;
+    std::vector<int> _streaming_locks;
 
     bool _performance_warning_printed = false;
 
