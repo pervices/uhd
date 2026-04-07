@@ -81,7 +81,7 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
 
     if(recv_ready < 0) {
         // TODO: call ppoll again with the remaining time if EINTR is returned
-        UHD_LOG_ERROR("TCP_SIMPLE", "Error from ppoll while waiting for packet: " + strerror(errno));
+        UHD_LOG_ERROR("TCP_SIMPLE", "Error from ppoll while waiting for packet: " + std::string(strerror(errno)));
         throw std::system_error(errno, std::generic_category(), "Error during ppoll when waiting for packet(s)");
     } else if(recv_ready == 0) {
         // No packet was ready
@@ -98,7 +98,7 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
         } else {
             // All other errors shouldn't happen
             // TODO: verify that EINTR can't happen since we already know there is data from ppoll
-            UHD_LOG_ERROR("TCP_SIMPLE", "recv failed with: " + strerror(errno));
+            UHD_LOG_ERROR("TCP_SIMPLE", "recv failed with: " + std::string(strerror(errno)));
             throw std::system_error(errno, std::generic_category(), "recv failed");
         }
         // The SDR should never be the one to close the connection. A closed connection indicates something went very wrong
