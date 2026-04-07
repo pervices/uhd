@@ -18,11 +18,13 @@
 #ifndef INCLUDED_PV_IFACE_HPP
 #define INCLUDED_PV_IFACE_HPP
 
-#include <uhd/transport/udp_simple.hpp>
+// Standard library
 #include <string>
 #include <mutex>
 
-// Include types that can be accessed
+// Internal UHD includes
+#include <uhd/transport/udp_simple.hpp>
+#include <uhdlib/transport/tcp_simple.hpp>
 #include "uhd/usrp/mboard_eeprom.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include <uhd/types/sensors.hpp>
@@ -111,10 +113,11 @@ private:
     // Recieve/read a data packet (string), null terminated
     std::string peek_str( float timeout_s );
 
-    //this lovely lady makes it all possible
+    // UDP socket pointed at the SDR
     uhd::transport::udp_simple::sptr _ctrl_transport;
 
-    // add another transport for streaming
+    // TCP connection to the server
+    uhd::transport::tcp_simple* tcp_connection = nullptr;
 
     // internal function for tokenizing the inputs
     void parse(std::vector<std::string> &tokens, char* data, size_t const data_len, const char delim);
