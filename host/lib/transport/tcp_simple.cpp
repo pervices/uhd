@@ -75,9 +75,9 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
 
     struct timespec ts_timeout;
     ts_timeout.tv_sec = (time_t) timeout;
-    ts_timeout.tv_nsec = (long) (ts_timeout - ts_timeout.tv_sec) * 1000000000;;
+    ts_timeout.tv_nsec = (long) ((timeout - ts_timeout.tv_sec) * 1000000000);
 
-    int recv_ready = ppoll(pfds, 1, ts_timeout, &ts_timeout, NULL);
+    int recv_ready = ppoll(pfds, 1, &ts_timeout, NULL);
 
     if(recv_ready < 0) {
         // TODO: call ppoll again with the remaining time if EINTR is returned
