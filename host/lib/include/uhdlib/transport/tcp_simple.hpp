@@ -54,20 +54,18 @@ public:
      * @param buff A buffer contianing the payload to send
      * @param size The number of bytes to send
      *
-     * @return The number of bytes sent
-     *
      * @throws TODO TODO this comment
      */
-    size_t send(const void* buff, size_t size);
+    void send(const void* buff, size_t size);
 
     /**
      * Receives a TCP packet
      *
      * @param buff The buffer to receive into
      * @param size The size of the buffer
-     * @param timeout How long to wait before timing out
+     * @param timeout How long to wait before timing out in seconds
      *
-     * @return The number of bytes received
+     * @return The number of bytes received, or 0 in the event of a timeout
      *
      * @throws TODO TODO this comment
      */
