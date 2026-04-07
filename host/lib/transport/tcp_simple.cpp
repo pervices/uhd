@@ -56,7 +56,7 @@ tcp_simple::~tcp_simple() {
 }
 
 void tcp_simple::send(const void* buff, size_t size) {
-    int r = send(tcp_socket_fd, buff, size, 0);
+    int r = ::send(tcp_socket_fd, buff, size, 0);
 
     // TODO: error check
     return;
@@ -88,7 +88,7 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
         return 0;
     }
 
-    ssize_t bytes_received = recv(tcp_socket_fd, buff, size, MSG_DONTWAIT);
+    ssize_t bytes_received = ::recv(tcp_socket_fd, buff, size, MSG_DONTWAIT);
 
     if(bytes_received < 0) {
         // This should be impossible, but is included just in case to ensure the program doesn't freeze
