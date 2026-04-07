@@ -74,8 +74,8 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
     pfds[0].revents = 0;
 
     struct timespec ts_timeout;
-    timeout.tv_sec = (time_t) timeout;
-    timeout.tv_nsec = (long) (timeout.tv_sec - timeout_sec) * 1000000000;;
+    ts_timeout.tv_sec = (time_t) timeout;
+    ts_timeout.tv_nsec = (long) (ts_timeout - ts_timeout.tv_sec) * 1000000000;;
 
     int recv_ready = ppoll(pfds, 1, ts_timeout, &ts_timeout, NULL);
 
