@@ -37,8 +37,21 @@ pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_por
 {
     memset( _buff, '\0', sizeof( _buff ) );
 
+    // Verfify the user only specified one IP (since we only support one IP at this time)
+    if(addrs.size() > 1) {
+        throw std::invalid_argument("Multiple management IPs were requested but we only support using one at a time");
+    } else if(addrs.size() == 0) {
+        throw std::invalid_argument("No management IPs specified");
+    }
+
     // Initialize the UDP connection with the server
-    _ctrl_transport = udp_simple::make_connected(addrs, udp_port);
+    _ctrl_transport = udp_simple::make_connected(addrs[0], std::to_string(udp_port));
+
+    // TODO: check if TCP is supported
+
+    // TODO: initialize TCP
+
+    // TODO: switch peek and poke to use TCP if available
 }
 
 /***********************************************************************

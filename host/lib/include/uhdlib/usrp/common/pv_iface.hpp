@@ -102,7 +102,7 @@ private:
     /**
      * Make a new pv_iface with the control transport.
      * The constructor is private for force the use of make to prevent mistakes.
-     * @param addrs A list of IPs to connect to.
+     * @param addrs A list of IPs to connect to. At present having a list longer than one element is an error. In the future listing multiple IPs may allow for automatic failover.
      * @param udp_port The UDP port the server is listening to.
      */
     pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_port);
