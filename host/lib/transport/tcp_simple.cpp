@@ -14,6 +14,9 @@
 #include <unistd.h>
 #include <poll.h>
 
+// TMP
+#include <iostream>
+
 namespace uhd { namespace transport {
 
 tcp_simple::tcp_simple(const std::string& addr, const uint16_t port) {
@@ -56,6 +59,10 @@ tcp_simple::~tcp_simple() {
 }
 
 void tcp_simple::send(const void* buff, size_t size) {
+    std::cout << "send buff: ";
+    std::cout.write((const char* )buff, size);
+    std::cout << "\n";
+
     int r = ::send(tcp_socket_fd, buff, size, 0);
 
     // TODO: error check

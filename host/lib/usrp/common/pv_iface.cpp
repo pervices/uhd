@@ -21,6 +21,9 @@
 #include <inttypes.h>
 #include <uhdlib/usrp/common/pv_iface.hpp>
 
+// TMP
+#include <iostream>
+
 #define PV_IFACE_DEBUG_NAME_C "PV_IFACE"
 
 using namespace uhd;
@@ -108,6 +111,10 @@ std::string pv_iface::peek_str( float timeout_s ) {
         } else {
             nbytes = tcp_connection->recv(_buff, MAX_MTU_SIZE, timeout_s);
         }
+
+        std::cout << "peek_str _buff: ";
+        std::cout.write(_buff, nbytes);
+        std::cout << "\n";
 
         if (nbytes == 0) return "TIMEOUT";
 
