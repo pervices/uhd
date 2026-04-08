@@ -63,7 +63,14 @@ void tcp_simple::send(const void* buff, size_t size) {
     std::cout.write((const char* )buff, size);
     std::cout << "\n";
 
-    int r = ::send(tcp_socket_fd, buff, size, 0);
+    ssize_t bytes_sent = ::send(tcp_socket_fd, buff, size, 0);
+
+    // TODO throw exceptions
+    if(bytes_sent < 0) {
+        UHD_LOG_ERROR("TCP_SIMPLE", "send error: " + std::string(strerror(errno)));
+    } else if(bytes_sent < (ssize_t) size) {
+        UHD_LOG_ERROR("TCP_SIMPLE", "Attempted to send " + std::to_string(size) + " but only " + std::to_string(bytes_sent) + " bytes were sent");
+    }
 
     // TODO: error check
     return;
