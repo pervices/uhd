@@ -97,6 +97,8 @@ public:
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
+    ~pv_iface();
+
 private:
 
     /**
@@ -106,8 +108,6 @@ private:
      * @param udp_port The UDP port the server is listening to.
      */
     pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_port);
-
-    ~pv_iface();
 
     // Mutex for controlling access to the management port
     std::mutex _iface_lock;
