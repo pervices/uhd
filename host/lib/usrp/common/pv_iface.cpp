@@ -45,11 +45,25 @@ pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_por
     }
 
     // Initialize the UDP connection with the server
-    _ctrl_transport = udp_simple::make_connected(addrs[0], std::to_string(udp_port));
+    udp_transport = udp_simple::make_connected(addrs[0], std::to_string(udp_port));
 
-    // TODO: check if TCP is supported
+    // Get the management port used to ask for a TCP connection
+    int tcp_port;
+    try {
+        // TODO: add system/tcp_management_port to impl.cpp files with comment to avoid confusion about a get request to a property not in said file
+        int = get_int("system/tcp_management_port");
+    } catch(const uhd::lookup_error& e) {
+        // The server is from before TCP was added, skip creating the connection
+        tcp_connection == nullptr;
+        return;
+    }
 
-    // TODO: initialize TCP
+    // TODO: validate tcp port is a valid uint16_t
+
+    tcp_connection = new tcp_simple(addrs[0], (uint16_t) tcp_port);
+
+    // TODO: free tcp_connection in destructor
+
 
     // TODO: switch peek and poke to use TCP if available
 }
@@ -62,7 +76,13 @@ pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_por
 void pv_iface::poke_str(std::string data) {
     // populate the command string with sequence number
     data = data.insert(0, (boost::lexical_cast<std::string>(seq++) + ","));
-    _ctrl_transport->send( data.c_str(), data.length() );
+
+    // Send data of UDP if the TCP connection in uninitilized
+    if(tcp_connection == nullptr) [[unlikely]] {
+        udp_transport->send( data.c_str(), data.length() );
+    } else {
+        tcp_connection->send( data.c_str(), data.length() );
+    }
     return;
 }
 
@@ -78,7 +98,15 @@ std::string pv_iface::peek_str( float timeout_s ) {
     do {
         // clears the buffer and receives the message
         memset( _buff, 0, sizeof( _buff ) );
-        const size_t nbytes = _ctrl_transport -> recv(_buff, MAX_MTU_SIZE, timeout_s );
+        const size_t nbytes;
+
+        // Receive data from UDP if the TCP connection in uninitilized
+        if(tcp_connection == nullptr) [[unlikely]] {
+            nbytes = udp_transport -> recv(_buff, MAX_MTU_SIZE, timeout_s );
+        else {
+            nbytes = tcp_connection->recv(_buff, MAX_MTU_SIZE, timeout_s);
+        }
+
         if (nbytes == 0) return "TIMEOUT";
 
         // parses it through tokens: seq, status, [data]

@@ -120,7 +120,7 @@ private:
     std::string peek_str( float timeout_s );
 
     // UDP socket pointed at the SDR
-    uhd::transport::udp_simple::sptr _ctrl_transport;
+    uhd::transport::udp_simple::sptr udp_transport;
 
     // TCP connection to the server
     uhd::transport::tcp_simple* tcp_connection = nullptr;
