@@ -323,7 +323,7 @@ void pv_iface::set_time_spec( const std::string pre, time_spec_t value ) {
  * Public make function for pv_iface
  **********************************************************************/
 pv_iface::sptr pv_iface::make(const std::vector<std::string>& addrs, const uint16_t udp_port) {
-    return std::shared_ptr<pv_iface>(addrs, udp_port);
+    return std::shared_ptr<pv_iface>(new pv_iface(addrs, udp_port));
 }
 
 /***********************************************************************
