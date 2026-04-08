@@ -815,13 +815,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         #endif
     }
 
-    // Makes the UDP comm connection
-    _mbc.iface = pv_iface::make(
-        udp_simple::make_connected(
-            _device_addr["addr"],
-            BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
-        )
-    );
+    // Makes a connection to the server
+    std::vector<std::string> management_addrs = { _device_addr["addr"] };
+
+    // Create a new interface
+    _mbc.iface = pv_iface::make(management_addrs, CYAN_NRNT_FW_COMMS_UDP_PORT);
 
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program

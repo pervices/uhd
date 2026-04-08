@@ -31,12 +31,14 @@ static uint32_t seq = 1;
 /***********************************************************************
  * Structors
  **********************************************************************/
-pv_iface::pv_iface(udp_simple::sptr ctrl_transport):
-    _ctrl_transport(ctrl_transport),
+pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_port):
     _ctrl_seq_num(0),
     _protocol_compat(0)
 {
     memset( _buff, '\0', sizeof( _buff ) );
+
+    // Initialize the UDP connection with the server
+    _ctrl_transport = udp_simple::make_connected(addrs, udp_port);
 }
 
 /***********************************************************************
@@ -307,8 +309,8 @@ void pv_iface::set_time_spec( const std::string pre, time_spec_t value ) {
 /***********************************************************************
  * Public make function for pv_iface
  **********************************************************************/
-pv_iface::sptr pv_iface::make(udp_simple::sptr ctrl_transport){
-    return std::shared_ptr<pv_iface>(new pv_iface(ctrl_transport));
+pv_iface::sptr pv_iface::make(const std::vector<std::string>& addrs, const uint16_t udp_port) {
+    return std::shared_ptr<pv_iface>(addrs, udp_port);
 }
 
 /***********************************************************************

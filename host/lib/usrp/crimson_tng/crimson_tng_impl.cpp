@@ -794,13 +794,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     device_args = separate_device_addr(device_addr); //update args for new frame sizes
 
     // Makes the UDP comm connection
-    // TODO: figure out where _mbc is init since it doesn't have an obvious place where it's length ends up non 0
-    _mbc.iface = pv_iface::make(
-        udp_simple::make_connected(
-            _device_addr["addr"],
-            BOOST_STRINGIZE( CRIMSON_TNG_FW_COMMS_UDP_PORT )
-        )
-    );
+    std::vector<std::string> management_addrs = { _device_addr["addr"] };
+
+    // Create a new interface
+    _mbc.iface = pv_iface::make(management_addrs, CRIMSON_TNG_FW_COMMS_UDP_PORT);
 
     // Create the file tree of properties.
     // Crimson only has support for one mother board, and the RF chains will show up individually as daughter boards.

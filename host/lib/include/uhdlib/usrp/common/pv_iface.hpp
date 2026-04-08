@@ -49,7 +49,13 @@ public:
 
     typedef std::shared_ptr<pv_iface> sptr;
 
-    static pv_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    /**
+     * Creates an instance of the management interface managed by a smart pointer.
+     * See the private constructor for details about the parameters
+     *
+     * @return A smart pointer to the management interface
+     */
+    static pv_iface::sptr make(const std::vector<std::string>& addrs, const uint16_t udp_port);
 
     // Helper functions to wrap peek_str and poke_str as get and set
     //
@@ -93,13 +99,13 @@ public:
 
 private:
 
-    /*!
+    /**
      * Make a new pv_iface with the control transport.
-     * The constructor is private for force the use make
-     * \param ctrl_transport the udp transport object
-     * \return a new cyan_nrnt interface object
+     * The constructor is private for force the use of make to prevent mistakes.
+     * @param addrs A list of IPs to connect to.
+     * @param udp_port The UDP port the server is listening to.
      */
-    pv_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_port);
 
     // Mutex for controlling access to the management port
     std::mutex _iface_lock;
