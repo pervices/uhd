@@ -51,10 +51,10 @@ pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_por
     int tcp_port;
     try {
         // TODO: add system/tcp_management_port to impl.cpp files with comment to avoid confusion about a get request to a property not in said file
-        int = get_int("system/tcp_management_port");
+        tcp_port = get_int("system/tcp_management_port");
     } catch(const uhd::lookup_error& e) {
         // The server is from before TCP was added, skip creating the connection
-        tcp_connection == nullptr;
+        tcp_connection = nullptr;
         return;
     }
 
@@ -77,7 +77,7 @@ void pv_iface::poke_str(std::string data) {
     // populate the command string with sequence number
     data = data.insert(0, (boost::lexical_cast<std::string>(seq++) + ","));
 
-    // Send data of UDP if the TCP connection in uninitilized
+    // Send data using UDP if the TCP connection in uninitilized
     if(tcp_connection == nullptr) [[unlikely]] {
         udp_transport->send( data.c_str(), data.length() );
     } else {
@@ -98,12 +98,12 @@ std::string pv_iface::peek_str( float timeout_s ) {
     do {
         // clears the buffer and receives the message
         memset( _buff, 0, sizeof( _buff ) );
-        const size_t nbytes;
 
+        size_t nbytes;
         // Receive data from UDP if the TCP connection in uninitilized
         if(tcp_connection == nullptr) [[unlikely]] {
             nbytes = udp_transport -> recv(_buff, MAX_MTU_SIZE, timeout_s );
-        else {
+        } else {
             nbytes = tcp_connection->recv(_buff, MAX_MTU_SIZE, timeout_s);
         }
 
