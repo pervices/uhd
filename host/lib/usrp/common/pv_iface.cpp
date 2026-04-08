@@ -61,11 +61,13 @@ pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_por
     // TODO: validate tcp port is a valid uint16_t
 
     tcp_connection = new tcp_simple(addrs[0], (uint16_t) tcp_port);
+}
 
-    // TODO: free tcp_connection in destructor
-
-
-    // TODO: switch peek and poke to use TCP if available
+pv_iface::~pv_iface() {
+    // Close the TCP connection if it was created
+    if(tcp_connection != nullptr) {
+        delete tcp_connection;
+    }
 }
 
 /***********************************************************************

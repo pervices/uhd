@@ -107,6 +107,8 @@ private:
      */
     pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_port);
 
+    ~pv_iface();
+
     // Mutex for controlling access to the management port
     std::mutex _iface_lock;
 
