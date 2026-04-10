@@ -59,6 +59,7 @@ tcp_simple::~tcp_simple() {
 }
 
 void tcp_simple::send(const void* buff, size_t size) {
+    printf("send size: %lu\n", size);
     std::cout << "send buff: ";
     std::cout.write((const char* )buff, size);
     std::cout << "\n";
@@ -72,7 +73,6 @@ void tcp_simple::send(const void* buff, size_t size) {
         UHD_LOG_ERROR("TCP_SIMPLE", "Attempted to send " + std::to_string(size) + " but only " + std::to_string(bytes_sent) + " bytes were sent");
     }
 
-    // TODO: error check
     return;
 }
 
