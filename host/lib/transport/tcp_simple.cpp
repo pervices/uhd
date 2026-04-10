@@ -93,6 +93,8 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
 
     int recv_ready = ppoll(pfds, 1, &ts_timeout, NULL);
 
+    printf("recv_ready: %i\n", recv_ready);
+
     if(recv_ready < 0) {
         // TODO: call ppoll again with the remaining time if EINTR is returned
         UHD_LOG_ERROR("TCP_SIMPLE", "Error from ppoll while waiting for packet: " + std::string(strerror(errno)));
