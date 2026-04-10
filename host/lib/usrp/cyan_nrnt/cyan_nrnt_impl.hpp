@@ -117,7 +117,9 @@ private:
     int device_lock_fd;
     // lock file descriptors to be locked while a channel is streaming
     std::vector<int> tx_lock_fd;
+    std::vector<int> rx_lock_fd;
     std::vector<int> tx_streaming_lock_fd;
+    std::vector<int> rx_streaming_lock_fd;
 
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);

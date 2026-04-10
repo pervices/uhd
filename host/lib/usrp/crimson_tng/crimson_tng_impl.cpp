@@ -933,6 +933,46 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         }
     }
 
+    rx_lock_fd.resize(num_rx_channels);
+    rx_streaming_lock_fd.resize(num_rx_channels);
+    for (size_t n = 0; n < num_rx_channels; n++) {
+        std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
+        try {
+            std::string rx_serial = _mbc.iface->get_string("rx/" + channel_name + "/about/serial");
+            std::string serial_num = rx_serial.substr(0, rx_serial.find('\n'));
+            // If no serial number was found, use time board instead
+            if (serial_num.empty()) {
+                std::string time_serial = _mbc.iface->get_string("time/about/serial");
+                serial_num = time_serial.substr(0, time_serial.find('\n'));
+                // Throw an error if no time board serial number could be found either
+                if (serial_num.empty()) {
+                    throw uhd::runtime_error("Failed to get serial number for tx or time board.");
+                }
+            }
+
+            // Create or open lockfiles for channel
+            // There will be two lockfiles for each channel. rx<ch>_<serial> is an advisory lockfile used to indicate another streamer
+            // has already been initialized using this channel. rx<ch>_<serial>_streaming is only locked when the channel is actively streaming.
+            std::string channel_lock_path = "/tmp/uhd/rx" + channel_name + "_" + serial_num;
+            std::string streaming_lock_path = channel_lock_path + "_streaming";
+            int channel_lock_fd = open(channel_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(channel_lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+            rx_lock_fd[n] = channel_lock_fd;
+
+            int streaming_lock_fd = open(streaming_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(streaming_lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+            rx_streaming_lock_fd[n] = streaming_lock_fd;
+        } catch (uhd::runtime_error &e) {
+            UHD_LOG_ERROR(product_name_c, "Could not initialize lock for channel_" + channel_name + ".\n" + std::string(e.what()));
+        }
+    }
+
     _mbc.rx_streamers.resize( num_rx_channels );
     _mbc.tx_streamers.resize( num_tx_channels );
 
@@ -991,7 +1031,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     rx_sfp_throughput_used.resize(num_rx_channels, 0);
     rx_channel_in_use = std::shared_ptr<std::vector<bool>>(new std::vector<bool>(num_rx_channels, false));
-
+    
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CRIMSON_TNG_MB_PATH / "time_source" / "options").set(time_sources);
 
@@ -1503,6 +1543,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
         rx_stream_cmd_issuer.emplace_back(_time_diff_iface[_which_time_diff_iface], device_clock_sync_info, ch, 16, 1);
     }
+    
 }
 
 crimson_tng_impl::~crimson_tng_impl(void)
@@ -1521,6 +1562,11 @@ crimson_tng_impl::~crimson_tng_impl(void)
     // Close channel lockfiles
     for (size_t n = 0; n < num_tx_channels; n++) {
         close(tx_lock_fd[n]);
+        close(tx_streaming_lock_fd[n]);
+    }
+    for (size_t n = 0; n < num_rx_channels; n++) {
+        close(rx_lock_fd[n]);
+        close(rx_streaming_lock_fd[n]);
     }
 }
 

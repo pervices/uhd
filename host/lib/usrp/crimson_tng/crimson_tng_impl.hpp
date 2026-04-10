@@ -123,7 +123,10 @@ private:
     int device_lock_fd;
     // lock file descriptors to be locked while a channel is streaming
     std::vector<int> tx_lock_fd;
+    std::vector<int> rx_lock_fd;
+
     std::vector<int> tx_streaming_lock_fd;
+    std::vector<int> rx_streaming_lock_fd;
 
     // Lock the specified tx channel. Throws a runtime error if channel is already locked.
     void lock_tx_channel(size_t channel_num);
