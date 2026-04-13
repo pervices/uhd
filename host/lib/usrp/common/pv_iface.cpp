@@ -112,11 +112,6 @@ std::string pv_iface::peek_str( float timeout_s ) {
             nbytes = tcp_connection->recv(_buff, MAX_MTU_SIZE, timeout_s);
         }
 
-        printf("peek_str nbytes: %lu\n", nbytes);
-        std::cout << "peek_str _buff: ";
-        std::cout.write(_buff, nbytes);
-        std::cout << "\n";
-
         if (nbytes == 0) return "TIMEOUT";
 
         // parses it through tokens: seq, status, [data]

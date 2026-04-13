@@ -59,10 +59,6 @@ tcp_simple::~tcp_simple() {
 }
 
 void tcp_simple::send(const void* buff, size_t size) {
-    printf("send size: %lu\n", size);
-    std::cout << "send buff: ";
-    std::cout.write((const char* )buff, size);
-    std::cout << "\n";
 
     ssize_t bytes_sent = ::send(tcp_socket_fd, buff, size, 0);
 
@@ -92,8 +88,6 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
     ts_timeout.tv_nsec = (long) ((timeout - ts_timeout.tv_sec) * 1000000000);
 
     int recv_ready = ppoll(pfds, 1, &ts_timeout, NULL);
-
-    printf("recv_ready: %i\n", recv_ready);
 
     if(recv_ready < 0) {
         // TODO: call ppoll again with the remaining time if EINTR is returned
