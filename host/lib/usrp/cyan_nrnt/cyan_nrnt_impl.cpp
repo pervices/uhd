@@ -821,13 +821,57 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     // Create a new interface
     _mbc.iface = pv_iface::make(management_addrs, CYAN_NRNT_FW_COMMS_UDP_PORT);
 
-    // TODO check if locked already
-    // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
 
     // Create the file tree of properties.
     // Cyan NrNt only has support for one mother board, and the RF chains will show up individually as daughter boards.
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
+
+    // Make sure lockfile uhd subdir exists
+    // Lockfiles are placed in /tmp/uhd since all users should have access to /tmp
+    // Alternative location would be /var/lock but permissions vary by distro so using /tmp ensures lockfiles can be created by anyone running UHD
+    bool dir_created = std::filesystem::create_directories("/tmp/uhd");
+    // If the uhd subdir was just created, set permissions for all so other users can create new lockfiles
+    if (dir_created) {
+        std::filesystem::permissions("/tmp/uhd", std::filesystem::perms::all, std::filesystem::perm_options::add);
+    }
+
+    // To create lockfiles unique to the device, the time board serial number will be used
+    std::string timeboard_serial = _mbc.iface->get_string("time/about/serial");
+    timeboard_serial = timeboard_serial.substr(0, timeboard_serial.find('\n'));
+
+    // Check if another program has a lock on the device already
+    try {
+        // We use the time board serial number for a lockfile unique to this device. 
+        // If we cannot be sure it's unique to the device then throw an error and do not lock to avoid interfering with other devices that may be connected.
+        if (timeboard_serial.empty()) {
+            throw uhd::runtime_error("Failed to get time board serial number.");
+        }
+
+        // Create or open lockfile unique to the device using the device type and time board serial number (ex/ cyan_nrnt_<serial>)
+        std::string lock_path = "/tmp/uhd/" + _device_addr["type"] + '_' + timeboard_serial;
+        device_lock_fd = open(lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+        if(device_lock_fd == -1) {
+            throw uhd::runtime_error("Opening lockfile " + lock_path + " failed with error: " + std::string(strerror(errno)));
+        }
+
+        // Attempt to place lock for device
+        int r = flock(device_lock_fd, LOCK_EX | LOCK_NB);
+        if (r == -1) {
+            int err = errno;
+            // Ran with with LOCK_NB, so errno is set to EWOULDBLOCK if the file is already locked
+            // Since we expect this might happen just log the error message without actually throwing an error
+            if (err == EWOULDBLOCK) {
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Another instance of UHD has already been created with this device and may cause unexpected behaviour. "
+                    "Ignore this message if this was intentional.");
+            } else {
+                throw uhd::runtime_error("flock failed for device lockfile " + lock_path + " with error: " + std::string(strerror(errno)));
+            }
+        }
+    } catch(uhd::runtime_error &e) {
+        // Catch and log any runtime errors we threw since we still want to proceed even if the device may be locked
+        UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to determine if another instance of UHD has already been created with this device.\n" + std::string(e.what()));
+    }
 
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
@@ -1434,6 +1478,10 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
     // Manually calling destructor when using placement new is required
     _time_diff_pidc->~pidc();
     free(_time_diff_pidc);
+
+    // Remove device advisory lock
+    flock(device_lock_fd, LOCK_UN);
+    close(device_lock_fd);
 }
 
 //gets the jesd number to be used in creating stream command packets
