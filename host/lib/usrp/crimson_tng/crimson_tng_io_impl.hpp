@@ -67,7 +67,7 @@ public:
     /**
     * @param iface The interface to access thes server
     */
-    crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info);
+    crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> channel_locks, std::vector<int> streaming_locks);
 
     ~crimson_tng_send_packet_streamer();
 
@@ -144,6 +144,7 @@ private:
     std::vector<eprops_type> _eprops;
 
     std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
+    std::vector<int> _channel_locks;
 
     bool _performance_warning_printed = false;
 
