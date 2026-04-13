@@ -119,6 +119,20 @@ static size_t pre_to_ch( const std::string & pre ) {
     return ch;
 }
 
+void crimson_tng_impl::lock_tx_channel_streaming(size_t channel_num) {
+    // Set an exclusive lock on the channel lockfile. Nonblocking so it fails if already locked instead of waiting for it to be unlocked.
+    int r = flock(tx_streaming_lock_fd[channel_num], LOCK_EX | LOCK_NB);
+    if (r == -1) {
+        int err = errno;
+        // EWOULDBLOCK is expected if there is already a lock since we ran with the LOCK_NB flag.
+        if (err == EWOULDBLOCK) {
+            throw uhd::runtime_error("Attempted to lock streaming for channel " + std::to_string(channel_num) + " but it was already locked. Does another UHD instance already have a lock?");
+        } else {
+            throw uhd::runtime_error("flock failed to lock streaming for channel " + std::to_string(channel_num) + " with error: " + std::string(strerror(err)));
+        }
+    }
+}
+
 // TODO: refactor so this function can be called even if this has been destructed
 // NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
 void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
@@ -872,6 +886,47 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     }
     is_num_tx_channels_set = true;
 
+    // Create/open channel and streaming lockfiles but do not attempt to lock
+    tx_channel_lock_fd.resize(num_tx_channels);
+    tx_streaming_lock_fd.resize(num_tx_channels);
+    for (size_t n = 0; n < num_tx_channels; n++) {
+        std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
+        try {
+            std::string tx_serial = _mbc.iface->get_string("tx/" + channel_name + "/about/serial");
+            std::string serial_num = tx_serial.substr(0, tx_serial.find('\n'));
+            // If no serial number was found, use time board instead
+            if (serial_num.empty()) {
+                std::string time_serial = _mbc.iface->get_string("time/about/serial");
+                serial_num = time_serial.substr(0, time_serial.find('\n'));
+                // Throw an error if no time board serial number could be found either
+                if (serial_num.empty()) {
+                    throw uhd::runtime_error("Failed to get serial number for tx or time board.");
+                }
+            }
+
+            // Create or open lockfiles for channel
+            // There will be two lockfiles for each channel. tx<ch>_<serial> is an advisory lockfile used to indicate another streamer
+            // has already been initialized using this channel. tx<ch>_<serial>_streaming is only when the channel is actively streaming.
+            std::string channel_lock_path = "/tmp/uhd/tx" + channel_name + "_" + serial_num;
+            std::string streaming_lock_path = channel_lock_path + "_streaming";
+            int channel_lock_fd = open(channel_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(channel_lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+            tx_channel_lock_fd[n] = channel_lock_fd;
+
+            int streaming_lock_fd = open(streaming_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(streaming_lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+            tx_streaming_lock_fd[n] = streaming_lock_fd;
+        } catch (uhd::runtime_error &e) {
+            UHD_LOG_ERROR(product_name_c, "Could not initialize lock for channel_" + channel_name + ".\n" + std::string(e.what()));
+        }
+    }
+
     _mbc.rx_streamers.resize( num_rx_channels );
     _mbc.tx_streamers.resize( num_tx_channels );
 
@@ -1456,6 +1511,12 @@ crimson_tng_impl::~crimson_tng_impl(void)
     // Remove device advisory lock
     flock(device_lock_fd, LOCK_UN);
     close(device_lock_fd);
+
+    // Close channel and streamer lockfiles
+    for (size_t n = 0; n < num_tx_channels; n++) {
+        close(tx_channel_lock_fd[n]);
+        close(tx_streaming_lock_fd[n]);
+    }
 }
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
@@ -1974,6 +2035,15 @@ double crimson_tng_impl::get_rx_rate(size_t chan) {
 
 void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
     if (chan != multi_usrp::ALL_CHANS) {
+        // Check for channel streaming lock before setting rate
+        // An error should be thrown if the channel is already locked to prevent disrupting the other UHD instance mid-stream
+        try {
+            lock_tx_channel_streaming(chan);
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR(product_name_c, "Failed to set tx rate for channel " + std::to_string(chan));
+            throw err;
+        } 
+
         _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 
         double actual_rate = get_tx_rate(chan);
@@ -1982,6 +2052,9 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
         tx_rate_check(chan, rate);
 
         update_tx_samp_rate(chan, actual_rate);
+
+        // Unlock the channel
+        flock(tx_streaming_lock_fd[chan], LOCK_UN);
 
         return;
     }
