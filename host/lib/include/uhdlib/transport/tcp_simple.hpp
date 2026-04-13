@@ -39,7 +39,7 @@ public:
      * @param addr The IP address to connect to
      * @param port The port to connect to
      *
-     * @throws TODO TODO this comment
+     * @throws std::system_error TODO this comment
      */
     tcp_simple(const std::string& addr, const uint16_t port);
 

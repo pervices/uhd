@@ -39,23 +39,45 @@ tcp_simple::tcp_simple(const std::string& addr, const uint16_t port) {
 
     // Convert addr to a struct usable by connect, and get whether it is ipv4 or ipv6
     int addr_info_ret = getaddrinfo(addr.c_str(), port_s.c_str(), &hint, &host_address);
-    // TODO: error check
+
+    if(addr_info_ret != 0) {
+        UHD_LOG_ERROR("TCP_SIMPLE", "Failed to parse ip " + addr + "with error code: " + std::string(strerror(errno)));
+
+        throw std::system_error(errno, std::system_category(), "getaddrinfo(3)");
+    }
 
     // Create tcp socket
     tcp_socket_fd = socket(host_address->ai_family, SOCK_STREAM, 0);
-    // TODO: error check
+
+    if(tcp_socket_fd < 0) {
+        // Free before throwing an error
+        freeaddrinfo(host_address);
+
+        UHD_LOG_ERROR("TCP_SIMPLE", "Creating TCP socket failed with error code: " + std::string(strerror(errno)));
+
+        throw std::system_error(errno, std::system_category(), "socket(2)");
+    }
 
     int connect_r = connect(tcp_socket_fd, host_address->ai_addr, host_address->ai_addrlen);
-    // TODO: error check
+
+    // TODO: give descriptive error message for common exceptions
+    if(connect_r != 0) {
+        // Close and free before throwing an error
+        close(tcp_socket_fd);
+        freeaddrinfo(host_address);
+
+        UHD_LOG_ERROR("TCP_SIMPLE", "Connecting TCP socket failed with error code: " + std::string(strerror(errno)));
+
+        throw std::system_error(errno, std::system_category(), "connect(2)");
+    }
 
     // Frees the host_addressults of getaddrinfo
+    // NOTE: if you are editing this constructor make sure freeaddrinfo is called if an error is thrown/this constructor exits early
     freeaddrinfo(host_address);
 }
 
 tcp_simple::~tcp_simple() {
-    int r = close(tcp_socket_fd);
-
-    // TODO: error check
+    close(tcp_socket_fd);
 }
 
 void tcp_simple::send(const void* buff, size_t size) {
