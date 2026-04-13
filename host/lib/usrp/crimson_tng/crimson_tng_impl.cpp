@@ -847,6 +847,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         is_full_tx = false;
     }
 
+    // The port used by TCP communications
+    // This property is called during pv_iface initialization before being initialized here
+    // When editing this property make sure the call in pv_iface is also updated
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/tcp_management_port", "system/tcp_management_port", int, int);
+
     std::string lc_num;
 
     // Begin FPGA reset at tx chain
