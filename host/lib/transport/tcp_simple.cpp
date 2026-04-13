@@ -84,7 +84,6 @@ void tcp_simple::send(const void* buff, size_t size) {
 
     ssize_t bytes_sent = ::send(tcp_socket_fd, buff, size, 0);
 
-    // TODO throw exceptions
     if(bytes_sent < 0) {
         UHD_LOG_ERROR("TCP_SIMPLE", "send failed: " + std::string(strerror(errno)));
         throw std::system_error(errno, std::system_category(), "send(2)");
@@ -98,7 +97,6 @@ void tcp_simple::send(const void* buff, size_t size) {
     return;
 }
 
-// TODO: replace runtime_error with something mroe specific
 size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
 
     struct pollfd  pfds[1];
@@ -159,12 +157,12 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
         // This should be impossible because ppoll, but is included just in case to ensure the program doesn't freeze
         if(errno == EAGAIN || errno == EWOULDBLOCK) {
             UHD_LOG_ERROR("TCP_SIMPLE", "ppoll indicated data ready but no data was found");
-            throw std::runtime_error("Missing rx packet");
         } else {
             // All other errors shouldn't happen
             UHD_LOG_ERROR("TCP_SIMPLE", "recv failed with: " + std::string(strerror(errno)));
-            throw std::system_error(errno, std::generic_category(), "recv failed");
         }
+
+        throw std::system_error(errno, std::generic_category(), "recv(2)");
 
     // The SDR should never be the one to close the connection. A closed connection indicates something went very wrong
     } else if(bytes_received == 0) {
