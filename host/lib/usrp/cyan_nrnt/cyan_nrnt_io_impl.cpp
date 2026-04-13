@@ -37,6 +37,7 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <sys/file.h>
 
 #include <boost/endian/buffers.hpp>
 #include <boost/endian/conversion.hpp>
@@ -114,14 +115,31 @@ void cyan_nrnt_recv_packet_streamer::teardown() {
     }
 }
 
-cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const size_t nsamp_multiple, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info)
+cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const size_t nsamp_multiple, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> channel_locks, std::vector<int> streaming_locks)
 :
-sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, nsamp_multiple, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info ),
+sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, nsamp_multiple, CYAN_NRNT_TICK_RATE, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, streaming_locks ),
 _first_call_to_send( true ),
 _buffer_monitor_running( false ),
 _stop_buffer_monitor( false ),
+_channel_locks(channel_locks),
 _iface(iface)
 {
+    // Attempt to lock each channel used by the streamer. If the channel is already locked, an error will be printed but the program will continue incase this is intentional behaviour by the user
+    for (size_t n = 0; n < channels.size(); n++) {
+        int lock_fd = _channel_locks[channels[n]];
+        int r = flock(lock_fd, LOCK_EX | LOCK_NB);
+        if (r == -1) {
+            int err = errno;
+            // Since flock was run with the nonblocking flag, errno will be EWOULDBLOCK if this channel was already locked
+            if (err == EWOULDBLOCK) {
+                std::string err_msg = "Another UHD streamer has already been created using channel " + std::to_string(_channels[n]) + " which may cause unexpected behaviour.";
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
+            } else {
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to place lock on channel " + std::to_string(_channels[n]) + " lockfile.\nflock failed with error: " + std::string(strerror(err)));
+            }
+        }
+    }
+
     _tx_streamer_channel_in_use = tx_channel_in_use;
     for(size_t n = 0; n < channels.size(); n++) {
         _tx_streamer_channel_in_use->at(channels[n]) = true;
@@ -215,6 +233,8 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     for(size_t n = 0; n < _channels.size(); n++) {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
+        // Release channel locks
+        flock(_channel_locks[_channels[n]], LOCK_UN);
     }
 }
 
@@ -231,6 +251,11 @@ size_t cyan_nrnt_send_packet_streamer::send(
 
     if ( _first_call_to_send || metadata.start_of_burst ) {
         metadata.start_of_burst = true;
+
+        // Lock streaming locks at the start of a burst. It will remain locked until the end of the burst (in super_send_packet_handler_mmsg)
+        for (size_t n = 0; n < _channels.size(); n++) {
+            lock_channel_streaming(_channels[n]);
+        }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
             uhd::time_spec_t now = get_device_time();
@@ -973,7 +998,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     // To handle it, each streamer will have its own buffer and the device recv_async_msg will access the buffer from the most recently created streamer
     _async_msg_fifo = std::shared_ptr<pv_tx_async_msg_queue>(new pv_tx_async_msg_queue(1000)/*Buffer contains 1000 messages*/);
 
-    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_send_packet_streamer>(new cyan_nrnt_send_packet_streamer(args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), nsamp_multiple, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info));
+    std::shared_ptr<cyan_nrnt_send_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_send_packet_streamer>(new cyan_nrnt_send_packet_streamer(args.channels, spp, max_buffer_level , dst_ips, dst_ports, (int64_t) (CYAN_NRNT_BUFF_PERCENT * max_buffer_level), nsamp_multiple, _async_msg_fifo, args.cpu_format, args.otw_format, little_endian_supported, tx_channel_in_use, _mbc.iface, device_clock_sync_info, tx_channel_lock_fd, tx_streaming_lock_fd));
 
     //init some streamer stuff
     my_streamer->resize(args.channels.size());
