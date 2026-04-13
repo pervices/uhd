@@ -4,7 +4,10 @@
 #include <uhdlib/transport/tcp_simple.hpp>
 
 // Internal UHD includes
+// Messages for the user
 #include <uhd/utils/log.hpp>
+// Util for getting the time
+#include <uhdlib/utils/system_time.hpp>
 
 // Standard library
 #include <cstring>
@@ -13,9 +16,6 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <poll.h>
-
-// TMP
-#include <iostream>
 
 namespace uhd { namespace transport {
 
@@ -86,9 +86,13 @@ void tcp_simple::send(const void* buff, size_t size) {
 
     // TODO throw exceptions
     if(bytes_sent < 0) {
-        UHD_LOG_ERROR("TCP_SIMPLE", "send error: " + std::string(strerror(errno)));
+        UHD_LOG_ERROR("TCP_SIMPLE", "send failed: " + std::string(strerror(errno)));
+        throw std::system_error(errno, std::system_category(), "send(2)");
+
     } else if(bytes_sent < (ssize_t) size) {
         UHD_LOG_ERROR("TCP_SIMPLE", "Attempted to send " + std::to_string(size) + " but only " + std::to_string(bytes_sent) + " bytes were sent");
+
+        throw std::runtime_error("Fewer bytes sent than requested");
     }
 
     return;
@@ -105,39 +109,69 @@ size_t tcp_simple::recv(void* buff, size_t size, double timeout) {
     // Return value, initialize to 0 to prevent undefined errors
     pfds[0].revents = 0;
 
-    struct timespec ts_timeout;
-    ts_timeout.tv_sec = (time_t) timeout;
-    ts_timeout.tv_nsec = (long) ((timeout - ts_timeout.tv_sec) * 1000000000);
+    int recv_ready;
+    do {
+        struct timespec ts_timeout;
+        ts_timeout.tv_sec = (time_t) timeout;
+        ts_timeout.tv_nsec = (long) ((timeout - ts_timeout.tv_sec) * 1000000000);
 
-    int recv_ready = ppoll(pfds, 1, &ts_timeout, NULL);
+        uhd::time_spec_t start = uhd::get_system_time();
+
+        recv_ready = ppoll(pfds, 1, &ts_timeout, NULL);
+
+        // ppoll completed succefully
+        if(recv_ready >= 0) {
+            break;
+
+        // ppoll was interrupted, reduce timeout then try again
+        } else if(errno == EINTR) {
+            uhd::time_spec_t end = uhd::get_system_time();
+
+            timeout = timeout - (start - end).get_real_secs();
+
+        // An error occurred, continue on to error handling
+        } else {
+            break;
+        }
+    } while (true);
+
 
     if(recv_ready < 0) {
-        // TODO: call ppoll again with the remaining time if EINTR is returned
         UHD_LOG_ERROR("TCP_SIMPLE", "Error from ppoll while waiting for packet: " + std::string(strerror(errno)));
+
         throw std::system_error(errno, std::generic_category(), "Error during ppoll when waiting for packet(s)");
     } else if(recv_ready == 0) {
         // No packet was ready
         return 0;
     }
 
-    ssize_t bytes_received = ::recv(tcp_socket_fd, buff, size, MSG_DONTWAIT);
+    int recv_attempts = 0;
+    ssize_t bytes_received;
+    do {
+        bytes_received = ::recv(tcp_socket_fd, buff, size, MSG_DONTWAIT);
+
+        recv_attempts++;
+
+    // Repeat if EINTR was encountered up to 10 times
+    } while(recv_attempts < 10 && (bytes_received < 0 && errno == EINTR));
 
     if(bytes_received < 0) {
-        // This should be impossible, but is included just in case to ensure the program doesn't freeze
+        // This should be impossible because ppoll, but is included just in case to ensure the program doesn't freeze
         if(errno == EAGAIN || errno == EWOULDBLOCK) {
             UHD_LOG_ERROR("TCP_SIMPLE", "ppoll indicated data ready but no data was found");
             throw std::runtime_error("Missing rx packet");
         } else {
             // All other errors shouldn't happen
-            // TODO: verify that EINTR can't happen since we already know there is data from ppoll
             UHD_LOG_ERROR("TCP_SIMPLE", "recv failed with: " + std::string(strerror(errno)));
             throw std::system_error(errno, std::generic_category(), "recv failed");
         }
-        // The SDR should never be the one to close the connection. A closed connection indicates something went very wrong
+
+    // The SDR should never be the one to close the connection. A closed connection indicates something went very wrong
     } else if(bytes_received == 0) {
-        UHD_LOG_ERROR("TCP_SIMPLE", "The SDR unexpectedly closed the connection");
-        throw std::runtime_error("Connection closed");
-        // recv successful
+        UHD_LOG_ERROR("TCP_SIMPLE", "TCP connection unexpectedly closed the connection");
+        throw std::runtime_error("connection closed");
+
+    // recv successful
     } else {
         return bytes_received;
     }
