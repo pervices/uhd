@@ -18,11 +18,13 @@
 #ifndef INCLUDED_PV_IFACE_HPP
 #define INCLUDED_PV_IFACE_HPP
 
-#include <uhd/transport/udp_simple.hpp>
+// Standard library
 #include <string>
 #include <mutex>
 
-// Include types that can be accessed
+// Internal UHD includes
+#include <uhd/transport/udp_simple.hpp>
+#include <uhdlib/transport/tcp_simple.hpp>
 #include "uhd/usrp/mboard_eeprom.hpp"
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include <uhd/types/sensors.hpp>
@@ -47,7 +49,13 @@ public:
 
     typedef std::shared_ptr<pv_iface> sptr;
 
-    static pv_iface::sptr make(uhd::transport::udp_simple::sptr ctrl_transport);
+    /**
+     * Creates an instance of the management interface managed by a smart pointer.
+     * See the private constructor for details about the parameters
+     *
+     * @return A smart pointer to the management interface
+     */
+    static pv_iface::sptr make(const std::vector<std::string>& addrs, const uint16_t udp_port);
 
     // Helper functions to wrap peek_str and poke_str as get and set
     //
@@ -89,15 +97,17 @@ public:
     uhd::time_spec_t get_time_spec(std::string req);
     void set_time_spec(const std::string pre, uhd::time_spec_t data);
 
+    ~pv_iface();
+
 private:
 
-    /*!
+    /**
      * Make a new pv_iface with the control transport.
-     * The constructor is private for force the use make
-     * \param ctrl_transport the udp transport object
-     * \return a new cyan_nrnt interface object
+     * The constructor is private for force the use of make to prevent mistakes.
+     * @param addrs A list of IPs to connect to. At present having a list longer than one element is an error. In the future listing multiple IPs may allow for automatic failover.
+     * @param udp_port The UDP port the server is listening to.
      */
-    pv_iface(uhd::transport::udp_simple::sptr ctrl_transport);
+    pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_port);
 
     // Mutex for controlling access to the management port
     std::mutex _iface_lock;
@@ -111,10 +121,11 @@ private:
     // Recieve/read a data packet (string), null terminated
     std::string peek_str( float timeout_s );
 
-    //this lovely lady makes it all possible
-    uhd::transport::udp_simple::sptr _ctrl_transport;
+    // UDP socket pointed at the SDR
+    uhd::transport::udp_simple::sptr udp_transport;
 
-    // add another transport for streaming
+    // TCP connection to the server
+    uhd::transport::tcp_simple* tcp_connection = nullptr;
 
     // internal function for tokenizing the inputs
     void parse(std::vector<std::string> &tokens, char* data, size_t const data_len, const char delim);

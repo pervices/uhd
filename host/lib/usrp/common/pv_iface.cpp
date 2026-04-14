@@ -31,12 +31,45 @@ static uint32_t seq = 1;
 /***********************************************************************
  * Structors
  **********************************************************************/
-pv_iface::pv_iface(udp_simple::sptr ctrl_transport):
-    _ctrl_transport(ctrl_transport),
+pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_port):
     _ctrl_seq_num(0),
     _protocol_compat(0)
 {
     memset( _buff, '\0', sizeof( _buff ) );
+
+    // Verfify the user only specified one IP (since we only support one IP at this time)
+    if(addrs.size() > 1) {
+        throw std::invalid_argument("Multiple management IPs were requested but we only support using one at a time");
+    } else if(addrs.size() == 0) {
+        throw std::invalid_argument("No management IPs specified");
+    }
+
+    // Initialize the UDP connection with the server
+    udp_transport = udp_simple::make_connected(addrs[0], std::to_string(udp_port));
+
+    // Get the management port used to ask for a TCP connection
+    int tcp_port;
+    try {
+        // Update the property in their respective impl.cpp files if this is changed
+        tcp_port = get_int("system/tcp_management_port");
+    } catch(const uhd::lookup_error& e) {
+        // The server is from before TCP was added, skip creating the connection
+        tcp_connection = nullptr;
+        return;
+    }
+
+    if(tcp_port < 0 || tcp_port > 65535) {
+        throw std::invalid_argument("Invalid tcp management IP: " + std::to_string(tcp_port));
+    }
+
+    tcp_connection = new tcp_simple(addrs[0], (uint16_t) tcp_port);
+}
+
+pv_iface::~pv_iface() {
+    // Close the TCP connection if it was created
+    if(tcp_connection != nullptr) {
+        delete tcp_connection;
+    }
 }
 
 /***********************************************************************
@@ -47,7 +80,13 @@ pv_iface::pv_iface(udp_simple::sptr ctrl_transport):
 void pv_iface::poke_str(std::string data) {
     // populate the command string with sequence number
     data = data.insert(0, (boost::lexical_cast<std::string>(seq++) + ","));
-    _ctrl_transport->send( data.c_str(), data.length() );
+
+    // Send data using UDP if the TCP connection in uninitilized
+    if(tcp_connection == nullptr) [[unlikely]] {
+        udp_transport->send( data.c_str(), data.length() );
+    } else {
+        tcp_connection->send( data.c_str(), data.length() );
+    }
     return;
 }
 
@@ -63,7 +102,15 @@ std::string pv_iface::peek_str( float timeout_s ) {
     do {
         // clears the buffer and receives the message
         memset( _buff, 0, sizeof( _buff ) );
-        const size_t nbytes = _ctrl_transport -> recv(_buff, MAX_MTU_SIZE, timeout_s );
+
+        size_t nbytes;
+        // Receive data from UDP if the TCP connection in uninitilized
+        if(tcp_connection == nullptr) [[unlikely]] {
+            nbytes = udp_transport -> recv(_buff, MAX_MTU_SIZE, timeout_s );
+        } else {
+            nbytes = tcp_connection->recv(_buff, MAX_MTU_SIZE, timeout_s);
+        }
+
         if (nbytes == 0) return "TIMEOUT";
 
         // parses it through tokens: seq, status, [data]
@@ -307,8 +354,8 @@ void pv_iface::set_time_spec( const std::string pre, time_spec_t value ) {
 /***********************************************************************
  * Public make function for pv_iface
  **********************************************************************/
-pv_iface::sptr pv_iface::make(udp_simple::sptr ctrl_transport){
-    return std::shared_ptr<pv_iface>(new pv_iface(ctrl_transport));
+pv_iface::sptr pv_iface::make(const std::vector<std::string>& addrs, const uint16_t udp_port) {
+    return std::shared_ptr<pv_iface>(new pv_iface(addrs, udp_port));
 }
 
 /***********************************************************************
