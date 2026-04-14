@@ -815,13 +815,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         #endif
     }
 
-    // Makes the UDP comm connection
-    _mbc.iface = pv_iface::make(
-        udp_simple::make_connected(
-            _device_addr["addr"],
-            BOOST_STRINGIZE( CYAN_NRNT_FW_COMMS_UDP_PORT )
-        )
-    );
+    // Makes a connection to the server
+    std::vector<std::string> management_addrs = { _device_addr["addr"] };
+
+    // Create a new interface
+    _mbc.iface = pv_iface::make(management_addrs, CYAN_NRNT_FW_COMMS_UDP_PORT);
 
     // TODO check if locked already
     // TODO lock the Crimson device to this process, this will prevent the Crimson device being used by another program
@@ -892,6 +890,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G", "system/flags/USE_3G_AS_1G", int, int);
     flag_use_3g_as_1g = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G").get());
+
+    // The port used by TCP communications
+    // This property is called during pv_iface initialization before being initialized here
+    // When editing this property make sure the call in pv_iface is also updated
+    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/tcp_management_port", "system/tcp_management_port", int, int);
 
     //Initializes the vectors contain caches of constant data
     is_tx_sfp_cached.resize(num_tx_channels, false);

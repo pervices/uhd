@@ -50,25 +50,28 @@ tcp_simple::tcp_simple(const std::string& addr, const uint16_t port) {
     tcp_socket_fd = socket(host_address->ai_family, SOCK_STREAM, 0);
 
     if(tcp_socket_fd < 0) {
+        int socket_errno = errno;
+
         // Free before throwing an error
         freeaddrinfo(host_address);
 
-        UHD_LOG_ERROR("TCP_SIMPLE", "Creating TCP socket failed with error code: " + std::string(strerror(errno)));
+        UHD_LOG_ERROR("TCP_SIMPLE", "Creating TCP socket failed with error code: " + std::string(strerror(socket_errno)));
 
-        throw std::system_error(errno, std::system_category(), "socket(2)");
+        throw std::system_error(socket_errno, std::system_category(), "socket(2)");
     }
 
     int connect_r = connect(tcp_socket_fd, host_address->ai_addr, host_address->ai_addrlen);
 
-    // TODO: give descriptive error message for common exceptions
     if(connect_r != 0) {
+        int connect_errno = errno;
+
         // Close and free before throwing an error
         close(tcp_socket_fd);
         freeaddrinfo(host_address);
 
-        UHD_LOG_ERROR("TCP_SIMPLE", "Connecting TCP socket failed with error code: " + std::string(strerror(errno)));
+        UHD_LOG_ERROR("TCP_SIMPLE", "Connecting TCP socket failed with error code: " + std::string(strerror(connect_errno)));
 
-        throw std::system_error(errno, std::system_category(), "connect(2)");
+        throw std::system_error(connect_errno, std::system_category(), "connect(2)");
     }
 
     // Frees the host_addressults of getaddrinfo
