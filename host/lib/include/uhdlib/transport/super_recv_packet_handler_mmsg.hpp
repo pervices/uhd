@@ -19,6 +19,7 @@
 
 // Manages sending streaming commands
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
+#include <sys/file.h>
 #ifdef HAVE_LIBURING
     #include <uhd/transport/io_uring_recv_manager.hpp>
 #else
@@ -55,7 +56,7 @@ public:
      * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
      * \param device_total_rx_channels Total number of rx channels on the device, used to determine how many threads to use for receiving
      */
-    recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers);
+    recv_packet_handler_mmsg(const std::vector<size_t>& channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers, std::vector<int> streaming_locks);
 
     ~recv_packet_handler_mmsg(void);
 
@@ -184,6 +185,17 @@ public:
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
                 // metadata.end_of_burst |= vita_md[ch].eob
+
+                // TODO: Enable this once the EOB flag is properly implemented.
+                // This is to unlock the channel when in NUM_SAMPS_AND_DONE mode but since EOB is not implemented we do not know when it is done.
+                // To enable locking for NUM_SAMPS_AND_DONE once EOB flag is implemented, uncomment the if statement below
+                // which handles unlocking if EOB is detected and remove the if statement which prevents locking
+                // for NUM_SAMPS_AND_DONE in the recv_packet_handler_mmsg::issue_stream_cmd function.
+                // if (metadata.end_of_burst) {
+                //     _channel_active[ch] = false;
+                //     // Release channel locks
+                //     flock(_streaming_locks[_channels[ch]], LOCK_UN);
+                // }
 
                 // Finds and records the sequence number and timestamp of whichever channel's next packet is last
                 // Used for realignment, normally they will be the same for all packets
@@ -341,6 +353,14 @@ private:
     // Sends stream commands the device, manages the corresponding sockets
     std::vector<uhd::usrp::stream_cmd_issuer> _stream_cmd_issuers;
 
+    // Channel IDs used by streamer. Used to properly index _streaming_locks which has locks for every channel, not just the ones for this streamer
+    std::vector<size_t> _channels;
+    // Lockfiles to indicate the channel is currently actively streaming to prevent issues like changing the rate in the middle of a stream
+    std::vector<int> _streaming_locks;
+    // Track whether the channel is actively streaming or not. Lockfiles already do this but this is used to avoid repeatedly attempting to lock when calling
+    // issue_stream_cmd for continuous modes since it may have already been locked by this UHD instance.
+    std::vector<bool> _channel_active;
+
     std::vector<int> _recv_sockets;
     // Maximum sequence number
     static constexpr size_t SEQUENCE_NUMBER_MASK = 0xf;
@@ -475,7 +495,7 @@ private:
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
 public:
-    recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers);
+    recv_packet_streamer_mmsg(const std::vector<size_t>& channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers, std::vector<int> streaming_locks);
 
     //Consider merging recv_packet_streamer_mmsg and recv_packet_handler_mmsg
     //This is here to implement a virtual function from rx_streamer
