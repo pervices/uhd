@@ -124,12 +124,15 @@ private:
     // Lockfile descriptors to indicate a streamer has already been created for a channel
     // Locked and unlocked during streamer construction/destruction
     std::vector<int> tx_channel_lock_fd;
+    std::vector<int> rx_channel_lock_fd;
     // Lockfile descriptors to indicate a channel is actively streaming
     // Locked at start of stream and unlocked at end or while setting the channel rate
     std::vector<int> tx_streaming_lock_fd;
+    std::vector<int> rx_streaming_lock_fd;
 
-    // Attempt to lock a channel as actively streaming. Throws a runtime error if channel is already locked.
-    void lock_tx_channel_streaming(size_t channel_num);
+    // Attempt to lock a tx/rx channel as actively streaming. Throws a runtime error if channel is already locked.
+    // xx_sign: indicates whether this is for tx or rx
+    void lock_xx_channel_streaming(const size_t channel_num, const uhd::direction_t xx_sign);
 
     std::string rx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);

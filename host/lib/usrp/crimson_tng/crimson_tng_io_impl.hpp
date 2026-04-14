@@ -34,7 +34,7 @@ public:
     /**
     * @param iface The interface to access thes server
     */
-    crimson_tng_recv_packet_streamer(const std::string product_name_c, const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer);
+    crimson_tng_recv_packet_streamer(const std::string product_name_c, const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer, std::vector<int> channel_locks, std::vector<int> streaming_locks);
 
     ~crimson_tng_recv_packet_streamer();
 
@@ -50,6 +50,10 @@ private:
 
     std::vector<size_t> _channels;
     std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
+    // Indicates a streamer has already been created for a channel
+    std::vector<int> _channel_locks;
+    // Indicates a channel is actively streaming
+    std::vector<int> _streaming_locks;
 
     /**
     * A shared pointer to the interface used to access the server.

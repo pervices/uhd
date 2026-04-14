@@ -35,13 +35,15 @@
 
 namespace uhd { namespace transport { namespace sph {
 
-recv_packet_handler_mmsg:: recv_packet_handler_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
+recv_packet_handler_mmsg:: recv_packet_handler_mmsg(const std::vector<size_t>& channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers, std::vector<int> streaming_locks)
     :
     _NUM_CHANNELS(recv_sockets.size()),
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _stream_cmd_issuers(cmd_issuers),
+    _channels(channels),
+    _streaming_locks(streaming_locks),
     _recv_sockets(recv_sockets),
     _num_cached_samples(_NUM_CHANNELS, 0),
     _sample_cache(_NUM_CHANNELS, std::vector<uint8_t>(_MAX_SAMPLE_BYTES_PER_PACKET, 0))
@@ -63,6 +65,9 @@ recv_packet_handler_mmsg:: recv_packet_handler_mmsg(const std::vector<int>& recv
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         check_rx_ring_buffer_size(dst_ip[n]);
     }
+
+    // Initialize active channel tracker
+    _channel_active = std::vector<bool>(_NUM_CHANNELS, false);
 
     // Performs socket setup
     // Sockets passed to this constructor must already be bound
@@ -159,7 +164,36 @@ void recv_packet_handler_mmsg::issue_stream_cmd(const stream_cmd_t& stream_cmd)
     }
 
     for (size_t chan_i = 0; chan_i < _NUM_CHANNELS; chan_i++) {
+        // Lock channel if it is not already marked as active by a previous issue_stream_cmd and not a STOP_CONTINUOUS command.
+        // Tracking which channels are active for this streamer to avoid repeated attempts to lock the stream from repeated continuous mode commands.
+        if (!_channel_active[chan_i] and stream_cmd.stream_mode != stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+            // TODO: Remove this if statement once the EOB flag is properly implemented in packets
+            // Since EOB is not currently implemented, do not lock for NUM_SAMPS_AND_DONE since we won't know when to unlock
+            // I'm putting this in a separate if statement from above to make it clear this is to be removed once EOB has been implemented
+            if (stream_cmd.stream_mode != stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE) {
+                // Mark channel as actively streaming
+                _channel_active[chan_i] = true;
+                // Set an exclusive lock on the streaming lockfile. Nonblocking so it fails if already locked instead of waiting for it to be unlocked.
+                int r = flock(_streaming_locks[_channels[chan_i]], LOCK_EX | LOCK_NB);
+                if (r == -1) {
+                    int err = errno;
+                    // EWOULDBLOCK is expected if there is already a lock since we ran with the LOCK_NB flag.
+                    if (err == EWOULDBLOCK) {
+                        throw uhd::runtime_error("Attempted to lock streaming for channel but it was already locked. Does another UHD instance already have a lock?");
+                    } else {
+                        throw uhd::runtime_error("flock failed to lock streaming for channel with error: " + std::string(strerror(err)));
+                    }
+                }
+            }
+        }
         _stream_cmd_issuers[chan_i].issue_stream_command(stream_cmd);
+        // The stream ends with STOP_CONTINUOUS or when NUM_SAMPS_AND_DONE reaches EOB.
+        // Unlocking only happens here for STOP_CONTINUOUS, NUM_SAMPS_AND_DONE is handled in the recv function when EOB is detected.
+        if (stream_cmd.stream_mode == stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS) {
+            _channel_active[chan_i] = false;
+            // Release channel locks
+            flock(_streaming_locks[_channels[chan_i]], LOCK_UN);
+        }
     }
 }
 
@@ -332,8 +366,8 @@ void recv_packet_handler_mmsg::check_rx_ring_buffer_size(std::string ip) {
     }
 }
 
-recv_packet_streamer_mmsg::recv_packet_streamer_mmsg(const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers)
-    : recv_packet_handler_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuers)
+recv_packet_streamer_mmsg::recv_packet_streamer_mmsg(const std::vector<size_t>& channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers, std::vector<int> streaming_locks)
+    : recv_packet_handler_mmsg(channels, recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuers, streaming_locks)
 {
 }
 
