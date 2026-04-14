@@ -82,11 +82,30 @@ namespace ph = std::placeholders;
 namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
-cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer)
-: sph::recv_packet_streamer_mmsg(recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer),
+cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer, std::vector<int> channel_locks, std::vector<int> streaming_locks)
+: sph::recv_packet_streamer_mmsg(channels, recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer, streaming_locks),
 _channels(channels),
+_channel_locks(channel_locks),
+_streaming_locks(streaming_locks),
 _iface(iface)
 {
+    // Attempt to lock each channel used by this streamer. This channel will remain locked for the lifetime of this streamer.
+    // This is just advisory so an error will be printed if it was locked or could not get the lock but the program will continue.
+    for (size_t n = 0; n < channels.size(); n++) {
+        int lock_fd = _channel_locks[channels[n]];
+        int r = flock(lock_fd, LOCK_EX | LOCK_NB);
+        if (r == -1) {
+            int err = errno;
+            if (err == EWOULDBLOCK) {
+                // Since flock was run with the nonblocking flag, errno will be EWOULDBLOCK if this channel was already locked
+                std::string err_msg = "Attempted to lock channel " + std::to_string(_channels[n]) + " but it was already locked. Is another instance of UHD already running with a streamer for this channel?";
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
+            } else {
+                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to place lock on channel " + std::to_string(_channels[n]) + " lockfile.\nflock failed with error: " + std::string(strerror(err)));
+            }
+        }
+    }
+
     _rx_streamer_channel_in_use = rx_channel_in_use;
     for(size_t n = 0; n < channels.size(); n++) {
         _rx_streamer_channel_in_use->at(channels[n]) = true;
@@ -112,6 +131,9 @@ void cyan_nrnt_recv_packet_streamer::teardown() {
 
         // Marks this channel as not in use for the purposes of the check if the SFP can handle the combined rates on it
         _rx_streamer_channel_in_use->at(_channels[n]) = false;
+
+        // Release channel locks
+        flock(_channel_locks[_channels[n]], LOCK_UN);
     }
 }
 
@@ -741,7 +763,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_recv_packet_streamer>(new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers));
+    std::shared_ptr<cyan_nrnt_recv_packet_streamer> my_streamer = std::shared_ptr<cyan_nrnt_recv_packet_streamer>(new cyan_nrnt_recv_packet_streamer(args.channels, recv_sockets, dst_ip, data_len, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers, rx_channel_lock_fd, rx_streaming_lock_fd));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){

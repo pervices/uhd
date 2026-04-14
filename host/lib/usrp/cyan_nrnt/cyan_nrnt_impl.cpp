@@ -128,9 +128,21 @@ static size_t pre_to_ch( const std::string & pre ) {
     return ch;
 }
 
-void cyan_nrnt_impl::lock_tx_channel_streaming(size_t channel_num) {
+void cyan_nrnt_impl::lock_xx_channel_streaming(const size_t channel_num, const uhd::direction_t xx_sign) {
+    // Get the streaming lockfile for the tx/rx channel
+    int lock_fd;
+    switch(xx_sign) {
+        case RX_DIRECTION:
+            lock_fd = rx_streaming_lock_fd[channel_num];
+            break;
+        case TX_DIRECTION:
+            lock_fd = tx_streaming_lock_fd[channel_num];
+            break;
+        default:
+            throw uhd::value_error("Invalid 'xx_sign' argument. Expected either RX_DIRECTION or TX_DIRECTION of type uhd::direction_t");
+    }
     // Set an exclusive lock on the channel lockfile. Nonblocking so it fails if already locked instead of waiting for it to be unlocked.
-    int r = flock(tx_streaming_lock_fd[channel_num], LOCK_EX | LOCK_NB);
+    int r = flock(lock_fd, LOCK_EX | LOCK_NB);
     if (r == -1) {
         int err = errno;
         // EWOULDBLOCK is expected if there is already a lock since we ran with the LOCK_NB flag.
@@ -956,6 +968,47 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         }
     }
 
+    rx_channel_lock_fd.resize(num_rx_channels);
+    rx_streaming_lock_fd.resize(num_rx_channels);
+    for (size_t n = 0; n < num_rx_channels; n++) {
+        std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
+        try {
+            // Get rx board serial number to use a lockfile name unique to the channel so it does not interfere with other devices.
+            std::string rx_serial = _mbc.iface->get_string("rx/" + channel_name + "/about/serial");
+            std::string serial_num = rx_serial.substr(0, rx_serial.find('\n'));
+            // If no rx board serial number was found, use the time board instead or log an error message if neither could be used
+            if (serial_num.empty() && !timeboard_serial.empty()) {
+                serial_num = timeboard_serial;
+            } else {
+                throw uhd::runtime_error("Failed to get serial number for rx or time board.");
+            }
+
+            // There will be two lockfiles for each channel. rx<ch>_<serial> is an advisory lockfile used to indicate another streamer
+            // has already been initialized using this channel. rx<ch>_<serial>_streaming is locked when the channel is actively streaming.
+            std::string channel_lock_path = "/tmp/uhd/rx" + channel_name + "_" + serial_num;
+            std::string streaming_lock_path = channel_lock_path + "_streaming";
+
+            // Create or open the channel lockfiles
+            int channel_lock_fd = open(channel_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(channel_lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+            rx_channel_lock_fd[n] = channel_lock_fd;
+
+            // Create or open the streaming lockfiles
+            int streaming_lock_fd = open(streaming_lock_path.c_str(), O_CREAT | O_RDONLY, S_IRUSR | S_IRGRP | S_IROTH);
+            if(streaming_lock_fd == -1) {
+                int err = errno;
+                throw uhd::runtime_error("Opening lockfile failed with error: " + std::string(strerror(err)));
+            }
+            rx_streaming_lock_fd[n] = streaming_lock_fd;
+        } catch (uhd::runtime_error &e) {
+            // If lockfiles could not be opened/created, continue anyway without checking for locks but log an error so the user is aware
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Could not initialize lock for channel_" + channel_name + ".\n" + std::string(e.what()));
+        }
+    }
+
     _mbc.rx_streamers.resize( num_rx_channels );
     _mbc.tx_streamers.resize( num_tx_channels );
 
@@ -1540,6 +1593,10 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
         close(tx_channel_lock_fd[n]);
         close(tx_streaming_lock_fd[n]);
     }
+    for (size_t n = 0; n < num_rx_channels; n++) {
+        close(rx_channel_lock_fd[n]);
+        close(rx_streaming_lock_fd[n]);
+    }
 }
 
 //gets the jesd number to be used in creating stream command packets
@@ -2024,6 +2081,14 @@ double cyan_nrnt_impl::get_rx_gain(const std::string &name, size_t chan) {
 
 void cyan_nrnt_impl::set_rx_rate(double rate, size_t chan) {
     if (chan != multi_usrp::ALL_CHANS) {
+        // Check for channel streaming lock before setting rate
+        // An error should be thrown if the channel is already locked to prevent disrupting the other UHD instance mid-stream
+        try {
+            lock_xx_channel_streaming(chan, RX_DIRECTION);
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to set rx rate for channel " + std::to_string(chan));
+            throw err;
+        } 
         _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
         double actual_rate = get_rx_rate(chan);
@@ -2032,6 +2097,9 @@ void cyan_nrnt_impl::set_rx_rate(double rate, size_t chan) {
         rx_rate_check(chan, rate);
 
         update_rx_samp_rate(chan, actual_rate);
+
+        // Unlock the channel
+        flock(rx_streaming_lock_fd[chan], LOCK_UN);
 
         return;
     }
@@ -2049,7 +2117,7 @@ void cyan_nrnt_impl::set_tx_rate(double rate, size_t chan) {
         // Check for channel streaming lock before setting rate
         // An error should be thrown if the channel is locked to prevent unexpected behaviour for the other UHD instance mid-stream
         try {
-            lock_tx_channel_streaming(chan);
+            lock_xx_channel_streaming(chan, TX_DIRECTION);
         } catch (uhd::runtime_error &err) {
             UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to set tx rate for channel " + std::to_string(chan));
             throw err;
