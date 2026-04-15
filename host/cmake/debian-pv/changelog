@@ -1,3 +1,9 @@
+uhdpv (4.8.0.30-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Replacing management communications with TCP for reliability. This requires a firmware update to benefit from. UHD will fall back to UDP for old SDR firmware versions
+
+ -- Per Vices <packages@pervices.com>  Wed, 15 Apr 2026 16:13:14 -0400
+
 uhdpv (4.8.0.29-0ubuntu1) ubuntu_release; urgency=medium
 
   * Crimson: improving high band signal quality with low to medium gain
