@@ -146,6 +146,7 @@ _stop_buffer_monitor( false ),
 _channel_locks(channel_locks),
 _iface(iface)
 {
+    UHD_LOG_INFO("SEND_PACKET_STREAMER", "IN CONSTRUCTOR");
     // Attempt to lock each channel used by the streamer. If the channel is already locked, an error will be printed but the program will continue incase this is intentional behaviour by the user
     for (size_t n = 0; n < channels.size(); n++) {
         int lock_fd = _channel_locks[channels[n]];

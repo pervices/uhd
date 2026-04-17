@@ -816,6 +816,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _freq_range_stop(freq_range_stop),
     _use_dpdk(use_dpdk)
 {
+    UHD_LOG_INFO("CYAN_NRNT_IMPL", "INSIDE CYAN CONSTRUCTOR");
     if(_use_dpdk) {
         std::cout << "DPDK implementation in progress" << std::endl;
     }
