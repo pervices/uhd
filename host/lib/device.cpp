@@ -172,7 +172,8 @@ device::sptr device::make(const device_addr_t& hint, device_filter_t filter, siz
     static uhd::dict<size_t, std::weak_ptr<device>> hash_to_device;
 
     // try to find an existing device
-    if (hash_to_device.has_key(dev_hash) and not hash_to_device[dev_hash].expired()) {
+    if (hash_to_device.has_key(dev_hash) and not hash_to_device[dev_hash].expired()) {\
+        UHD_LOG_INFO("DEVICE", "EXISTING DEV");
         return hash_to_device[dev_hash].lock();
     } else {
         // Add keys from the config files (note: the user-defined keys will
