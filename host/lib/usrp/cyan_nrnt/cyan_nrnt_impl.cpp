@@ -1889,8 +1889,8 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
 
         case tune_request_t::POLICY_MANUAL:
             // prevent use of low band when a specific lo is requested
-            if(band == LOW_BAND && tune_request.lo_freq !=0) band = MID_BAND;
-            target_rf_freq = tune_request.lo_freq;
+            if(band == LOW_BAND && tune_request.rf_freq !=0) band = MID_BAND;
+            target_rf_freq = tune_request.rf_freq;
             break;
 
         case tune_request_t::POLICY_NONE:
@@ -1972,6 +1972,12 @@ uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
     const uhd::tune_request_t &tune_request, size_t chan
 ) {
 
+    if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
+        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
+            "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
+            "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");
+    }
+
     tune_result_t result = tune_xx_subdev_and_dsp(RX_SIGN,
             _tree->subtree(rx_dsp_root(chan)),
             _tree->subtree(rx_rf_fe_root(chan)),
@@ -1995,6 +2001,12 @@ double cyan_nrnt_impl::get_rx_freq(size_t chan) {
 uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
     const uhd::tune_request_t &tune_request, size_t chan
 ) {
+
+    if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
+        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
+            "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
+            "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");
+    }
 
     tune_result_t result = tune_xx_subdev_and_dsp(TX_SIGN,
             _tree->subtree(tx_dsp_root(chan)),
