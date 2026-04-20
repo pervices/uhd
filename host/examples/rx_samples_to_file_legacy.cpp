@@ -355,11 +355,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                   << std::endl;
         double target_dsp;
         if (vm.count("freq")) {
-            target_dsp = -lo_offset;
+            target_dsp = lo_offset;
         } else {
             target_dsp = 0;
         }
-        std::cout << boost::format("Setting RX DSP NCO: %f MHz...") % ((freq-lo_offset) / 1e6)
+        std::cout << boost::format("Setting RX DSP NCO: %f MHz...") % ((target_dsp) / 1e6)
                 << std::endl;
         //the argument order for a manual tune request specifying nco and lo is nco (Hz), lo (Hz), any value
         //the 3rd value is there to avoid a conflict with a different overload for the tune request constructor
