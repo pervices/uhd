@@ -38,29 +38,28 @@ struct UHD_API tune_request_t
      * and an automatic policy for the DSP frequency,
      * to tune the chain as close as possible to the target frequency.
      * \param target_freq the target frequency in Hz
-     * \param lo_off the LO offset frequency in Hz
+     * \param lo_off the LO frequency offset from the target frequency in Hz
      */
     tune_request_t(double target_freq, double lo_off);
 
-        /*!
-         * Tune request specifying dsp and lo
-         * \param dsp_freq the target frequency of FPGA DSP
-         * \param lo_off the LO offset frequency in Hz
-         * \param dummy exists because an overload with 2 doubles already existed, does not do anything
-         */
+    /*!
+     * Tune request specifying dsp and lo frequencies.
+     * Takes the absolute LO frequency instead of the offset like the other constructors.
+     * \param dsp_freq the target frequency of FPGA DSP
+     * \param lo_freq the LO frequency in Hz
+     * \param dummy exists because an overload with 2 doubles already existed, does not do anything
+     */
+    tune_request_t(double dsp_freq, double lo_freq, int dummy);
 
-        tune_request_t(double dsp_freq, double lo_off, int dummy);
-
-        /*!
-         * Fully manual tune request which supports multiple center frequencies.
-         * \param target_freq the target frequency in Hz
-         * \param rf_ch_freq the target frequency of DAC channelizer
-         * \param rf_dp_freq the target frequency of DAC Datapath
-         * \param lo_off the LO offset frequency in Hz
-         * \param dsp_freq the target frequency of FPGA DSP
-         */
-
-        tune_request_t(double target_freq, double rf_ch_freq, double rf_dp_freq, double lo_off, double dsp_freq);
+    /*!
+     * Fully manual tune request which supports multiple center frequencies.
+     * \param target_freq the target frequency in Hz
+     * \param rf_ch_freq the target frequency of DAC channelizer (NOTE: Value is no longer used in tuning. rf_freq is calculated using target_freq and lo_off instead)
+     * \param rf_dp_freq the target frequency of DAC Datapath (NOTE: Value is no longer used in tuning. rf_freq is calculated using target_freq and lo_off instead)
+     * \param lo_off the LO frequency offset from the target frequency in Hz
+     * \param dsp_freq the target frequency of FPGA DSP
+     */
+    tune_request_t(double target_freq, double rf_ch_freq, double rf_dp_freq, double lo_off, double dsp_freq);
 
     //! Policy options for tunable elements in the RF chain.
     enum policy_t {
@@ -86,30 +85,37 @@ struct UHD_API tune_request_t
 
     /*!
      * The RF frequency in Hz.
-         * This is DAD Datapath plus DAC Channelizer NCO tuning word.
      * Set when the policy is set to manual.
      *
-     * Note: We must reuse the same name for compatibility with UHD.
-     *       A proper name for this variable would be rf_dp_freq.
+     * Note: We use this to set the LO frequency.
      */
     double rf_freq;
 
     /*!
-        * The RF frequency in Hz. This is DAD Channel NCO tuning word.
-        * Set when the policy is set to manual.
-        */
+     * The RF frequency in Hz. This is DAD Channel NCO tuning word.
+     * Set when the policy is set to manual.
+     *
+     * NOTE: This is no longer used in frequency tuning and is only here for compatibility.
+     *    Only the rf_freq variable is used to set the LO frequency.
+     */
     double rf_ch_freq;
 
     /*!
-        * The RF frequency in Hz. This is DAD Datapath NCO tuning word.
-        * Set when the policy is set to manual.
-        */
+     * The RF frequency in Hz. This is DAD Datapath NCO tuning word.
+     * Set when the policy is set to manual.
+     *
+     * NOTE: This is no longer used in frequency tuning and is only here for compatibility.
+     *    Only the rf_freq variable is used to set the LO frequency.
+     */
     double rf_dp_freq;
 
     /*!
-        * The External LO frequency in Hz.
-        * Set when the policy is set to manual.
-        */
+     * The External LO frequency in Hz.
+     * Set when the policy is set to manual.
+     *
+     * NOTE: This is no longer used in frequency tuning and is only here for compatibility.
+     *    The rf_freq variable is used to set the LO frequency instead which matches upstream behaviour.
+     */
     double lo_freq;
 
     /*!

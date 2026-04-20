@@ -7,6 +7,7 @@
 
 #include <uhd/types/tune_request.hpp>
 #include <uhd/types/tune_result.hpp>
+#include <uhd/utils/log.hpp>
 #include <boost/format.hpp>
 
 //#define TUNE_DEBUG
@@ -36,7 +37,7 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
     rf_freq(target_freq + lo_off),
     rf_ch_freq(0.0),
     rf_dp_freq(0.0),
-    lo_freq(lo_off),
+    lo_freq(target_freq + lo_off),
     dsp_freq_policy(POLICY_AUTO),
     dsp_freq(0.0)
 {
@@ -44,13 +45,13 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
 }
 
 /* dummy is used to create an overload  since there is already a constructor that uses two doubles */
-tune_request_t::tune_request_t(double dsp_freq, double lo_off, int dummy):
-    target_freq(lo_off + dsp_freq),
+tune_request_t::tune_request_t(double dsp_freq, double lo_freq, int dummy):
+    target_freq(lo_freq + dsp_freq),
     rf_freq_policy(POLICY_MANUAL),
-    rf_freq(target_freq + lo_off),
+    rf_freq(lo_freq),
     rf_ch_freq(0.0),
     rf_dp_freq(0.0),
-    lo_freq(lo_off),
+    lo_freq(lo_freq),
     dsp_freq_policy(POLICY_MANUAL),
     dsp_freq(dsp_freq)
 {
@@ -65,14 +66,18 @@ tune_request_t::tune_request_t(double dsp_freq, double lo_off, int dummy):
 tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf_dp_freq, double lo_off, double dsp_freq ):
     target_freq(target_freq),
     rf_freq_policy(POLICY_MANUAL),
-    rf_freq(rf_ch_freq + rf_dp_freq),
+    rf_freq(target_freq + lo_off),
     rf_ch_freq(rf_ch_freq),
     rf_dp_freq(rf_dp_freq),
-    lo_freq(lo_off),
+    lo_freq(target_freq + lo_off),
     dsp_freq_policy(POLICY_MANUAL),
     dsp_freq(dsp_freq)
 {
-    /* NOP */
+    if (rf_ch_freq != 0 || rf_dp_freq != 0) {
+        UHD_LOG_WARNING("TUNE_REQUEST",
+            "This version of UHD no longer supports the use of rf_ch_freq or rf_dp_freq in tuning.\n"
+            "The LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off) instead.");
+    }
 }
 
 std::string tune_result_t::to_pp_string(void) const{
