@@ -355,7 +355,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                   << std::endl;
         double target_dsp;
         if (vm.count("freq")) {
-            target_dsp = freq-lo_offset;
+            target_dsp = -lo_offset;
         } else {
             target_dsp = 0;
         }
@@ -363,7 +363,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 << std::endl;
         //the argument order for a manual tune request specifying nco and lo is nco (Hz), lo (Hz), any value
         //the 3rd value is there to avoid a conflict with a different overload for the tune request constructor
-        tune_request = uhd::tune_request_t(target_dsp, lo_offset, 0);
+        tune_request = uhd::tune_request_t(target_dsp, freq+lo_offset, 0);
     // automatic lo
     } else {
         // initialize freq if it was not set by the user

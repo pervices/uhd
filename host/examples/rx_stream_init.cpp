@@ -300,9 +300,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("lo-freq") && vm.count("dsp-freq")) { //with default of 0.0 this will always be true
         double freq = lo_freq+dsp_freq;
         std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
-        //The way that tune request parameters work does not match their names
-        //Inspect how the code that uses tune requests (tune.cpp) actually interacts with *impl.cpp
-        uhd::tune_request_t tune_request(dsp_freq+lo_freq, lo_freq, 0, 0, -dsp_freq);
+        uhd::tune_request_t tune_request(-dsp_freq, lo_freq, 0);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_rx_freq(tune_request, channel);
         std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
