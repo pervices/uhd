@@ -354,16 +354,19 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << boost::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
                   << std::endl;
         double target_dsp;
+        double target_lo_freq;
         if (vm.count("freq")) {
-            target_dsp = lo_offset;
+            target_lo_freq = freq+lo_offset;
+            target_dsp = target_lo_freq - freq;
         } else {
+            target_lo_freq = 0;
             target_dsp = 0;
         }
         std::cout << boost::format("Setting RX DSP NCO: %f MHz...") % ((target_dsp) / 1e6)
                 << std::endl;
         //the argument order for a manual tune request specifying nco and lo is nco (Hz), lo (Hz), any value
         //the 3rd value is there to avoid a conflict with a different overload for the tune request constructor
-        tune_request = uhd::tune_request_t(target_dsp, freq+lo_offset, 0);
+        tune_request = uhd::tune_request_t(target_dsp, target_lo_freq, 0);
     // automatic lo
     } else {
         // initialize freq if it was not set by the user
@@ -382,7 +385,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     if(vm.count("lo-offset")) {
         double actual_lo = usrp->get_rx_lo_freq("", channel);
-        std::cout << boost::format("Actual RX LO OFFSET: %f MHz...")
+        std::cout << boost::format("Actual RX LO: %f MHz...")
                          % (actual_lo / 1e6)
                   << std::endl;
         // there is no command to get the dsp freq directly, but it will be the difference between the total and lo freqs
