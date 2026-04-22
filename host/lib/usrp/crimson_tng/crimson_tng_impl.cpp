@@ -830,6 +830,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // All the initial settings are read from the current status of the board.
     _tree = uhd::property_tree::make();
 
+    // Begin FPGA reset at tx chain
+    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga" / "board" / "reg_rst_req",  "fpga/board/reg_rst_req", int, int);
+    // TMP: perform jesd reset at the start of initialization
+    _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(16);
+
     TREE_CREATE_RO("/name", "fpga/about/name", std::string, string);
     std::string product_name = _tree->access<std::string>("/name").get();
     // Convert product_name to all capitals and store in product_name_c for use in debug messages
@@ -1004,10 +1009,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/tcp_management_port", "system/tcp_management_port", int, int);
 
     std::string lc_num;
-
-    // Begin FPGA reset at tx chain
-    TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga" / "board" / "reg_rst_req",  "fpga/board/reg_rst_req", int, int);
-    _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(17);
 
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "system/max_rate", "system/max_rate", double, double);
     try {
