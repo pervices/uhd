@@ -833,7 +833,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Begin FPGA reset at tx chain
     TREE_CREATE_RW(CRIMSON_TNG_MB_PATH / "fpga" / "board" / "reg_rst_req",  "fpga/board/reg_rst_req", int, int);
     // TMP: perform jesd reset at the start of initialization
-    _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(16);
+    _tree->access<int>(CRIMSON_TNG_MB_PATH / "fpga/board/reg_rst_req").set(11);
 
     TREE_CREATE_RO("/name", "fpga/about/name", std::string, string);
     std::string product_name = _tree->access<std::string>("/name").get();
