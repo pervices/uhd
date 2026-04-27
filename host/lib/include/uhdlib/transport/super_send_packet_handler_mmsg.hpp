@@ -75,8 +75,8 @@ public:
         const double timeout
     ) {
         size_t nsamps_to_send;
-        if (_nsamps_to_send > 2230) {
-            nsamps_to_send = 2230;
+        if (_nsamps_to_send > 2200) {
+            nsamps_to_send = 2200;
         } else {
             nsamps_to_send = _nsamps_to_send;
         }
