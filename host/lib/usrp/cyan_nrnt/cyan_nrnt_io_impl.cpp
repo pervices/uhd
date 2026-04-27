@@ -251,9 +251,11 @@ void cyan_nrnt_send_packet_streamer::teardown() {
             UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, sfp_oflow_message);
         }
     }
+
+    sleep(10);
     
     for(size_t n = 0; n < _channels.size(); n++) {
-        // _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
+        _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
         // Release channel locks
         flock(_channel_locks[_channels[n]], LOCK_UN);
