@@ -72,8 +72,9 @@ public:
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
         const uhd::tx_metadata_t &metadata,
-        const double timeout
+        const double _timeout
     ) {
+        const double timeout = 6000;
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
 
