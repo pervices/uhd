@@ -551,15 +551,9 @@ private:
                         alignmen_error_printed = 1;
                         // TODO: remove the message about alignment being lost once we confirm the FPGA handles dropped packet realignment via the timestamp
                         UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Failed to sendmmsg packets with error code: " + std::string(strerror(first_errno)) + " Alignment may be lost.");
+                        // TODO: add message to async error queue
 
-                        // Adds a message to the queue indicating that packets were lost
-                        uhd::async_metadata_t error_message;
-                        error_message.channel = _channels[ch_i];
-                        error_message.has_time_spec = true;
-                        error_message.time_spec = get_device_time();
-                        error_message.event_code = uhd::async_metadata_t::EVENT_CODE_SEQ_ERROR_IN_BURST;
-
-                        _async_msg_fifo->push(&error_message);
+                        //async_metadata_t
                     }
 
                     total_packets_sent_now += packets_sent_now_ch;
