@@ -6,6 +6,7 @@
 
 #pragma once
 
+// UHD Includes
 #include <uhd/config.hpp>
 #include <uhd/convert.hpp>
 #include <uhd/exception.hpp>
@@ -14,7 +15,6 @@
 #include <uhd/types/metadata.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/transport/zero_copy.hpp>
-#include <sys/socket.h>
 
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/transport/buffer_tracker.hpp>
@@ -22,6 +22,12 @@
 #include <uhdlib/utils/system_time.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
+
+// Standard library
+#include <format>
+
+// Linux API
+#include <sys/socket.h>
 
 
 #define MIN_MTU 9000
@@ -322,6 +328,10 @@ private:
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i);
 
+    int sendmmsg_errno = 0;
+    struct timespec sendmmsg_failure_time;
+
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -522,10 +532,12 @@ private:
                     // Send packets
                     packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM | MSG_DONTWAIT);
 
-                    // TODO: handle errors and a mismatch in packets sent between channels
-                    // DO NOT MERGE BEFORE THIS IS DONE
-                    if(packets_sent_now != packets_to_send_now) {
-                        UHD_LOG_ERROR("SEND", "TODO error handling");
+                    // Record if an error occured
+                    // The performance impact of proper error handling is to large
+                    // Instead cache the first time an error occured for later
+                    if(packets_sent_now != packets_to_send_now && sendmmsg_errno != 0) [[unlikely]] {
+                        sendmmsg_errno = errno;
+                        clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
                     }
                 }
 
@@ -536,8 +548,14 @@ private:
                 packets_sent_now = 1;
             }
 
-            // TODO: handle when sendmmsg failed to send the desired number of packets
-            // Record the packets that were sent
+            // Replace the -1 returned by sendmmsg on failure with the number of packets sent (0)
+            if(packets_sent < 0) [[unlikely]] {
+                packets_sent = 0;
+            }
+
+            // Add the amount of packets sent for this set of sendmmsg to the count
+            // This adds the last channel's count and assumes all channels sent correctly
+            // Assuming success is not ideal, but proper error handling will have to much of a performance impact
             packets_sent += packets_sent_now;
 
             // Calculate the number of samples sent in this send

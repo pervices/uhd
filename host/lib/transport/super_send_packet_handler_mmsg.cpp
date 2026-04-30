@@ -118,6 +118,10 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
     // The destructor must be manually called when using placement new
     std::destroy_at(_clock_sync_info_owner);
     free(_clock_sync_info_owner);
+
+    if(sendmmsg_errno) {
+        UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::format("{}.{:09}\n", sendmmsg_failure_time.tv_sec, sendmmsg_failure_time.tv_nsec));
+    }
 }
 
 void send_packet_handler_mmsg::set_samp_rate(const double rate) {
