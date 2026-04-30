@@ -6,6 +6,7 @@
 
 #pragma once
 
+// UHD Includes
 #include <uhd/config.hpp>
 #include <uhd/convert.hpp>
 #include <uhd/exception.hpp>
@@ -14,7 +15,6 @@
 #include <uhd/types/metadata.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/transport/zero_copy.hpp>
-#include <sys/socket.h>
 
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/transport/buffer_tracker.hpp>
@@ -22,6 +22,12 @@
 #include <uhdlib/utils/system_time.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
+
+// Standard library
+#include <format>
+
+// Linux API
+#include <sys/socket.h>
 
 
 #define MIN_MTU 9000
@@ -64,6 +70,8 @@ public:
  * Dispatch into combinations of single packet send calls.
  ******************************************************************/
 private:
+    // Used to cache start of burst from a send that sent no data so it can be added to the next iteration
+    // TODO: verify we should be caching. It seems wierd that we cache it from a failed attempt instead of the user keeping the flag in their next send
     bool cached_sob = false;
     uhd::time_spec_t sob_time_cache;
 
@@ -320,6 +328,10 @@ private:
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i);
 
+    int sendmmsg_errno = 0;
+    struct timespec sendmmsg_failure_time;
+
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -457,85 +469,125 @@ private:
         }
 
         // Gets the start time for use in the timeout, uses CLOCK_MONOTONIC_COARSE because it is faster and precision doesn't matter for timeouts
-        struct timespec send_start_time;
-        clock_gettime(CLOCK_MONOTONIC_COARSE, &send_start_time);
-        int64_t send_timeout_time_ns = (send_start_time.tv_sec * 1000000000) + send_start_time.tv_nsec + (int64_t)(timeout * 1000000000);
+        // The time after which the call times out
+        struct timespec timeout_time;
+        clock_gettime(CLOCK_MONOTONIC_COARSE, &timeout_time);
+        int64_t timeout_s = (int64_t) timeout;
+        int64_t timeout_ns = (int64_t) (timeout - timeout_s);
+        int64_t sum_ns = timeout_ns + timeout_time.tv_nsec;
+        int64_t carry = 0;
+        if(sum_ns > 1e9) {
+            sum_ns -= 1e9;
+            carry = 1;
+        }
+        // Add timeout with carry to current time
+        timeout_time.tv_nsec = timeout_time.tv_nsec + sum_ns;
+        timeout_time.tv_sec = timeout_time.tv_sec + timeout_s + carry;
 
-        size_t channels_serviced = 0;
-        std::vector<int> packets_sent_per_ch(_NUM_CHANNELS, 0);
-        std::vector<size_t> samples_sent_per_ch(_NUM_CHANNELS, 0);
+        // Time at the end of the loop, used for checking timeouts
+        struct timespec current_time;
 
-        while(channels_serviced < _NUM_CHANNELS) {
+        // Packets and samples sent for this call of this function
+        ssize_t packets_sent = 0;
+        ssize_t samples_sent = 0;
 
-            // Sends packets for each channel
+        do {
+            // The number of packets to send in the next sendmmsg commmand on all channels
+            int packets_to_send_now = num_packets - packets_sent;
+
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                int packets_to_send_this_sendmmsg = check_fc_npackets(ch_i);
-
-                // Always send 1 packet if eob (only contains dummy samples so they can be sent regardless of buffer level)
-                if(is_eob_send) {
-                    packets_to_send_this_sendmmsg = 1;
-                }
-
-                // Skip channel if it either is not time to send any packets yet of the desired number of packets have already been sent
-                if((packets_to_send_this_sendmmsg <= 0 || packets_sent_per_ch[ch_i] == num_packets)) {
-                    continue;
-                }
-
-                int num_packets_alread_sent = packets_sent_per_ch[ch_i];
-                int num_packets_to_send = num_packets - num_packets_alread_sent;
-                packets_to_send_this_sendmmsg = std::min(packets_to_send_this_sendmmsg, num_packets_to_send);
-
-                int num_packets_sent_this_send;
-                // Check if timestamp of next packet to send is in the past
-                if((int64_t)packet_header_infos[num_packets_alread_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) || packet_header_infos[num_packets_alread_sent].sob || packet_header_infos[num_packets_alread_sent].eob || !packet_header_infos[num_packets_alread_sent].has_tsf || use_blocking_fc) {
-                    // If not in the past, send packets
-                    // Ignore the check for in the past if using use_blocking_fc since the buffer won't overflow because of latency in get buffer level and trigger streaming which uses it will often have timestamps in the past
-                    // TODO: remove !use_blocking_fc workaround once the FPGA can handle packets without timestamps
-                    num_packets_sent_this_send = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[num_packets_alread_sent], packets_to_send_this_sendmmsg, MSG_CONFIRM | MSG_DONTWAIT);
-                } else {
-                    // If it is in the past, skip sending it, but continue as if it was sent
-                    num_packets_sent_this_send = 1;
-                }
-
-                if(num_packets_sent_this_send < 0) {
-                    if(errno != EAGAIN && errno != EWOULDBLOCK) {
-                        std::cerr << "sendmmsg on ch " << _channels[ch_i] << "failed with error: " << std::strerror(errno) << std::endl;
-                    }
-                } else {
-                    packets_sent_per_ch[ch_i] += num_packets_sent_this_send;
-                    // Update buffer level record
-                    size_t nsamps_sent;
-                    if(num_packets_to_send == num_packets_sent_this_send) {
-                        // This send included the last packet (which may not be the maximum length)
-                        nsamps_sent = ((num_packets_sent_this_send - 1) * _max_samples_per_packet) + samples_in_last_packet;
-                        channels_serviced+=1;
-                    } else {
-                        // Every packet except the last one will have the maximum length
-                        nsamps_sent = num_packets_sent_this_send * _max_samples_per_packet;
-                    }
-                    // Update counter for number of samples sent this send
-                    samples_sent_per_ch[ch_i] += nsamps_sent;
-                    // Update buffer level count
-                    if(!is_eob_send) {
-                        ch_send_buffer_info_group[ch_i].buffer_level_manager.update(nsamps_sent);
-                    }
+                int packet_to_send_ch_i = check_fc_npackets(ch_i);
+                if(packets_to_send_now > packet_to_send_ch_i) {
+                    packets_to_send_now = packet_to_send_ch_i;
                 }
             }
-            //Checks for timeout
-            struct timespec current_time;
+
+            // If the packet to send is end of burst always send it regardless of the buffer level
+            if(is_eob_send) [[unlikely]] {
+                packets_to_send_now = 1;
+            }
+
+            // The buffer has enough samples, skip sending now
+            /* TODO: see if setting packets_to_send_now to 0 and no continue helps
+             * It may help by keeping sendmmsg related values in cache
+             */
+            if(packets_to_send_now < 0) {
+                continue;
+            }
+
+            ssize_t packets_sent_now;
+
+            // Perform send if
+            // Packets are in the future (drop normal packets that would arrive to late)
+            // Always send start of burst or end of packets because they are needed for control
+            // Send packets without tsf since they don't have a set time
+            // Also ignore send time in blocking fc mode since it doesn't apply
+            if(
+                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) ||
+                /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
+                /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
+                /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
+                /* Blocking flow control is in use */ use_blocking_fc
+            ) {
+                packets_sent_now = 0;
+
+                for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                    // Send packets
+                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
+
+                    // Record if an error occured
+                    // The performance impact of proper error handling is to large
+                    // Instead cache the first time an error occured for later
+                    if(packets_sent_now < 0 && sendmmsg_errno == 0) [[unlikely]] {
+                        sendmmsg_errno = errno;
+                        clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
+                    }
+                }
+
+            // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
+            // TODO: find a better way that avoid confusion from silently dropping packets
+            } else {
+                // If packets and in the past, pretend the first packet of the set was sent
+                packets_sent_now = 1;
+            }
+
+            // Replace the -1 returned by sendmmsg on failure with the number of packets sent (0)
+            if(packets_sent < 0) [[unlikely]] {
+                packets_sent = 0;
+            }
+
+            // Add the amount of packets sent for this set of sendmmsg to the count
+            // This adds the last channel's count and assumes all channels sent correctly
+            // Assuming success is not ideal, but proper error handling will have too much of a performance impact
+            packets_sent += packets_sent_now;
+
+            // Calculate the number of samples sent in this send
+            // Every packet except the last of the command will be of max length
+            size_t samples_sent_now;
+            // The last packet of the burst was included
+            if(packets_sent == num_packets) {
+                samples_sent_now = ((packets_sent_now - 1) * _max_samples_per_packet) + samples_in_last_packet;
+
+            // This send did not send the last packet of the uhd send command, all packets are max length
+            } else {
+                samples_sent_now = packets_sent_now * _max_samples_per_packet;
+            }
+
+            // Add the samples sent from this sendmmsg to the total for this function
+            samples_sent += samples_sent_now;
+
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                ch_send_buffer_info_group[ch_i].buffer_level_manager.update((size_t) samples_sent_now);
+            }
+
+            // Get the current time for checking if a timeout occured
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
-            int64_t current_time_ns = (current_time.tv_sec * 1000000000) + current_time.tv_nsec;
-            if(current_time_ns > send_timeout_time_ns) {
-                next_sequence_number = (next_sequence_number - num_packets + packets_sent_per_ch[0]);
-                break;
-            }
-        }
 
-        // Acts as though the channel with the most samples sent had samples sent
-        size_t samples_sent = samples_sent_per_ch[0];
-        for(size_t ch_i = 1; ch_i < _NUM_CHANNELS; ch_i++) {
-            samples_sent = std::min(samples_sent_per_ch[ch_i], samples_sent);
-        }
+        } while (
+            /* All packets were sent */ packets_sent < num_packets &&
+            /* Timed out*/ (current_time.tv_sec < timeout_time.tv_sec ||
+            (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec < timeout_time.tv_nsec))
+        );
 
         // Updates the next timestamp to follow from the end of this send
         if(metadata_.has_time_spec) {
@@ -544,12 +596,9 @@ private:
             next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
         }
 
-        if(metadata_.start_of_burst && is_eob_send) {
-            printf("ERROR sob and eob at the same time\n");
-        }
-
-        // If no packets sent remove the sob time for this send from the list of start of bursts
-        if(metadata_.start_of_burst && !samples_sent) {
+        // If a start of burst was requested and no samples were sent
+        if(metadata_.start_of_burst && !samples_sent) [[unlikely]] {
+            // Remove the sob time for this send from the list of start of bursts
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.pop_back_start_of_burst_time();
             }
@@ -558,18 +607,19 @@ private:
             sob_time_cache = metadata_.time_spec;
         }
 
-        // NOTE: samples_sent here will be non 0 because of the dummy samples
-        if(is_eob_send && !samples_sent) {
-            for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-                ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
-            }
-        }
-
-        if(is_eob_send) {
-            // The samples in an eob are unused, they only exist because the FPGA can't handle 0 samples per packet
-            return 0;
-        } else {
+        // NOTE: samples_sent here will be non 0 because of the dummy samples, if dummy samples are removed we will need a new way of checking if packets were send
+        // Mark when an end of burst was sent
+        if(!is_eob_send) [[likely]] {
             return samples_sent;
+        } else {
+            if(!samples_sent) {
+                // The EOB was not send, remove it from the list for buffer level calculations
+                for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+                    ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
+                }
+            }
+            // EOB packets have a dummy sample, ignore them when reporting the number of samples sent
+            return 0;
         }
     }
 
