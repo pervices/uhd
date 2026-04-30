@@ -322,6 +322,9 @@ private:
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i);
 
+    // A flag used so we only print the message for alignment errors once
+    uint_fast8_t alignmen_error_printed = 0;
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -502,7 +505,8 @@ private:
                 continue;
             }
 
-            ssize_t packets_sent_now;
+            // Packets sent in this loop of sending on each channel individually
+            int packets_sent_now;
 
             // Perform send if
             // Packets are in the future (drop normal packets that would arrive to late)
@@ -516,18 +520,48 @@ private:
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
                 /* Blocking flow control is in use */ use_blocking_fc
             ) {
-                packets_sent_now = 0;
+                // Packets sent in this pass of the send loop, summed across all channels
+                int total_packets_sent_now = 0;
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                    // Send packets
-                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM | MSG_DONTWAIT);
 
-                    // TODO: handle errors and a mismatch in packets sent between channels
-                    // DO NOT MERGE BEFORE THIS IS DONE
-                    if(packets_sent_now != packets_to_send_now) {
-                        UHD_LOG_ERROR("SEND", "TODO error handling");
+                    uint_fast8_t send_attempts = 0;
+                    int packets_sent_now_ch = 0;
+
+                    int first_errno = 0;
+
+                    do{
+                        send_attempts++;
+
+                        // Send packets
+                        int packets_sent_this_call = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent + packets_sent_now_ch], packets_to_send_now - packets_sent_now_ch, MSG_CONFIRM | MSG_DONTWAIT);
+
+                        // Record how many packets were sent if no error occured
+                        if(packets_sent_this_call >= 0) [[likely]] {
+                            packets_sent_now_ch += packets_sent_this_call;
+
+                        // Record the first errno seen
+                        } else if (first_errno != 0) {
+                            first_errno = errno;
+                        }
+
+                    } while (packets_sent_now_ch != packets_to_send_now && send_attempts < 5);
+
+                    if( packets_sent_now_ch != packets_to_send_now  && !alignmen_error_printed ) [[unlikely]] {
+                        alignmen_error_printed = 1;
+                        // TODO: remove the message about alignment being lost once we confirm the FPGA handles dropped packet realignment via the timestamp
+                        UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Failed to sendmmsg packets with error code: " + std::string(strerror(first_errno)) + " Alignment may be lost.");
+                        // TODO: add message to async error queue
+
+                        //async_metadata_t
                     }
+
+                    total_packets_sent_now += packets_sent_now_ch;
                 }
+
+                // Normally all channels will have an equal amount of samples sent
+                packets_sent_now = total_packets_sent_now/_NUM_CHANNELS;
+
 
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
             // TODO: find a better way that avoid confusing from silently dropping packets
@@ -536,8 +570,6 @@ private:
                 packets_sent_now = 1;
             }
 
-            // TODO: handle when sendmmsg failed to send the desired number of packets
-            // Record the packets that were sent
             packets_sent += packets_sent_now;
 
             // Calculate the number of samples sent in this send
