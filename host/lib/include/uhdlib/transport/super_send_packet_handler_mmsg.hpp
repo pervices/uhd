@@ -582,8 +582,8 @@ private:
 
         } while (
             /* All packets were sent */ packets_sent < num_packets &&
-            /* Timed out*/ (current_time.tv_sec > timeout_time.tv_sec ||
-            (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec > timeout_time.tv_nsec))
+            /* Timed out*/ (current_time.tv_sec < timeout_time.tv_sec ||
+            (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec < timeout_time.tv_nsec))
         );
 
         if(packets_sent == 0) {
