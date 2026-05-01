@@ -581,9 +581,9 @@ private:
             clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
 
         } while (
-            /* All packets were sent */ packets_sent < num_packets /* && */
-            /* Timed out*/ /*(current_time.tv_sec > timeout_time.tv_sec ||
-            (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec > timeout_time.tv_nsec))*/
+            /* All packets were sent */ packets_sent < num_packets &&
+            /* Timed out*/ (current_time.tv_sec > timeout_time.tv_sec ||
+            (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec > timeout_time.tv_nsec))
         );
 
         // Updates the next timestamp to follow from the end of this send
