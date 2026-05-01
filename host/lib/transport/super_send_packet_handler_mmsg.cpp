@@ -120,7 +120,10 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
     free(_clock_sync_info_owner);
 
     if(sendmmsg_errno) {
-        UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::format("{}.{:09}\n", sendmmsg_failure_time.tv_sec, sendmmsg_failure_time.tv_nsec));
+        char nsec_s[42];
+        snprintf(nsec_s, sizeof(nsec_s), "%ld.%.9ld", sendmmsg_failure_time.tv_sec, sendmmsg_failure_time.tv_nsec);
+
+        UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::string(nsec_s));
     }
 }
 

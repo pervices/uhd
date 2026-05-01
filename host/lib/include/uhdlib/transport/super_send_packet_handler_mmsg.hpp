@@ -535,7 +535,7 @@ private:
                     // Record if an error occured
                     // The performance impact of proper error handling is to large
                     // Instead cache the first time an error occured for later
-                    if(packets_sent_now < 0 && sendmmsg_errno == 0) [[unlikely]] {
+                    if(1 /*packets_sent_now < 0 && sendmmsg_errno == 0*/) [[unlikely]] {
                         sendmmsg_errno = errno;
                         clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
                     }
@@ -555,7 +555,7 @@ private:
 
             // Add the amount of packets sent for this set of sendmmsg to the count
             // This adds the last channel's count and assumes all channels sent correctly
-            // Assuming success is not ideal, but proper error handling will have to much of a performance impact
+            // Assuming success is not ideal, but proper error handling will have too much of a performance impact
             packets_sent += packets_sent_now;
 
             // Calculate the number of samples sent in this send
