@@ -530,12 +530,13 @@ private:
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                     // Send packets
-                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM | MSG_DONTWAIT);
+                    // TODO: verfy remove MSG_DONTWAIT didn't hurt performance
+                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
 
                     // Record if an error occured
                     // The performance impact of proper error handling is to large
                     // Instead cache the first time an error occured for later
-                    if(packets_sent_now != packets_to_send_now && sendmmsg_errno == 0) [[unlikely]] {
+                    if(packets_sent_now < 0 && sendmmsg_errno == 0) [[unlikely]] {
                         sendmmsg_errno = errno;
                         clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
                     }
@@ -550,9 +551,6 @@ private:
 
             // Replace the -1 returned by sendmmsg on failure with the number of packets sent (0)
             if(packets_sent < 0) [[unlikely]] {
-                // TODO: remove this error message
-                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg failed with: " + std::string(strerror(sendmmsg_errno)));
-                std::exit(~0);
                 packets_sent = 0;
             }
 
