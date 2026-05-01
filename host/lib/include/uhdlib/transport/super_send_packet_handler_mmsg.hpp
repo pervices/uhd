@@ -535,8 +535,8 @@ private:
                     // Record if an error occured
                     // The performance impact of proper error handling is to large
                     // Instead cache the first time an error occured for later
-                    if(1 /*packets_sent_now < 0 && sendmmsg_errno == 0*/) [[unlikely]] {
-                        sendmmsg_errno = errno;
+                    if(/*packets_sent_now < 0 &&*/ sendmmsg_errno == 0) [[unlikely]] {
+                        sendmmsg_errno = ~0;//errno;
                         clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
                     }
                 }
