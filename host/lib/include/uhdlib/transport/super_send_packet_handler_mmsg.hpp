@@ -530,7 +530,6 @@ private:
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                     // Send packets
-                    // TODO: verfy remove MSG_DONTWAIT didn't hurt performance
                     packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
 
                     // Record if an error occured
@@ -543,7 +542,7 @@ private:
                 }
 
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
-            // TODO: find a better way that avoid confusing from silently dropping packets
+            // TODO: find a better way that avoid confusion from silently dropping packets
             } else {
                 // If packets and in the past, pretend the first packet of the set was sent
                 packets_sent_now = 1;
@@ -587,21 +586,11 @@ private:
             (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec < timeout_time.tv_nsec))
         );
 
-        if(packets_sent == 0) {
-            UHD_LOG_ERROR("SEND_PACKET_HANDLER", std::format("\nTimeout: {}.{:09}\n", timeout_time.tv_sec, timeout_time.tv_nsec) + std::format("Current: {}.{:09}\n", current_time.tv_sec, current_time.tv_nsec));
-            std::exit(~0);
-        }
-
         // Updates the next timestamp to follow from the end of this send
         if(metadata_.has_time_spec) {
             next_send_time = metadata_.time_spec + time_spec_t::from_ticks(samples_sent, _sample_rate);
         } else {
             next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
-        }
-
-        // TODO: remove this after verifying it is impossible
-        if(metadata_.start_of_burst && is_eob_send) [[unlikely]] {
-            printf("ERROR sob and eob at the same time\n");
         }
 
         // If a start of burst was requested and no samples were sent
