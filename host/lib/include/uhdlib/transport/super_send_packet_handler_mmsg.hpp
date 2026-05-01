@@ -550,6 +550,9 @@ private:
 
             // Replace the -1 returned by sendmmsg on failure with the number of packets sent (0)
             if(packets_sent < 0) [[unlikely]] {
+                // TODO: remove this error message
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg failed with: " + std::string(strerror(sendmmsg_errno)));
+                std::exit(~0);
                 packets_sent = 0;
             }
 
