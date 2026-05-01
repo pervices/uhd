@@ -586,6 +586,11 @@ private:
             (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec > timeout_time.tv_nsec))
         );
 
+        if(packets_sent == 0) {
+            UHD_LOG_ERROR("SEND_PACKET_HANDLER", std::format("\nTimeout: {}.{:09}\n", timeout_time.tv_sec, timeout_time.tv_nsec) + std::format("Current: {}.{:09}\n", current_time.tv_sec, current_time.tv_nsec));
+            std::exit(~0);
+        }
+
         // Updates the next timestamp to follow from the end of this send
         if(metadata_.has_time_spec) {
             next_send_time = metadata_.time_spec + time_spec_t::from_ticks(samples_sent, _sample_rate);
