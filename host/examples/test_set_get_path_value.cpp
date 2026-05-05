@@ -250,7 +250,7 @@ namespace
         printf("\n=== Testing Time Board LED Blink Enable ===\n");
         printf("Usage: Set value to '1' or 'on' to enable LED blink, '0' or 'off' to disable\n\n");
 
-        const std::string path = "/mboards/0/time/board/led_blink_enable";
+        const std::string path = "/mboards/0/time/led_blink_enable";
         std::string old;
         try {
             usrp->get_tree_value(path, old);
