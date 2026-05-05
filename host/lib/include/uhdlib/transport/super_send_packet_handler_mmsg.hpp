@@ -508,7 +508,10 @@ private:
             }
 
             // The buffer has enough samples, skip sending now
-            if(packets_to_send_now == 0) {
+            /* TODO: see if setting packets_to_send_now to 0 and no continue helps
+             * It may help by keeping sendmmsg related values in cache
+             */
+            if(packets_to_send_now < 0) {
                 continue;
             }
 
@@ -538,12 +541,6 @@ private:
                     if(packets_sent_now < 0 && sendmmsg_errno == 0) [[unlikely]] {
                         sendmmsg_errno = errno;
                         clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
-                    }
-
-                    if(packets_sent_now != packets_to_send_now) {
-                        UHD_LOG_ERROR("TMP", "packets_sent_now: " + std::to_string(packets_sent_now));
-                        UHD_LOG_ERROR("TMP", "packets_to_send_now: " + std::to_string(packets_to_send_now));
-                        std::exit(~0);
                     }
                 }
 
