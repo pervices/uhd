@@ -251,7 +251,7 @@ namespace
         printf("Usage: Set value to '1' or 'on' to enable LED blink, '0' or 'off' to disable\n\n");
 
         const std::vector<std::string> time_board_paths = {
-            "/mboards/0/time/board/led_blink_enable"
+            "/mboards/0/time/board/led_blink_enable",
         };
         for(const auto& path : time_board_paths)
         {
