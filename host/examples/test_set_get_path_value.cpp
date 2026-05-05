@@ -250,30 +250,25 @@ namespace
         printf("\n=== Testing Time Board LED Blink Enable ===\n");
         printf("Usage: Set value to '1' or 'on' to enable LED blink, '0' or 'off' to disable\n\n");
 
-        const std::vector<std::string> time_board_paths = {
-            "/mboards/0/time/board/led_blink_enable",
-        };
-        for(const auto& path : time_board_paths)
-        {
-            std::string old;
-            try {
-                usrp->get_tree_value(path, old);
-                usrp->set_tree_value(path, old);
+        const std::string path = "/mboards/0/time/board/led_blink_enable";
+        std::string old;
+        try {
+            usrp->get_tree_value(path, old);
+            usrp->set_tree_value(path, old);
 
-                std::cout << "LED Blink Enable Status:" << old << std::endl;
-            } catch (uhd::runtime_error &err) {
-                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
-                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-                return UHD_ERROR_RUNTIME;
-            } catch(uhd::type_error &err) {
-                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
-                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-                return UHD_ERROR_TYPE;
-            } catch(uhd::lookup_error &err) {
-                UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
-                              "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
-                return UHD_ERROR_LOOKUP;
-            }
+            std::cout << "LED Blink Enable Status:" << old << std::endl;
+        } catch (uhd::runtime_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_RUNTIME;
+        } catch(uhd::type_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_TYPE;
+        } catch(uhd::lookup_error &err) {
+            UHD_LOG_ERROR("TEST_SET_GET_PATH_VALUE",
+                          "Failed to get/set tree property \"" + path + "\" in function \"" + __FUNCTION__ + "\" with error: " + err.what());
+            return UHD_ERROR_LOOKUP;
         }
 
 
