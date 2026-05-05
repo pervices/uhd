@@ -539,6 +539,11 @@ private:
                         sendmmsg_errno = errno;
                         clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
                     }
+
+                    if(packets_sent_now != packets_to_send_now) {
+                        UHD_LOG_ERROR("TMP", "sendmmsg subtle failure");
+                        std::exit(~0);
+                    }
                 }
 
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
