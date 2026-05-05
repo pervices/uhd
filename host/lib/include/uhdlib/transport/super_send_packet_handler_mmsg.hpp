@@ -541,7 +541,8 @@ private:
                     }
 
                     if(packets_sent_now != packets_to_send_now) {
-                        UHD_LOG_ERROR("TMP", "sendmmsg subtle failure");
+                        UHD_LOG_ERROR("TMP", "packets_sent_now: " + std::to_string(packets_sent_now));
+                        UHD_LOG_ERROR("TMP", "packets_to_send_now: " + std::to_string(packets_to_send_now));
                         std::exit(~0);
                     }
                 }
