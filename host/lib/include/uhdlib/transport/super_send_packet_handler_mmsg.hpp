@@ -359,8 +359,7 @@ private:
 
         for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
-            packet_header_infos[n].packet_count = next_sequence_number;
-            next_sequence_number = (next_sequence_number + 1) & 0xf;
+            packet_header_infos[n].packet_count = (next_sequence_number + n) & 0xf;
             packet_header_infos[n].has_sid = false;
             packet_header_infos[n].has_sid = false;
             packet_header_infos[n].has_cid = false;
@@ -595,6 +594,9 @@ private:
         } else {
             next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
         }
+
+        // Increment the sequence number counter by the number of packets actually sent
+        next_sequence_number = (next_sequence_number + packets_sent) & 0xf;
 
         // If a start of burst was requested and no samples were sent
         if(metadata_.start_of_burst && !samples_sent) [[unlikely]] {
