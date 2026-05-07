@@ -541,7 +541,8 @@ private:
                 /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
-                /* Blocking flow control is in use */ use_blocking_fc
+                /* Blocking flow control is in use */ use_blocking_fc ||
+                true
             ) {
                 packets_sent_now = 0;
 
