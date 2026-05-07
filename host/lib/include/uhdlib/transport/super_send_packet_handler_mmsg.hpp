@@ -565,6 +565,7 @@ private:
             // TODO: find a better way that avoid confusion from silently dropping packets
             } else {
                 // If packets and in the past, pretend the first packet of the set was sent
+                throw std::runtime_error("skipped sending packets");
                 packets_sent_now = 1;
             }
 
