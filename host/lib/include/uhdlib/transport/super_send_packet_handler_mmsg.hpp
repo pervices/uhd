@@ -97,7 +97,7 @@ public:
                 cached_sob = true;
                 sob_time_cache = metadata.time_spec;
                 return 0;
-            } else if(metadata.end_of_burst) {
+            } else if(false /*metadata.end_of_burst*/) {
                 send_eob_packet(metadata, timeout);
                 return 0;
             } else {
@@ -112,6 +112,10 @@ public:
         }
 
         uhd::tx_metadata_t modified_metadata = metadata;
+
+        // DEBUG: disable sending EOB
+        modified_metadata.end_of_burst = false;
+
         if(cached_sob) {
             cached_sob = false;
             modified_metadata.start_of_burst = true;
