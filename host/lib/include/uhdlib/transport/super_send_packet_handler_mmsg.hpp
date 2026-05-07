@@ -555,6 +555,9 @@ private:
                     if(packets_sent_now < 0 && sendmmsg_errno == 0) [[unlikely]] {
                         sendmmsg_errno = errno;
                         clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
+
+                        // DEBUG: throw error in case the error message is being suppressed
+                        throw std::system_error(errno, std::system_category(), "sendmmsg(2)");
                     }
                 }
 
