@@ -260,7 +260,7 @@ private:
 
     // The start time of the next batch of samples in ticks
     // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
-    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+    int64_t next_send_time = 0;
 
     //TODO move all the vectors with channel specific info here
     // Stores information about packets to send for each channel
@@ -331,6 +331,20 @@ private:
     int sendmmsg_errno = 0;
     struct timespec sendmmsg_failure_time;
 
+    /**
+     * Converts a duration in samples to a duration in ticks.
+     * This avoid floating point rounding error.
+     * Required assumption: _DEVICE_PACKET_NSAMP_MULTIPLE * _sample_rate / _TICK_RATE is an integer
+     *
+     * @param s The duration in samples
+     *
+     * @return The duration in ticks
+     */
+    UHD_INLINE int64_t samples_to_ticks(int64_t s) {
+        // Use 128bit to avoid overflows durin the s * _TICK_RATE stage
+        return s * (__int128) _TICK_RATE / (__int128) _sample_rate;
+    }
+
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -368,10 +382,10 @@ private:
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
-                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
+                packet_header_infos[n].tsf = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(n * _max_samples_per_packet - nsamps_in_cache);
             } else {
                 // Sets the timestamp to follow from the previous send
-                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
+                packet_header_infos[n].tsf = next_send_time + samples_to_ticks(n * _max_samples_per_packet - nsamps_in_cache);
             }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
@@ -590,9 +604,9 @@ private:
 
         // Updates the next timestamp to follow from the end of this send
         if(metadata_.has_time_spec) {
-            next_send_time = metadata_.time_spec + time_spec_t::from_ticks(samples_sent, _sample_rate);
+            next_send_time = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(samples_sent);
         } else {
-            next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
+            next_send_time = next_send_time + samples_to_ticks(samples_sent);
         }
 
         // Increment the sequence number counter by the number of packets actually sent
