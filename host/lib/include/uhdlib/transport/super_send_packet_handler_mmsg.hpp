@@ -88,7 +88,7 @@ public:
         size_t previous_nsamps_in_cache = nsamps_in_cache;
 
         // FPGAs can sometimes only receive multiples of a set number of samples
-        size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
+        size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _packet_nsamps_multiple) * _packet_nsamps_multiple);
         size_t desired_nsamps_to_cache = 0;//nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
         if(actual_nsamps_to_send == 0) {
@@ -107,7 +107,7 @@ public:
 
         // Lets the user know if the last burst dropped samples due to packet length multiple requirements
         if(dropped_nsamps_in_cache) {
-            UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << dropped_nsamps_in_cache << " samples to comply";
+            UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _packet_nsamps_multiple << " samples. Dropping " << dropped_nsamps_in_cache << " samples to comply";
             dropped_nsamps_in_cache = 0;
         }
 
@@ -145,7 +145,7 @@ public:
         // NUmber of samples from that cache that are to be kept for the next run that were present from the previous run
         size_t cached_samples_to_retain;
 
-        // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
+        // Copies samples that won't fit as a multiple of _packet_nsamps_multiple to the cache
         if(actual_samples_sent == 0) {
             // No samples sent, therefore none should be added to the buffer
             actual_nsamples_to_cache = 0;
@@ -248,10 +248,14 @@ private:
     const ssize_t _DEVICE_TARGET_NSAMPS;
 
     // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
+    // TODO: see if this is made redundant by the need to be a multiple of the tick and sample rate
     const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
 
+    // Packets much be a multiple of this to ensure timestamps are correct
+    size_t _packet_nsamps_multiple = 1;
+
     const double _TICK_RATE;
-    // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
+    // Number of samples cached between sends to account for _packet_nsamps_multiple restriction
     size_t nsamps_in_cache = 0;
     // Number of cached_samples dropped during the last EOB, resets after printing warning to user
     size_t dropped_nsamps_in_cache = 0;
@@ -339,7 +343,7 @@ private:
     /**
      * Converts a duration in samples to a duration in ticks.
      * This avoid floating point rounding error.
-     * Required assumption: _DEVICE_PACKET_NSAMP_MULTIPLE * _sample_rate / _TICK_RATE is an integer
+     * Required assumption: _packet_nsamps_multiple * _sample_rate / _TICK_RATE is an integer
      *
      * @param s The duration in samples
      *

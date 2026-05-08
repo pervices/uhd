@@ -14,6 +14,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <numeric>
 
 // Smart pointers
 #include <memory>
@@ -50,8 +51,11 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _clock_sync_info_owner = (std::shared_ptr<uhd::usrp::clock_sync_shared_info>*) aligned_alloc(CACHE_LINE_SIZE, clock_sync_shared_info_size);
     new (_clock_sync_info_owner) std::shared_ptr<uhd::usrp::clock_sync_shared_info>(clock_sync_info_owner);
 
+    // Temporarily set the combined _packet_nsamps_multiple to just the value required by the device
+    // Ensure that anything depending on it is updated when it changes
+    _packet_nsamps_multiple = _DEVICE_PACKET_NSAMP_MULTIPLE;
 
-    ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
+    ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_packet_nsamps_multiple - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
 
     // Creates and binds to sockets
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -129,7 +133,20 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
 
 void send_packet_handler_mmsg::set_samp_rate(const double rate) {
     _sample_rate = rate;
+
+    // Intermediate step calculating how many samples can be in a packet
+    // TODO: handle non integer sample rates and a handle more general cases for _TICK_RATE being a non integer, currently it just handles Crimson's .5
+    size_t packet_nsamps_multiple = std::lcm((size_t) std::round(2*_TICK_RATE), (size_t) (2 * _sample_rate)) / 2;
+
+    _packet_nsamps_multiple = std::lcm(packet_nsamps_multiple, _DEVICE_PACKET_NSAMP_MULTIPLE);
+
+    UHD_LOG_ERROR("TMP", "The packet size multiple is: " + std::to_string(_packet_nsamps_multiple));
+
+
     for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+
+        ch_send_buffer_info_i.sample_cache.resize(_bytes_per_sample * (_packet_nsamps_multiple - 1), 0);;
+
         ch_send_buffer_info_i.buffer_level_manager.set_sample_rate(rate);
     }
 }
