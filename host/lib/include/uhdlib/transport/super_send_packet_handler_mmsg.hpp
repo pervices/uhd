@@ -341,8 +341,17 @@ private:
      * @return The duration in ticks
      */
     UHD_INLINE int64_t samples_to_ticks(int64_t s) {
-        // Use 128bit to avoid overflows durin the s * _TICK_RATE stage
-        return s * (__int128) _TICK_RATE / (__int128) _sample_rate;
+
+        // Effective formula = s * _TICK_RATE / _sample_rate
+
+        // factor is multiplied by _DEVICE_PACKET_NSAMP_MULTIPLE since we know _DEVICE_PACKET_NSAMP_MULTIPLE * _TICK_RATE / _sample_rate is always an integer, but _TICK_RATE / _sample_rate alone isn't guaranteed
+
+        // _DEVICE_PACKET_NSAMP_MULTIPLE laundering is done to avoid overflows during the s * _TICK_RATE phase of the calculations
+
+        int64_t num_packet_nsamp_multiples = s / _DEVICE_PACKET_NSAMP_MULTIPLE;
+        int64_t factor = (_DEVICE_PACKET_NSAMP_MULTIPLE * _TICK_RATE / _sample_rate);
+
+        return num_packet_nsamp_multiples * factor;
     }
 
 
