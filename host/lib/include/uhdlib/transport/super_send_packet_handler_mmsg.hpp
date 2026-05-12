@@ -342,6 +342,7 @@ private:
      */
     UHD_INLINE int64_t samples_to_ticks(int64_t s) {
         // Use 128bit to avoid overflows durin the s * _TICK_RATE stage
+        // TODO: switch to a 64 bit way that avoids overflows
         return s * (__int128) _TICK_RATE / (__int128) _sample_rate;
     }
 
