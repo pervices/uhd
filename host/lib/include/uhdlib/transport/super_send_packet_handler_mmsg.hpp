@@ -91,6 +91,21 @@ public:
         size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
         size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
+        uhd::tx_metadata_t modified_metadata = metadata;
+
+        if(modified_metadata.has_time_spec) {
+            // TODO: make this more robust against overflows
+            // Convert the time stamp into samples (ignore the phrase "to_ticks" that is just the _sample_rate
+            int64_t time_samples = modified_metadata.time_spec.to_ticks(_sample_rate);
+
+
+            // samples_to_ticks will convert and rount
+            // TODO: make this more robust instead of relying on a side effect of samples_to_ticks
+            int64_t time_ticks = samples_to_ticks(_DEVICE_PACKET_NSAMP_MULTIPLE * time_samples) / _DEVICE_PACKET_NSAMP_MULTIPLE;
+
+            modified_metadata.time_spec = uhd::time_spec_t::from_ticks(time_ticks, _TICK_RATE);
+        }
+
         if(actual_nsamps_to_send == 0) {
             // If a start of burst command has no packets, cache timestamp and keep until next call
             if(metadata.start_of_burst) {
@@ -111,7 +126,6 @@ public:
             dropped_nsamps_in_cache = 0;
         }
 
-        uhd::tx_metadata_t modified_metadata = metadata;
         if(cached_sob) {
             cached_sob = false;
             modified_metadata.start_of_burst = true;
