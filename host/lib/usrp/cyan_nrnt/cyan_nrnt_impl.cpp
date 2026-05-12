@@ -1972,7 +1972,7 @@ uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
     const uhd::tune_request_t &tune_request, size_t chan
 ) {
 
-    if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
+    if (tune_request.rf_ch_freq != 0) {
         UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
             "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
             "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");
@@ -2002,7 +2002,7 @@ uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
     const uhd::tune_request_t &tune_request, size_t chan
 ) {
 
-    if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
+    if (tune_request.rf_ch_freq != 0) {
         UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
             "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
             "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");

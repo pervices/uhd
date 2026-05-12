@@ -23,7 +23,7 @@ tune_request_t::tune_request_t(double target_freq):
     rf_freq_policy(POLICY_AUTO),
     rf_freq(0.0),
     rf_ch_freq(0.0),
-    rf_dp_freq(0.0),
+    // rf_dp_freq(0.0),
     lo_freq(0.0),
     dsp_freq_policy(POLICY_AUTO),
     dsp_freq(0.0)
@@ -36,7 +36,7 @@ tune_request_t::tune_request_t(double target_freq, double lo_off):
     rf_freq_policy(POLICY_MANUAL),
     rf_freq(target_freq + lo_off),
     rf_ch_freq(0.0),
-    rf_dp_freq(0.0),
+    // rf_dp_freq(0.0),
     lo_freq(target_freq + lo_off),
     dsp_freq_policy(POLICY_AUTO),
     dsp_freq(0.0)
@@ -50,7 +50,7 @@ tune_request_t::tune_request_t(double dsp_freq, double lo_freq, int dummy):
     rf_freq_policy(POLICY_MANUAL),
     rf_freq(lo_freq),
     rf_ch_freq(0.0),
-    rf_dp_freq(0.0),
+    // rf_dp_freq(0.0),
     lo_freq(lo_freq),
     dsp_freq_policy(POLICY_MANUAL),
     dsp_freq(dsp_freq)
@@ -68,7 +68,7 @@ tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf
     rf_freq_policy(POLICY_MANUAL),
     rf_freq(target_freq + lo_off),
     rf_ch_freq(rf_ch_freq),
-    rf_dp_freq(rf_dp_freq),
+    // rf_dp_freq(rf_dp_freq),
     lo_freq(target_freq + lo_off),
     dsp_freq_policy(POLICY_MANUAL),
     dsp_freq(dsp_freq)

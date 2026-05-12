@@ -107,7 +107,7 @@ struct UHD_API tune_request_t
      * NOTE: This is no longer used in frequency tuning and is only here for compatibility.
      *    Only the rf_freq variable is used to set the LO frequency.
      */
-    double rf_dp_freq;
+    // double rf_dp_freq;
 
     /*!
      * The External LO frequency in Hz.
