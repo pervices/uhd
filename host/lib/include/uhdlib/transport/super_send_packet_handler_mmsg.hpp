@@ -91,7 +91,7 @@ public:
 
         // FPGAs can sometimes only receive multiples of a set number of samples
         size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
-        size_t desired_nsamps_to_cache = 0;//nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
+        size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
         uhd::tx_metadata_t modified_metadata = metadata;
 
