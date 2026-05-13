@@ -96,7 +96,7 @@ public:
         uhd::tx_metadata_t modified_metadata = metadata;
 
         if(modified_metadata.has_time_spec) {
-            fprintf(stderr, "has_time_spec\n");
+            fprintf(stderr, "has_time_spec: %lli\n", modified_metadata.time_spec.to_ticks(_TICK_RATE));
 
             // TODO: make this more robust against overflows
             // Convert the time stamp into samples (ignore the phrase "to_ticks" that is just the _sample_rate
