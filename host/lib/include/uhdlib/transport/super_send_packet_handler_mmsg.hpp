@@ -96,6 +96,8 @@ public:
         uhd::tx_metadata_t modified_metadata = metadata;
 
         if(modified_metadata.has_time_spec) {
+            UHD_LOG_ERROR("TMP", "has time spec");
+
             // TODO: make this more robust against overflows
             // Convert the time stamp into samples (ignore the phrase "to_ticks" that is just the _sample_rate
             int64_t time_samples = modified_metadata.time_spec.to_ticks(_sample_rate);
