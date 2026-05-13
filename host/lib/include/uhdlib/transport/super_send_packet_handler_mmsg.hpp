@@ -82,7 +82,7 @@ public:
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ) {
-        const size_t nsamps_to_send = std::min(nsamps_to_send_, (size_t) _max_samples_per_packet);
+        const size_t nsamps_to_send = std::min((size_t) 2220, nsamps_to_send_);
 
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
@@ -96,7 +96,7 @@ public:
         uhd::tx_metadata_t modified_metadata = metadata;
 
         if(modified_metadata.has_time_spec) {
-            UHD_LOG_ERROR("TMP", "has time spec");
+            fprintf(stderr, "has_time_spec\n");
 
             // TODO: make this more robust against overflows
             // Convert the time stamp into samples (ignore the phrase "to_ticks" that is just the _sample_rate
