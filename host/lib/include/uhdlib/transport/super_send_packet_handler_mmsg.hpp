@@ -368,6 +368,14 @@ private:
         return s * (__int128) _TICK_RATE / (__int128) _sample_rate;
     }
 
+    // TODO comment
+    UHD_INLINE int64_t ticks_to_samples(int64_t s) {
+        // Use 128bit to avoid overflows durin the s * _TICK_RATE stage
+        // TODO: switch to a 64 bit way that avoids overflows
+        return s * (__int128) _sample_rate / (__int128) _TICK_RATE;
+    }
+
+    int64_t initial_tsf = -1;
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -407,19 +415,14 @@ private:
                 // Sets the timestamp based on what's specified by the user
                 packet_header_infos[n].tsf = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(n * _max_samples_per_packet - nsamps_in_cache);
 
-                // TMP DEBUG check
-                if(packet_header_infos[n].tsf % 12 != 0) {
-                    fprintf(stderr, "metadata_.has_time_spec: %hhu\n", metadata_.has_time_spec);
-                    fprintf(stderr, "n: %i\n", n);
-                    fprintf(stderr, "packet_header_infos[n].tsf: %li\n", packet_header_infos[n].tsf);
-                    throw uhd::runtime_error( "A error in timestamp calculation");
-                }
+                initial_tsf = packet_header_infos[n].tsf;
+
             } else {
                 // Sets the timestamp to follow from the previous send
                 packet_header_infos[n].tsf = next_send_time + samples_to_ticks(n * _max_samples_per_packet - nsamps_in_cache);
 
                 // TMP DEBUG check
-                if(packet_header_infos[n].tsf % 12 != 0) {
+                if(ticks_to_samples(packet_header_infos[n].tsf - initial_tsf) % 12 != 0) {
                     fprintf(stderr, "metadata_.has_time_spec: %hhu\n", metadata_.has_time_spec);
                     fprintf(stderr, "n: %i\n", n);
                     fprintf(stderr, "packet_header_infos[n].tsf: %li\n", packet_header_infos[n].tsf);
