@@ -422,22 +422,7 @@ private:
                 // Sets the timestamp to follow from the previous send
                 packet_header_infos[n].tsf = next_send_time + samples_to_ticks(n * _max_samples_per_packet);
 
-                // TMP DEBUG check
-                if(ticks_to_samples(packet_header_infos[n].tsf - initial_tsf) % 12 != 0) {
-                    fprintf(stderr, "metadata_.has_time_spec: %hhu\n", metadata_.has_time_spec);
-                    fprintf(stderr, "n: %i\n", n);
-                    fprintf(stderr, "next_sequence_number: %lu\n", next_sequence_number);
-                    fprintf(stderr, "packet_header_infos[n].tsf: %li\n", packet_header_infos[n].tsf);
-                    fprintf(stderr, "next_send_time: %li\n", next_send_time);
-                    fprintf(stderr, "nsamps_in_cache: %li\n", nsamps_in_cache);
-                    throw uhd::runtime_error( "B error in timestamp calculation");
-                }
-
-
             }
-
-
-
 
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
