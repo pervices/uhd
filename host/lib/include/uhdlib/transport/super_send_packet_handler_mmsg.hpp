@@ -110,7 +110,8 @@ public:
             // TODO: make this more robust instead of relying on a side effect of samples_to_ticks
             int64_t time_ticks = samples_to_ticks(_DEVICE_PACKET_NSAMP_MULTIPLE * time_samples) / _DEVICE_PACKET_NSAMP_MULTIPLE;
 
-            modified_metadata.time_spec = uhd::time_spec_t::from_ticks(time_ticks, _TICK_RATE);
+
+            modified_metadata.time_spec = uhd::time_spec_t::from_ticks(time_ticks, _TICK_RATE) - /* Forced to rely on non anti rounding error math due to samples and ticks not neccessarily lining up TODO: harden this*/ uhd::time_spec_t::from_ticks(nsamps_in_cache, _sample_rate);
         }
 
         if(actual_nsamps_to_send == 0) {
@@ -413,13 +414,13 @@ private:
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
-                packet_header_infos[n].tsf = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(n * _max_samples_per_packet - nsamps_in_cache);
+                packet_header_infos[n].tsf = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(n * _max_samples_per_packet);
 
                 initial_tsf = packet_header_infos[n].tsf;
 
             } else {
                 // Sets the timestamp to follow from the previous send
-                packet_header_infos[n].tsf = next_send_time + samples_to_ticks(n * _max_samples_per_packet - nsamps_in_cache);
+                packet_header_infos[n].tsf = next_send_time + samples_to_ticks(n * _max_samples_per_packet);
 
                 // TMP DEBUG check
                 if(ticks_to_samples(packet_header_infos[n].tsf - initial_tsf) % 12 != 0) {
