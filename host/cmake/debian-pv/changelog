@@ -1,3 +1,12 @@
+uhdpv (4.8.0.33-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Fixed recovering when using io_uring for recv
+  * Fixed sending different amounts of samples for each channel when send times out
+  * Fixed send packet sequence numbers
+  * Fixed Crimson packet sizes. This may have been causing instability when sending an odd number of samples
+
+ -- Per Vices <packages@pervices.com>  Tue, 14 May 2026 8:57:48 -0400
+
 uhdpv (4.8.0.32-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixing a divergence between Per Vices and Ettus UHDs in tune requests. tune_request_t::tune_request_t(double target_freq, double lo_off) will not correctly set the lo to target_freq + lo_off instead of lo_off
