@@ -142,6 +142,7 @@ public:
         // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
         bool eob_requested = false;
         if(modified_metadata.end_of_burst) {
+            fprintf(stderr, "EOB requested at the same time as %lu samples\n", nsamps_to_send);
             modified_metadata.end_of_burst = false;
             eob_requested = true;
         }
