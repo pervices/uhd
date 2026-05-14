@@ -425,6 +425,7 @@ private:
                 if(ticks_to_samples(packet_header_infos[n].tsf - initial_tsf) % 12 != 0) {
                     fprintf(stderr, "metadata_.has_time_spec: %hhu\n", metadata_.has_time_spec);
                     fprintf(stderr, "n: %i\n", n);
+                    fprintf(stderr, "next_sequence_number: %lu\n", next_sequence_number);
                     fprintf(stderr, "packet_header_infos[n].tsf: %li\n", packet_header_infos[n].tsf);
                     fprintf(stderr, "next_send_time: %li\n", next_send_time);
                     fprintf(stderr, "nsamps_in_cache: %li\n", nsamps_in_cache);
