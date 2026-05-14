@@ -97,7 +97,7 @@ public:
 
         // DEBUG: ignore timestamps after the SOB
         if(!modified_metadata.start_of_burst) {
-            modified_metadata.has_time_spec == false;
+            modified_metadata.has_time_spec = false;
         }
 
         if(modified_metadata.has_time_spec) {
