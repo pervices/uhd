@@ -376,6 +376,8 @@ private:
         return s * (__int128) _sample_rate / (__int128) _TICK_RATE;
     }
 
+    bool catchup_message_printed = false;
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -593,6 +595,10 @@ private:
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
             // TODO: find a better way that avoid confusion from silently dropping packets
             } else {
+                if(!catchup_message_printed) {
+                    fprintf(stderr, "UHD behind, dropping packets to catch up\n");
+                    catchup_message_printed = true;
+                }
                 // If packets and in the past, pretend the first packet of the set was sent
                 packets_sent_now = 1;
             }
