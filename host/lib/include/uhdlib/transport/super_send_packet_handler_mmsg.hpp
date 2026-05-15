@@ -102,14 +102,6 @@ public:
             modified_metadata.has_time_spec = false;
         }
 
-        if(actual_nsamps_to_send != 2208) {
-            fprintf(stderr, "\nmodified_metadata.start_of_burst: %hhu\n", modified_metadata.start_of_burst);
-            fprintf(stderr, "modified_metadata.end_of_burst: %hhu\n", modified_metadata.end_of_burst);
-            fprintf(stderr, "nsamps_to_send_: %lu\n", nsamps_to_send_);
-            fprintf(stderr, "nsamps_to_send: %lu\n", nsamps_to_send);
-            fprintf(stderr, "actual_nsamps_to_send: %lu\n", actual_nsamps_to_send);
-        }
-
         if(modified_metadata.has_time_spec) {
             // TODO: make this more robust against overflows
             // Convert the time stamp into samples (ignore the phrase "to_ticks" that is just the _sample_rate
@@ -128,6 +120,7 @@ public:
         if(actual_nsamps_to_send == 0 && metadata.start_of_burst) {
             cached_sob = true;
             sob_time_cache = metadata.time_spec;
+            // TODO: handle the case where actual_nsamps_to_send == 0 and desired_nsamps_to_cache > 0. Currently we assume desired_nsamps_to_cache == 0 if sob and actual_nsamps_to_send == 0
             return 0;
         }
 
@@ -220,6 +213,7 @@ public:
 
         // Drop samples in the cache if an EOB was sent
         if(eob_requested) {
+            dropped_nsamps_in_cache = nsamps_in_cache;
             nsamps_in_cache = 0;
         }
 
