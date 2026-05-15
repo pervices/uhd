@@ -376,8 +376,6 @@ private:
         return s * (__int128) _sample_rate / (__int128) _TICK_RATE;
     }
 
-    int64_t initial_tsf = -1;
-
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -415,8 +413,6 @@ private:
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
                 packet_header_infos[n].tsf = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(n * _max_samples_per_packet);
-
-                initial_tsf = packet_header_infos[n].tsf;
 
             } else {
                 // Sets the timestamp to follow from the previous send
