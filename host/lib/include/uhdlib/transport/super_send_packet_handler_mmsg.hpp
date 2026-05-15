@@ -398,6 +398,10 @@ private:
         const bool is_eob_send = false
     ) {
 
+        if(nsamps_to_send == 0) {
+            fprintf(stderr, "send_multiple_packets called with 0 samples\n", nsamps_to_send);
+        }
+
         // Number of packets to send
         int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
 
