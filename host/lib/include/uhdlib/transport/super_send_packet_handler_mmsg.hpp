@@ -103,6 +103,10 @@ public:
         }
 
         if(actual_nsamps_to_send != 2208) {
+            fprintf(stderr, "\nmodified_metadata.start_of_burst: %hhu\n", modified_metadata.start_of_burst);
+            fprintf(stderr, "modified_metadata.end_of_burst: %hhu\n", modified_metadata.end_of_burst);
+            fprintf(stderr, "nsamps_to_send_: %lu\n", nsamps_to_send_);
+            fprintf(stderr, "nsamps_to_send: %lu\n", nsamps_to_send);
             fprintf(stderr, "actual_nsamps_to_send: %lu\n", actual_nsamps_to_send);
         }
 
