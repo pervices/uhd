@@ -124,18 +124,11 @@ public:
             modified_metadata.time_spec = uhd::time_spec_t::from_ticks(time_ticks, _TICK_RATE) - /* Forced to rely on non anti rounding error math due to samples and ticks not neccessarily lining up TODO: harden this*/ uhd::time_spec_t::from_ticks(nsamps_in_cache, _sample_rate);
         }
 
-        if(actual_nsamps_to_send == 0) {
-            // If a start of burst command has no packets, cache timestamp and keep until next call
-            if(metadata.start_of_burst) {
-                cached_sob = true;
-                sob_time_cache = metadata.time_spec;
-                return 0;
-            } else if(metadata.end_of_burst) {
-                send_eob_packet(metadata, timeout);
-                return 0;
-            } else {
-                return 0;
-            }
+        // If a start of burst command has no packets, cache timestamp and keep until next call
+        if(actual_nsamps_to_send == 0 && metadata.start_of_burst) {
+            cached_sob = true;
+            sob_time_cache = metadata.time_spec;
+            return 0;
         }
 
         // Lets the user know if the last burst dropped samples due to packet length multiple requirements
@@ -158,8 +151,12 @@ public:
             eob_requested = true;
         }
 
-        // Create and sends packets
-        size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
+        size_t actual_samples_sent = 0;
+
+        // Create and send packets
+        if (actual_nsamps_to_send > 0) {
+            actual_samples_sent= send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
+        }
 
         // Sends the eob if requested
         if(eob_requested) {
@@ -220,6 +217,11 @@ public:
 
         // Update number of samples in cache count
         nsamps_in_cache = previous_nsamps_in_cache - cached_samples_sent + actual_nsamples_to_cache;
+
+        // Drop samples in the cache if an EOB was sent
+        if(eob_requested) {
+            nsamps_in_cache = 0;
+        }
 
         // Return number of samples actually sent
         return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
@@ -397,11 +399,6 @@ private:
         // Call this function for sending eob packet (which only contains dummy samples)
         const bool is_eob_send = false
     ) {
-
-        if(nsamps_to_send == 0) {
-            fprintf(stderr, "send_multiple_packets called with 0 samples\n", nsamps_to_send);
-        }
-
         // Number of packets to send
         int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
 
