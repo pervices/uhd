@@ -82,7 +82,7 @@ public:
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ) {
-        const size_t nsamps_to_send = std::min((size_t) 2220, nsamps_to_send_);
+        const size_t nsamps_to_send = std::min((size_t) 2208, nsamps_to_send_);
 
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
@@ -93,13 +93,17 @@ public:
         size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
         // DEBUG: disable caching
         // NOTE: disabling caching will cause tx timeouts in the GNU Radio part at the end of streaming, you must use a test modified to work despite that
-        size_t desired_nsamps_to_cache = 0; //nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
+        size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
         uhd::tx_metadata_t modified_metadata = metadata;
 
         // DEBUG: ignore timestamps after the SOB
         if(!modified_metadata.start_of_burst) {
             modified_metadata.has_time_spec = false;
+        }
+
+        if(actual_nsamps_to_send != 2208) {
+            fprintf(stderr, "actual_nsamps_to_send: %lu\n", actual_nsamps_to_send);
         }
 
         if(modified_metadata.has_time_spec) {
