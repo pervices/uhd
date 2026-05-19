@@ -81,8 +81,7 @@
 #define CRIMSON_TNG_TRAILER_SIZE 4
 
 // Packaets send to the unit must have a multiple of this many samples
-// TODO: see if this can be reduced to 2
-#define CRIMSON_TNG_PACKET_NSAMP_MULTIPLE 12
+#define CRIMSON_TNG_PACKET_NSAMP_MULTIPLE 2
 
 // Crimson Flowcontrol Update Per Second
 #define CRIMSON_TNG_UPDATE_PER_SEC	100
