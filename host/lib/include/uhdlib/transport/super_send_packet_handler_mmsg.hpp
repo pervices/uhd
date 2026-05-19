@@ -110,6 +110,7 @@ public:
 
         // Lets the user know if the last burst dropped samples due to packet length multiple requirements
         if(dropped_nsamps_in_cache) {
+            // TODO: drop samples if there are any in the cache with an SOB
             UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << dropped_nsamps_in_cache << " samples to comply";
             dropped_nsamps_in_cache = 0;
         }
