@@ -97,11 +97,6 @@ public:
 
         uhd::tx_metadata_t modified_metadata = metadata;
 
-        // DEBUG: ignore timestamps after the SOB
-        if(!modified_metadata.start_of_burst) {
-            modified_metadata.has_time_spec = false;
-        }
-
         // If a start of burst command has no packets, cache timestamp and keep until next call
         if(actual_nsamps_to_send == 0 && metadata.start_of_burst) {
             cached_sob = true;
