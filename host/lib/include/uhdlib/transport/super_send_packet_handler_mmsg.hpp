@@ -106,8 +106,6 @@ public:
         if(actual_nsamps_to_send == 0 && metadata.start_of_burst) {
             cached_sob = true;
             sob_time_cache = metadata.time_spec;
-            // TODO: handle the case where actual_nsamps_to_send == 0 and desired_nsamps_to_cache > 0. Currently we assume desired_nsamps_to_cache == 0 if sob and actual_nsamps_to_send == 0
-            return 0;
         }
 
         // Lets the user know if the last burst dropped samples due to packet length multiple requirements
@@ -116,12 +114,14 @@ public:
             dropped_nsamps_in_cache = 0;
         }
 
-        if(cached_sob) {
+        // Apply a cached start of burst if we are actually sending samples
+        if(cached_sob && actual_nsamps_to_send > 0) {
             cached_sob = false;
             modified_metadata.start_of_burst = true;
             modified_metadata.has_time_spec = true;
             modified_metadata.time_spec = sob_time_cache;
         }
+
         // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
         bool eob_requested = false;
         if(modified_metadata.end_of_burst) {
