@@ -90,8 +90,9 @@ public:
 
         // FPGAs can sometimes only receive multiples of a set number of samples
         size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
-        // DEBUG: disable caching
-        // NOTE: disabling caching will cause tx timeouts in the GNU Radio part at the end of streaming, you must use a test modified to work despite that
+
+        // You can disable caching by setting desired_nsamps_to_cache to always be 0
+        // However our internal tests using GRC will fail since they try to send an exact number of samples and will keep trying until they time out
         size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
         uhd::tx_metadata_t modified_metadata = metadata;
