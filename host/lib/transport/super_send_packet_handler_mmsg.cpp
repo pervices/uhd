@@ -123,7 +123,9 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
         char nsec_s[42];
         snprintf(nsec_s, sizeof(nsec_s), "%ld.%.9ld", sendmmsg_failure_time.tv_sec, sendmmsg_failure_time.tv_nsec);
 
-        UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::string(nsec_s));
+        std::string m = "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::string(nsec_s);
+        UHD_LOG_ERROR("SEND_PACKET_HANDLER", m);
+        fprintf(stderr, "Exit error message: %s\n", m.c_str());
     }
 }
 

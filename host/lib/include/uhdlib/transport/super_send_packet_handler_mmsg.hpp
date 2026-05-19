@@ -78,10 +78,12 @@ private:
 public:
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &sample_buffs,
-        const size_t nsamps_to_send,
+        const size_t nsamps_to_send_,
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ) {
+        const size_t nsamps_to_send = std::min((size_t) 2208, nsamps_to_send_);
+
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
 
@@ -89,20 +91,37 @@ public:
 
         // FPGAs can sometimes only receive multiples of a set number of samples
         size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
+        // DEBUG: disable caching
+        // NOTE: disabling caching will cause tx timeouts in the GNU Radio part at the end of streaming, you must use a test modified to work despite that
         size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
-        if(actual_nsamps_to_send == 0) {
-            // If a start of burst command has no packets, cache timestamp and keep until next call
-            if(metadata.start_of_burst) {
-                cached_sob = true;
-                sob_time_cache = metadata.time_spec;
-                return 0;
-            } else if(metadata.end_of_burst) {
-                send_eob_packet(metadata, timeout);
-                return 0;
-            } else {
-                return 0;
-            }
+        uhd::tx_metadata_t modified_metadata = metadata;
+
+        // DEBUG: ignore timestamps after the SOB
+        if(!modified_metadata.start_of_burst) {
+            modified_metadata.has_time_spec = false;
+        }
+
+        if(modified_metadata.has_time_spec) {
+            // TODO: make this more robust against overflows
+            // Convert the time stamp into samples (ignore the phrase "to_ticks" that is just the _sample_rate
+            int64_t time_samples = modified_metadata.time_spec.to_ticks(_sample_rate);
+
+
+            // samples_to_ticks will convert and rount
+            // TODO: make this more robust instead of relying on a side effect of samples_to_ticks
+            int64_t time_ticks = samples_to_ticks(_DEVICE_PACKET_NSAMP_MULTIPLE * time_samples) / _DEVICE_PACKET_NSAMP_MULTIPLE;
+
+
+            modified_metadata.time_spec = uhd::time_spec_t::from_ticks(time_ticks, _TICK_RATE) - /* Forced to rely on non anti rounding error math due to samples and ticks not neccessarily lining up TODO: harden this*/ uhd::time_spec_t::from_ticks(nsamps_in_cache, _sample_rate);
+        }
+
+        // If a start of burst command has no packets, cache timestamp and keep until next call
+        if(actual_nsamps_to_send == 0 && metadata.start_of_burst) {
+            cached_sob = true;
+            sob_time_cache = metadata.time_spec;
+            // TODO: handle the case where actual_nsamps_to_send == 0 and desired_nsamps_to_cache > 0. Currently we assume desired_nsamps_to_cache == 0 if sob and actual_nsamps_to_send == 0
+            return 0;
         }
 
         // Lets the user know if the last burst dropped samples due to packet length multiple requirements
@@ -111,7 +130,6 @@ public:
             dropped_nsamps_in_cache = 0;
         }
 
-        uhd::tx_metadata_t modified_metadata = metadata;
         if(cached_sob) {
             cached_sob = false;
             modified_metadata.start_of_burst = true;
@@ -125,8 +143,12 @@ public:
             eob_requested = true;
         }
 
-        // Create and sends packets
-        size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
+        size_t actual_samples_sent = 0;
+
+        // Create and send packets
+        if (actual_nsamps_to_send > 0) {
+            actual_samples_sent= send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
+        }
 
         // Sends the eob if requested
         if(eob_requested) {
@@ -187,6 +209,12 @@ public:
 
         // Update number of samples in cache count
         nsamps_in_cache = previous_nsamps_in_cache - cached_samples_sent + actual_nsamples_to_cache;
+
+        // Drop samples in the cache if an EOB was sent
+        if(eob_requested) {
+            dropped_nsamps_in_cache = nsamps_in_cache;
+            nsamps_in_cache = 0;
+        }
 
         // Return number of samples actually sent
         return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
@@ -260,7 +288,7 @@ private:
 
     // The start time of the next batch of samples in ticks
     // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
-    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+    int64_t next_send_time = 0;
 
     //TODO move all the vectors with channel specific info here
     // Stores information about packets to send for each channel
@@ -331,6 +359,29 @@ private:
     int sendmmsg_errno = 0;
     struct timespec sendmmsg_failure_time;
 
+    /**
+     * Converts a duration in samples to a duration in ticks.
+     * This avoid floating point rounding error.
+     * Required assumption: _DEVICE_PACKET_NSAMP_MULTIPLE * _sample_rate / _TICK_RATE is an integer
+     *
+     * @param s The duration in samples
+     *
+     * @return The duration in ticks
+     */
+    UHD_INLINE int64_t samples_to_ticks(int64_t s) {
+        // Use 128bit to avoid overflows durin the s * _TICK_RATE stage
+        // TODO: switch to a 64 bit way that avoids overflows
+        return s * (__int128) _TICK_RATE / (__int128) _sample_rate;
+    }
+
+    // TODO comment
+    UHD_INLINE int64_t ticks_to_samples(int64_t s) {
+        // Use 128bit to avoid overflows durin the s * _TICK_RATE stage
+        // TODO: switch to a 64 bit way that avoids overflows
+        return s * (__int128) _sample_rate / (__int128) _TICK_RATE;
+    }
+
+    bool catchup_message_printed = false;
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -341,7 +392,6 @@ private:
         // Call this function for sending eob packet (which only contains dummy samples)
         const bool is_eob_send = false
     ) {
-
         // Number of packets to send
         int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
 
@@ -368,11 +418,14 @@ private:
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
-                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
+                packet_header_infos[n].tsf = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(n * _max_samples_per_packet);
+
             } else {
                 // Sets the timestamp to follow from the previous send
-                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
+                packet_header_infos[n].tsf = next_send_time + samples_to_ticks(n * _max_samples_per_packet);
+
             }
+
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
@@ -546,6 +599,10 @@ private:
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
             // TODO: find a better way that avoid confusion from silently dropping packets
             } else {
+                if(!catchup_message_printed) {
+                    fprintf(stderr, "UHD behind, dropping packets to catch up\n");
+                    catchup_message_printed = true;
+                }
                 // If packets and in the past, pretend the first packet of the set was sent
                 packets_sent_now = 1;
             }
@@ -590,9 +647,9 @@ private:
 
         // Updates the next timestamp to follow from the end of this send
         if(metadata_.has_time_spec) {
-            next_send_time = metadata_.time_spec + time_spec_t::from_ticks(samples_sent, _sample_rate);
+            next_send_time = metadata_.time_spec.to_ticks(_TICK_RATE) + samples_to_ticks(samples_sent);
         } else {
-            next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
+            next_send_time = next_send_time + samples_to_ticks(samples_sent);
         }
 
         // Increment the sequence number counter by the number of packets actually sent
