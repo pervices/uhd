@@ -556,13 +556,13 @@ private:
             // Always send start of burst or end of packets because they are needed for control
             // Send packets without tsf since they don't have a set time
             // Also ignore send time in blocking fc mode since it doesn't apply
-            if(
-                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) ||
-                /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
-                /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
-                /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
-                /* Blocking flow control is in use */ use_blocking_fc
-            ) {
+            // if(
+            //     /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) ||
+            //     /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
+            //     /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
+            //     /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
+            //     /* Blocking flow control is in use */ use_blocking_fc
+            // ) {
                 packets_sent_now = 0;
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
@@ -580,14 +580,14 @@ private:
 
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
             // TODO: find a better way that avoid confusion from silently dropping packets
-            } else {
-                if(!catchup_message_printed) {
-                    fprintf(stderr, "UHD behind, dropping packets to catch up\n");
-                    catchup_message_printed = true;
-                }
-                // If packets and in the past, pretend the first packet of the set was sent
-                packets_sent_now = 1;
-            }
+            // } else {
+            //     if(!catchup_message_printed) {
+            //         fprintf(stderr, "UHD behind, dropping packets to catch up\n");
+            //         catchup_message_printed = true;
+            //     }
+            //     // If packets and in the past, pretend the first packet of the set was sent
+            //     packets_sent_now = 1;
+            // }
 
             // Replace the -1 returned by sendmmsg on failure with the number of packets sent (0)
             if(packets_sent < 0) [[unlikely]] {
