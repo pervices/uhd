@@ -709,7 +709,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
         }
 
         time_diff = dev->_time_diff_pidc->get_control_variable();
-        dev->_sfp_control_mutex[0]->lock();
+        // dev->_sfp_control_mutex[0]->lock();
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
@@ -720,7 +720,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
 
         // Unlock sfp control mutex here
         // It is no longer needed, and having it will deadlock if time_diff_process triggers a reset
-        dev->_sfp_control_mutex[0]->unlock();
+        // dev->_sfp_control_mutex[0]->unlock();
         if (reply_good) {
             dev->time_diff_process( tdr, now );
         } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
