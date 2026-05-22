@@ -529,6 +529,9 @@ private:
             // The number of packets to send in the next sendmmsg commmand on all channels
             int packets_to_send_now = num_packets - packets_sent;
 
+            // Fence to ensure time diff value is recent
+            _mm_lfence();
+
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packet_to_send_ch_i = check_fc_npackets(ch_i);
                 if(packets_to_send_now > packet_to_send_ch_i) {
