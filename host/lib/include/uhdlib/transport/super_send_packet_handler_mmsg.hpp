@@ -593,8 +593,8 @@ private:
             // }
 
             // Replace the -1 returned by sendmmsg on failure with the number of packets sent (0)
-            if(packets_sent < 0) [[unlikely]] {
-                packets_sent = 0;
+            if(packets_sent_now < 0) [[unlikely]] {
+                packets_sent_now = 0;
             }
 
             // Add the amount of packets sent for this set of sendmmsg to the count
