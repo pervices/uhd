@@ -332,8 +332,10 @@ private:
     // Pointer to a smart pointer with ownership to where the info required to calculate the device time is stored
     static constexpr size_t clock_sync_shared_info_size = (size_t) ceil(sizeof(std::shared_ptr<uhd::usrp::clock_sync_shared_info>) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     std::shared_ptr<uhd::usrp::clock_sync_shared_info>* _clock_sync_info_owner;
+protected:
     // Raw pointer to the above
     uhd::usrp::clock_sync_shared_info* _clock_sync_info;
+private:
 
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i);

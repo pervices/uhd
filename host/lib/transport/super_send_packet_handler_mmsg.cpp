@@ -165,9 +165,9 @@ void send_packet_handler_mmsg::lock_channel_streaming(size_t channel_num) {
 }
     
 uhd::time_spec_t send_packet_handler_mmsg::get_device_time() {
-    if(!_clock_sync_info->is_synced()) [[unlikely]] {
-        _clock_sync_info->wait_for_sync();
-    }
+    // if(!_clock_sync_info->is_synced()) [[unlikely]] {
+    //     _clock_sync_info->wait_for_sync();
+    // }
     return uhd::get_system_time() + _clock_sync_info->get_time_diff();
 }
 

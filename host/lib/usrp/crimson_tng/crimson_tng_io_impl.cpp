@@ -288,6 +288,8 @@ size_t crimson_tng_send_packet_streamer::send(
     if ( _first_call_to_send || metadata.start_of_burst ) {
         metadata.start_of_burst = true;
 
+        _clock_sync_info->wait_for_sync();
+
         // Make sure all channel sample rates match for this streamer. No need if there is only one channel.
         if (_eprops.size() > 1) {
             check_matching_rates();
