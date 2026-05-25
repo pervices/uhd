@@ -70,6 +70,14 @@ struct time_diff_req {
 struct time_diff_resp {
     int64_t tv_sec;
     int64_t tv_tick;
+
+    bool operator<(const time_diff_resp& other) const {
+        if(tv_sec == other.tv_sec) {
+            return tv_tick > other.tv_tick;
+        } else {
+            return tv_sec > other.tv_sec;
+        }
+    }
 };
 #pragma pack(pop)
 

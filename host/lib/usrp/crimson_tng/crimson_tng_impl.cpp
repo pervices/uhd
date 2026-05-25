@@ -668,8 +668,6 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
     uhd::time_spec_t crimson_now;
     struct timespec req, rem;
 
-    double time_diff;
-
     struct time_diff_resp tdr;
 
     //Gett offset
@@ -708,25 +706,45 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
             continue;
         }
 
-        time_diff = dev->_time_diff_pidc->get_control_variable();
-        // dev->_sfp_control_mutex[0]->lock();
-        now = uhd::get_system_time();
-        crimson_now = now + time_diff;
+        static constexpr size_t NUM_TIME_DIFFS = 3;
 
-        // Send the predicted time
-        dev->time_diff_send( crimson_now );
-        // Get the difference between the predicted and real time
-        bool reply_good =  dev->time_diff_recv( tdr );
+        // Stores this batch of time diff replies
+        struct time_diff_resp time_diff_replies[NUM_TIME_DIFFS];
+        bool replies_good = true;
+
+        double time_diff = dev->_time_diff_pidc->get_control_variable();
+        // dev->_sfp_control_mutex[0]->lock();
+
+        // Get time diffs NUM_TIME_DIFFS times
+        for(size_t i = 0; i < NUM_TIME_DIFFS; i++) {
+            now = uhd::get_system_time();
+            crimson_now = now + time_diff;
+
+            // Send the predicted time
+            dev->time_diff_send( crimson_now );
+
+            // Get the difference between the predicted and real time and record if any replies are bad
+            replies_good = replies_good && dev->time_diff_recv( time_diff_replies[i] );
+        }
 
         // Unlock sfp control mutex here
         // It is no longer needed, and having it will deadlock if time_diff_process triggers a reset
         // dev->_sfp_control_mutex[0]->unlock();
-        if (reply_good) {
-            dev->time_diff_process( tdr, now );
-        } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
-            UHD_LOG_ERROR(dev->product_name_c, "Failed to receive packet used by clock synchronization");
-            dropped_recv_message_printed = true;
+
+        if (!replies_good) [[unlikely]] {
+            if (!dropped_recv_message_printed && dev->clock_sync_desired) {
+                UHD_LOG_ERROR(dev->product_name_c, "Failed to receive packet used by clock synchronization");
+                dropped_recv_message_printed = true;
+            }
+            // Skip the crest of clock sync if any of the replies were bad
+            continue;
         }
+
+        std::sort(std::begin(time_diff_replies), std::end(time_diff_replies));
+
+        // Update time diffs using the median
+        dev->time_diff_process( time_diff_replies[NUM_TIME_DIFFS / 2], now );
+
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
