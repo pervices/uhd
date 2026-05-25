@@ -71,7 +71,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
             if(errno == EADDRINUSE) {
                 fprintf(stderr, "Address already in use. This is usually caused by attempting to run multiple UHD programs at once\n");
             } else {
-                fprintf(stderr, "Connect failed with error: %s\n", strerror(errno));
+                fprintf(stderr, "Connect failed~ with error: %s\n", strerror(errno));
             }
         }
 
@@ -128,6 +128,8 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
 
         UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::string(nsec_s));
     }
+
+    fprintf(stderr, "largest_gap.get_real_secs(): %lf\n", largest_gap.get_real_secs());
 }
 
 void send_packet_handler_mmsg::set_samp_rate(const double rate) {

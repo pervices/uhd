@@ -75,6 +75,9 @@ private:
     bool cached_sob = false;
     uhd::time_spec_t sob_time_cache;
 
+    uhd::time_spec_t end_of_last_send = uhd::time_spec_t(0.0);
+    uhd::time_spec_t largest_gap = uhd::time_spec_t(0.0);
+
 public:
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -82,6 +85,12 @@ public:
         const uhd::tx_metadata_t &metadata,
         const double timeout
     ) {
+
+        uhd::time_spec_t start_of_send = uhd::get_system_time();
+        if(start_of_send - end_of_last_send > largest_gap && end_of_last_send.get_real_secs() != 0.0) {
+            largest_gap = start_of_send - end_of_last_send;
+        }
+
 
         // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
         const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
@@ -197,6 +206,8 @@ public:
             dropped_nsamps_in_cache = nsamps_in_cache;
             nsamps_in_cache = 0;
         }
+
+        end_of_last_send = uhd::get_system_time();
 
         // Return number of samples actually sent
         return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
