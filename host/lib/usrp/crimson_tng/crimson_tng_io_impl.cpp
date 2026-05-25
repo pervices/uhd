@@ -234,7 +234,7 @@ void crimson_tng_send_packet_streamer::teardown() {
 
         std::string oflow = _iface->get_string("tx/" + channel_name + "/qa/oflow");
         std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow");
-        std::cout << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
+        std::cerr << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
 
     // Check for SFP FIFO buffer overflows if tracking was enabled for this streamer
