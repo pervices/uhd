@@ -392,6 +392,8 @@ private:
 
     bool catchup_message_printed = false;
 
+    uhd::time_spec_t longest_quad_check = uhd::time_spec_t(0.0);
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -559,11 +561,19 @@ private:
             // Fence to ensure time diff value is recent
             _mm_lfence();
 
+            uhd::time_spec_t start_of_quad_check = uhd::get_system_time();
+
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 int packet_to_send_ch_i = check_fc_npackets(ch_i);
                 if(packets_to_send_now > packet_to_send_ch_i) {
                     packets_to_send_now = packet_to_send_ch_i;
                 }
+            }
+
+            uhd::time_spec_t quad_check_length = uhd::get_system_time() - start_of_quad_check;
+
+            if(quad_check_length > longest_quad_check) {
+                longest_quad_check = quad_check_length;
             }
 
             // If the packet to send is end of burst always send it regardless of the buffer level

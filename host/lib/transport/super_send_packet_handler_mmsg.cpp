@@ -132,6 +132,7 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
     fprintf(stderr, "largest_gap.get_real_secs(): %lf\n", largest_gap.get_real_secs());
     fprintf(stderr, "longest_sendmmsg.get_real_secs(): %lf\n", longest_sendmmsg.get_real_secs());
     fprintf(stderr, "peak_actual_nsamps_to_send: %lu\n", peak_actual_nsamps_to_send);
+    fprintf(stderr, "longest_quad_check.get_real_secs(): %lf\n", longest_quad_check.get_real_secs());
 }
 
 void send_packet_handler_mmsg::set_samp_rate(const double rate) {
