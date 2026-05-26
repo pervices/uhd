@@ -212,13 +212,13 @@ int send_packet_handler_mmsg::check_fc_npackets(const size_t ch_i) {
         uhd::time_spec_t device_time = get_device_time();
         int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
 
-        int num_packets_to_send = (int) std::ceil((_DEVICE_TARGET_NSAMPS - buffer_level) / ((double)_max_samples_per_packet));
+        int num_packets_to_send = (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / _max_samples_per_packet);
 
         return num_packets_to_send;
 
     } else {
         int64_t buffer_level = get_buffer_level_from_device(ch_i);
-        return (int) std::ceil((blocking_setpoint - buffer_level) / ((double)_max_samples_per_packet));
+        return (int) ((_DEVICE_TARGET_NSAMPS - buffer_level) / _max_samples_per_packet);
     }
 }
 
