@@ -80,6 +80,8 @@ private:
 
     uhd::time_spec_t longest_sendmmsg = uhd::time_spec_t(0.0);
 
+    size_t peak_actual_nsamps_to_send = 0;
+
 public:
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -101,6 +103,10 @@ public:
 
         // FPGAs can sometimes only receive multiples of a set number of samples
         size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
+
+        if(actual_nsamps_to_send > peak_actual_nsamps_to_send) {
+            peak_actual_nsamps_to_send = actual_nsamps_to_send;
+        }
 
         // You can disable caching by setting desired_nsamps_to_cache to always be 0
         // However our internal tests using GRC will fail since they try to send an exact number of samples and will keep trying until they time out
