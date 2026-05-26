@@ -78,6 +78,8 @@ private:
     uhd::time_spec_t end_of_last_send = uhd::time_spec_t(0.0);
     uhd::time_spec_t largest_gap = uhd::time_spec_t(0.0);
 
+    uhd::time_spec_t longest_sendmmsg = uhd::time_spec_t(0.0);
+
 public:
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -170,7 +172,13 @@ public:
 
             // If fewer samples were sent than were in the cache move the remaining samples to front of the cache
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                memmove(ch_send_buffer_info_group[ch_i].sample_cache.data(), ch_send_buffer_info_group[ch_i].sample_cache.data() + actual_samples_sent, cached_samples_to_retain * _bytes_per_sample);
+
+                // Shift remaining samples to the front
+                // memcpy is not guaranteed to work if dst overlaps with src
+                // memmove creates an intermediate buffer which might have causes stuttering
+                for(size_t b = 0; b < cached_samples_to_retain * _bytes_per_sample; b++) {
+                    ch_send_buffer_info_group[ch_i].sample_cache[b] = ch_send_buffer_info_group[ch_i].sample_cache[b + actual_samples_sent];
+                }
             }
         } else if(actual_samples_sent < actual_nsamps_to_send) {
             // If not the samples meant to actually be sent were sent, clear the cache and do not cache any samples
@@ -582,8 +590,17 @@ private:
                 packets_sent_now = 0;
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+
+                    uhd::time_spec_t sendmmsg_start = uhd::get_system_time();
+
                     // Send packets
                     packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
+
+                    uhd::time_spec_t sendmmsg_duration = uhd::get_system_time() -sendmmsg_start;
+
+                    if(sendmmsg_duration > longest_sendmmsg) {
+                        longest_sendmmsg = sendmmsg_duration;
+                    }
 
                     // Record if an error occured
                     // The performance impact of proper error handling is to large
