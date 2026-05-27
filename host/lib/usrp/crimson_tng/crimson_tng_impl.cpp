@@ -706,7 +706,7 @@ void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
             continue;
         }
 
-        static constexpr size_t NUM_TIME_DIFFS = 3;
+        static constexpr size_t NUM_TIME_DIFFS = 5;
 
         // Stores this batch of time diff replies
         struct time_diff_resp time_diff_replies[NUM_TIME_DIFFS];
