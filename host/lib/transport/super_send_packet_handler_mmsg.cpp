@@ -215,6 +215,9 @@ int send_packet_handler_mmsg::check_fc_npackets(const size_t ch_i) {
 
         int num_packets_to_send = (int) std::ceil((_DEVICE_TARGET_NSAMPS - buffer_level) / ((double)_max_samples_per_packet));
 
+        // DEBUG: only send 1 packet at a time
+        num_packets_to_send = std::min(num_packets_to_send, 1);
+
         return num_packets_to_send;
 
     } else {
