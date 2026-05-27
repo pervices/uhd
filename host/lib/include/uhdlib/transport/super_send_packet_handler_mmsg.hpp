@@ -261,7 +261,7 @@ private:
     const size_t _BYTES_PER_SAMPLE = 4;
     // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
     // Desired send buffer size
-    const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
+    const int _DEFAULT_SEND_BUFFER_SIZE = 65536/4;
     // Actual recv buffer size, not the Kernel will set the real size to be double the requested
     int _ACTUAL_SEND_BUFFER_SIZE;
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
