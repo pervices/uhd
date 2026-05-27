@@ -83,8 +83,10 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
         getsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_ACTUAL_SEND_BUFFER_SIZE, &opt_len);
 
         // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
-        if(_ACTUAL_SEND_BUFFER_SIZE < 2*_DEFAULT_SEND_BUFFER_SIZE) {
+        if(_ACTUAL_SEND_BUFFER_SIZE != 2*_DEFAULT_SEND_BUFFER_SIZE) {
             UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Unable to set send buffer size. Performance will be negatively affected.\n Target size: " + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\nActual size: " + std::to_string(_ACTUAL_SEND_BUFFER_SIZE/2) + "\nPlease run \"sudo sysctl -w net.core.wmem_max=" + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\"\n");
+
+            throw uhd::system_error("wmem size wrong");
         }
 
         int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
