@@ -138,8 +138,6 @@ public:
         // If data has been received, then we know routing is good
         if(data_received) {
             route_good = ~0;
-        } else {
-            route_good = 0;
         }
 
         return (size_t)data_received;
