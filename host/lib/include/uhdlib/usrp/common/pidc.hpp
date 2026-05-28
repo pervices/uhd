@@ -7,6 +7,8 @@
  #endif
 #endif
 
+#include <uhd/exception.hpp>
+
 #ifdef DEBUG_PIDC
 #include <iostream>
 #include <iomanip>

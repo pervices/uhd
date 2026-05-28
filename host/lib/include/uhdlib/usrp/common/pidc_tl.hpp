@@ -5,6 +5,8 @@
 
 namespace uhd {
 
+	// TODO: convert this to a header file for pidc.hpp, convert pidc.hpp to cpp and
+
 #define TL_TI( Ku, Pu ) ( 2.2 * Pu )
 #define TL_TD( Ku, Pu ) ( Pu / 6.3 )
 
