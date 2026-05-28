@@ -166,8 +166,6 @@ private:
     std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
 
     uhd::time_spec_t _streamer_start_time;
-    void time_diff_send( const uhd::time_spec_t & crimson_now );
-    bool time_diff_recv( time_diff_resp & tdr );
     // Resets the PID controller managing time diffs
     void reset_time_diff_pid();
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
@@ -304,7 +302,6 @@ private:
 
     int64_t ticks_to_nsecs( int64_t tv_tick );
     int64_t nsecs_to_ticks( int64_t tv_nsec );
-    void make_time_diff_packet( time_diff_req & pkt, time_spec_t ts );
 
     bool clock_sync_desired = false;
 

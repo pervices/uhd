@@ -15,6 +15,8 @@
 #include <memory>
 // Fences
 #include <immintrin.h>
+// Endian conversion
+#include <arpa/inet.h>
 
 #include <uhd/types/time_spec.hpp>
 
@@ -61,6 +63,11 @@ private:
     // TODO: ensure the following variables are aligned to avoid false sharing
     bool sync_thread_running = false;
     bool sync_thread_should_exit = false;
+    // TODO: create in constructor
+    uhd::transport::udp_simple::sptr sync_port;
+
+    // TODO: set this in the constructor
+    double tick_rate = 162.5e6;
 
     // Declare constructor as private to ensure this is only created through make
     clock_sync_shared_info() {
@@ -79,6 +86,34 @@ private:
             free(self);
         }
     };
+
+    /**
+     * Send a packet with the predicted time.
+     * Send is inline but not recv because send may be sent from a critical thread, recv is not time sensitive
+     * @param prediction The predicted time on the device
+     */
+    inline void time_diff_send( uhd::time_spec_t prediction ) {
+        time_diff_req request;
+
+        // Create request
+        request.header = (uint64_t)0x20002 << 16;
+        request.tv_sec = ts.get_full_secs();
+        request.tv_tick = (int64_t) ( ts.get_frac_secs() * 1e9 / tick_rate );
+
+        // Convert request from native to big endian
+        request.header = htonll(request.header);
+        request.tv_sec = htonll(request.tv_sec);
+        request.tv_tick = htonll(request.tv_tick);
+
+        sync_port->send(&request, sizeof(request));
+    }
+
+    /**
+     * Receives a packet a packet containing prediction - actual
+     * @param reply Where to store hte reply
+     * @return Returns true on success, false on failure
+     */
+    bool time_diff_recv(time_diff_resp & reply);
 
 public:
     /**

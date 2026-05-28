@@ -38,6 +38,25 @@ void clock_sync_shared_info::wait_for_sync() {
     }
 }
 
+clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
+
+    // Receive reply packet
+    size_t bytes_received = sync_port->recv( &reply, sizeof(reply));
+
+    if(bytes_received > 0) {
+
+        // Swap byte order from big to native
+        reply = ntohll(reply.tv_sec);
+        reply = ntohll(reply.tv_tick);
+
+        return true;
+
+    } else {
+        // Error, no packet received
+        return false;
+    }
+}
+
 std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make() {
     // Create using placement new
     clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
@@ -66,10 +85,10 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
     struct time_diff_resp tdr;
 
-    //Gett offset
+    //Get offset
     now = uhd::get_system_time();
-    dev->time_diff_send( now );
-    dev->time_diff_recv( tdr );
+    self->time_diff_send( now );
+    self->time_diff_recv( tdr );
     dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
     _mm_lfence();
@@ -105,12 +124,10 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         crimson_now = now + time_diff;
 
         // Send the predicted time
-        dev->time_diff_send( crimson_now );
+        self->time_diff_send( crimson_now );
         // Get the difference between the predicted and real time
-        bool reply_good =  dev->time_diff_recv( tdr );
+        bool reply_good =  self->time_diff_recv( tdr );
 
-        // Unlock sfp control mutex here
-        // It is no longer needed, and having it will deadlock if time_diff_process triggers a reset
         if (reply_good) {
             dev->time_diff_process( tdr, now );
         } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {

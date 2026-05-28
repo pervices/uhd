@@ -509,46 +509,6 @@ inline int64_t crimson_tng_impl::nsecs_to_ticks( int64_t tv_nsec ) {
     return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
 }
 
-inline void crimson_tng_impl::make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
-    pkt.header = (uint64_t)0x20002 << 16;
-    pkt.tv_sec = ts.get_full_secs();
-    pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
-
-    boost::endian::native_to_big_inplace( pkt.header );
-    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
-    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
-}
-
-/// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
-
-    time_diff_req pkt;
-
-    // Input to Process (includes feedback from PID Controller)
-    make_time_diff_packet(
-        pkt,
-        crimson_now
-    );
-
-    _time_diff_iface[_which_time_diff_iface]->send( &pkt, sizeof( pkt ) );
-}
-
-bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
-
-    size_t r;
-
-    r = _time_diff_iface[_which_time_diff_iface]->recv( &tdr, sizeof( tdr ) );
-
-    if ( 0 == r ) {
-        return false;
-    }
-
-    boost::endian::big_to_native_inplace( tdr.tv_sec );
-    boost::endian::big_to_native_inplace( tdr.tv_tick );
-
-    return true;
-}
-
 void crimson_tng_impl::reset_time_diff_pid() {
     // Get mutex before getting time incase it needs to wait for the mutex
     _sfp_control_mutex[0]->lock();
