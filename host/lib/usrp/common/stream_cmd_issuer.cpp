@@ -81,10 +81,10 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     stream_cmd.num_samps = stream_cmd.num_samps * num_rx_bits / 16;
 
     if(!clock_sync_info->is_synced()) [[unlikely]] {
-        // TODO: get time from server instead of waiting for sync if not already synced
+        // TODO: add quick version is clocks are not already synced
         clock_sync_info->wait_for_sync();
     }
-    double current_time = (uhd::get_system_time() + clock_sync_info->get_time_diff()).get_real_secs();
+    double current_time = clock_sync_info->get_device_time().get_real_secs();
 
 #ifdef DEBUG_COUT
     std::cout

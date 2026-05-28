@@ -206,9 +206,6 @@ protected:
     // Buffer containing asynchronous messages related to underflows/overflows
     const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
 
-    // Gets the the time on the unit when a packet sent now would arrive
-    uhd::time_spec_t get_device_time();
-
     /*******************************************************************
      * converts vrt packet info into header
      * packet_buff: buffer to write vrt data to
@@ -323,7 +320,9 @@ private:
     static constexpr size_t clock_sync_shared_info_size = (size_t) ceil(sizeof(std::shared_ptr<uhd::usrp::clock_sync_shared_info>) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
     std::shared_ptr<uhd::usrp::clock_sync_shared_info>* _clock_sync_info_owner;
     // Raw pointer to the above
+protected:
     uhd::usrp::clock_sync_shared_info* _clock_sync_info;
+private:
 
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i);
@@ -522,7 +521,7 @@ private:
             // Send packets without tsf since they don't have a set time
             // Also ignore send time in blocking fc mode since it doesn't apply
             if(
-                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) ||
+                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= _clock_sync_info->get_device_time().to_ticks(_TICK_RATE) ||
                 /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
