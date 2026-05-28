@@ -15,11 +15,10 @@
 #include <memory>
 // Fences
 #include <immintrin.h>
-// Endian conversion
-#include <bit>
-
 // Socket for sending/receiving time diff packets
 #include <uhd/transport/udp_simple.hpp>
+
+#include "pidc.hpp"
 
 #include <uhd/types/time_spec.hpp>
 
@@ -65,7 +64,8 @@ private:
     // TODO: verify alignas is working properly
     alignas(CACHE_LINE_SIZE) double time_diff = 0;
 
-    // TODO: ensure the following variables are aligned to avoid false sharing
+    // TODO: ensure all variable after this line are aligned to avoid false sharing
+
     bool sync_thread_running = false;
     bool sync_thread_should_exit = false;
     // TODO: create in constructor
@@ -73,6 +73,15 @@ private:
 
     // TODO: set this in the constructor
     double tick_rate = 162.5e6;
+
+    /** PID controller that rejects differences between Crimson's clock and the host's clock.
+     *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
+     *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
+     *  -> The Control Variable of the controller (the output) is the required compensation for the host
+     *     such that the error is forced to zero.
+     *     => Crimson Time Now := Host Time Now + CV
+     */
+    uhd::pidc _time_diff_pidc;
 
     // Declare constructor as private to ensure this is only created through make
     clock_sync_shared_info() {
@@ -120,6 +129,19 @@ private:
      * @return Returns true on success, false on failure
      */
     bool time_diff_recv(time_diff_resp & reply);
+
+    /**
+     * Resets the time diff pid.
+     * This function will reset the time diff pid and create a fresh prediction
+     */
+    void reset_time_diff_pid();
+
+    /**
+     * Updates the pid controller for predicting the time
+     * @param tdr The reply containing the difference between the predicted and actual time
+     * @param now The time on the host when the request was send
+     */
+    void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & request_time );
 
 public:
     /**

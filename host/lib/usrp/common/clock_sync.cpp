@@ -59,14 +59,12 @@ bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
 }
 
 void clock_sync_shared_info::reset_time_diff_pid() {
-    // Get mutex before getting time incase it needs to wait for the mutex
-    _sfp_control_mutex[0]->lock();
-    auto reset_now = uhd::get_system_time();
+    uhd::time_spec_t reset_now = uhd::get_system_time();
+
     struct time_diff_resp reset_tdr;
 
     time_diff_send( reset_now );
     time_diff_recv( reset_tdr );
-    _sfp_control_mutex[0]->unlock();
 
     double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
     _time_diff_pidc->reset(reset_now, new_offset);
@@ -127,7 +125,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     now = uhd::get_system_time();
     self->time_diff_send( now );
     self->time_diff_recv( tdr );
-    dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+    self->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
     _mm_lfence();
     for(

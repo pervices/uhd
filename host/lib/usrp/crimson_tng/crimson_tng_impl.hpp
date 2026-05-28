@@ -37,7 +37,6 @@
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #include "crimson_tng_io_impl.hpp"
 #include "../../transport/flow_control.hpp"
-#include "pidc.hpp"
 
 #include <uhdlib/utils/system_time.hpp>
 #include <immintrin.h>
@@ -151,25 +150,12 @@ private:
 
     /// UDP endpoint that receives our Time Diff packets
     std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
-    /** PID controller that rejects differences between Crimson's clock and the host's clock.
-    *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
-    *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
-    *  -> The Control Variable of the controller (the output) is the required compensation for the host
-    *     such that the error is forced to zero.
-    *     => Crimson Time Now := Host Time Now + CV
-    */
-    static constexpr size_t padded_pidc_tcl_size = (size_t) ceil(sizeof(uhd::pidc_tl) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    uhd::pidc* const _time_diff_pidc;
 
     // device_clock_sync_info is the main location used to store clock sync info
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
     std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
 
     uhd::time_spec_t _streamer_start_time;
-    // Resets the PID controller managing time diffs
-    void reset_time_diff_pid();
-    void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
-    void fifo_update_process( const time_diff_resp & tdr );
 
     /**
     * Buffer Management Objects
