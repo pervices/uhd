@@ -38,7 +38,7 @@ void clock_sync_shared_info::wait_for_sync() {
     }
 }
 
-clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
+bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
 
     // Receive reply packet
     size_t bytes_received = sync_port->recv( &reply, sizeof(reply));
@@ -46,14 +46,52 @@ clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
     if(bytes_received > 0) {
 
         // Swap byte order from big to native
-        reply = ntohll(reply.tv_sec);
-        reply = ntohll(reply.tv_tick);
+       // TODO: detect if we are using big or little endian at compile time, this currently assumes little endian
+        reply.tv_sec = __builtin_bswap64(reply.tv_sec);
+        reply.tv_tick = __builtin_bswap64(reply.tv_tick);
 
         return true;
 
     } else {
         // Error, no packet received
         return false;
+    }
+}
+
+void clock_sync_shared_info::reset_time_diff_pid() {
+    // Get mutex before getting time incase it needs to wait for the mutex
+    _sfp_control_mutex[0]->lock();
+    auto reset_now = uhd::get_system_time();
+    struct time_diff_resp reset_tdr;
+
+    time_diff_send( reset_now );
+    time_diff_recv( reset_tdr );
+    _sfp_control_mutex[0]->unlock();
+
+    double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
+    _time_diff_pidc->reset(reset_now, new_offset);
+}
+
+/// SoB Time Diff: feed the time diff error back into out control system
+void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
+
+    static const double sp = 0.0;
+
+    double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
+
+    double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
+
+    bool reset_advised = false;
+
+    bool time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
+
+    if(reset_advised) {
+        reset_time_diff_pid();
+    }
+
+    // For SoB, record the instantaneous time difference + compensation
+    if (time_diff_converged ) {
+        device_clock_sync_info->set_time_diff( cv );
     }
 }
 

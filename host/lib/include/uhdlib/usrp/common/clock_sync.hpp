@@ -16,7 +16,10 @@
 // Fences
 #include <immintrin.h>
 // Endian conversion
-#include <arpa/inet.h>
+#include <bit>
+
+// Socket for sending/receiving time diff packets
+#include <uhd/transport/udp_simple.hpp>
 
 #include <uhd/types/time_spec.hpp>
 
@@ -25,6 +28,7 @@ namespace uhd { namespace usrp {
 static constexpr size_t CACHE_LINE_SIZE = 64;
 
 #pragma pack(push,1)
+// Time diff requests to the device
 struct time_diff_req {
     uint64_t header;
     int64_t tv_sec;
@@ -33,6 +37,7 @@ struct time_diff_req {
 #pragma pack(pop)
 
 #pragma pack(push,1)
+// Time diff replies from the device
 struct time_diff_resp {
     int64_t tv_sec;
     int64_t tv_tick;
@@ -97,13 +102,14 @@ private:
 
         // Create request
         request.header = (uint64_t)0x20002 << 16;
-        request.tv_sec = ts.get_full_secs();
-        request.tv_tick = (int64_t) ( ts.get_frac_secs() * 1e9 / tick_rate );
+        request.tv_sec = prediction.get_full_secs();
+        request.tv_tick = (int64_t) ( prediction.get_frac_secs() * 1e9 / tick_rate );
 
-        // Convert request from native to big endian
-        request.header = htonll(request.header);
-        request.tv_sec = htonll(request.tv_sec);
-        request.tv_tick = htonll(request.tv_tick);
+        // Convert request from native little endian to big endian for the FPGA
+        // TODO: detect if we are using big or little endian at compile time
+        request.header = __builtin_bswap64(request.header);
+        request.tv_sec = __builtin_bswap64(request.tv_sec);
+        request.tv_tick = __builtin_bswap64(request.tv_tick);
 
         sync_port->send(&request, sizeof(request));
     }

@@ -509,43 +509,6 @@ inline int64_t crimson_tng_impl::nsecs_to_ticks( int64_t tv_nsec ) {
     return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
 }
 
-void crimson_tng_impl::reset_time_diff_pid() {
-    // Get mutex before getting time incase it needs to wait for the mutex
-    _sfp_control_mutex[0]->lock();
-    auto reset_now = uhd::get_system_time();
-    struct time_diff_resp reset_tdr;
-
-    time_diff_send( reset_now );
-    time_diff_recv( reset_tdr );
-    _sfp_control_mutex[0]->unlock();
-
-    double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
-    _time_diff_pidc->reset(reset_now, new_offset);
-}
-
-/// SoB Time Diff: feed the time diff error back into out control system
-void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
-
-    static const double sp = 0.0;
-
-    double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
-
-    double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
-
-    bool reset_advised = false;
-
-    bool time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
-
-    if(reset_advised) {
-        reset_time_diff_pid();
-    }
-
-    // For SoB, record the instantaneous time difference + compensation
-    if (time_diff_converged ) {
-        device_clock_sync_info->set_time_diff( cv );
-    }
-}
-
 void crimson_tng_impl::start_bm() {
 
     //checks if the current task is excempt from need clock synchronization
@@ -571,7 +534,7 @@ void crimson_tng_impl::stop_bm() {
 
     if ( _bm_thread_running ) {
 
-        _bm_thread_should_exit = true;
+        // TODO: order clock_sync to stop
         _mm_sfence();
         _bm_thread.join();
 
