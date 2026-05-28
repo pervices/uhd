@@ -102,7 +102,7 @@ std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make() {
     std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
 
     // TODO: move to constructor
-    raw_pointer->time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+    raw_pointer->time_diff_pidc.set_error_filter_length( UPDATES_PER_SECOND );
     raw_pointer->time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 
     return ptr;
@@ -130,7 +130,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     now = uhd::get_system_time();
     self->time_diff_send( now );
     self->time_diff_recv( tdr );
-    self->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
+    self->time_diff_pidc.set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
 
     _mm_lfence();
     for(
