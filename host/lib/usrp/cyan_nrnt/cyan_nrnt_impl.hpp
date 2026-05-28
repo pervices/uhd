@@ -38,7 +38,6 @@
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #include "cyan_nrnt_io_impl.hpp"
-#include "../crimson_tng/pidc.hpp"
 #include <uhdlib/utils/system_time.hpp>
 #include <immintrin.h>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
@@ -55,21 +54,6 @@ struct gpio_burst_req {
     int64_t tv_psec; // Frame 2
     uint64_t pins;   // Frame 3
     uint64_t mask;   // Frame 3
-};
-#pragma pack(pop)
-
-#pragma pack(push,1)
-struct time_diff_req {
-    uint64_t header;
-    int64_t tv_sec;
-    int64_t tv_tick;
-};
-#pragma pack(pop)
-
-#pragma pack(push,1)
-struct time_diff_resp {
-    int64_t tv_sec;
-    int64_t tv_tick;
 };
 #pragma pack(pop)
 
@@ -107,9 +91,6 @@ public:
     uhd::device_addr_t device_addr;
 
     uhd::time_spec_t get_time_now();
-
-    void start_bm();
-    void stop_bm();
 
     void start_pps_dtc();
     void stop_pps_dtc();
@@ -176,45 +157,13 @@ private:
     // Mutexes for controlling control (not data) send/receives each SFP port
     std::vector<std::shared_ptr<std::mutex>> _sfp_control_mutex;
 
-    /**
-    * Clock Domain Synchronization Objects
-    */
-
     /// UDP endpoint that receives our Time Diff packets
+    // TODO: rename, this is used for rx start/stop and checking buffer level/uflow/oflows, not clock sync
     std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
-    /** PID controller that rejects differences between Crimson's clock and the host's clock.
-    *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
-    *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
-    *  -> The Control Variable of the controller (the output) is the required compensation for the host
-    *     such that the error is forced to zero.
-    *     => Crimson Time Now := Host Time Now + CV
-    */
-    static constexpr size_t padded_pidc_tcl_size = (size_t) ceil(sizeof(uhd::pidc_tl) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    uhd::pidc* const _time_diff_pidc;
 
     // device_clock_sync_info is the main location used to store clock sync info
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
-    std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
-
-    uhd::time_spec_t _streamer_start_time;
-    void time_diff_send( const uhd::time_spec_t & crimson_now );
-    bool time_diff_recv( time_diff_resp & tdr );
-    // Resets the PID controller managing time diffs
-    void reset_time_diff_pid();
-    void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now );
-    void fifo_update_process( const time_diff_resp & tdr );
-
-    /**
-    * Buffer Management Objects
-    */
-
-    // Thread that handles syncing clocks between the host and Cyan
-    std::thread _bm_thread;
-    //  Always use _mm_sfence/_mm_lfence after writing/before reading control variables for _bm_thread
-    bool _bm_thread_needed;
-    // TODO: replace _bm_thread_running with checks to the thread object
-    bool _bm_thread_running;
-    bool _bm_thread_should_exit;
+    std::shared_ptr<clock_sync> device_clock_sync_info;
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called
@@ -346,8 +295,6 @@ private:
     std::vector<double> rx_rfe_rate_cache;
 
     const bool _use_dpdk;
-
-    bool clock_sync_desired = false;
 
     // Used to rx start/stop stream commands
     std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;

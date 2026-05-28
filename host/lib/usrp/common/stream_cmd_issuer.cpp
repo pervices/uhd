@@ -81,10 +81,10 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     stream_cmd.num_samps = stream_cmd.num_samps * num_rx_bits / 16;
 
     if(!clock_sync_info->is_synced()) [[unlikely]] {
-        // TODO: get time from server instead of waiting for sync if not already synced
+        // TODO: add quick version is clocks are not already synced
         clock_sync_info->wait_for_sync();
     }
-    double current_time = (uhd::get_system_time() + clock_sync_info->get_time_diff()).get_real_secs();
+    double current_time = clock_sync_info->get_device_time().get_real_secs();
 
 #ifdef DEBUG_COUT
     std::cout
@@ -124,7 +124,7 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
 
-stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
+stream_cmd_issuer::stream_cmd_issuer(std::shared_ptr<uhd::transport::udp_simple> command_socket, std::shared_ptr<uhd::usrp::clock_sync> clock_sync_info, size_t ch_jesd_number, size_t num_rx_bits, size_t nsamps_multiple_rx)
 : command_socket(command_socket),
 clock_sync_info(clock_sync_info),
 ch_jesd_number(ch_jesd_number),

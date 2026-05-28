@@ -265,20 +265,9 @@ void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard)
     request_resync_time_diff();
 }
 
-// TODO: change the rx functions that bind to this to use their own clock_sync_shared_info
+// TODO: handle case where clock sync is incomplete/failed
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
-    // Waits for clock to be stable before getting time
-    _mm_lfence();
-    if(_bm_thread_running) {
-        device_clock_sync_info->wait_for_sync();
-        double diff = device_clock_sync_info->get_time_diff();
-        return uhd::get_system_time() + diff;
-    // If clock sync thread is not running reset the time diff pid and use the initial offset
-    // Will get the time but without taking into account network latency (which would require the clock sync thread)
-    } else {
-        reset_time_diff_pid();
-        return uhd::get_system_time() - _time_diff_pidc->get_offset();
-    }
+    return device_clock_sync_info->get_device_time();
 }
 
 void crimson_tng_impl::set_properties_from_addr() {
@@ -497,129 +486,6 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
     return addrs;
 }
 
-/**
-* Buffer Management / Time Diff
-*/
-
-// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-inline int64_t crimson_tng_impl::ticks_to_nsecs( int64_t tv_tick ) {
-    return (int64_t)( (double) tv_tick * _tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
-}
-inline int64_t crimson_tng_impl::nsecs_to_ticks( int64_t tv_nsec ) {
-    return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
-}
-
-inline void crimson_tng_impl::make_time_diff_packet( time_diff_req & pkt, time_spec_t ts = uhd::get_system_time() ) {
-    pkt.header = (uint64_t)0x20002 << 16;
-    pkt.tv_sec = ts.get_full_secs();
-    pkt.tv_tick = nsecs_to_ticks( (int64_t) ( ts.get_frac_secs() * 1e9 ) );
-
-    boost::endian::native_to_big_inplace( pkt.header );
-    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_sec );
-    boost::endian::native_to_big_inplace( (uint64_t &) pkt.tv_tick );
-}
-
-/// SoB Time Diff: send sync packet (must be done before reading flow iface)
-void crimson_tng_impl::time_diff_send( const uhd::time_spec_t & crimson_now ) {
-
-    time_diff_req pkt;
-
-    // Input to Process (includes feedback from PID Controller)
-    make_time_diff_packet(
-        pkt,
-        crimson_now
-    );
-
-    _time_diff_iface[_which_time_diff_iface]->send( &pkt, sizeof( pkt ) );
-}
-
-bool crimson_tng_impl::time_diff_recv( time_diff_resp & tdr ) {
-
-    size_t r;
-
-    r = _time_diff_iface[_which_time_diff_iface]->recv( &tdr, sizeof( tdr ) );
-
-    if ( 0 == r ) {
-        return false;
-    }
-
-    boost::endian::big_to_native_inplace( tdr.tv_sec );
-    boost::endian::big_to_native_inplace( tdr.tv_tick );
-
-    return true;
-}
-
-void crimson_tng_impl::reset_time_diff_pid() {
-    // Get mutex before getting time incase it needs to wait for the mutex
-    _sfp_control_mutex[0]->lock();
-    auto reset_now = uhd::get_system_time();
-    struct time_diff_resp reset_tdr;
-
-    time_diff_send( reset_now );
-    time_diff_recv( reset_tdr );
-    _sfp_control_mutex[0]->unlock();
-
-    double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
-    _time_diff_pidc->reset(reset_now, new_offset);
-}
-
-/// SoB Time Diff: feed the time diff error back into out control system
-void crimson_tng_impl::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
-
-    static const double sp = 0.0;
-
-    double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
-
-    double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
-
-    bool reset_advised = false;
-
-    bool time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
-
-    if(reset_advised) {
-        reset_time_diff_pid();
-    }
-
-    // For SoB, record the instantaneous time difference + compensation
-    if (time_diff_converged ) {
-        device_clock_sync_info->set_time_diff( cv );
-    }
-}
-
-void crimson_tng_impl::start_bm() {
-
-    //checks if the current task is excempt from need clock synchronization
-    _mm_lfence();
-    if ( ! _bm_thread_needed ) {
-        return;
-    }
-
-    if ( ! _bm_thread_running ) {
-
-        _bm_thread_should_exit = false;
-        _mm_sfence();
-        //starts the thread that synchronizes the clocks
-        request_resync_time_diff();
-        _bm_thread_running = true;
-        _mm_sfence();
-        _bm_thread = std::thread( bm_thread_fn, this );
-
-        //Note: anything relying on this will require waiting time_diff_converged()
-    }
-}
-
-void crimson_tng_impl::stop_bm() {
-    _mm_lfence();
-
-    if ( _bm_thread_running ) {
-
-        _bm_thread_should_exit = true;
-        _mm_sfence();
-        _bm_thread.join();
-
-    }
-}
-
 void crimson_tng_impl::start_pps_dtc() {
     // Esnure _pps_thread_needed and _pps_thread_running are loaded
     _mm_lfence();
@@ -649,89 +515,6 @@ void crimson_tng_impl::stop_pps_dtc() {
         _mm_sfence();
         _pps_thread.join();
     }
-}
-
-// Synchronizes clocks between the host and device
-// This function should be run in its own thread
-// When calling it verify that it is not already running (_bm_thread_running)
-void crimson_tng_impl::bm_thread_fn( crimson_tng_impl *dev ) {
-    // Reduce thread priority
-    nice(1);
-
-    dev->_bm_thread_running = true;
-
-    // Flag so that we only print the error message for failed recv once
-    bool dropped_recv_message_printed = false;
-
-    const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
-    uhd::time_spec_t now, then, dt;
-    uhd::time_spec_t crimson_now;
-    struct timespec req, rem;
-
-    double time_diff;
-
-    struct time_diff_resp tdr;
-
-    //Gett offset
-    dev->_sfp_control_mutex[0]->lock();
-    now = uhd::get_system_time();
-    dev->time_diff_send( now );
-    dev->time_diff_recv( tdr );
-    dev->_sfp_control_mutex[0]->unlock();
-    dev->_time_diff_pidc->set_offset((double) tdr.tv_sec + (double)dev->ticks_to_nsecs( tdr.tv_tick ) / 1e9);
-
-    _mm_lfence();
-    for(
-        now = uhd::get_system_time(),
-            then = now + T
-            ;
-
-        ! dev->_bm_thread_should_exit
-            ;
-
-        then += T,
-            now = uhd::get_system_time()
-    ) {
-        if(dev->device_clock_sync_info->is_resync_requested()) {
-            // Record that the resync request has been ackcknowledged (also sets it as desynced)
-            dev->device_clock_sync_info->resync_acknowledge();
-            // Reset PID to clear old values
-            dev->reset_time_diff_pid();
-        }
-
-        dt = then - now;
-        if ( dt > 0.0 ) {
-            req.tv_sec = dt.get_full_secs();
-            req.tv_nsec = dt.get_frac_secs() * 1e9;
-            nanosleep( &req, &rem );
-        } else {
-            continue;
-        }
-
-        time_diff = dev->_time_diff_pidc->get_control_variable();
-        dev->_sfp_control_mutex[0]->lock();
-        now = uhd::get_system_time();
-        crimson_now = now + time_diff;
-
-        // Send the predicted time
-        dev->time_diff_send( crimson_now );
-        // Get the difference between the predicted and real time
-        bool reply_good =  dev->time_diff_recv( tdr );
-
-        // Unlock sfp control mutex here
-        // It is no longer needed, and having it will deadlock if time_diff_process triggers a reset
-        dev->_sfp_control_mutex[0]->unlock();
-        if (reply_good) {
-            dev->time_diff_process( tdr, now );
-        } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
-            UHD_LOG_ERROR(dev->product_name_c, "Failed to receive packet used by clock synchronization");
-            dropped_recv_message_printed = true;
-        }
-        // lfence to update _bm_thread_should_exit for the for loop
-        _mm_lfence();
-    }
-    dev->_bm_thread_running = false;
-    _mm_sfence();
 }
 
 /***********************************************************************
@@ -781,11 +564,6 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 :
     device_addr( _device_addr ),
-    // Put _time_diff_pidc on their own cache line to avoid false sharing
-    _time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
-    _bm_thread_needed( true ),
-    _bm_thread_running( false ),
-    _bm_thread_should_exit( false ),
     _pps_thread_running( false ),
     _pps_thread_should_exit( false ),
     _command_time( 0.0 )
@@ -1132,6 +910,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     std::string sfpb_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr").get();
 
+    // IP and port used by clock sync
+    // This must use a separate socket since it is expecting a reply
+    std::string clock_sync_ip;
+    int clock_sync_port = -1;
+
     _which_time_diff_iface = -1;
     for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
@@ -1142,11 +925,26 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
         // Checks if this iface is working
         bool iface_good = ping_check("sfp" + xg_intf, time_diff_ip);
+
+        // Set the ip and port used by clock sync if it hasn't been set yet as a fallback in case none work
+        if(clock_sync_port == -1) {
+            clock_sync_ip = time_diff_ip;
+            clock_sync_port = sfp_port;
+        }
+
         // Set the iface used by time diffs to the first working one
         if(iface_good && _which_time_diff_iface < 0) {
             _which_time_diff_iface = i;
+
+            // Use the first working ip and port for clock sync
+            clock_sync_ip = time_diff_ip;
+            clock_sync_port = sfp_port;
         }
     }
+
+    // Create the class reponsible for synchronizing clocks
+    // Clock sync is not needed yet, but start it now anyway in case it is needed in the future
+    device_clock_sync_info = clock_sync::make(clock_sync_ip, (uint16_t) clock_sync_port, _master_tick_rate);
 
     if(_which_time_diff_iface < 0) {
         // TODO: only print this warning when using regular streaming
@@ -1524,35 +1322,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         start_pps_dtc();
     }
 
-    //Initialize "Time Diff" mechanism before starting flow control thread
-    time_spec_t ts = uhd::get_system_time();
-    _streamer_start_time = ts.get_real_secs();
-
-    // The problem is that this class does not hold a multi_crimson instance
-    //Dont set time. Crimson can compensate from 0. Set time will only be used for GPS
-
-    // Tyreus-Luyben tuned PID controller
-    // Create using placement new to avoid false sharing
-    new (_time_diff_pidc) uhd::pidc_tl(
-        0.0, // desired set point is 0.0s error
-        1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
-        // measured P-ultimate is inverse of 1/2 the flow-control sample rate
-        2.0 / (double)CRIMSON_TNG_UPDATE_PER_SEC
-    );
-
-    _time_diff_pidc->set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
-
-    _time_diff_pidc->set_max_error_for_convergence( 10e-6 );
-
-    device_clock_sync_info = clock_sync_shared_info::make();
-
-
-    // Start the clock sync thread
-    // _time_diff_pidc and device_clock_sync_info sync info are created even when the the clock synce thread is not needed to make it easier to enable/disable the thread for debugging purposes
-    if ( _bm_thread_needed ) {
-        start_bm();
-    }
-
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
         rx_stream_cmd_issuer.emplace_back(_time_diff_iface[_which_time_diff_iface], device_clock_sync_info, ch, 16, 1);
@@ -1561,12 +1330,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
-    stop_bm();
     stop_pps_dtc();
-
-    // Manually calling destructor when using placement new is required
-    _time_diff_pidc->~pidc();
-    free(_time_diff_pidc);
 
     // Remove device advisory lock
     flock(device_lock_fd, LOCK_UN);

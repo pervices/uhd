@@ -60,7 +60,7 @@ public:
      * Make a new packet handler for send
      * \param buffer_size size of the buffer on the unit
      */
-    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info_owner, std::vector<int> streaming_locks);
+    send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync> clock_sync_info_owner, std::vector<int> streaming_locks);
 
     ~send_packet_handler_mmsg(void);
 
@@ -206,9 +206,6 @@ protected:
     // Buffer containing asynchronous messages related to underflows/overflows
     const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
 
-    // Gets the the time on the unit when a packet sent now would arrive
-    uhd::time_spec_t get_device_time();
-
     /*******************************************************************
      * converts vrt packet info into header
      * packet_buff: buffer to write vrt data to
@@ -320,10 +317,12 @@ private:
     // To solve this problem, we will put the smart pointer on it's own cache line (shown here as a pointer to a smart pointer) for ownership while using a raw pointer for actual operations
 
     // Pointer to a smart pointer with ownership to where the info required to calculate the device time is stored
-    static constexpr size_t clock_sync_shared_info_size = (size_t) ceil(sizeof(std::shared_ptr<uhd::usrp::clock_sync_shared_info>) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    std::shared_ptr<uhd::usrp::clock_sync_shared_info>* _clock_sync_info_owner;
+    static constexpr size_t clock_sync_size = (size_t) ceil(sizeof(std::shared_ptr<uhd::usrp::clock_sync>) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    std::shared_ptr<uhd::usrp::clock_sync>* _clock_sync_info_owner;
     // Raw pointer to the above
-    uhd::usrp::clock_sync_shared_info* _clock_sync_info;
+protected:
+    uhd::usrp::clock_sync* _clock_sync_info;
+private:
 
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i);
@@ -522,7 +521,7 @@ private:
             // Send packets without tsf since they don't have a set time
             // Also ignore send time in blocking fc mode since it doesn't apply
             if(
-                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) ||
+                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= _clock_sync_info->get_device_time().to_ticks(_TICK_RATE) ||
                 /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
@@ -730,7 +729,7 @@ private:
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer {
 public:
-    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> streaming_locks);
+    send_packet_streamer_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync> clock_sync_info, std::vector<int> streaming_locks);
 
     size_t get_num_channels(void) const override {
         return _NUM_CHANNELS;

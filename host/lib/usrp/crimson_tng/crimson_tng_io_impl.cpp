@@ -146,7 +146,7 @@ void crimson_tng_recv_packet_streamer::teardown() {
     }
 }
 
-crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync_shared_info> clock_sync_info, std::vector<int> channel_locks, std::vector<int> streaming_locks)
+crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::string product_name_c, const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, double tick_rate, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync> clock_sync_info, std::vector<int> channel_locks, std::vector<int> streaming_locks)
 :
 sph::send_packet_streamer_mmsg( channels, max_num_samps, max_bl, dst_ips, dst_ports, device_target_nsamps, CRIMSON_TNG_PACKET_NSAMP_MULTIPLE, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, streaming_locks ),
 _product_name_c(product_name_c),
@@ -299,11 +299,11 @@ size_t crimson_tng_send_packet_streamer::send(
         }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
-            uhd::time_spec_t now = get_device_time();
+            uhd::time_spec_t now = _clock_sync_info->get_device_time();
             metadata.time_spec = now + CRIMSON_TNG_MIN_TX_DELAY;
             metadata.has_time_spec = true;
         } else {
-            double current_time = get_device_time().get_real_secs();
+            double current_time = _clock_sync_info->get_device_time().get_real_secs();
             if (metadata.time_spec.get_real_secs() < current_time + CRIMSON_TNG_MIN_TX_DELAY && _first_call_to_send) {
                 UHD_LOGGER_WARNING(_product_name_c) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CRIMSON_TNG_MIN_TX_DELAY);
                 metadata.time_spec = uhd::time_spec_t(current_time + CRIMSON_TNG_MIN_TX_DELAY);
@@ -651,9 +651,7 @@ bool crimson_tng_impl::recv_async_msg(
 **********************************************************************/
 rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args_){
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
-    clock_sync_desired = true;
-    // sfence to ensure the need for clock sync is pushed to other threads
-    _mm_sfence();
+    device_clock_sync_info->set_clock_sync_desired(true);
 
     stream_args_t args = args_;
 
@@ -954,9 +952,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
 tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args_){
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
-    clock_sync_desired = true;
-    // sfence to ensure the need for clock sync is pushed to other threads
-    _mm_sfence();
+    device_clock_sync_info->set_clock_sync_desired(true);
 
     stream_args_t args = args_;
 
