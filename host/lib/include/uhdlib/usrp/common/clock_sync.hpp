@@ -43,6 +43,9 @@ class clock_sync_shared_info
 {
 private:
 
+    static constexpr double UPDATES_PER_SECOND = 100;
+    static constexpr uhd::time_spec_t UPDATE_PERIOD = uhd::time_spec_t(1.0/UPDATES_PER_SECOND);
+
     // Stores if the predicted time and actual time have convered (clock sync completed)
     alignas(CACHE_LINE_SIZE) bool is_converged = false;
     // Stores if a resync has been requested
@@ -137,6 +140,12 @@ public:
      * @return Shared pointer to the newly created instance
      */
     static std::shared_ptr<clock_sync_shared_info> make();
+
+    /**
+     * The loop to run clock sync in
+     * @param self The class to run clock sync for. A raw pointer is used because the deleter is responsible for ending the thread.
+     */
+    static void loop_thread_fn(clock_sync_shared_info *self);
 
 };
 
