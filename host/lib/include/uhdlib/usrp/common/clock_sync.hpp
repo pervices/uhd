@@ -16,6 +16,8 @@
 // Fences
 #include <immintrin.h>
 
+#include <uhd/types/time_spec.hpp>
+
 namespace uhd { namespace usrp {
 
 static constexpr size_t CACHE_LINE_SIZE = 64;
@@ -44,7 +46,8 @@ class clock_sync_shared_info
 private:
 
     static constexpr double UPDATES_PER_SECOND = 100;
-    static constexpr uhd::time_spec_t UPDATE_PERIOD = uhd::time_spec_t(1.0/UPDATES_PER_SECOND);
+    // TODO: make UPDATE_PERIOD a constexpr (will require changes to the class)
+    static inline uhd::time_spec_t UPDATE_PERIOD = uhd::time_spec_t(1.0/UPDATES_PER_SECOND);
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
     alignas(CACHE_LINE_SIZE) bool is_converged = false;

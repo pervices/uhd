@@ -58,7 +58,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     // Flag so that we only print the error message for failed recv once
     bool dropped_recv_message_printed = false;
 
-    const uhd::time_spec_t T( 1.0 / (double) CRIMSON_TNG_UPDATE_PER_SEC );
     uhd::time_spec_t now, then, dt;
     uhd::time_spec_t crimson_now;
     struct timespec req, rem;
@@ -78,13 +77,13 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     _mm_lfence();
     for(
         now = uhd::get_system_time(),
-        then = now + T
+        then = now + UPDATE_PERIOD;
         ;
 
     ! dev->_bm_thread_should_exit
     ;
 
-    then += T,
+    then += UPDATE_PERIOD,
     now = uhd::get_system_time()
     ) {
         if(dev->device_clock_sync_info->is_resync_requested()) {
