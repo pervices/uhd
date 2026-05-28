@@ -269,7 +269,7 @@ void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard)
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
     // Waits for clock to be stable before getting time
     _mm_lfence();
-    if(_bm_thread_running) {
+    if(1 /* TODO: finish updating this function for the new system*/) {
         device_clock_sync_info->wait_for_sync();
         double diff = device_clock_sync_info->get_time_diff();
         return uhd::get_system_time() + diff;
@@ -596,12 +596,10 @@ void crimson_tng_impl::start_bm() {
 
     if ( ! _bm_thread_running ) {
 
-        _bm_thread_should_exit = false;
-        _mm_sfence();
-        //starts the thread that synchronizes the clocks
+        // Requests resync
         request_resync_time_diff();
-        _bm_thread_running = true;
-        _mm_sfence();
+
+        //starts the thread that synchronizes the clocks
         _bm_thread = std::thread( clock_sync_shared_info.loop_thread_fn, device_clock_sync_info.get() );
 
         //Note: anything relying on this will require waiting time_diff_converged()
@@ -701,8 +699,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     // Put _time_diff_pidc on their own cache line to avoid false sharing
     _time_diff_pidc((uhd::pidc*) aligned_alloc(CACHE_LINE_SIZE, padded_pidc_tcl_size)),
     _bm_thread_needed( true ),
-    _bm_thread_running( false ),
-    _bm_thread_should_exit( false ),
     _pps_thread_running( false ),
     _pps_thread_should_exit( false ),
     _command_time( 0.0 )

@@ -181,9 +181,6 @@ private:
     std::thread _bm_thread;
     //  Always use _mm_sfence/_mm_lfence after writing/before reading control variables for _bm_thread
     bool _bm_thread_needed;
-    // TODO: replace _bm_thread_running with checks to the thread object
-    bool _bm_thread_running;
-    bool _bm_thread_should_exit;
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called

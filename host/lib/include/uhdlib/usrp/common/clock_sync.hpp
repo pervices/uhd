@@ -58,6 +58,10 @@ private:
     // TODO: verify alignas is working properly
     alignas(CACHE_LINE_SIZE) double time_diff = 0;
 
+    // TODO: ensure the following variables are aligned to avoid false sharing
+    bool sync_thread_running = false;
+    bool sync_thread_should_exit = false;
+
     // Declare constructor as private to ensure this is only created through make
     clock_sync_shared_info() {
         // Move this to a .cpp file if it becomes complicated
