@@ -81,7 +81,7 @@ private:
      *     such that the error is forced to zero.
      *     => Crimson Time Now := Host Time Now + CV
      */
-    uhd::pidc _time_diff_pidc;
+    uhd::pidc time_diff_pidc;
 
     // Declare constructor as private to ensure this is only created through make
     clock_sync_shared_info() {

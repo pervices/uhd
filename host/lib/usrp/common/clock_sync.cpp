@@ -66,8 +66,9 @@ void clock_sync_shared_info::reset_time_diff_pid() {
     time_diff_send( reset_now );
     time_diff_recv( reset_tdr );
 
-    double new_offset = (double) reset_tdr.tv_sec + (double)ticks_to_nsecs( reset_tdr.tv_tick ) / 1e9;
-    _time_diff_pidc->reset(reset_now, new_offset);
+    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick * 1.0e9 / tick_rate);
+
+    time_diff_pidc.reset(reset_now, new_offset);
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
@@ -77,11 +78,11 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
 
     double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
 
-    double cv = _time_diff_pidc->update_control_variable( sp, pv, now );
+    double cv = time_diff_pidc.update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
-    bool time_diff_converged = _time_diff_pidc->is_converged( now, &reset_advised );
+    bool time_diff_converged = time_diff_pidc.is_converged( now, &reset_advised );
 
     if(reset_advised) {
         reset_time_diff_pid();
@@ -155,7 +156,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
             continue;
         }
 
-        time_diff = dev->_time_diff_pidc->get_control_variable();
+        time_diff = dev->time_diff_pidc.get_control_variable();
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
