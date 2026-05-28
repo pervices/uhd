@@ -280,11 +280,11 @@ size_t cyan_nrnt_send_packet_streamer::send(
         }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
-            uhd::time_spec_t now = get_device_time();
+            uhd::time_spec_t now = _clock_sync_info->get_device_time();
             metadata.time_spec = now + CYAN_NRNT_MIN_TX_DELAY;
             metadata.has_time_spec = true;
         } else {
-            double current_time = get_device_time().get_real_secs();
+            double current_time = _clock_sync_info->get_device_time().get_real_secs();
             if (metadata.time_spec.get_real_secs() < current_time + CYAN_NRNT_MIN_TX_DELAY && _first_call_to_send) {
                 UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + CYAN_NRNT_MIN_TX_DELAY);
                 metadata.time_spec = uhd::time_spec_t(current_time + CYAN_NRNT_MIN_TX_DELAY);
@@ -613,9 +613,7 @@ bool cyan_nrnt_impl::recv_async_msg(
 **********************************************************************/
 rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_){
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
-    clock_sync_desired = true;
-    // sfence to ensure the need for clock sync is pushed to other threads
-    _mm_sfence();
+    device_clock_sync_info->set_clock_sync_desired(true);
 
     stream_args_t args = args_;
 
@@ -933,9 +931,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
 tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_){
     // Set flag to indicate clock sync is desired so that clock sync warnings are displayed
-    clock_sync_desired = true;
-    // sfence to ensure the need for clock sync is pushed to other threads
-    _mm_sfence();
+    device_clock_sync_info->set_clock_sync_desired(true);
 
     stream_args_t args = args_;
 

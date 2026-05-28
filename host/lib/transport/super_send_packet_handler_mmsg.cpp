@@ -160,13 +160,6 @@ void send_packet_handler_mmsg::lock_channel_streaming(size_t channel_num) {
         }
     }
 }
-    
-uhd::time_spec_t send_packet_handler_mmsg::get_device_time() {
-    if(!_clock_sync_info->is_synced()) [[unlikely]] {
-        _clock_sync_info->wait_for_sync();
-    }
-    return uhd::get_system_time() + _clock_sync_info->get_time_diff();
-}
 
 send_packet_handler_mmsg::ch_send_buffer_info::ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate)
 : _vrt_header_size(vrt_header_size),
@@ -202,7 +195,7 @@ int send_packet_handler_mmsg::check_fc_npackets(const size_t ch_i) {
     if(BOOST_LIKELY(!use_blocking_fc)) {
 
         // Get the buffer level on the unit
-        uhd::time_spec_t device_time = get_device_time();
+        uhd::time_spec_t device_time = _clock_sync_info->get_device_time();
         int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
 
         int num_packets_to_send = (int) std::ceil((_DEVICE_TARGET_NSAMPS - buffer_level) / ((double)_max_samples_per_packet));

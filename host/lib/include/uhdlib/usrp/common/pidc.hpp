@@ -7,6 +7,8 @@
  #endif
 #endif
 
+#include <uhd/exception.hpp>
+
 #ifdef DEBUG_PIDC
 #include <iostream>
 #include <iomanip>
@@ -35,6 +37,10 @@ namespace uhd {
 			K_D,
 		} k_t;
 
+		/** TODO: disable empty initialization
+		 * Make it impossible to accidentally forget to configure the pid PID_controller
+		 * Since pid mistakes are very hard to debug
+		 */
 		pidc()
 		:
 			pidc( 0.0, 0.0, 0.0, 0.0, 0.0 )
