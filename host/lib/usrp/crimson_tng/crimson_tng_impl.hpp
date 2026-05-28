@@ -155,8 +155,6 @@ private:
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
     std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
 
-    uhd::time_spec_t _streamer_start_time;
-
     /**
     * Buffer Management Objects
     */

@@ -66,7 +66,7 @@ void clock_sync_shared_info::reset_time_diff_pid() {
     time_diff_send( reset_now );
     time_diff_recv( reset_tdr );
 
-    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick * 1.0e9 / tick_rate);
+    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick * 1.0e-9 / tick_rate);
 
     time_diff_pidc.reset(reset_now, new_offset);
 }
@@ -76,7 +76,7 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
 
     static const double sp = 0.0;
 
-    double pv = (double) tdr.tv_sec + (double)ticks_to_nsecs( tdr.tv_tick ) / 1e9;
+    double pv = (double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / tick_rate);
 
     double cv = time_diff_pidc.update_control_variable( sp, pv, now );
 
@@ -90,7 +90,7 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
 
     // For SoB, record the instantaneous time difference + compensation
     if (time_diff_converged ) {
-        device_clock_sync_info->set_time_diff( cv );
+        set_time_diff( cv );
     }
 }
 
@@ -100,6 +100,10 @@ std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make() {
     new (raw_pointer) clock_sync_shared_info();
 
     std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
+
+    // TODO: move to constructor
+    raw_pointer->time_diff_pidc.set_error_filter_length( CRIMSON_TNG_UPDATE_PER_SEC );
+    raw_pointer->time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 
     return ptr;
 }
