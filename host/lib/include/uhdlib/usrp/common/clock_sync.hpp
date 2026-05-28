@@ -20,6 +20,21 @@ namespace uhd { namespace usrp {
 
 static constexpr size_t CACHE_LINE_SIZE = 64;
 
+#pragma pack(push,1)
+struct time_diff_req {
+    uint64_t header;
+    int64_t tv_sec;
+    int64_t tv_tick;
+};
+#pragma pack(pop)
+
+#pragma pack(push,1)
+struct time_diff_resp {
+    int64_t tv_sec;
+    int64_t tv_tick;
+};
+#pragma pack(pop)
+
 // Stores data shared between the clock sync thread and any other thread that requires the time
 // Intened use:
 // The consumer has a shared pointer to this class (possibly also a raw pointer if it impacts speed) since we need performance

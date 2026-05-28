@@ -58,21 +58,6 @@ struct gpio_burst_req {
 };
 #pragma pack(pop)
 
-#pragma pack(push,1)
-struct time_diff_req {
-    uint64_t header;
-    int64_t tv_sec;
-    int64_t tv_tick;
-};
-#pragma pack(pop)
-
-#pragma pack(push,1)
-struct time_diff_resp {
-    int64_t tv_sec;
-    int64_t tv_tick;
-};
-#pragma pack(pop)
-
 }
 }
 
