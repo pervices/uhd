@@ -510,21 +510,6 @@ inline int64_t crimson_tng_impl::nsecs_to_ticks( int64_t tv_nsec ) {
     return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
 }
 
-void crimson_tng_impl::start_bm() {
-
-    //checks if the current task is excempt from need clock synchronization
-    _mm_lfence();
-
-    // Requests resync
-    request_resync_time_diff();
-
-    // TODO: move _bm_thread object to be managed by the class it is running for
-    //starts the thread that synchronizes the clocks
-    _bm_thread = std::thread( uhd::usrp::clock_sync_shared_info.loop_thread_fn, device_clock_sync_info.get() );
-
-    //Note: anything relying on this will require waiting time_diff_converged()
-}
-
 void crimson_tng_impl::start_pps_dtc() {
     // Esnure _pps_thread_needed and _pps_thread_running are loaded
     _mm_lfence();
@@ -1342,11 +1327,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     }
 
     device_clock_sync_info = clock_sync_shared_info::make();
-
-
-    // Start the clock sync thread
-    // We start it now even though we don't know if we need it yet since clock sync takes time
-    start_bm();
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {

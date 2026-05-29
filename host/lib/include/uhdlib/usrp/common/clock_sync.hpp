@@ -17,9 +17,11 @@
 #include <immintrin.h>
 // Socket for sending/receiving time diff packets
 #include <uhd/transport/udp_simple.hpp>
-
+// Standard library for thread
+#include <thread>
+// PID controller for clock sync
 #include "pidc.hpp"
-
+// Data type used within UHD for storing time
 #include <uhd/types/time_spec.hpp>
 
 namespace uhd { namespace usrp {
@@ -77,6 +79,8 @@ private:
     // TODO: have the device set this to true when we know it is needed
     bool clock_sync_desired = true;
 
+    std::thread sync_thread;
+
     /** PID controller that rejects differences between Crimson's clock and the host's clock.
      *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
      *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -87,10 +91,7 @@ private:
     uhd::pidc time_diff_pidc;
 
     // Declare constructor as private to ensure this is only created through make
-    clock_sync_shared_info() {
-        // Move this to a .cpp file if it becomes complicated
-        /* No-op*/
-    }
+    clock_sync_shared_info();
 
     // Deleter to be used by a shared_ptr
     struct deleter {

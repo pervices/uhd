@@ -92,8 +92,6 @@ public:
 
     uhd::time_spec_t get_time_now();
 
-    void start_bm();
-
     void start_pps_dtc();
     void stop_pps_dtc();
 
@@ -157,9 +155,6 @@ private:
     /**
     * Buffer Management Objects
     */
-
-    // Thread that handles syncing clocks between the host and Cyan
-    std::thread _bm_thread;
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called

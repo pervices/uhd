@@ -20,6 +20,11 @@ using namespace uhd::usrp;
 
 static constexpr size_t padded_clock_sync_shared_info_size = (size_t) ceil(sizeof(clock_sync_shared_info) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
+clock_sync_shared_info::clock_sync_shared_info() {
+    sync_thread = std::thread(loop_thread_fn, this);
+    // TODO: stop thread in the destructor
+}
+
 // Wait for convergence
 void clock_sync_shared_info::wait_for_sync() {
     for(
