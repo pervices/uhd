@@ -135,14 +135,14 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     _mm_lfence();
     for(
         now = uhd::get_system_time(),
-        then = now + UPDATE_PERIOD;
+        then = now + UPDATE_PERIOD
         ;
 
-    ! self->sync_thread_should_exit
-    ;
+        ! self->sync_thread_should_exit
+        ;
 
-    then += UPDATE_PERIOD,
-    now = uhd::get_system_time()
+        then += UPDATE_PERIOD,
+        now = uhd::get_system_time()
     ) {
         if(dev->device_clock_sync_info->is_resync_requested()) {
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
