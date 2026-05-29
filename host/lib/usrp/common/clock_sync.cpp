@@ -22,7 +22,12 @@ static constexpr size_t padded_clock_sync_shared_info_size = (size_t) ceil(sizeo
 
 clock_sync_shared_info::clock_sync_shared_info() {
     sync_thread = std::thread(loop_thread_fn, this);
-    // TODO: stop thread in the destructor
+}
+
+clock_sync_shared_info::~clock_sync_shared_info() {
+    sync_thread_should_exit = true;
+    _mm_sfence();
+    sync_thread.join();
 }
 
 // Wait for convergence
@@ -118,8 +123,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     // Set thread priority to default since this isn't high priority
     uhd::set_thread_priority_safe(0, false);
 
-    self->sync_thread_running = true;
-
     // Flag so that we only print the error message for failed recv once
     bool dropped_recv_message_printed = false;
 
@@ -183,6 +186,4 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
-    self->sync_thread_running = false;
-    _mm_sfence();
 }

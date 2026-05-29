@@ -68,7 +68,6 @@ private:
 
     // TODO: ensure all variable after this line are aligned to avoid false sharing
 
-    bool sync_thread_running = false;
     bool sync_thread_should_exit = false;
     // TODO: create in constructor
     uhd::transport::udp_simple::sptr sync_port;
@@ -92,6 +91,8 @@ private:
 
     // Declare constructor as private to ensure this is only created through make
     clock_sync_shared_info();
+
+    ~clock_sync_shared_info();
 
     // Deleter to be used by a shared_ptr
     struct deleter {
