@@ -276,7 +276,7 @@ uhd::time_spec_t crimson_tng_impl::get_time_now() {
     // If clock sync thread is not running reset the time diff pid and use the initial offset
     // Will get the time but without taking into account network latency (which would require the clock sync thread)
     } else {
-        device_clock_sync_info->reset_time_diff_pid();
+        // device_clock_sync_info->reset_time_diff_pid();
         // TODO: finish this for the moved clock sync
         return uhd::get_system_time();// - _time_diff_pidc->get_offset();
     }
