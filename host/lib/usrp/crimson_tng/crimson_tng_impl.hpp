@@ -93,7 +93,6 @@ public:
     uhd::time_spec_t get_time_now();
 
     void start_bm();
-    void stop_bm();
 
     void start_pps_dtc();
     void stop_pps_dtc();

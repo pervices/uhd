@@ -520,21 +520,9 @@ void crimson_tng_impl::start_bm() {
 
     // TODO: move _bm_thread object to be managed by the class it is running for
     //starts the thread that synchronizes the clocks
-    _bm_thread = std::thread( clock_sync_shared_info.loop_thread_fn, device_clock_sync_info.get() );
+    _bm_thread = std::thread( uhd::usrp::clock_sync_shared_info.loop_thread_fn, device_clock_sync_info.get() );
 
     //Note: anything relying on this will require waiting time_diff_converged()
-}
-
-void crimson_tng_impl::stop_bm() {
-    _mm_lfence();
-
-    if ( _bm_thread_running ) {
-
-        // TODO: order clock_sync to stop
-        _mm_sfence();
-        _bm_thread.join();
-
-    }
 }
 
 void crimson_tng_impl::start_pps_dtc() {
@@ -615,7 +603,6 @@ UHD_STATIC_BLOCK(register_crimson_tng_device)
 crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 :
     device_addr( _device_addr ),
-    _bm_thread_needed( true ),
     _pps_thread_running( false ),
     _pps_thread_should_exit( false ),
     _command_time( 0.0 )
@@ -1369,12 +1356,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 crimson_tng_impl::~crimson_tng_impl(void)
 {
-    stop_bm();
     stop_pps_dtc();
-
-    // Manually calling destructor when using placement new is required
-    _time_diff_pidc->~pidc();
-    free(_time_diff_pidc);
 
     // Remove device advisory lock
     flock(device_lock_fd, LOCK_UN);
