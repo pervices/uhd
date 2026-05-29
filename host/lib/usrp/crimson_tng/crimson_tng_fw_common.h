@@ -84,7 +84,7 @@
 #define CRIMSON_TNG_PACKET_NSAMP_MULTIPLE 2
 
 // Crimson Flowcontrol Update Per Second
-#define CRIMSON_TNG_UPDATE_PER_SEC	100
+#define CRIMSON_TNG_UPDATE_PER_SEC	1000
 #define CRIMSON_TNG_SS_FIFOLVL_THRESHOLD 107421875
 
 // Crimson Buffer Size
