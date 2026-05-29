@@ -130,7 +130,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     now = uhd::get_system_time();
     self->time_diff_send( now );
     self->time_diff_recv( tdr );
-    self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / self->tick_rate);
+    self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / self->tick_rate));
 
     _mm_lfence();
     for(

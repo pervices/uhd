@@ -513,20 +513,15 @@ void crimson_tng_impl::start_bm() {
 
     //checks if the current task is excempt from need clock synchronization
     _mm_lfence();
-    if ( ! _bm_thread_needed ) {
-        return;
-    }
 
-    if ( ! _bm_thread_running ) {
+    // Requests resync
+    request_resync_time_diff();
 
-        // Requests resync
-        request_resync_time_diff();
+    // TODO: move _bm_thread object to be managed by the class it is running for
+    //starts the thread that synchronizes the clocks
+    _bm_thread = std::thread( clock_sync_shared_info.loop_thread_fn, device_clock_sync_info.get() );
 
-        //starts the thread that synchronizes the clocks
-        _bm_thread = std::thread( clock_sync_shared_info.loop_thread_fn, device_clock_sync_info.get() );
-
-        //Note: anything relying on this will require waiting time_diff_converged()
-    }
+    //Note: anything relying on this will require waiting time_diff_converged()
 }
 
 void crimson_tng_impl::stop_bm() {
@@ -1362,10 +1357,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
 
     // Start the clock sync thread
-    // _time_diff_pidc and device_clock_sync_info sync info are created even when the the clock synce thread is not needed to make it easier to enable/disable the thread for debugging purposes
-    if ( _bm_thread_needed ) {
-        start_bm();
-    }
+    // We start it now even though we don't know if we need it yet since clock sync takes time
+    start_bm();
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
