@@ -74,6 +74,9 @@ private:
     // TODO: set this in the constructor
     double tick_rate = 162.5e6;
 
+    // TODO: have the device set this to true when we know it is needed
+    bool clock_sync_desired = true;
+
     /** PID controller that rejects differences between Crimson's clock and the host's clock.
      *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
      *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.

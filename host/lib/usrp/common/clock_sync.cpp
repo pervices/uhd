@@ -144,7 +144,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         then += UPDATE_PERIOD,
         now = uhd::get_system_time()
     ) {
-        if(seld->is_resync_requested()) {
+        if(self->is_resync_requested()) {
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
             self->resync_acknowledge();
             // Reset PID to clear old values
@@ -160,7 +160,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
             continue;
         }
 
-        time_diff = self->get_control_variable();
+        time_diff = self->time_diff_pidc.get_control_variable();
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
@@ -172,7 +172,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         if (reply_good) {
             self->time_diff_process( tdr, now );
         } else if (!dropped_recv_message_printed && self->clock_sync_desired) {
-            UHD_LOG_ERROR(dev->product_name_c, "Failed to receive packet used by clock synchronization");
+            UHD_LOG_ERROR("CLOCK_SYNC", "Failed to receive packet used by clock synchronization");
             dropped_recv_message_printed = true;
         }
         // lfence to update _bm_thread_should_exit for the for loop
