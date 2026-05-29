@@ -144,11 +144,11 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         then += UPDATE_PERIOD,
         now = uhd::get_system_time()
     ) {
-        if(dev->device_clock_sync_info->is_resync_requested()) {
+        if(seld->is_resync_requested()) {
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
-            dev->device_clock_sync_info->resync_acknowledge();
+            self->resync_acknowledge();
             // Reset PID to clear old values
-            dev->reset_time_diff_pid();
+            self->reset_time_diff_pid();
         }
 
         dt = then - now;
@@ -160,7 +160,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
             continue;
         }
 
-        time_diff = dev->time_diff_pidc.get_control_variable();
+        time_diff = self->get_control_variable();
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
@@ -170,8 +170,8 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         bool reply_good =  self->time_diff_recv( tdr );
 
         if (reply_good) {
-            dev->time_diff_process( tdr, now );
-        } else if (!dropped_recv_message_printed && dev->clock_sync_desired) {
+            self->time_diff_process( tdr, now );
+        } else if (!dropped_recv_message_printed && self->clock_sync_desired) {
             UHD_LOG_ERROR(dev->product_name_c, "Failed to receive packet used by clock synchronization");
             dropped_recv_message_printed = true;
         }
