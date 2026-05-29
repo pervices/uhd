@@ -20,8 +20,17 @@ using namespace uhd::usrp;
 
 static constexpr size_t padded_clock_sync_shared_info_size = (size_t) ceil(sizeof(clock_sync_shared_info) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
-clock_sync_shared_info::clock_sync_shared_info(std::string ip, uint16_t port) {
-    sync_port = transport::udp_simple::make_connected(ip, std::to_string(port));
+clock_sync_shared_info::clock_sync_shared_info(std::string ip, uint16_t port, double tick_rate)
+    :
+    _tick_rate(tick_rate)
+    {
+
+    // Configure PID
+    time_diff_pidc.set_error_filter_length( UPDATES_PER_SECOND );
+    time_diff_pidc.set_max_error_for_convergence( 10e-6 );
+
+    // Create port used to send/receive time diffs
+    sync_socket = transport::udp_simple::make_connected(ip, std::to_string(port));
 
     sync_thread = std::thread(loop_thread_fn, this);
 }
@@ -53,7 +62,7 @@ void clock_sync_shared_info::wait_for_sync() {
 bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
 
     // Receive reply packet
-    size_t bytes_received = sync_port->recv( &reply, sizeof(reply));
+    size_t bytes_received = sync_socket->recv( &reply, sizeof(reply));
 
     if(bytes_received > 0) {
 
@@ -78,7 +87,7 @@ void clock_sync_shared_info::reset_time_diff_pid() {
     time_diff_send( reset_now );
     time_diff_recv( reset_tdr );
 
-    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick * 1.0e-9 / tick_rate);
+    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick * 1.0e-9 / _tick_rate);
 
     time_diff_pidc.reset(reset_now, new_offset);
 }
@@ -88,7 +97,7 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
 
     static const double sp = 0.0;
 
-    double pv = (double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / tick_rate);
+    double pv = (double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / _tick_rate);
 
     double cv = time_diff_pidc.update_control_variable( sp, pv, now );
 
@@ -106,16 +115,12 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
     }
 }
 
-std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make(std::string ip, uint16_t port) {
+std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make(std::string ip, uint16_t port, double tick_rate) {
     // Create using placement new
     clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
-    new (raw_pointer) clock_sync_shared_info(ip, port);
+    new (raw_pointer) clock_sync_shared_info(ip, port, tick_rate);
 
     std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
-
-    // TODO: move to constructor
-    raw_pointer->time_diff_pidc.set_error_filter_length( UPDATES_PER_SECOND );
-    raw_pointer->time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 
     return ptr;
 }
@@ -140,7 +145,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     now = uhd::get_system_time();
     self->time_diff_send( now );
     self->time_diff_recv( tdr );
-    self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / self->tick_rate));
+    self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / self->_tick_rate));
 
     _mm_lfence();
     for(

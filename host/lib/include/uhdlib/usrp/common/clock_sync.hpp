@@ -68,12 +68,14 @@ private:
 
     // TODO: ensure all variable after this line are aligned to avoid false sharing
 
+    // Tells the sync thread to exit
     bool sync_thread_should_exit = false;
-    // TODO: create in constructor
-    transport::udp_simple::sptr sync_port;
 
-    // TODO: set this in the constructor
-    double tick_rate = 162.5e6;
+    // The socket used to send and receive time diffs
+    transport::udp_simple::sptr sync_socket;
+
+    // Tick rate of time diff packets
+    const double _tick_rate;
 
     // TODO: have the device set this to true when we know it is needed
     bool clock_sync_desired = true;
@@ -94,8 +96,9 @@ private:
      * The constructor is private to ensure this is only created through make.
      * @param ip The ip address to perform clock sync with
      * @param port The port the device receives clock sync messages on
+     * @param tick_rate The tick rate the device expects to time diff packets
      */
-    clock_sync_shared_info(std::string ip, uint16_t port);
+    clock_sync_shared_info(std::string ip, uint16_t port, double tick_rate);
 
     ~clock_sync_shared_info();
 
@@ -122,7 +125,7 @@ private:
         // Create request
         request.header = (uint64_t)0x20002 << 16;
         request.tv_sec = prediction.get_full_secs();
-        request.tv_tick = (int64_t) ( prediction.get_frac_secs() * 1e9 / tick_rate );
+        request.tv_tick = (int64_t) ( prediction.get_frac_secs() * 1e9 / _tick_rate );
 
         // Convert request from native little endian to big endian for the FPGA
         // TODO: detect if we are using big or little endian at compile time
@@ -130,7 +133,7 @@ private:
         request.tv_sec = __builtin_bswap64(request.tv_sec);
         request.tv_tick = __builtin_bswap64(request.tv_tick);
 
-        sync_port->send(&request, sizeof(request));
+        sync_socket->send(&request, sizeof(request));
     }
 
     /**
@@ -219,9 +222,10 @@ public:
      * Create a new clock_sync_shared_info with an associated shared pointer on it's own cache line
      * @param ip The ip address to perform clock sync with
      * @param port The port the device receives clock sync messages on
+     * @param tick_rate The tick rate the device expects to time diff packets
      * @return Shared pointer to the newly created instance
      */
-    static std::shared_ptr<clock_sync_shared_info> make(std::string ip, uint16_t port);
+    static std::shared_ptr<clock_sync_shared_info> make(std::string ip, uint16_t port, double tick_rate);
 
     /**
      * The loop to run clock sync in
