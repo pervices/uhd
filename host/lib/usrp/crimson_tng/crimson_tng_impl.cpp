@@ -265,21 +265,9 @@ void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard)
     request_resync_time_diff();
 }
 
-// TODO: change the rx functions that bind to this to use their own clock_sync_shared_info
+// TODO: handle case where clock sync is incomplete/failed
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
-    // Waits for clock to be stable before getting time
-    _mm_lfence();
-    if(1 /* TODO: finish updating this function for the new system*/) {
-        device_clock_sync_info->wait_for_sync();
-        double diff = device_clock_sync_info->get_time_diff();
-        return uhd::get_system_time() + diff;
-    // If clock sync thread is not running reset the time diff pid and use the initial offset
-    // Will get the time but without taking into account network latency (which would require the clock sync thread)
-    } else {
-        // device_clock_sync_info->reset_time_diff_pid();
-        // TODO: finish this for the moved clock sync
-        return uhd::get_system_time();// - _time_diff_pidc->get_offset();
-    }
+    device_clock_sync_info->get_device_time();
 }
 
 void crimson_tng_impl::set_properties_from_addr() {

@@ -192,6 +192,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         if (reply_good) {
             self->time_diff_process( tdr, now );
         } else if (!dropped_recv_message_printed && self->clock_sync_desired) {
+            // TODO: give up if sync failed and clock_sync_desired is false
             UHD_LOG_ERROR("CLOCK_SYNC", "Failed to receive packet used by clock synchronization");
             dropped_recv_message_printed = true;
         }

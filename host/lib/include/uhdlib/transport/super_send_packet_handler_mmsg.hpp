@@ -206,9 +206,6 @@ protected:
     // Buffer containing asynchronous messages related to underflows/overflows
     const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
 
-    // Gets the the time on the unit when a packet sent now would arrive
-    uhd::time_spec_t get_device_time();
-
     /*******************************************************************
      * converts vrt packet info into header
      * packet_buff: buffer to write vrt data to
@@ -522,7 +519,7 @@ private:
             // Send packets without tsf since they don't have a set time
             // Also ignore send time in blocking fc mode since it doesn't apply
             if(
-                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= get_device_time().to_ticks(_TICK_RATE) ||
+                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= _clock_sync_info->get_device_time().to_ticks(_TICK_RATE) ||
                 /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||

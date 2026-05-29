@@ -23,6 +23,8 @@
 #include "pidc.hpp"
 // Data type used within UHD for storing time
 #include <uhd/types/time_spec.hpp>
+// Utility forgetting host time
+#include <uhdlib/utils/system_time.hpp>
 
 namespace uhd { namespace usrp {
 
@@ -157,6 +159,7 @@ private:
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & request_time );
 
 public:
+    // TODO: make functions that can be private private
     /**
      * Checks if the clocks are synchronized.
      * @return True if the host and device clocks are synchronized
@@ -170,14 +173,6 @@ public:
      * @throws std::runtime_error Waiting for clock sync has timed out
      */
     void wait_for_sync();
-
-    /**
-     * Gets the current time diff. Ensure is_synced is true before calling this
-     * @return The current time diff
-     */
-    inline double get_time_diff() {
-        return time_diff;
-    }
 
     /**
      * Updates time diff. Only call this if the clocks are converged
@@ -224,6 +219,20 @@ public:
      * @param desired True indicates clock sync is needed
      */
     void set_clock_sync_desired(bool desired);
+
+    /**
+     * Gets the time that a packet sent now would arrive at the device
+     */
+    inline time_spec_t get_device_time() {
+        _mm_lfence();
+
+        // Wait for clock sync to finish
+        if(!is_synced()) [[likely]] {
+            wait_for_sync();
+        }
+
+        return uhd::get_system_time() + time_diff;
+    }
 
     /**
      * Create a new clock_sync_shared_info with an associated shared pointer on it's own cache line
