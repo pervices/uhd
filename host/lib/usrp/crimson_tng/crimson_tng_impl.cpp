@@ -934,6 +934,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     std::string sfpb_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr").get();
 
+    // IP and port used by clock sync
+    // This must be a separate port since it is expecting a reply
+    std::string clock_sync_ip;
+    int clock_sync_port = -1;
+
     _which_time_diff_iface = -1;
     for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
@@ -944,11 +949,26 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
         // Checks if this iface is working
         bool iface_good = ping_check("sfp" + xg_intf, time_diff_ip);
+
+        // Set the ip and port used by clock sync if it hasn't been set yet as a fallback in case none work
+        if(clock_sync_port == -1) {
+            clock_sync_ip = time_diff_ip;
+            clock_sync_port = sfp_port;
+        }
+
         // Set the iface used by time diffs to the first working one
         if(iface_good && _which_time_diff_iface < 0) {
             _which_time_diff_iface = i;
+
+            // Use the first working ip and port for clock sync
+            clock_sync_ip = time_diff_ip;
+            clock_sync_port = sfp_port;
         }
     }
+
+    // Create the class reponsible for synchronizing clocks
+    // Clock sync is not needed yet, but start it now anyway in case it is needed in the future
+    device_clock_sync_info = clock_sync_shared_info::make(clock_sync_ip, (uint16_t) clock_sync_port);
 
     if(_which_time_diff_iface < 0) {
         // TODO: only print this warning when using regular streaming
@@ -1325,8 +1345,6 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     if ( _pps_thread_needed ) {
         start_pps_dtc();
     }
-
-    device_clock_sync_info = clock_sync_shared_info::make();
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {

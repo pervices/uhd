@@ -146,6 +146,7 @@ private:
     */
 
     /// UDP endpoint that receives our Time Diff packets
+    // TODO: rename, this is used for rx start/stop and checking buffer level/uflow/oflows, not clock sync
     std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
 
     // device_clock_sync_info is the main location used to store clock sync info

@@ -70,7 +70,7 @@ private:
 
     bool sync_thread_should_exit = false;
     // TODO: create in constructor
-    uhd::transport::udp_simple::sptr sync_port;
+    transport::udp_simple::sptr sync_port;
 
     // TODO: set this in the constructor
     double tick_rate = 162.5e6;
@@ -89,8 +89,13 @@ private:
      */
     uhd::pidc time_diff_pidc;
 
-    // Declare constructor as private to ensure this is only created through make
-    clock_sync_shared_info();
+    /**
+     * Create an instance of clock_sync_shared_info.
+     * The constructor is private to ensure this is only created through make.
+     * @param ip The ip address to perform clock sync with
+     * @param port The port the device receives clock sync messages on
+     */
+    clock_sync_shared_info(std::string ip, uint16_t port);
 
     ~clock_sync_shared_info();
 
@@ -212,9 +217,11 @@ public:
 
     /**
      * Create a new clock_sync_shared_info with an associated shared pointer on it's own cache line
+     * @param ip The ip address to perform clock sync with
+     * @param port The port the device receives clock sync messages on
      * @return Shared pointer to the newly created instance
      */
-    static std::shared_ptr<clock_sync_shared_info> make();
+    static std::shared_ptr<clock_sync_shared_info> make(std::string ip, uint16_t port);
 
     /**
      * The loop to run clock sync in

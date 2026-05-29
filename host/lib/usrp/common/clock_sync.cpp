@@ -20,7 +20,9 @@ using namespace uhd::usrp;
 
 static constexpr size_t padded_clock_sync_shared_info_size = (size_t) ceil(sizeof(clock_sync_shared_info) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
-clock_sync_shared_info::clock_sync_shared_info() {
+clock_sync_shared_info::clock_sync_shared_info(std::string ip, uint16_t port) {
+    sync_port = transport::udp_simple::make_connected(ip, std::to_string(port));
+
     sync_thread = std::thread(loop_thread_fn, this);
 }
 
@@ -104,10 +106,10 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
     }
 }
 
-std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make() {
+std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make(std::string ip, uint16_t port) {
     // Create using placement new
     clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
-    new (raw_pointer) clock_sync_shared_info();
+    new (raw_pointer) clock_sync_shared_info(ip, port);
 
     std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
 
