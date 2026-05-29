@@ -280,8 +280,6 @@ private:
     int64_t ticks_to_nsecs( int64_t tv_tick );
     int64_t nsecs_to_ticks( int64_t tv_nsec );
 
-    bool clock_sync_desired = false;
-
     // Used to rx start/stop stream commands
     std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
 

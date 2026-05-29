@@ -125,6 +125,11 @@ std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make(std::string
     return ptr;
 }
 
+void clock_sync_shared_info::set_clock_sync_desired(bool desired) {
+    clock_sync_desired = desired;
+    _mm_sfence();
+}
+
 void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
     // Set thread priority to default since this isn't high priority

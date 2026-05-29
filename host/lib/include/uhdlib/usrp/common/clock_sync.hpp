@@ -219,6 +219,13 @@ public:
     }
 
     /**
+     * Sets whether or not clock sync is needed.
+     * When clock sync is not needed error messages are supressed an
+     * @param desired True indicates clock sync is needed
+     */
+    void set_clock_sync_desired(bool desired);
+
+    /**
      * Create a new clock_sync_shared_info with an associated shared pointer on it's own cache line
      * @param ip The ip address to perform clock sync with
      * @param port The port the device receives clock sync messages on
