@@ -224,8 +224,9 @@ public:
     inline void resync_acknowledge() {
         // Set convergence flag to false to indicate the process has been restarted
         is_converged = false;
-        // Fence to ensure the is_converged flag is set before marking that the resync request has been processed
         _mm_sfence();
+
+        // Fence to ensure the is_converged flag is set before marking that the resync request has been processed
         resync_requested = false;
         _mm_sfence();
     }

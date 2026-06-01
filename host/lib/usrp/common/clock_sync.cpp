@@ -196,6 +196,10 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // Get the difference between the predicted and real time
         bool reply_good =  self->time_diff_recv( tdr );
 
+        if(!reply_good) {
+            UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
+        }
+
         if (reply_good) {
             self->time_diff_process( tdr, now );
         } else if (!dropped_recv_message_printed && self->clock_sync_desired) {
