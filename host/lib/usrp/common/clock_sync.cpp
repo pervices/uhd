@@ -192,8 +192,8 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         dt = then - now;
         if ( dt > 0.0 ) {
-            req.tv_sec = dt.get_full_secs();
-            req.tv_nsec = dt.get_frac_secs() * 1e9;
+            req.tv_sec = 0;//dt.get_full_secs();
+            req.tv_nsec = 10e6;//dt.get_frac_secs() * 1e9;
             nanosleep( &req, &rem );
         } else {
             continue;
