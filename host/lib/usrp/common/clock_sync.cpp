@@ -80,6 +80,7 @@ bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
 }
 
 void clock_sync_shared_info::reset_time_diff_pid() {
+    UHD_LOG_ERROR("CLOCK_SYNC", "Resetting time diff");
     uhd::time_spec_t reset_now = uhd::get_system_time();
 
     struct time_diff_resp reset_tdr;
