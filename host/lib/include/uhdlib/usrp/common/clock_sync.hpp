@@ -144,7 +144,7 @@ private:
         // Create request
         request.header = (uint64_t)0x20002 << 16;
         request.tv_sec = prediction.get_full_secs();
-        request.tv_tick = (int64_t) ( prediction.get_frac_secs() / _tick_rate );
+        request.tv_tick = (int64_t) ( (prediction.get_frac_secs() * _tick_rate) );
 
         // Convert request from native little endian to big endian for the FPGA
         // TODO: detect if we are using big or little endian at compile time
