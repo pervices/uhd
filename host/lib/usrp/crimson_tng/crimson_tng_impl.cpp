@@ -267,7 +267,7 @@ void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard)
 
 // TODO: handle case where clock sync is incomplete/failed
 uhd::time_spec_t crimson_tng_impl::get_time_now() {
-    device_clock_sync_info->get_device_time();
+    return device_clock_sync_info->get_device_time();
 }
 
 void crimson_tng_impl::set_properties_from_addr() {
