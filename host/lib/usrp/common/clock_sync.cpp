@@ -190,6 +190,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         }
 
         time_diff = self->time_diff_pidc.get_control_variable();
+        UHD_LOG_ERROR("CLOCK_SYNC", "time_diff: " + std::to_string(time_diff));
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
