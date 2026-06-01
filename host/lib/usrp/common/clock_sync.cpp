@@ -144,6 +144,8 @@ void clock_sync_shared_info::set_clock_sync_desired(bool desired) {
     _mm_sfence();
 }
 
+static int64_t num_time_diffs = 0;
+
 void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     UHD_LOG_ERROR("CLOCK_SYNC", "Synce thread running");
 
@@ -220,6 +222,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         if (reply_good) {
             self->time_diff_process( tdr, now );
+            num_time_diffs++;
         } else if (!dropped_recv_message_printed && self->clock_sync_desired) {
             // TODO: give up if sync failed and clock_sync_desired is false
             UHD_LOG_ERROR("CLOCK_SYNC", "Failed to receive packet used by clock synchronization");
@@ -228,4 +231,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
+    UHD_LOG_ERROR("CLOCK_SYNC", "num_time_diffs: " + std::to_string(num_time_diffs));
+    UHD_LOG_ERROR("CLOCK_SYNC", "Synnc thread exited");
 }
