@@ -149,29 +149,29 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     // Flag so that we only print the error message for failed recv once
     bool dropped_recv_message_printed = false;
 
-    uhd::time_spec_t now, then, dt;
+    uhd::time_spec_t host_time, then, dt;
     uhd::time_spec_t crimson_now;
     struct timespec req, rem;
 
     struct time_diff_resp tdr;
 
     //Get offset
-    now = uhd::get_system_time();
-    self->time_diff_send( now );
+    host_time = uhd::get_system_time();
+    self->time_diff_send( host_time );
     self->time_diff_recv( tdr );
     self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick / self->_tick_rate));
 
     _mm_lfence();
     for(
-        now = uhd::get_system_time(),
-        then = now + UPDATE_PERIOD
+        host_time = uhd::get_system_time(),
+        then = host_time + UPDATE_PERIOD
         ;
 
         ! self->sync_thread_should_exit
         ;
 
         then += UPDATE_PERIOD,
-        now = uhd::get_system_time()
+        host_time = uhd::get_system_time()
     ) {
         if(self->is_resync_requested()) {
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
@@ -180,7 +180,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
             self->reset_time_diff_pid();
         }
 
-        dt = then - now;
+        dt = then - host_time;
         if ( dt > 0.0 ) {
             req.tv_sec = dt.get_full_secs();
             req.tv_nsec = dt.get_frac_secs() * 1e9;
@@ -194,8 +194,8 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // fence before getting time to avoid interference from earlier
         _mm_mfence();
 
-        now = uhd::get_system_time();
-        crimson_now = now + time_diff;
+        host_time = uhd::get_system_time();
+        crimson_now = host_time + time_diff;
 
         // Send the predicted time
         self->time_diff_send( crimson_now );
@@ -211,7 +211,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         _mm_mfence();
 
         if (reply_good) {
-            self->time_diff_process( tdr, now );
+            self->time_diff_process( tdr, host_time );
         } else if (!dropped_recv_message_printed && self->clock_sync_desired) {
             // TODO: give up if sync failed and clock_sync_desired is false
             UHD_LOG_ERROR("CLOCK_SYNC", "Failed to receive packet used by clock synchronization");
