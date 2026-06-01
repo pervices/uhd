@@ -199,6 +199,9 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         double time_diff = self->time_diff_pidc.get_control_variable();
         UHD_LOG_ERROR("CLOCK_SYNC", "time_diff: " + std::to_string(time_diff));
+
+        _mm_mfence();
+
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
@@ -206,6 +209,8 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         self->time_diff_send( crimson_now );
         // Get the difference between the predicted and real time
         bool reply_good =  self->time_diff_recv( tdr );
+
+        _mm_mfence();
 
         UHD_LOG_ERROR("CLOCK_SYNC", "crimson_now.get_real_secs(): " + std::to_string(crimson_now.get_real_secs()));
         UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
