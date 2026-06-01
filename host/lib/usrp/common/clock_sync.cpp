@@ -67,12 +67,9 @@ bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
     if(bytes_received > 0) {
 
         // Swap byte order from big to native
-       // TODO: detect if we are using big or little endian at compile time, this currently assumes little endian
+        // TODO: detect if we are using big or little endian at compile time, this currently assumes little endian
         reply.tv_sec = __builtin_bswap64(reply.tv_sec);
-        UHD_LOG_ERROR("CLOCK_SYNC", "pre swap reply.tv_tick(): " + std::to_string(reply.tv_tick));
         reply.tv_tick = __builtin_bswap64(reply.tv_tick);
-        UHD_LOG_ERROR("CLOCK_SYNC", "post swap reply.tv_tick(): " + std::to_string(reply.tv_tick));
-
         return true;
 
     } else {
