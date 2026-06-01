@@ -79,7 +79,6 @@ bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
 }
 
 void clock_sync_shared_info::reset_time_diff_pid() {
-    UHD_LOG_ERROR("CLOCK_SYNC", "Resetting time diff");
     uhd::time_spec_t reset_now = uhd::get_system_time();
 
     struct time_diff_resp reset_tdr;
@@ -117,9 +116,6 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
     _mm_sfence();
 
     if(reset_advised) {
-        if(reset_advised) {
-            UHD_LOG_ERROR("CLOCK_SYNC", "Reset advised");
-        }
         reset_time_diff_pid();
     }
 
@@ -167,8 +163,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     self->time_diff_recv( tdr );
     self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick / self->_tick_rate));
 
-    UHD_LOG_ERROR("CLOCK_SYNC", "A1");
-
     _mm_lfence();
     for(
         now = uhd::get_system_time(),
@@ -198,7 +192,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         }
 
         double time_diff = self->time_diff_pidc.get_control_variable();
-        UHD_LOG_ERROR("CLOCK_SYNC", "time_diff: " + std::to_string(time_diff));
 
         _mm_mfence();
 
@@ -212,14 +205,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         _mm_mfence();
 
-        UHD_LOG_ERROR("CLOCK_SYNC", "crimson_now.get_real_secs(): " + std::to_string(crimson_now.get_real_secs()));
-        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
-        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
-
-        if(!reply_good) {
-            UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
-        }
-
         if (reply_good) {
             self->time_diff_process( tdr, now );
             num_time_diffs++;
@@ -231,6 +216,4 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
-    UHD_LOG_ERROR("CLOCK_SYNC", "num_time_diffs: " + std::to_string(num_time_diffs));
-    UHD_LOG_ERROR("CLOCK_SYNC", "Synnc thread exited");
 }
