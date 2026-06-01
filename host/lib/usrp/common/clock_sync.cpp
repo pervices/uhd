@@ -96,6 +96,8 @@ void clock_sync_shared_info::reset_time_diff_pid() {
     double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick /  _tick_rate);
 
     time_diff_pidc.reset(reset_now, new_offset);
+
+    _mm_sfence();
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
@@ -164,11 +166,8 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
     struct time_diff_resp tdr;
 
-    //Get offset
-    now = uhd::get_system_time();
-    self->time_diff_send( now );
-    self->time_diff_recv( tdr );
-    self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick / self->_tick_rate));
+    //Get initial offset
+    self->reset_time_diff_pid();
 
     UHD_LOG_ERROR("CLOCK_SYNC", "A1");
 
@@ -210,6 +209,9 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         // Send the predicted time
         self->time_diff_send( crimson_now );
+
+        _mm_mfence();
+
         // Get the difference between the predicted and real time
         bool reply_good =  self->time_diff_recv( tdr );
 
