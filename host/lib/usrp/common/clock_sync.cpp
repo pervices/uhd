@@ -117,9 +117,6 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
     _mm_sfence();
 
     if(reset_advised) {
-        if(reset_advised) {
-            UHD_LOG_ERROR("CLOCK_SYNC", "Reset advised");
-        }
         reset_time_diff_pid();
     }
 
