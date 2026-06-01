@@ -486,18 +486,6 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
     return addrs;
 }
 
-/**
-* Buffer Management / Time Diff
-*/
-
-// SoB: Time Diff (Time Diff mechanism is used to get an accurate estimate of Crimson's absolute time)
-inline int64_t crimson_tng_impl::ticks_to_nsecs( int64_t tv_tick ) {
-    return (int64_t)( (double) tv_tick * _tick_period_ns ) /* [tick] * [ns/tick] = [ns] */;
-}
-inline int64_t crimson_tng_impl::nsecs_to_ticks( int64_t tv_nsec ) {
-    return (int64_t)( (double) tv_nsec / _tick_period_ns )  /* [ns] / [ns/tick] = [tick] */;
-}
-
 void crimson_tng_impl::start_pps_dtc() {
     // Esnure _pps_thread_needed and _pps_thread_running are loaded
     _mm_lfence();
@@ -923,7 +911,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     std::string sfpb_ip = _tree->access<std::string>(CRIMSON_TNG_MB_PATH / "link" / "sfpb" / "ip_addr").get();
 
     // IP and port used by clock sync
-    // This must be a separate port since it is expecting a reply
+    // This must use a separate socket since it is expecting a reply
     std::string clock_sync_ip;
     int clock_sync_port = -1;
 

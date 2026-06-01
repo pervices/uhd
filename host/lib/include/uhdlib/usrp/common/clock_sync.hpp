@@ -51,6 +51,7 @@ struct time_diff_resp {
 // Intened use:
 // The consumer has a shared pointer to this class (possibly also a raw pointer if it impacts speed) since we need performance
 // The provider has a weak pointer to this class since we can accept the overhead of getting a lock on it
+// TODO: rename class and update above comments. Since this class has been changed to handle the entire process instead of just pass data around
 class alignas(CACHE_LINE_SIZE) clock_sync_shared_info
 {
 private:
@@ -81,18 +82,25 @@ private:
     // Tells the sync thread to exit
     bool sync_thread_should_exit = false;
 
-    /**
-     * Start of variables that must be cache line aligned to prevent false sharing
+    /*
+     * Start of variables set during the constructor.
+     * They must be a sparate cache line from other stuff for false sharing but can be on the same one as each other.
      */
 
     // Tick rate of time diff packets
     alignas(CACHE_LINE_SIZE) const double _tick_rate;
 
-    // TODO: have the device set this to true when we know it is needed
+    /**
+     * Start of variables that must be cache line aligned to prevent false sharing
+     */
+
+    // Indicates that clock sync matters
+    // Currently it does nothing, but in the future it will be used to indicate how hard to try to sync the clock
+    // TODO: implement this
     alignas(CACHE_LINE_SIZE) bool clock_sync_desired = true;
 
     // Diference between the host and device time in seconds
-    // TODO: replace this with a deter data type to avoid floating point issues
+    // TODO: replace this with a difference data type to avoid floating point issues
     alignas(CACHE_LINE_SIZE) double time_diff = 0;
 
     // Stores if the predicted time and actual time have convered (clock sync completed)

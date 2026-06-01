@@ -141,10 +141,6 @@ private:
     // Mutexes for controlling control (not data) send/receives each SFP port
     std::vector<std::shared_ptr<std::mutex>> _sfp_control_mutex;
 
-    /**
-    * Clock Domain Synchronization Objects
-    */
-
     /// UDP endpoint that receives our Time Diff packets
     // TODO: rename, this is used for rx start/stop and checking buffer level/uflow/oflows, not clock sync
     std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
@@ -152,10 +148,6 @@ private:
     // device_clock_sync_info is the main location used to store clock sync info
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
     std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
-
-    /**
-    * Buffer Management Objects
-    */
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called
@@ -276,9 +268,6 @@ private:
     std::shared_ptr<std::vector<bool>> rx_channel_in_use;
     bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
-
-    int64_t ticks_to_nsecs( int64_t tv_tick );
-    int64_t nsecs_to_ticks( int64_t tv_nsec );
 
     // Used to rx start/stop stream commands
     std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
