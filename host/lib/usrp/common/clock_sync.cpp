@@ -87,7 +87,7 @@ void clock_sync_shared_info::reset_time_diff_pid() {
     time_diff_send( reset_now );
     time_diff_recv( reset_tdr );
 
-    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick * 1.0e-9 / _tick_rate);
+    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick /  _tick_rate);
 
     time_diff_pidc.reset(reset_now, new_offset);
 }
@@ -97,7 +97,7 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
 
     static const double sp = 0.0;
 
-    double pv = (double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / _tick_rate);
+    double pv = (double) tdr.tv_sec + (tdr.tv_tick / _tick_rate);
 
     double cv = time_diff_pidc.update_control_variable( sp, pv, now );
 
