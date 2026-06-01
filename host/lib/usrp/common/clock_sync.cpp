@@ -212,6 +212,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         UHD_LOG_ERROR("CLOCK_SYNC", "crimson_now.get_real_secs(): " + std::to_string(crimson_now.get_real_secs()));
         UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
+        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
 
         if(!reply_good) {
             UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
