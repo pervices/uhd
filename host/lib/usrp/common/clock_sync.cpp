@@ -79,7 +79,6 @@ bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
 }
 
 void clock_sync_shared_info::reset_time_diff_pid() {
-    UHD_LOG_ERROR("CLOCK_SYNC", "Resetting time diff");
     uhd::time_spec_t reset_now = uhd::get_system_time();
 
     struct time_diff_resp reset_tdr;
@@ -117,9 +116,6 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
     _mm_sfence();
 
     if(reset_advised) {
-        if(reset_advised) {
-            UHD_LOG_ERROR("CLOCK_SYNC", "Reset advised");
-        }
         reset_time_diff_pid();
     }
 
@@ -166,8 +162,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     self->time_diff_send( now );
     self->time_diff_recv( tdr );
     self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick / self->_tick_rate));
-
-    UHD_LOG_ERROR("CLOCK_SYNC", "A1");
 
     _mm_lfence();
     for(
