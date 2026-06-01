@@ -51,7 +51,7 @@ struct time_diff_resp {
 // Intened use:
 // The consumer has a shared pointer to this class (possibly also a raw pointer if it impacts speed) since we need performance
 // The provider has a weak pointer to this class since we can accept the overhead of getting a lock on it
-class clock_sync_shared_info
+class alignas(CACHE_LINE_SIZE) clock_sync_shared_info
 {
 private:
 
@@ -59,31 +59,11 @@ private:
     // TODO: make UPDATE_PERIOD a constexpr (will require changes to the class)
     static inline uhd::time_spec_t UPDATE_PERIOD = uhd::time_spec_t(1.0/UPDATES_PER_SECOND);
 
-    // Stores if the predicted time and actual time have convered (clock sync completed)
-    alignas(CACHE_LINE_SIZE) bool is_converged = false;
-    // Stores if a resync has been requested
-    bool resync_requested = true;
-    // The difference between the device and host time in seconds
-    // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
-    // TODO: verify alignas is working properly
-    alignas(CACHE_LINE_SIZE) double time_diff = 0;
+    /*
+     * Start of member vaiables that are not used by the critical thread, and therefore don't to be on separate cache lines
+     */
 
-    // TODO: ensure all variable after this line are aligned to avoid false sharing
-
-    // Tells the sync thread to exit
-    bool sync_thread_should_exit = false;
-
-    // The socket used to send and receive time diffs
-    transport::udp_simple::sptr sync_socket;
-
-    // Tick rate of time diff packets
-    const double _tick_rate;
-
-    // TODO: have the device set this to true when we know it is needed
-    bool clock_sync_desired = true;
-
-    std::thread sync_thread;
-
+    // NOTE: at present the PID is only used in the sync thread. If will need to be aligned and padded to cache lines if it is changes so that the critical thread(s) access it directly
     /** PID controller that rejects differences between Crimson's clock and the host's clock.
      *  -> The Set Point of the controller (the desired input) is the desired error between the clocks - zero!
      *  -> The Process Variable (the measured value), is error between the clocks, as computed by Crimson.
@@ -92,6 +72,35 @@ private:
      *     => Crimson Time Now := Host Time Now + CV
      */
     uhd::pidc time_diff_pidc;
+
+    // The socket used to send and receive time diffs
+    transport::udp_simple::sptr sync_socket;
+
+    std::thread sync_thread;
+
+    // Tells the sync thread to exit
+    bool sync_thread_should_exit = false;
+
+    /**
+     * Start of variables that must be cache line aligned to prevent false sharing
+     */
+
+    // Tick rate of time diff packets
+    alignas(CACHE_LINE_SIZE) const double _tick_rate;
+
+    // TODO: have the device set this to true when we know it is needed
+    alignas(CACHE_LINE_SIZE) bool clock_sync_desired = true;
+
+    // Diference between the host and device time in seconds
+    // TODO: replace this with a deter data type to avoid floating point issues
+    alignas(CACHE_LINE_SIZE) double time_diff = 0;
+
+    // Stores if the predicted time and actual time have convered (clock sync completed)
+    alignas(CACHE_LINE_SIZE) bool is_converged = false;
+    // Stores if a resync has been requested
+    alignas(CACHE_LINE_SIZE) bool resync_requested = true;
+    // The difference between the device and host time in seconds
+    // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
 
     /**
      * Create an instance of clock_sync_shared_info.
