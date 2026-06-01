@@ -199,6 +199,9 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // Get the difference between the predicted and real time
         bool reply_good =  self->time_diff_recv( tdr );
 
+        UHD_LOG_ERROR("CLOCK_SYNC", "crimson_now.get_real_secs(): " + std::to_string(crimson_now.get_real_secs()));
+        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
+
         if(!reply_good) {
             UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
         }
