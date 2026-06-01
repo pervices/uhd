@@ -134,6 +134,7 @@ void clock_sync_shared_info::set_clock_sync_desired(bool desired) {
 }
 
 void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
+    UHD_LOG_ERROR("CLOCK_SYNC", "Synce thread running");
 
     // Set thread priority to default since this isn't high priority
     uhd::set_thread_priority_safe(0, false);
@@ -154,6 +155,8 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     self->time_diff_send( now );
     self->time_diff_recv( tdr );
     self->time_diff_pidc.set_offset((double) tdr.tv_sec + (tdr.tv_tick * 1.0e-9 / self->_tick_rate));
+
+    UHD_LOG_ERROR("CLOCK_SYNC", "A1");
 
     _mm_lfence();
     for(
@@ -202,4 +205,5 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
+    UHD_LOG_ERROR("CLOCK_SYNC", "Synnc thread exited");
 }
