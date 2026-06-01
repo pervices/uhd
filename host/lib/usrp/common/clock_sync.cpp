@@ -198,6 +198,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         }
 
         double time_diff = self->time_diff_pidc.get_control_variable();
+        UHD_LOG_ERROR("CLOCK_SYNC", "time_diff: " + std::to_string(time_diff));
 
         _mm_mfence();
 
@@ -216,7 +217,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
 
         if(!reply_good) {
-                UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
+            UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
         }
 
         if (reply_good) {
@@ -230,4 +231,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
+    UHD_LOG_ERROR("CLOCK_SYNC", "num_time_diffs: " + std::to_string(num_time_diffs));
+    UHD_LOG_ERROR("CLOCK_SYNC", "Synnc thread exited");
 }
