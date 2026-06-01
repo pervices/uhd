@@ -162,8 +162,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     uhd::time_spec_t crimson_now;
     struct timespec req, rem;
 
-    double time_diff;
-
     struct time_diff_resp tdr;
 
     //Get offset
@@ -202,7 +200,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
             continue;
         }
 
-        time_diff = self->time_diff_pidc.get_control_variable();
+        double time_diff = self->time_diff_pidc.get_control_variable();
         UHD_LOG_ERROR("CLOCK_SYNC", "time_diff: " + std::to_string(time_diff));
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
