@@ -191,6 +191,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         double time_diff = self->time_diff_pidc.get_control_variable();
 
+        // fence before getting time to avoid interference from earlier
         _mm_mfence();
 
         now = uhd::get_system_time();
@@ -198,10 +199,14 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         // Send the predicted time
         self->time_diff_send( crimson_now );
-        // Get the difference between the predicted and real time
-        bool reply_good =  self->time_diff_recv( tdr );
+
+        // fence after sending prediction to avoid reordering from later from interfering
+        // I do not know why fences before get_system_time and after time_diff_send helps, but experimentally they made the difference when moving clock sync to this class
 
         _mm_mfence();
+
+        // Get the difference between the predicted and real time
+        bool reply_good =  self->time_diff_recv( tdr );
 
         if (reply_good) {
             self->time_diff_process( tdr, now );
