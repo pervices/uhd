@@ -92,12 +92,18 @@ void clock_sync_shared_info::reset_time_diff_pid() {
     time_diff_pidc.reset(reset_now, new_offset);
 }
 
+static double abs_lowest_error = 1e9;
+
 /// SoB Time Diff: feed the time diff error back into out control system
 void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
     static const double sp = 0.0;
 
     double pv = (double) tdr.tv_sec + (tdr.tv_tick / _tick_rate);
+
+    if(std::abs(pv) < abs_lowest_error) {
+        abs_lowest_error = std::abs(pv);
+    }
 
     double cv = time_diff_pidc.update_control_variable( sp, pv, now );
 
@@ -198,7 +204,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         }
 
         double time_diff = self->time_diff_pidc.get_control_variable();
-        UHD_LOG_ERROR("CLOCK_SYNC", "time_diff: " + std::to_string(time_diff));
         now = uhd::get_system_time();
         crimson_now = now + time_diff;
 
@@ -206,10 +211,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         self->time_diff_send( crimson_now );
         // Get the difference between the predicted and real time
         bool reply_good =  self->time_diff_recv( tdr );
-
-        UHD_LOG_ERROR("CLOCK_SYNC", "crimson_now.get_real_secs(): " + std::to_string(crimson_now.get_real_secs()));
-        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
-        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
 
         if(!reply_good) {
             UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
@@ -226,6 +227,7 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
+    UHD_LOG_ERROR("CLOCK_SYNC", "abs_lowest_error: " + std::to_string(abs_lowest_error));
     UHD_LOG_ERROR("CLOCK_SYNC", "num_time_diffs: " + std::to_string(num_time_diffs));
     UHD_LOG_ERROR("CLOCK_SYNC", "Synnc thread exited");
 }

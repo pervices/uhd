@@ -215,6 +215,7 @@ public:
      * Sets the flag to indicate that a resync has been requested
      */
     inline bool is_resync_requested() {
+        _mm_lfence();
         return resync_requested;
     }
 
