@@ -105,6 +105,17 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
 
     bool time_diff_converged = time_diff_pidc.is_converged( now, &reset_advised );
 
+    // We only update is_converged when it changes to avoid unnecessarily invalidating it and requiring the other core to fetch the new identical value
+    // Record that convergance was gained
+    if(time_diff_converged && !is_converged) [[unlikely]] {
+        is_converged = true;
+    // Record that convergance was lost
+    } else if(!time_diff_converged && is_converged) [[unlikely]] {
+        is_converged = false;
+    }
+    // Fence to ensure is_converged was updated
+    _mm_sfence();
+
     if(reset_advised) {
         reset_time_diff_pid();
     }
