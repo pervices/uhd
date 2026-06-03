@@ -1,5 +1,5 @@
 //
-// Copyright 2025 Per Vices Corporation
+// Copyright 2026 Per Vices Corporation
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
@@ -47,12 +47,10 @@ struct time_diff_resp {
 };
 #pragma pack(pop)
 
-// Stores data shared between the clock sync thread and any other thread that requires the time
-// Intened use:
-// The consumer has a shared pointer to this class (possibly also a raw pointer if it impacts speed) since we need performance
-// The provider has a weak pointer to this class since we can accept the overhead of getting a lock on it
-// TODO: rename class and update above comments. Since this class has been changed to handle the entire process instead of just pass data around
-class alignas(CACHE_LINE_SIZE) clock_sync_shared_info
+/**
+ * Manages synchronizing clocks between host and device
+ */
+class alignas(CACHE_LINE_SIZE) clock_sync
 {
 private:
 
@@ -114,24 +112,24 @@ private:
     // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
 
     /**
-     * Create an instance of clock_sync_shared_info.
+     * Create an instance of clock_sync.
      * The constructor is private to ensure this is only created through make.
      * @param ip The ip address to perform clock sync with
      * @param port The port the device receives clock sync messages on
      * @param tick_rate The tick rate the device expects to time diff packets
      */
-    clock_sync_shared_info(std::string ip, uint16_t port, double tick_rate);
+    clock_sync(std::string ip, uint16_t port, double tick_rate);
 
-    ~clock_sync_shared_info();
+    ~clock_sync();
 
     // Deleter to be used by a shared_ptr
     struct deleter {
         /**
          * Destructs and frees self
          */
-        void operator()(clock_sync_shared_info* self) {
+        void operator()(clock_sync* self) {
             // The destructor must be manually called when using placement new
-            self->~clock_sync_shared_info();
+            self->~clock_sync();
             free(self);
         }
     };
@@ -255,19 +253,19 @@ public:
     }
 
     /**
-     * Create a new clock_sync_shared_info with an associated shared pointer on it's own cache line
+     * Create a new clock_sync with an associated shared pointer on it's own cache line
      * @param ip The ip address to perform clock sync with
      * @param port The port the device receives clock sync messages on
      * @param tick_rate The tick rate the device expects to time diff packets
      * @return Shared pointer to the newly created instance
      */
-    static std::shared_ptr<clock_sync_shared_info> make(std::string ip, uint16_t port, double tick_rate);
+    static std::shared_ptr<clock_sync> make(std::string ip, uint16_t port, double tick_rate);
 
     /**
      * The loop to run clock sync in
      * @param self The class to run clock sync for. A raw pointer is used because the deleter is responsible for ending the thread.
      */
-    static void loop_thread_fn(clock_sync_shared_info *self);
+    static void loop_thread_fn(clock_sync *self);
 
 };
 

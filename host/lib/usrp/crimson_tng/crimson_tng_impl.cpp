@@ -944,7 +944,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // Create the class reponsible for synchronizing clocks
     // Clock sync is not needed yet, but start it now anyway in case it is needed in the future
-    device_clock_sync_info = clock_sync_shared_info::make(clock_sync_ip, (uint16_t) clock_sync_port, _master_tick_rate);
+    device_clock_sync_info = clock_sync::make(clock_sync_ip, (uint16_t) clock_sync_port, _master_tick_rate);
 
     if(_which_time_diff_iface < 0) {
         // TODO: only print this warning when using regular streaming

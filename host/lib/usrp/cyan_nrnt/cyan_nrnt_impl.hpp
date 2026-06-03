@@ -163,7 +163,7 @@ private:
 
     // device_clock_sync_info is the main location used to store clock sync info
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
-    std::shared_ptr<clock_sync_shared_info> device_clock_sync_info;
+    std::shared_ptr<clock_sync> device_clock_sync_info;
 
     // Which SFP port should be used by clock sync
     // Must be set before the clock sync loop starts or get_time_now is called

@@ -1,5 +1,5 @@
 //
-// Copyright 2025 Per Vices Corporation
+// Copyright 2026 Per Vices Corporation
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
@@ -18,9 +18,9 @@
 using namespace uhd;
 using namespace uhd::usrp;
 
-static constexpr size_t padded_clock_sync_shared_info_size = (size_t) ceil(sizeof(clock_sync_shared_info) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+static constexpr size_t padded_clock_sync_size = (size_t) ceil(sizeof(clock_sync) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
-clock_sync_shared_info::clock_sync_shared_info(std::string ip, uint16_t port, double tick_rate)
+clock_sync::clock_sync(std::string ip, uint16_t port, double tick_rate)
     :
     _tick_rate(tick_rate)
     {
@@ -43,14 +43,14 @@ clock_sync_shared_info::clock_sync_shared_info(std::string ip, uint16_t port, do
     sync_thread = std::thread(loop_thread_fn, this);
 }
 
-clock_sync_shared_info::~clock_sync_shared_info() {
+clock_sync::~clock_sync() {
     sync_thread_should_exit = true;
     _mm_sfence();
     sync_thread.join();
 }
 
 // Wait for convergence
-void clock_sync_shared_info::wait_for_sync() {
+void clock_sync::wait_for_sync() {
     for(
         time_spec_t time_then = uhd::get_system_time(),
             time_now = time_then
@@ -67,7 +67,7 @@ void clock_sync_shared_info::wait_for_sync() {
     }
 }
 
-bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
+bool clock_sync::time_diff_recv(time_diff_resp & reply) {
 
     // Receive reply packet
     size_t bytes_received = sync_socket->recv( &reply, sizeof(reply));
@@ -86,7 +86,7 @@ bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
     }
 }
 
-void clock_sync_shared_info::reset_time_diff_pid() {
+void clock_sync::reset_time_diff_pid() {
     _mm_mfence();
 
     uhd::time_spec_t reset_now = uhd::get_system_time();
@@ -107,7 +107,7 @@ void clock_sync_shared_info::reset_time_diff_pid() {
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
-void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
+void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & now ) {
 
     static const double sp = 0.0;
 
@@ -140,22 +140,22 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
     }
 }
 
-std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make(std::string ip, uint16_t port, double tick_rate) {
+std::shared_ptr<clock_sync> clock_sync::make(std::string ip, uint16_t port, double tick_rate) {
     // Create using placement new
-    clock_sync_shared_info* raw_pointer = (clock_sync_shared_info*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_shared_info_size);
-    new (raw_pointer) clock_sync_shared_info(ip, port, tick_rate);
+    clock_sync* raw_pointer = (clock_sync*) aligned_alloc(CACHE_LINE_SIZE, padded_clock_sync_size);
+    new (raw_pointer) clock_sync(ip, port, tick_rate);
 
-    std::shared_ptr<clock_sync_shared_info> ptr(raw_pointer, deleter());
+    std::shared_ptr<clock_sync> ptr(raw_pointer, deleter());
 
     return ptr;
 }
 
-void clock_sync_shared_info::set_clock_sync_desired(bool desired) {
+void clock_sync::set_clock_sync_desired(bool desired) {
     clock_sync_desired = desired;
     _mm_sfence();
 }
 
-void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
+void clock_sync::loop_thread_fn( clock_sync *self ) {
     // Set thread priority to default since this isn't high priority
     uhd::set_thread_priority_safe(0, false);
 
