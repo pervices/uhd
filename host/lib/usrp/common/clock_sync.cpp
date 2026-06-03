@@ -87,8 +87,6 @@ bool clock_sync_shared_info::time_diff_recv(time_diff_resp & reply) {
 }
 
 void clock_sync_shared_info::reset_time_diff_pid() {
-    UHD_LOG_ERROR("CLOCK_SYNC", "Resetting time diff");
-
     _mm_mfence();
 
     uhd::time_spec_t reset_now = uhd::get_system_time();
@@ -175,8 +173,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
     //Get initial offset
     self->reset_time_diff_pid();
 
-    UHD_LOG_ERROR("CLOCK_SYNC", "A1");
-
     _mm_lfence();
     for(
         now = uhd::get_system_time(),
@@ -222,17 +218,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         _mm_mfence();
 
-        if(tdr.tv_sec != 0) {
-            UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
-        }
-        if(tdr.tv_tick < -5000 || tdr.tv_tick > 5000) {
-            UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
-        }
-
-        if(!reply_good) {
-            UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
-        }
-
         if (reply_good) {
             self->time_diff_process( tdr, now );
             num_time_diffs++;
@@ -244,5 +229,4 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
-    UHD_LOG_ERROR("CLOCK_SYNC", "Synce thread exited");
 }
