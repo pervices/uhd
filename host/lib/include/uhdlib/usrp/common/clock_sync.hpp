@@ -56,7 +56,7 @@ class alignas(CACHE_LINE_SIZE) clock_sync_shared_info
 {
 private:
 
-    static constexpr double UPDATES_PER_SECOND = 100;
+    static constexpr double UPDATES_PER_SECOND = 1000;
     // TODO: make UPDATE_PERIOD a constexpr (will require changes to the class)
     static inline uhd::time_spec_t UPDATE_PERIOD = uhd::time_spec_t(1.0/UPDATES_PER_SECOND);
 
@@ -97,16 +97,16 @@ private:
     // Indicates that clock sync matters
     // Currently it does nothing, but in the future it will be used to indicate how hard to try to sync the clock
     // TODO: implement this
-    alignas(CACHE_LINE_SIZE) bool clock_sync_desired = true;
+    alignas(CACHE_LINE_SIZE) volatile bool clock_sync_desired = true;
 
     // Diference between the host and device time in seconds
     // TODO: replace this with a difference data type to avoid floating point issues
-    alignas(CACHE_LINE_SIZE) double time_diff = 0;
+    alignas(CACHE_LINE_SIZE) volatile double time_diff = 0;
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
-    alignas(CACHE_LINE_SIZE) bool is_converged = false;
+    alignas(CACHE_LINE_SIZE) volatile bool is_converged = false;
     // Stores if a resync has been requested
-    alignas(CACHE_LINE_SIZE) bool resync_requested = true;
+    alignas(CACHE_LINE_SIZE) volatile bool resync_requested = true;
     // The difference between the device and host time in seconds
     // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
 
