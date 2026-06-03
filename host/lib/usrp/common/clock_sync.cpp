@@ -128,9 +128,10 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
         reset_time_diff_pid();
     }
 
-    // Update pid variable
-    // NOTE: the control variable is used in guesses, always update if not converged yet
-    set_time_diff( cv );
+    // For SoB, record the instantaneous time difference + compensation
+    if (time_diff_converged ) {
+        set_time_diff( cv );
+    }
 }
 
 std::shared_ptr<clock_sync_shared_info> clock_sync_shared_info::make(std::string ip, uint16_t port, double tick_rate) {
