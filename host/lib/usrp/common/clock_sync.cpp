@@ -128,6 +128,8 @@ void clock_sync_shared_info::time_diff_process( const time_diff_resp & tdr, cons
         reset_time_diff_pid();
     }
 
+    // Update pid variable
+    // NOTE: the control variable is used in guesses, always update if not converged yet
     set_time_diff( cv );
 }
 
@@ -214,7 +216,9 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         if(tdr.tv_sec != 0) {
             UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
         }
-        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
+        if(tdr.tv_tick < -5000 || tdr.tv_tick > 5000) {
+            UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
+        }
 
         if(!reply_good) {
             UHD_LOG_ERROR("CLOCK_SYNC", "recv clock sync error");
