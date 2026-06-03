@@ -80,7 +80,10 @@ private:
     std::thread sync_thread;
 
     // Tells the sync thread to exit
-    bool sync_thread_should_exit = false;
+    volatile bool sync_thread_should_exit = false;
+
+    // Indicates that clock sync matters
+    volatile bool clock_sync_desired = false;
 
     /*
      * Start of variables set during the constructor.
@@ -93,20 +96,20 @@ private:
     /**
      * Start of variables that must be cache line aligned to prevent false sharing
      */
-
-    // Indicates that clock sync matters
-    // Currently it does nothing, but in the future it will be used to indicate how hard to try to sync the clock
-    // TODO: implement this
-    alignas(CACHE_LINE_SIZE) volatile bool clock_sync_desired = true;
+    // TODO: figure out if these variables need to be volatile
 
     // Diference between the host and device time in seconds
-    // TODO: replace this with a difference data type to avoid floating point issues
+    /**
+     * TODO: change it so that time_diff is a function of current device time.
+     * Currently this only acounts for differences is clock rate when this variable is updated
+     * It does not account for the clock mismatch between updates
+     */
     alignas(CACHE_LINE_SIZE) volatile double time_diff = 0;
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
-    alignas(CACHE_LINE_SIZE) volatile bool is_converged = false;
+    alignas(CACHE_LINE_SIZE) bool is_converged = false;
     // Stores if a resync has been requested
-    alignas(CACHE_LINE_SIZE) volatile bool resync_requested = true;
+    alignas(CACHE_LINE_SIZE) bool resync_requested = true;
     // The difference between the device and host time in seconds
     // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
 
@@ -175,22 +178,6 @@ private:
      */
     void time_diff_process( const time_diff_resp & tdr, const uhd::time_spec_t & request_time );
 
-public:
-    // TODO: make functions that can be private private
-    /**
-     * Checks if the clocks are synchronized.
-     * @return True if the host and device clocks are synchronized
-     */
-    inline bool is_synced() {
-        return is_converged && !resync_requested;
-    }
-
-    /**
-     * Waits until the clocks are synced
-     * @throws std::runtime_error Waiting for clock sync has timed out
-     */
-    void wait_for_sync();
-
     /**
      * Updates time diff. Only call this if the clocks are converged
      * @param new_time_diff The new time diff
@@ -204,15 +191,7 @@ public:
     }
 
     /**
-     * Sets the flag to indicate that a resync has been requested
-     */
-    inline void request_resync() {
-        resync_requested = true;
-        _mm_sfence();
-    }
-
-    /**
-     * Sets the flag to indicate that a resync has been requested
+     * Gets the flag to indicate that a resync has been requested
      */
     inline bool is_resync_requested() {
         return resync_requested;
@@ -228,6 +207,29 @@ public:
 
         // Fence to ensure the is_converged flag is set before marking that the resync request has been processed
         resync_requested = false;
+        _mm_sfence();
+    }
+
+public:
+    /**
+     * Checks if the clocks are synchronized.
+     * @return True if the host and device clocks are synchronized
+     */
+    inline bool is_synced() {
+        return is_converged && !resync_requested;
+    }
+
+    /**
+     * Waits until the clocks are synced
+     * @throws std::runtime_error Waiting for clock sync has timed out
+     */
+    void wait_for_sync();
+
+    /**
+     * Sets the flag to indicate that a resync has been requested
+     */
+    inline void request_resync() {
+        resync_requested = true;
         _mm_sfence();
     }
 
