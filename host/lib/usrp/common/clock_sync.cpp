@@ -214,7 +214,9 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         _mm_mfence();
 
-        UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
+        if(tdr.tv_sec != 0) {
+            UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
+        }
         UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
 
         if(!reply_good) {
