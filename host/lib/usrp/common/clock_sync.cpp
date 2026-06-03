@@ -152,8 +152,6 @@ void clock_sync_shared_info::set_clock_sync_desired(bool desired) {
 static int64_t num_time_diffs = 0;
 
 void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
-    UHD_LOG_ERROR("CLOCK_SYNC", "Synce thread running");
-
     // Set thread priority to default since this isn't high priority
     uhd::set_thread_priority_safe(0, false);
 
@@ -200,7 +198,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         }
 
         double time_diff = self->time_diff_pidc.get_control_variable();
-        UHD_LOG_ERROR("CLOCK_SYNC", "time_diff: " + std::to_string(time_diff));
 
         _mm_mfence();
 
@@ -217,7 +214,6 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
 
         _mm_mfence();
 
-        UHD_LOG_ERROR("CLOCK_SYNC", "crimson_now.get_real_secs(): " + std::to_string(crimson_now.get_real_secs()));
         UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_sec(): " + std::to_string(tdr.tv_sec));
         UHD_LOG_ERROR("CLOCK_SYNC", "tdr.tv_tick(): " + std::to_string(tdr.tv_tick));
 
@@ -236,6 +232,5 @@ void clock_sync_shared_info::loop_thread_fn( clock_sync_shared_info *self ) {
         // lfence to update _bm_thread_should_exit for the for loop
         _mm_lfence();
     }
-    UHD_LOG_ERROR("CLOCK_SYNC", "num_time_diffs: " + std::to_string(num_time_diffs));
-    UHD_LOG_ERROR("CLOCK_SYNC", "Synnc thread exited");
+    UHD_LOG_ERROR("CLOCK_SYNC", "Synce thread exited");
 }
