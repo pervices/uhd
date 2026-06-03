@@ -26,6 +26,14 @@ clock_sync_shared_info::clock_sync_shared_info(std::string ip, uint16_t port, do
     {
 
     // Configure PID
+
+    time_diff_pidc = uhd::pidc_tl(
+        0.0, // desired set point is 0.0s error
+        1.0, // measured K-ultimate occurs with Kp = 1.0, Ki = 0.0, Kd = 0.0
+        // measured P-ultimate is inverse of 1/2 the flow-control sample rate
+        2.0 / UPDATES_PER_SECOND
+    );
+
     time_diff_pidc.set_error_filter_length( UPDATES_PER_SECOND );
     time_diff_pidc.set_max_error_for_convergence( 10e-6 );
 
