@@ -123,7 +123,7 @@ void cyan_nrnt_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, 
 
 void cyan_nrnt_recv_packet_streamer::teardown() {
 
-    for(size_t n = 0; n < _channels.size(); n++) {
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
         // Does not actually turn off board
         _iface->set_string("rx/" + std::string(1, (char) (_channels[n] + 'a')) + "/stream", "0");
@@ -196,7 +196,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     while(timeout_time > uhd::get_system_time()) {
         int64_t buffer_with_samples_i = -1;
         // Checks if any buffers still have samples
-        for(size_t n = 0; n < _channels.size(); n++) {
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             if(get_buffer_level_from_device(n) != 0) {
                 buffer_with_samples_i = n;
                 break;
@@ -216,7 +216,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
     stop_buffer_monitor_thread();
     _eprops.clear();
 
-    for(size_t n = 0; n < _channels.size(); n++) {
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         std::string channel_name = std::string(1, ('a' + _channels[n]));
         // qa properties won't update with values until they are first manually set
         _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
@@ -252,7 +252,7 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         }
     }
     
-    for(size_t n = 0; n < _channels.size(); n++) {
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
         _tx_streamer_channel_in_use->at(_channels[n]) = false;
         // Release channel locks
@@ -275,7 +275,7 @@ size_t cyan_nrnt_send_packet_streamer::send(
         metadata.start_of_burst = true;
 
         // Lock streaming locks at the start of a burst. It will remain locked until the end of the burst (in super_send_packet_handler_mmsg)
-        for (size_t n = 0; n < _channels.size(); n++) {
+        for (size_t n = 0; n < _NUM_CHANNELS; n++) {
             lock_channel_streaming(_channels[n]);
         }
 

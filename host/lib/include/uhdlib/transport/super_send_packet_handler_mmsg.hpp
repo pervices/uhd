@@ -39,6 +39,9 @@ namespace sph {
     // Highest possible thread priority without CAP_NET_ADMIN
     const int TX_SO_PRIORITY = 6;
 
+    // Cache line size on AMD64 CPUs
+    static constexpr size_t CACHE_LINE_SIZE = 64;
+
 /***********************************************************************
  * Super send packet handler
  *
@@ -46,69 +49,122 @@ namespace sph {
  * The channel group shares a common sample rate.
  * All channels are sent in unison in send().
  **********************************************************************/
-class send_packet_handler_mmsg {
+class alignas(CACHE_LINE_SIZE) send_packet_handler_mmsg {
 // Declare constants first so they are initialized before constructor
 private:
     // Cache line size
     // Assume it is 64, which is the case for virtually all AMD64 systems
     static constexpr uint_fast8_t CACHE_LINE_SIZE = 64;
-    static constexpr size_t _bytes_per_sample = 4;
+    static constexpr uint_fast8_t _bytes_per_sample = 4;
     // Size of the vrt header in bytes
-    static constexpr size_t HEADER_SIZE = 12;
+    static constexpr uint_fast8_t HEADER_SIZE = 12;
 
-protected:
-    bool use_blocking_fc = false;
-    ssize_t _max_samples_per_packet;
-    size_t _MAX_SAMPLE_BYTES_PER_PACKET;
-    size_t _NUM_CHANNELS;
+    // All tx currently uses sc16 which is 32 bits
+    static constexpr uint_fast8_t _BYTES_PER_SAMPLE = 4;
 
-    // Buffer containing asynchronous messages related to underflows/overflows
-    const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
-
-private:
-    int64_t blocking_setpoint = 0;
-
-    //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
-    const size_t _BYTES_PER_SAMPLE = 4;
-    // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
     // Desired send buffer size
-    const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
-    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
-    int _ACTUAL_SEND_BUFFER_SIZE;
-    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
-    std::vector<int> send_sockets;
+    static constexpr int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
 
-protected:
-    std::vector<size_t> _channels;
-    // Lockfiles to indicate the channel is currently actively streaming to prevent issues like changing the rate in the middle of a stream
-    std::vector<int> _streaming_locks;
+    /**
+     * To optimize data locations we are using fixed length buffers.
+     * This is the highest number of tx channels the streamer can support.
+     * If this number needs to be increased to be to high we will need to move from fixed length buffers to variable length with false sharing padding.
+     */
+    static constexpr uint_fast8_t MAX_CHANNELS = 16;
 
-private:
-    // Device buffer size
-    const int64_t _DEVICE_BUFFER_SIZE;
+    /**
+     * Start of non-pointer variables that are constant during streaming.
+     * They must be on a separate cache line from variables that are changed by other threads.
+     */
 
     // Desired number of samples in the tx buffer on the unit
-    const ssize_t _DEVICE_TARGET_NSAMPS;
+    alignas(CACHE_LINE_SIZE) const ssize_t _DEVICE_TARGET_NSAMPS;
 
     // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
     const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
 
+protected:
+    const ssize_t _max_samples_per_packet;
+
+private:
+    const size_t _MAX_SAMPLE_BYTES_PER_PACKET;
+
+    // Tick rate of the device. It is used for timestamps
     const double _TICK_RATE;
+
+    // Setpoint to use in blocking buffer management mode
+    int64_t blocking_setpoint = 0;
+
+    // Device buffer size
+    const int64_t _DEVICE_BUFFER_SIZE;
+
+    double _sample_rate = 0;
+
+    // Sockets used to send sample packets to the device
+    int send_sockets[MAX_CHANNELS] = {};
+
+    // Whether or not a conversion is required between CPU and wire formats
+    bool converter_used;
+
+protected:
+    const size_t _NUM_CHANNELS;
+
+    /**
+     * Which physical channel coresponds each index in the list of channels the user provided.
+     * Example: The user requests channels 6, 2, 4. Then _channels = {6, 2, 4}.
+     * Within this class "channel" refers the physical channel.
+     * channel index refers the the index in the list provided
+     */
+    size_t _channels[MAX_CHANNELS] = {};
+
+    bool use_blocking_fc = false;
+
+    /**
+     * Start of pointers that are constant but point to non const data.
+     * The pointers follow the same rules as non pointer variables, but accessing the data requires special care.
+     */
+
+protected:
+    // Raw pointer to clock sync to avoid smart pointer overhead/false sharing
+    uhd::usrp::clock_sync* const _clock_sync_info;
+
+    /**
+     * Start of variables that are only written by the main sending thread.
+     * Same rules as constant non pointer variables.
+     */
+
+private:
+    // The start time of the next batch of samples in ticks
+    // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
+    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
     size_t nsamps_in_cache = 0;
     // Number of cached_samples dropped during the last EOB, resets after printing warning to user
     size_t dropped_nsamps_in_cache = 0;
 
-    double _sample_rate = 0;
-
     // Sequence number for next packet
     uint64_t next_sequence_number = 0;
-    // Header info for each packet, the VITA (not UDP) header is the same for every channel
-    std::vector<vrt::if_packet_info_t> packet_header_infos;
 
-    // The start time of the next batch of samples in ticks
-    // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
-    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+    // Diagnostic info for printing at the end of streaming to avoid impacting speed
+    struct timespec sendmmsg_failure_time;
+    int sendmmsg_errno = 0;
+
+    /**
+     * Start of variables may be changed by other threads, and are needed by the main thread.
+     * They usually need to be on their own cache line.
+     * NOTE: the first variable after this point must be cache line aligned to avoid false sharing with earlier variables
+     */
+
+    /**
+     * Start of variables that require more complex refactoring than planned for the first stage of anti false sharing
+     * TODO Refactor for false sharing
+     */
+
+    // Header info for each packet, the VITA (not UDP) header is the same for every channel
+    alignas(CACHE_LINE_SIZE) std::vector<vrt::if_packet_info_t> packet_header_infos;
+
+private:
 
     //TODO move all the vectors with channel specific info here
     // Stores information about packets to send for each channel
@@ -150,9 +206,6 @@ private:
     // Group of recv info for each channels
     std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
 
-    // Whether or not a conversion is required between CPU and wire formats
-    bool converter_used;
-
     // Pointers to the start of the send buffer for each channel
     std::vector<void*> _intermediate_send_buffer_pointers;
     // Wrapper to be use the same dataype as the regular buffer
@@ -160,8 +213,6 @@ private:
 
     // Converts samples between wire and cpu formats
     uhd::convert::converter::sptr _converter;
-
-private:
 
     // A smart pointer can have inconsistent access times but we need it to maintain ownership of the info to ensure it is not destructed
     // To solve this problem, we will put the smart pointer on it's own cache line (shown here as a pointer to a smart pointer) for ownership while using a raw pointer for actual operations
@@ -171,11 +222,16 @@ private:
     std::shared_ptr<uhd::usrp::clock_sync>* _clock_sync_info_owner;
 
 protected:
-    // Raw pointer to the above
-    uhd::usrp::clock_sync* _clock_sync_info;
+    // Buffer containing asynchronous messages related to underflows/overflows
+    const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
 
-    int sendmmsg_errno = 0;
-    struct timespec sendmmsg_failure_time;
+    // TODO: add comments clarifying how the vector is used. I am delaying adding anti false sharing changes to it because it is unclear how it is used
+    // Lockfiles to indicate the channel is currently actively streaming to prevent issues like changing the rate in the middle of a stream
+    std::vector<int> _streaming_locks;
+
+    /**
+     * End of variables.
+     */
 
 public:
     /*!
