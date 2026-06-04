@@ -55,6 +55,128 @@ private:
     static constexpr size_t _bytes_per_sample = 4;
     // Size of the vrt header in bytes
     static constexpr size_t HEADER_SIZE = 12;
+
+protected:
+    bool use_blocking_fc = false;
+    ssize_t _max_samples_per_packet;
+    size_t _MAX_SAMPLE_BYTES_PER_PACKET;
+    size_t _NUM_CHANNELS;
+
+    // Buffer containing asynchronous messages related to underflows/overflows
+    const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
+
+private:
+    int64_t blocking_setpoint = 0;
+
+    //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
+    const size_t _BYTES_PER_SAMPLE = 4;
+    // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
+    // Desired send buffer size
+    const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
+    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
+    int _ACTUAL_SEND_BUFFER_SIZE;
+    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
+    std::vector<int> send_sockets;
+
+protected:
+    std::vector<size_t> _channels;
+    // Lockfiles to indicate the channel is currently actively streaming to prevent issues like changing the rate in the middle of a stream
+    std::vector<int> _streaming_locks;
+
+private:
+    // Device buffer size
+    const int64_t _DEVICE_BUFFER_SIZE;
+
+    // Desired number of samples in the tx buffer on the unit
+    const ssize_t _DEVICE_TARGET_NSAMPS;
+
+    // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
+    const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
+
+    const double _TICK_RATE;
+    // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
+    size_t nsamps_in_cache = 0;
+    // Number of cached_samples dropped during the last EOB, resets after printing warning to user
+    size_t dropped_nsamps_in_cache = 0;
+
+    double _sample_rate = 0;
+
+    // Sequence number for next packet
+    uint64_t next_sequence_number = 0;
+    // Header info for each packet, the VITA (not UDP) header is the same for every channel
+    std::vector<vrt::if_packet_info_t> packet_header_infos;
+
+    // The start time of the next batch of samples in ticks
+    // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
+    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+
+    //TODO move all the vectors with channel specific info here
+    // Stores information about packets to send for each channel
+    // Sizes of the various buffers used in send
+    size_t send_buffer_info_size = 0;
+    struct ch_send_buffer_info {
+        const size_t _vrt_header_size;
+        // Stores samples between sends, to account for limitations in number samples that can be sent at once
+        std::vector<int8_t> sample_cache;
+        // Stores data about the send for each packet
+        std::vector<mmsghdr> msgs;
+        // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
+        std::vector<iovec> iovecs;
+
+        // Contains vrt header data for each packet
+        std::vector<std::vector<uint32_t>> vrt_headers;
+
+        // Stores where the samples start for each packet
+        std::vector<const void*> sample_data_start_for_packet;
+
+        // Calculates the predicted buffer level
+        buffer_tracker buffer_level_manager;
+
+        // Buffer used to store data before converting from wire format to CPU format. Unused if wire and CPU format match
+        std::vector<int8_t> intermediate_send_buffer;
+
+        /*!
+         * Make a new ch_send_buffer_info
+         * \param size number of packets that can be handled at once
+         * \param vrt_header_size size of the vrt header
+         * \param cache_size number of bytes in the sample cache
+         */
+        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate);
+
+        // Resizes and clears the buffers to match packet_helper_buffer_size
+        void resize_and_clear(size_t new_size);
+    };
+
+    // Group of recv info for each channels
+    std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
+
+    // Whether or not a conversion is required between CPU and wire formats
+    bool converter_used;
+
+    // Pointers to the start of the send buffer for each channel
+    std::vector<void*> _intermediate_send_buffer_pointers;
+    // Wrapper to be use the same dataype as the regular buffer
+    uhd::tx_streamer::buffs_type _intermediate_send_buffer_wrapper;
+
+    // Converts samples between wire and cpu formats
+    uhd::convert::converter::sptr _converter;
+
+private:
+
+    // A smart pointer can have inconsistent access times but we need it to maintain ownership of the info to ensure it is not destructed
+    // To solve this problem, we will put the smart pointer on it's own cache line (shown here as a pointer to a smart pointer) for ownership while using a raw pointer for actual operations
+
+    // Pointer to a smart pointer with ownership to where the info required to calculate the device time is stored
+    static constexpr size_t clock_sync_size = (size_t) ceil(sizeof(std::shared_ptr<uhd::usrp::clock_sync>) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
+    std::shared_ptr<uhd::usrp::clock_sync>* _clock_sync_info_owner;
+
+protected:
+    // Raw pointer to the above
+    uhd::usrp::clock_sync* _clock_sync_info;
+
+    int sendmmsg_errno = 0;
+    struct timespec sendmmsg_failure_time;
+
 public:
     /*!
      * Make a new packet handler for send
@@ -198,14 +320,6 @@ public:
     void lock_channel_streaming(size_t channel_num);
 
 protected:
-    bool use_blocking_fc = false;
-    ssize_t _max_samples_per_packet;
-    size_t _MAX_SAMPLE_BYTES_PER_PACKET;
-    size_t _NUM_CHANNELS;
-
-    // Buffer containing asynchronous messages related to underflows/overflows
-    const std::shared_ptr<pv_tx_async_msg_queue> _async_msg_fifo;
-
     /*******************************************************************
      * converts vrt packet info into header
      * packet_buff: buffer to write vrt data to
@@ -217,119 +331,13 @@ protected:
     virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
 
 private:
-    int64_t blocking_setpoint = 0;
-
-    //TODO: adjust this dynamically (currently everything uses 4 byte tx so it doesn't matter for now)
-    const size_t _BYTES_PER_SAMPLE = 4;
-    // TODO dynamically adjust send buffer size based on system RAM, number of channels, and unit buffer size
-    // Desired send buffer size
-    const int _DEFAULT_SEND_BUFFER_SIZE = 50000000;
-    // Actual recv buffer size, not the Kernel will set the real size to be double the requested
-    int _ACTUAL_SEND_BUFFER_SIZE;
-    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
-    std::vector<int> send_sockets;
-protected:
-    std::vector<size_t> _channels;
-    // Lockfiles to indicate the channel is currently actively streaming to prevent issues like changing the rate in the middle of a stream
-    std::vector<int> _streaming_locks;
-private:
-    // Device buffer size
-    const int64_t _DEVICE_BUFFER_SIZE;
-
-    // Desired number of samples in the tx buffer on the unit
-    const ssize_t _DEVICE_TARGET_NSAMPS;
-
-    // Number of packets per packet must be a multiple of this. Excess are cached and sent in the next send
-    const size_t _DEVICE_PACKET_NSAMP_MULTIPLE;
-
-    const double _TICK_RATE;
-    // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
-    size_t nsamps_in_cache = 0;
-    // Number of cached_samples dropped during the last EOB, resets after printing warning to user
-    size_t dropped_nsamps_in_cache = 0;
-
-    double _sample_rate = 0;
-
-    // Sequence number for next packet
-    uint64_t next_sequence_number = 0;
-    // Header info for each packet, the VITA (not UDP) header is the same for every channel
-    std::vector<vrt::if_packet_info_t> packet_header_infos;
-
-    // The start time of the next batch of samples in ticks
-    // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
-    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
-
-    //TODO move all the vectors with channel specific info here
-    // Stores information about packets to send for each channel
-    // Sizes of the various buffers used in send
-    size_t send_buffer_info_size = 0;
-    struct ch_send_buffer_info {
-        const size_t _vrt_header_size;
-        // Stores samples between sends, to account for limitations in number samples that can be sent at once
-        std::vector<int8_t> sample_cache;
-        // Stores data about the send for each packet
-        std::vector<mmsghdr> msgs;
-        // 0 points to header of the first packet, 1 to data, 2 to header of second packet...
-        std::vector<iovec> iovecs;
-
-        // Contains vrt header data for each packet
-        std::vector<std::vector<uint32_t>> vrt_headers;
-
-        // Stores where the samples start for each packet
-        std::vector<const void*> sample_data_start_for_packet;
-
-        // Calculates the predicted buffer level
-        buffer_tracker buffer_level_manager;
-
-        // Buffer used to store data before converting from wire format to CPU format. Unused if wire and CPU format match
-        std::vector<int8_t> intermediate_send_buffer;
-
-        /*!
-         * Make a new ch_send_buffer_info
-         * \param size number of packets that can be handled at once
-         * \param vrt_header_size size of the vrt header
-         * \param cache_size number of bytes in the sample cache
-         */
-        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate);
-
-        // Resizes and clears the buffers to match packet_helper_buffer_size
-        void resize_and_clear(size_t new_size);
-    };
-
-    // Group of recv info for each channels
-    std::vector<ch_send_buffer_info> ch_send_buffer_info_group;
-
-    // Whether or not a conversion is required between CPU and wire formats
-    bool converter_used;
-
-    // Pointers to the start of the send buffer for each channel
-    std::vector<void*> _intermediate_send_buffer_pointers;
-    // Wrapper to be use the same dataype as the regular buffer
-    uhd::tx_streamer::buffs_type _intermediate_send_buffer_wrapper;
-
-    // Converts samples between wire and cpu formats
-    uhd::convert::converter::sptr _converter;
-
     // Expands the buffers used in the send command, does nothing if already large enough
     void expand_send_buffer_info(size_t new_size);
 
-    // A smart pointer can have inconsistent access times but we need it to maintain ownership of the info to ensure it is not destructed
-    // To solve this problem, we will put the smart pointer on it's own cache line (shown here as a pointer to a smart pointer) for ownership while using a raw pointer for actual operations
-
-    // Pointer to a smart pointer with ownership to where the info required to calculate the device time is stored
-    static constexpr size_t clock_sync_size = (size_t) ceil(sizeof(std::shared_ptr<uhd::usrp::clock_sync>) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    std::shared_ptr<uhd::usrp::clock_sync>* _clock_sync_info_owner;
-    // Raw pointer to the above
-protected:
-    uhd::usrp::clock_sync* _clock_sync_info;
 private:
 
     // Gets the number of samples that can be sent now (can be less than 0)
     int check_fc_npackets(const size_t ch_i);
-
-    int sendmmsg_errno = 0;
-    struct timespec sendmmsg_failure_time;
-
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
