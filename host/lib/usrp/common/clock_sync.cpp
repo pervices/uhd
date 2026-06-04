@@ -20,7 +20,7 @@ using namespace uhd::usrp;
 
 static constexpr size_t padded_clock_sync_size = (size_t) ceil(sizeof(clock_sync) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
-//#define MEASURE_ACCURACY
+#define MEASURE_ACCURACY
 
 clock_sync::clock_sync(std::string ip, uint16_t port, double tick_rate)
     :
