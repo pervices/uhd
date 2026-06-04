@@ -126,7 +126,7 @@ protected:
 
 protected:
     // Raw pointer to clock sync to avoid smart pointer overhead/false sharing
-    uhd::usrp::clock_sync* const _clock_sync_info;
+    uhd::usrp::clock_sync* const _clock_sync;
 
     /**
      * Start of variables that are only written by the main sending thread.
@@ -157,12 +157,19 @@ private:
      */
 
     /**
+     * A smart pointer that own's the class used for clock sync.
+     * This exists solely to maintian ownership.
+     * Actual access to the class should be done through _clock_sync for avoiding false sharing
+     */
+    alignas(CACHE_LINE_SIZE) std::shared_ptr<uhd::usrp::clock_sync> _clock_sync_owner;
+
+    /**
      * Start of variables that require more complex refactoring than planned for the first stage of anti false sharing
      * TODO Refactor for false sharing
      */
 
     // Header info for each packet, the VITA (not UDP) header is the same for every channel
-    alignas(CACHE_LINE_SIZE) std::vector<vrt::if_packet_info_t> packet_header_infos;
+    std::vector<vrt::if_packet_info_t> packet_header_infos;
 
 private:
 
@@ -216,10 +223,6 @@ private:
 
     // A smart pointer can have inconsistent access times but we need it to maintain ownership of the info to ensure it is not destructed
     // To solve this problem, we will put the smart pointer on it's own cache line (shown here as a pointer to a smart pointer) for ownership while using a raw pointer for actual operations
-
-    // Pointer to a smart pointer with ownership to where the info required to calculate the device time is stored
-    static constexpr size_t clock_sync_size = (size_t) ceil(sizeof(std::shared_ptr<uhd::usrp::clock_sync>) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
-    std::shared_ptr<uhd::usrp::clock_sync>* _clock_sync_info_owner;
 
 protected:
     // Buffer containing asynchronous messages related to underflows/overflows
@@ -594,7 +597,7 @@ private:
             // Send packets without tsf since they don't have a set time
             // Also ignore send time in blocking fc mode since it doesn't apply
             if(
-                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= _clock_sync_info->get_device_time().to_ticks(_TICK_RATE) ||
+                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= _clock_sync->get_device_time().to_ticks(_TICK_RATE) ||
                 /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
