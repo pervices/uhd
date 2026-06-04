@@ -20,6 +20,8 @@ using namespace uhd::usrp;
 
 static constexpr size_t padded_clock_sync_size = (size_t) ceil(sizeof(clock_sync) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
+//#define MEASURE_ACCURACY
+
 clock_sync::clock_sync(std::string ip, uint16_t port, double tick_rate)
     :
     _tick_rate(tick_rate)
@@ -156,6 +158,11 @@ void clock_sync::set_clock_sync_desired(bool desired) {
 }
 
 void clock_sync::loop_thread_fn( clock_sync *self ) {
+#ifdef MEASURE_ACCURACY
+    // The worst difference between the predicted and actual device time while synced
+    static double worst_difference = 0;
+#endif
+
     // Set thread priority to default since this isn't high priority
     uhd::set_thread_priority_safe(0, false);
 
@@ -232,10 +239,24 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         if (reply_good) {
             self->time_diff_process( tdr, host_prediction_time );
 
+#ifdef MEASURE_ACCURACY
+            if(self->is_synced()) {
+                double difference = tdr.tv_sec + ( tdr.tv_tick / self->_tick_rate );
+                worst_difference = std::max(difference, worst_difference);
+            }
+#endif
+
         // Print error message if clock sync matters and we haven't already done so
         } else if (!dropped_recv_message_printed && self->clock_sync_desired) {
             UHD_LOG_ERROR("CLOCK_SYNC", "Failed to receive packet used by clock synchronization");
                 dropped_recv_message_printed = true;
         }
     }
+#ifdef MEASURE_ACCURACY
+    // 81us = 20% of a 65536 buffer at 162.5Msps (Crimson)
+    // 26us = 20% of a 131072 buffer at 1Gsps (noDDR Cyan)
+    // 8.7us = 20% of a 131072 buffer at 3Gsps (noDDR Cyan)
+    // 1.8ms = 20% of a 4608000 buffer at 500Msps (Chestnut)
+    UHD_LOG_INFO("CLOCK_SYNC", "The worst prediction while synced was: " + std::to_string(worst_difference));
+#endif
 }
