@@ -132,7 +132,7 @@ void crimson_tng_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff
 
 void crimson_tng_recv_packet_streamer::teardown() {
 
-    for(size_t n = 0; n < _channels.size(); n++) {
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
         // Does not actually turn off board
         _iface->set_string("rx/" + std::string(1, (char) (_channels[n] + 'a')) + "/stream", "0");
@@ -206,7 +206,7 @@ void crimson_tng_send_packet_streamer::teardown() {
     while(timeout_time > uhd::get_system_time()) {
         int64_t buffer_with_samples_i = -1;
         // Checks if any buffers still have samples
-        for(size_t n = 0; n < _channels.size(); n++) {
+        for(size_t n = 0; n < _NUM_CHANNELS; n++) {
             if(get_buffer_level_from_device(n) != 0) {
                 buffer_with_samples_i = n;
                 break;
@@ -226,7 +226,7 @@ void crimson_tng_send_packet_streamer::teardown() {
     stop_buffer_monitor_thread();
     _eprops.clear();
 
-    for(size_t n = 0; n < _channels.size(); n++) {
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         std::string channel_name = std::string(1, ('a' + _channels[n]));
         // qa properties won't update with values until they are first manually set
         _iface->set_string(("tx/" + channel_name + "/qa/oflow"), channel_name);
@@ -262,7 +262,7 @@ void crimson_tng_send_packet_streamer::teardown() {
         }
     }
 
-    for(size_t n = 0; n < _channels.size(); n++) {
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns on the outward facing LED on the board
         // Does not actually turn off board
         _iface->set_string("tx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
@@ -294,7 +294,7 @@ size_t crimson_tng_send_packet_streamer::send(
         }
 
         // Lock streaming locks at the start of a burst. It will remain locked until the end of the burst (in super_send_packet_handler_mmsg)
-        for (size_t n = 0; n < _channels.size(); n++) {
+        for (size_t n = 0; n < _NUM_CHANNELS; n++) {
             lock_channel_streaming(_channels[n]);
         }
 
@@ -330,7 +330,7 @@ void crimson_tng_send_packet_streamer::set_channel_name( size_t chan, std::strin
 }
 // Stores the channel sample rate in eprops variable
 void crimson_tng_send_packet_streamer::sync_channel_rate( size_t chan, double rate ) {
-    size_t channel_index = std::distance(_channels.begin(), std::find(_channels.begin(), _channels.end(), chan));
+    size_t channel_index = std::distance(_channels, std::find(_channels, _channels + _NUM_CHANNELS, chan));
     _eprops.at(channel_index).sample_rate = rate;
 }
 void crimson_tng_send_packet_streamer::resize(const size_t size){

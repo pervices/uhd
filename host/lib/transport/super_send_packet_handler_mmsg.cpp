@@ -32,20 +32,23 @@ namespace sph {
 
 send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& channels, ssize_t max_samples_per_packet, const int64_t device_buffer_size, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, ssize_t device_packet_nsamp_multiple, double tick_rate, const std::shared_ptr<pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<uhd::usrp::clock_sync> clock_sync_info_owner, std::vector<int> streaming_locks)
     // Ensure max_samples_per_packet is a multiple of the number of samples allowed per packet
-    : _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
-    _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
-    _NUM_CHANNELS(channels.size()),
-    _async_msg_fifo(async_msg_fifo),
-    _channels(channels),
-    _streaming_locks(streaming_locks),
-    _DEVICE_BUFFER_SIZE(device_buffer_size),
+    :
     _DEVICE_TARGET_NSAMPS(device_target_nsamps),
     _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
+    _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
+    _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
     _TICK_RATE(tick_rate),
+    _DEVICE_BUFFER_SIZE(device_buffer_size),
+    _NUM_CHANNELS(channels.size()),
+    _clock_sync_info(clock_sync_info_owner.get()),
     _intermediate_send_buffer_pointers(_NUM_CHANNELS),
     _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
-    _clock_sync_info(clock_sync_info_owner.get())
+    _async_msg_fifo(async_msg_fifo),
+    _streaming_locks(streaming_locks)
 {
+    // Copy provided channel list vector to internal channel list
+    std::copy(channels.begin(), channels.end(), _channels);
+
     // Put the smart pointer that own clock sync info on it's own cache line using placement new
     _clock_sync_info_owner = (std::shared_ptr<uhd::usrp::clock_sync>*) aligned_alloc(CACHE_LINE_SIZE, clock_sync_size);
     new (_clock_sync_info_owner) std::shared_ptr<uhd::usrp::clock_sync>(clock_sync_info_owner);
@@ -75,16 +78,19 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
             }
         }
 
-        // Sets the recv buffer size
+        // Sets the send buffer size
         setsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_DEFAULT_SEND_BUFFER_SIZE, sizeof(_DEFAULT_SEND_BUFFER_SIZE));
 
+        // The actual size of the send buffer
+        int _actual_send_buffer_size = 0;
+
         // Checks the recv buffer size
-        socklen_t opt_len = sizeof(_ACTUAL_SEND_BUFFER_SIZE);
-        getsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_ACTUAL_SEND_BUFFER_SIZE, &opt_len);
+        socklen_t opt_len = sizeof(_actual_send_buffer_size);
+        getsockopt(send_socket_fd, SOL_SOCKET, SO_SNDBUF, &_actual_send_buffer_size, &opt_len);
 
         // NOTE: The kernel will set the actual size to be double the requested. So the expected amount is double the requested
-        if(_ACTUAL_SEND_BUFFER_SIZE < 2*_DEFAULT_SEND_BUFFER_SIZE) {
-            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Unable to set send buffer size. Performance will be negatively affected.\n Target size: " + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\nActual size: " + std::to_string(_ACTUAL_SEND_BUFFER_SIZE/2) + "\nPlease run \"sudo sysctl -w net.core.wmem_max=" + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\"\n");
+        if(_actual_send_buffer_size < 2*_DEFAULT_SEND_BUFFER_SIZE) {
+            UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Unable to set send buffer size. Performance will be negatively affected.\n Target size: " + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\nActual size: " + std::to_string(_actual_send_buffer_size/2) + "\nPlease run \"sudo sysctl -w net.core.wmem_max=" + std::to_string(_DEFAULT_SEND_BUFFER_SIZE) + "\"\n");
         }
 
         int mtu = get_mtu(send_socket_fd, dst_ips[n].c_str());
@@ -98,7 +104,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
             fprintf(stderr, "Attempting to set tx socket priority failed with error code: %s", strerror(errno));
         }
 
-        send_sockets.push_back(send_socket_fd);
+        send_sockets[n] = send_socket_fd;
     }
 
     setup_converter(cpu_format, wire_format, wire_little_endian);
@@ -108,7 +114,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
 }
 
 send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
-    for(size_t n = 0; n < send_sockets.size(); n++) {
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         int r = close(send_sockets[n]);
         if(r) {
             fprintf(stderr, "close failed on data send socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
@@ -242,7 +248,7 @@ void send_packet_handler_mmsg::send_eob_packet(const uhd::tx_metadata_t &metadat
     send_multiple_packets(dummy_buff_ptrs, dummy_samples_in_eob, eob_md, timeout, true);
 
     // Unlock the streaming lockfiles for each channel
-    for (size_t n = 0; n < _channels.size(); n++) {
+    for (size_t n = 0; n < _NUM_CHANNELS; n++) {
         flock(_streaming_locks[n], LOCK_UN);
     }
 }
