@@ -707,53 +707,7 @@ private:
      * \param wire_format datatype of samples in the packets (only sc16)
      * \param wire_little_endian data format in packets is little endian
      */
-    UHD_INLINE void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
-        // No converter required, scatter gather will be used
-        if(cpu_format == wire_format && wire_little_endian) {
-            converter_used = false;
-            return;
-        } else {
-            converter_used = true;
-            //set the converter
-            uhd::convert::id_type converter_id;
-            if(wire_little_endian) {
-                // item32 results in entire 32 bit words being converted to little endian
-                // i.e. _item32_le means Q LSB, Q MSB, I LSB, I MSB
-                // we want _item32_le means I LSB, I MSB, Q LSB, Q MSB
-                // We want 16 bit halves to be little endian, which chdr provides
-                // NOTE: chdr is a legacy data format for old Ettus stuff
-                // If it ever gets removes create an identical implementation named _item_16_le
-                converter_id.output_format = wire_format + "_chdr";
-            } else {
-                converter_id.output_format = wire_format + "_item32_be";
-            }
-            converter_id.num_inputs = 1;
-            converter_id.input_format = cpu_format;
-            converter_id.num_outputs = 1;
-
-            _converter = uhd::convert::get_converter(converter_id)();
-
-            double cpu_max;
-            if ("fc32" == cpu_format) {
-                cpu_max = 1;
-            } else if("sc16" == cpu_format) {
-                cpu_max = 0x7fff;
-            } else {
-                throw uhd::runtime_error( "Unsupported CPU format: " + cpu_format);
-            }
-
-            double wire_max;
-            if("sc16" == wire_format) {
-                wire_max = 0x7fff;
-            } else if("sc12" == wire_format) {
-                wire_max = 0x7ff;
-            } else {
-                throw uhd::runtime_error( "Unsupported wire format: " + cpu_format);
-            }
-
-            _converter->set_scalar(wire_max / cpu_max);
-        }
-    }
+    void setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian);
 
     /*!
      * Resizes the intermediate buffers (if needed) and converts the samples
