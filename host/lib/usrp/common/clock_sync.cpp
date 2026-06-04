@@ -258,5 +258,6 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
     // 8.7us = 20% of a 131072 buffer at 3Gsps (noDDR Cyan)
     // 1.8ms = 20% of a 4608000 buffer at 500Msps (Chestnut)
     UHD_LOG_INFO("CLOCK_SYNC", "The worst prediction while synced was: " + std::to_string(worst_difference));
+    fprintf(stderr, "worst_difference: %lf\n", worst_difference);
 #endif
 }
