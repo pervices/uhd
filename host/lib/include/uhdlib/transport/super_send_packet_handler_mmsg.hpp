@@ -715,23 +715,6 @@ private:
         return &_intermediate_send_buffer_wrapper;
     }
 
-    // Utility function to identify where randomg slowdowns are
-    bool delay_check_start_time_set = false;
-    uhd::time_spec_t last_delay_check_time;
-    inline void check_for_long_delay(int flag_id) {
-        if(delay_check_start_time_set) {
-            delay_check_start_time_set = true;
-            uhd::time_spec_t current_time = uhd::get_system_time();
-            if(current_time.get_real_secs() - last_delay_check_time.get_real_secs() > 0.02) {
-                printf("Long delay at %i\n", flag_id);
-            }
-            last_delay_check_time = current_time;
-        } else {
-            last_delay_check_time = uhd::get_system_time();
-            delay_check_start_time_set = true;
-        }
-    }
-
     int get_mtu(int socket_fd, std::string ip);
 };
 
