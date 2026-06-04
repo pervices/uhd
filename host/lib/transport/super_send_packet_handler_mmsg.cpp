@@ -40,7 +40,8 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _TICK_RATE(tick_rate),
     _DEVICE_BUFFER_SIZE(device_buffer_size),
     _NUM_CHANNELS(channels.size()),
-    _clock_sync_info(clock_sync_info_owner.get()),
+    _clock_sync(clock_sync_info_owner.get()),
+    _clock_sync_owner(clock_sync_info_owner),
     _intermediate_send_buffer_pointers(_NUM_CHANNELS),
     _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
     _async_msg_fifo(async_msg_fifo),
@@ -48,10 +49,6 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
 {
     // Copy provided channel list vector to internal channel list
     std::copy(channels.begin(), channels.end(), _channels);
-
-    // Put the smart pointer that own clock sync info on it's own cache line using placement new
-    _clock_sync_info_owner = (std::shared_ptr<uhd::usrp::clock_sync>*) aligned_alloc(CACHE_LINE_SIZE, clock_sync_size);
-    new (_clock_sync_info_owner) std::shared_ptr<uhd::usrp::clock_sync>(clock_sync_info_owner);
 
 
     ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
@@ -120,10 +117,6 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
             fprintf(stderr, "close failed on data send socket with: %s\nThe program may not have closed cleanly\n", strerror(errno));
         }
     }
-
-    // The destructor must be manually called when using placement new
-    std::destroy_at(_clock_sync_info_owner);
-    free(_clock_sync_info_owner);
 
     if(sendmmsg_errno) {
         char nsec_s[42];
@@ -201,7 +194,7 @@ int send_packet_handler_mmsg::check_fc_npackets(const size_t ch_i) {
     if(BOOST_LIKELY(!use_blocking_fc)) {
 
         // Get the buffer level on the unit
-        uhd::time_spec_t device_time = _clock_sync_info->get_device_time();
+        uhd::time_spec_t device_time = _clock_sync->get_device_time();
         int64_t buffer_level = ch_send_buffer_info_group[ch_i].buffer_level_manager.get_buffer_level(device_time);
 
         int num_packets_to_send = (int) std::ceil((_DEVICE_TARGET_NSAMPS - buffer_level) / ((double)_max_samples_per_packet));
