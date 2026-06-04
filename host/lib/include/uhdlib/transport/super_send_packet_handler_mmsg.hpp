@@ -198,6 +198,38 @@ private:
     uhd::time_spec_t sob_time_cache;
 
 public:
+
+    void set_samp_rate(const double rate);
+    void enable_blocking_fc(int64_t blocking_setpoint);
+    void disable_blocking_fc();
+    void lock_channel_streaming(size_t channel_num);
+
+protected:
+    /*******************************************************************
+     * converts vrt packet info into header
+     * packet_buff: buffer to write vrt data to
+     * if_packet_info: packet info to be used to calculate the header
+     ******************************************************************/
+    virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
+
+    // Sends a request for the buffer level from the device, returns the result of that request
+    virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
+
+private:
+    // Expands the buffers used in the send command, does nothing if already large enough
+    void expand_send_buffer_info(size_t new_size);
+
+private:
+
+    // Gets the number of samples that can be sent now (can be less than 0)
+    int check_fc_npackets(const size_t ch_i);
+
+    void send_eob_packet(const uhd::tx_metadata_t &metadata, double timeout);
+
+    int get_mtu(int socket_fd, std::string ip);
+
+public:
+
     UHD_INLINE size_t send(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -314,30 +346,7 @@ public:
         return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
     }
 
-    void set_samp_rate(const double rate);
-    void enable_blocking_fc(int64_t blocking_setpoint);
-    void disable_blocking_fc();
-    void lock_channel_streaming(size_t channel_num);
-
-protected:
-    /*******************************************************************
-     * converts vrt packet info into header
-     * packet_buff: buffer to write vrt data to
-     * if_packet_info: packet info to be used to calculate the header
-     ******************************************************************/
-    virtual void if_hdr_pack(uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
-
-    // Sends a request for the buffer level from the device, returns the result of that request
-    virtual int64_t get_buffer_level_from_device(const size_t ch_i) = 0;
-
 private:
-    // Expands the buffers used in the send command, does nothing if already large enough
-    void expand_send_buffer_info(size_t new_size);
-
-private:
-
-    // Gets the number of samples that can be sent now (can be less than 0)
-    int check_fc_npackets(const size_t ch_i);
 
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
@@ -632,8 +641,6 @@ private:
         }
     }
 
-    void send_eob_packet(const uhd::tx_metadata_t &metadata, double timeout);
-
     /*!
      * Prepares the converter
      * Called as part of the constructor, only in its own function to improve readability
@@ -715,7 +722,6 @@ private:
         return &_intermediate_send_buffer_wrapper;
     }
 
-    int get_mtu(int socket_fd, std::string ip);
 };
 
 class send_packet_streamer_mmsg : public send_packet_handler_mmsg, public tx_streamer {
