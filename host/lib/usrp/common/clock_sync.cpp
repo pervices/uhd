@@ -230,7 +230,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         // End of fenced area to prevent time reordering
         _mm_mfence();
 
-        // Get the difference between the predicted and real time
+        // Get the predicted time minus the actual time
         bool reply_good =  self->time_diff_recv( tdr );
 
         // Update flag used to track if clock sync is working
