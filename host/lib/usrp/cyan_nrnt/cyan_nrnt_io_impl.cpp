@@ -820,7 +820,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 * Transmit streamer
 **********************************************************************/
 
-static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, std::shared_ptr<std::mutex> sfp_control_mutex, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
+static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multiple, uhd::transport::udp_simple::sptr xport, uint64_t & lvl, uint64_t & uflow, uint64_t & oflow, uhd::time_spec_t & now ) {
 
     static constexpr double tick_period_ps = 1.0 / CYAN_NRNT_TICK_RATE;
 
@@ -852,7 +852,6 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
     size_t r = 0;
 
-    sfp_control_mutex->lock();
     for( size_t tries = 0; tries < 100; tries++ ) {
         r = xport->send( boost::asio::mutable_buffer( & req, sizeof( req ) ) );
         if ( sizeof( req ) != r ) {
@@ -872,7 +871,6 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
         break;
     }
-    sfp_control_mutex->unlock();
 
     if ( 0 == r ) {
         UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C) << "Failed to retrieve buffer level for channel " + std::string( 1, 'A' + channel ) + "\nCheck SFP port connections and cofiguration" << std::endl;
@@ -1031,7 +1029,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
             // Sets the function used to get the buffer level, overflow, and underflow counts
             // NOTE: when passing pointer to this function make sure they are smark pointers
             my_streamer->set_xport_chan_fifo_lvl_abs(chan_i, std::bind(
-                &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc.fifo_ctrl_xports[chan], _sfp_control_mutex[sfps[chan_i].back() - 'a'], ph::_1, ph::_2, ph::_3, ph::_4
+                &get_fifo_lvl_udp_abs, chan, buffer_level_multiple, _mbc.fifo_ctrl_xports[chan], ph::_1, ph::_2, ph::_3, ph::_4
             ));
 
             _mbc.tx_streamers[chan] = my_streamer; //store weak pointer
