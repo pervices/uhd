@@ -154,23 +154,22 @@ private:
     // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
     void set_properties_from_addr();
 
-    // Mutexes for controlling control (not data) send/receives each SFP port
-    std::vector<std::shared_ptr<std::mutex>> _sfp_control_mutex;
-
-    /// UDP endpoint that receives our Time Diff packets
-    // TODO: rename, this is used for rx start/stop and checking buffer level/uflow/oflows, not clock sync
-    std::vector<uhd::transport::udp_simple::sptr> _time_diff_iface;
+    /**
+     * UDP sockets for each SFP port used for sending rx command packets and buffer level requests
+     * NOTE: rx command packets and buffer level requests can use the same socket since rx commands are send only
+     * Any operations that require receiving (such as clock sync) must have their own socket
+     */
+    std::vector<uhd::transport::udp_simple::sptr> _basic_sfp_iface;
 
     // device_clock_sync_info is the main location used to store clock sync info
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
     std::shared_ptr<clock_sync> device_clock_sync_info;
 
-    // Which SFP port should be used by clock sync
-    // Must be set before the clock sync loop starts or get_time_now is called
-    int _which_time_diff_iface;
+    // Which SFP port within _basic_sfp_iface should be used for rx command packets
+    int _which_basic_sfp_iface;
 public:
-    inline int get_which_time_diff_iface() {
-        return _which_time_diff_iface;
+    inline int get_which_basic_sfp_iface() {
+        return _which_basic_sfp_iface;
     }
 private:
 
