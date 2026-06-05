@@ -232,6 +232,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/performance_mode.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/platform.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/prefs.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rls.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/serial_number.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/static.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/system_time.cpp
