@@ -207,7 +207,7 @@ void cyan_nrnt_impl::set_command_time( const std::string key, time_spec_t value 
 }
 
 void cyan_nrnt_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-    // TODO: figure out if this can be sent on any SFP port and if so use _which_basic_sfp_iface instead of 0
+    // TODO: Adjust the port is SFP A is unresponsive & confirm it works on other SFPs
     _basic_sfp_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
 }
 
@@ -926,49 +926,45 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
     TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
-    // IP and port used by clock sync
+    // IP and UDP port used by clock sync and stream commands
     // This must use a separate socket since it is expecting a reply
-    std::string clock_sync_ip;
-    int clock_sync_port = -1;
+    std::string good_control_ip;
+    std::string good_control_port;
+    bool found_good_sfp = false;
 
-    _which_basic_sfp_iface = -1;
     for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
         int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
-        std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
-        std::string time_diff_port = std::to_string( sfp_port );
-        _basic_sfp_iface.push_back(udp_simple::make_connected( time_diff_ip, time_diff_port ));
+
+        std::string control_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string control_port = std::to_string( sfp_port );
+        _basic_sfp_iface.push_back(udp_simple::make_connected( control_ip, control_port ));
 
         // Checks if this iface is working
-        bool iface_good = ping_check("sfp" + xg_intf, time_diff_ip);
+        bool iface_good = ping_check("sfp" + xg_intf, control_ip);
 
-        // Set the ip and port used by clock sync if it hasn't been set yet as a fallback in case none work
-        if(clock_sync_port == -1) {
-            clock_sync_ip = time_diff_ip;
-            clock_sync_port = sfp_port;
-        }
 
-        // Set the iface used by time diffs to the first working one
-        if(iface_good && _which_basic_sfp_iface < 0) {
-            _which_basic_sfp_iface = i;
+        // First pass through the loop: set the IP and port to the first SFP port
+        // Later passes: if the previous SFP ports were unresponsive and this one is responsive change to use this SFP's IP and port
+        if(i == 0 || (!found_good_sfp && iface_good)) {
+            found_good_sfp = iface_good;
 
-            // Use the first working ip and port for clock sync
-            clock_sync_ip = time_diff_ip;
-            clock_sync_port = sfp_port;
+            good_control_ip = control_ip;
+            good_control_port = control_port;
         }
     }
+
+    // Create the socket used for stream commands
+    uhd::transport::udp_simple::sptr rx_stream_cmd_iface = udp_simple::make_connected( good_control_ip, good_control_port );
 
     // Create the class reponsible for synchronizing clocks
     // Clock sync is not needed yet, but start it now anyway in case it is needed in the future
-    device_clock_sync_info = clock_sync::make(clock_sync_ip, (uint16_t) clock_sync_port, CYAN_NRNT_TICK_RATE);
+    device_clock_sync_info = clock_sync::make(good_control_ip, (uint16_t) std::stoul(good_control_port), CYAN_NRNT_TICK_RATE);
 
-    if(_which_basic_sfp_iface < 0) {
+    if(!found_good_sfp) {
         // TODO: only print this warning when using regular streaming
         UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, "Unable to ping any SFP ports. Only force stream will work. Normal streaming will not");
-        // Attempt to use SFPA for time diff if unable to reach any
-        // TODO: Don't run time diffs if unable to ping any SFP ports
-        _which_basic_sfp_iface = 0;
-    }
+    };
 
     // This is the master clock rate
     TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
@@ -1329,9 +1325,15 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
 
         // Gets which sfp port is used by this channel
-        int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
+        std::string xg_intf = std::string(1, char('a' + cyan_nrnt_impl::get_rx_xg_intf(ch)));
 
-        rx_stream_cmd_issuer.emplace_back(_basic_sfp_iface[xg_intf], device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
+        // Create the socket to use for rx stream commands
+        int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string time_diff_port = std::to_string( sfp_port );
+        uhd::transport::udp_simple::sptr command_socket = udp_simple::make_connected( time_diff_ip, time_diff_port );
+
+        rx_stream_cmd_issuer.emplace_back(command_socket, device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
     }
 }
 

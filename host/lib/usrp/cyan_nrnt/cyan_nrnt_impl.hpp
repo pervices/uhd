@@ -165,12 +165,6 @@ private:
     // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
     std::shared_ptr<clock_sync> device_clock_sync_info;
 
-    // Which SFP port within _basic_sfp_iface should be used for rx command packets
-    int _which_basic_sfp_iface;
-public:
-    inline int get_which_basic_sfp_iface() {
-        return _which_basic_sfp_iface;
-    }
 private:
 
     std::thread _pps_thread;
