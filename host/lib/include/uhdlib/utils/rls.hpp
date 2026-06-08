@@ -26,7 +26,18 @@ private:
      */
     double _forgetting_factor;
 
+    // Matrix used by recursive least squares
+    double p11, p12;
+    double p21, p22;
+
 public:
+    /**
+     * Constructor for recursive least squares
+     * @param initial_m_guess Initial guess for the slope
+     * @param initial_b_guess Initial guess for the offset
+     * @param initial_variance Initial guess for variance. A higher value makes the estimation more sensitive initially
+     * @param forgetting_factor The forgetting factor
+     */
     rls(double initial_m_guess, double initial_b_guess, double initial_variance, double forgetting_factor);
 
     /**
