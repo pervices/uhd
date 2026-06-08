@@ -178,13 +178,13 @@ void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
 
 void async_recv_manager::check_memlock_limit() {
     // The error message when we couldn't confirm the memlock limit. We will log an error but continue assuming the current limit is enough.
-    std::string message_failed = "UHD will continue assuming the currently set memlock limit is enough.\n"
+    std::string message_failed = "UHD will continue assuming the currently set memlock limit is enough. If it is not, io_uring may have memory allocation issues.\n"
             "Manually check/set the limit with 'ulimit -l'. The limit should be at least 'num_hugepages*hugepage_size'. The number of hugepages and their size can be checked with 'cat /proc/meminfo'.";
     
     // Check the currently set memlock limit
     struct rlimit memlock_limit;
     // If getrlimit fails, log an error but do not throw one since we will just continue assuming the limit is high enough.
-    if (!getrlimit(RLIMIT_MEMLOCK, &memlock_limit)) {
+    if (getrlimit(RLIMIT_MEMLOCK, &memlock_limit) == -1) {
         std::string message = "getrlimit failed with error: " + std::string(strerror(errno)) + ".\n"
             "Unable to check the current memlock limit. " + message_failed;
         UHD_LOG_ERROR("ASYNC_RECV_MANAGER", message);
