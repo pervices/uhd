@@ -45,6 +45,7 @@ protected:
     static constexpr size_t SIMD_ALIGNMENT = 512;
 
     static constexpr size_t PAGE_SIZE = 4096;
+    // Hugepage size in Bytes assuming hugepages are 2048kB
     static constexpr size_t HUGE_PAGE_SIZE = 2048 * 1024;
 
     // Number of channls managed by this streamer
@@ -167,5 +168,6 @@ protected:
      */
     static void* allocate_buffer(size_t size);
 
+    void check_memlock_limit();
 };
 }}
