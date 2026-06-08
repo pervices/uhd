@@ -909,6 +909,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     std::string clock_sync_ip;
     int clock_sync_port = -1;
 
+    // The SFP port used for stream commands
+    // The stream command issuer has a copy of the smart pointer so we don't need to store a copy in this class
+    uhd::transport::udp_simple::sptr rx_stream_cmd_iface;
+    bool rx_stream_cmd_iface_good = false;
+
     _which_basic_sfp_iface = -1;
     for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
@@ -919,6 +924,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
         // Checks if this iface is working
         bool iface_good = ping_check("sfp" + xg_intf, time_diff_ip);
+
+        // Always set rx_stream_cmd_iface to the first interface
+        // If the ping check failed overwrite it with the first successful one
+        if( (i == 0 || iface_good) && !rx_stream_cmd_iface_good) {
+
+            rx_stream_cmd_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
+
+            rx_stream_cmd_iface_good = iface_good;
+        }
 
         // Set the ip and port used by clock sync if it hasn't been set yet as a fallback in case none work
         if(clock_sync_port == -1) {
@@ -1318,7 +1332,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
-        rx_stream_cmd_issuer.emplace_back(_basic_sfp_iface[_which_basic_sfp_iface], device_clock_sync_info, ch, 16, 1);
+        rx_stream_cmd_issuer.emplace_back(rx_stream_cmd_iface, device_clock_sync_info, ch, 16, 1);
     }
 }
 
