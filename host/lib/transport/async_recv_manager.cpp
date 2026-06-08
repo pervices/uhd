@@ -44,6 +44,13 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
         throw assertion_error("Unsupported number of channels");
     }
 
+#ifdef HAVE_LIBURING
+    // Warn the user if the memlock limit is not large enough for the set number of hugepages.
+    // Only warning if using liburing since our non-liburing does not use the RLIMIT_MEMLOCK resource limit.
+    // Liburing uses RLIMIT_MEMLOCK internally, so if it is not set high enough liburing functions may fail.
+    check_memlock_limit();
+#endif
+
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_all_ch_packet_buffers, 0, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
 
@@ -167,6 +174,58 @@ void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
         throw std::runtime_error("Invalid recv manager type. This should be unreachable.");
     }
 #endif
+}
+
+void async_recv_manager::check_memlock_limit() {
+    // The error message when we couldn't confirm the memlock limit. We will log an error but continue assuming the current limit is enough.
+    std::string message_failed = "UHD will continue assuming the currently set memlock limit is enough. If it is not, io_uring may have memory allocation issues.\n"
+            "\tManually check/set the limit with 'ulimit -l'. The limit should be at least 'num_hugepages*hugepage_size'. The number of hugepages and their size can be checked with 'cat /proc/meminfo'.";
+    
+    // Check the currently set memlock limit in Bytes
+    struct rlimit memlock_limit;
+    // If getrlimit fails, log an error but do not throw one since we will just continue assuming the limit is high enough.
+    if (getrlimit(RLIMIT_MEMLOCK, &memlock_limit) == -1) {
+        std::string message = "getrlimit failed with error: " + std::string(strerror(errno)) + ".\n"
+            "\tUnable to check the current memlock limit. " + message_failed;
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", message);
+        return;
+    }
+    
+    // The memlock limit should be at least num_hugepages*hugepage_size.
+    // This class has a HUGE_PAGE_SIZE variable we can use, but we still need to get the number of hugepages.
+    std::string path = "/proc/sys/vm/nr_hugepages";
+    FILE *file;
+    file = fopen(path.c_str(), "r");
+    if (file == NULL) {
+        // If we couldn't check the number of hugepages, log an error but continue assuming the memlock limit is enough.
+        std::string message = "fopen failed with error: " + std::string(strerror(errno)) + ".\n"
+            "\tUnable to check the number of hugepages to calculate the required memlock limit. " + message_failed;
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", message);
+        return;
+    }
+
+    size_t num_hugepages;
+    size_t ret = fscanf(file, "%lu", &num_hugepages);
+    fclose(file);
+    // If successful, fscanf should return 1 since it should only find one match. If not, log an error but continue assuming the memlock limit is enough.
+    if (ret != 1) {
+        std::string message = "Failed to extract number of hugepages from " + std::string(path) + " to calculate the required memlock limit. " + message_failed;
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", message);
+        return;
+    }
+
+    // Calculate the required memlock limit (num_hugepages*HUGE_PAGE_SIZE) in kB.
+    // HUGE_PAGE_SIZE is in Bytes so /1024 to convert to kB since memlock is typically represented in kB.
+    size_t required_memlock = num_hugepages * (HUGE_PAGE_SIZE/1024);
+    // Convert the current memlock limit to kB since that's how it's usually represented.
+    size_t current_memlock = memlock_limit.rlim_cur / 1024;
+    
+    // If the current memlock limit is less than this, warn the user it may not be enough.
+    if (current_memlock < required_memlock) {
+        std::string message = "The current memlock limit (" + std::to_string(current_memlock) + "kB) is less than the amount required to use all hugepages (" + std::to_string(required_memlock) + "kB). This may cause memory allocation issues with io_uring.\n"
+            "\tUpdate the memlock limit temporarily with 'ulimit -l " + std::to_string(required_memlock) + "' or permanently by adding/updating a memlock entry in /etc/security/limits.conf or /etc/security/limits.d/*.conf.";
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", message);
+    }
 }
 
 }}
