@@ -1329,9 +1329,15 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         size_t jesd_num = cyan_nrnt_impl::get_rx_jesd_num(ch);
 
         // Gets which sfp port is used by this channel
-        int xg_intf = cyan_nrnt_impl::get_rx_xg_intf(ch);
+        std::string xg_intf = std::string(1, char('a' + cyan_nrnt_impl::get_rx_xg_intf(ch)));
 
-        rx_stream_cmd_issuer.emplace_back(_basic_sfp_iface[xg_intf], device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
+        // Create the socket to use for rx stream commands
+        int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string time_diff_port = std::to_string( sfp_port );
+        uhd::transport::udp_simple::sptr command_socket = udp_simple::make_connected( time_diff_ip, time_diff_port );
+
+        rx_stream_cmd_issuer.emplace_back(command_socket, device_clock_sync_info, jesd_num, otw_rx, (size_t) nsamps_multiple_rx);
     }
 }
 
