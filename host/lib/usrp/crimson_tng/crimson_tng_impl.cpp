@@ -927,12 +927,12 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
         // Always set rx_stream_cmd_iface to the first interface
         // If the ping check failed overwrite it with the first successful one
-        if( (i == 0 || iface_good) && !rx_stream_cmd_iface_good) {
+        // if( (i == 0 || iface_good) && !rx_stream_cmd_iface_good) {
 
             rx_stream_cmd_iface = udp_simple::make_connected( time_diff_ip, time_diff_port );
 
             rx_stream_cmd_iface_good = iface_good;
-        }
+        // }
 
         // Set the ip and port used by clock sync if it hasn't been set yet as a fallback in case none work
         if(clock_sync_port == -1) {
