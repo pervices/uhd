@@ -1555,7 +1555,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     rx_stream_cmd_issuer.reserve(num_rx_channels);
     for(size_t ch = 0; ch < num_rx_channels; ch++) {
-        rx_stream_cmd_issuer.emplace_back(_time_diff_iface[_which_time_diff_iface], device_clock_sync_info, ch, 16, 1);
+        rx_stream_cmd_issuer.emplace_back(_time_diff_iface[_which_time_diff_iface], device_clock_sync_info, ch, 16, 1, _sfp_control_mutex[_which_time_diff_iface]);
     }
 }
 
