@@ -44,10 +44,10 @@ struct UHD_API stream_cmd_t
         STREAM_MODE_NUM_SAMPS_AND_DONE = int('d'),
         STREAM_MODE_NUM_SAMPS_AND_MORE = int('m')
     } stream_mode;
-    uint64_t num_samps;
+    uint64_t num_samps = 0;
 
-    bool stream_now;
-    time_spec_t time_spec;
+    bool stream_now = false;
+    time_spec_t time_spec = time_spec_t(0.0);
 
     stream_cmd_t(const stream_mode_t& stream_mode);
 };
