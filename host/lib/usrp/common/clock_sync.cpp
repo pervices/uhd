@@ -20,7 +20,7 @@ using namespace uhd::usrp;
 
 static constexpr size_t padded_clock_sync_size = (size_t) ceil(sizeof(clock_sync) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
 
-//#define MEASURE_ACCURACY
+#define MEASURE_ACCURACY
 
 clock_sync::clock_sync(std::string ip, uint16_t port, double tick_rate)
     :
@@ -230,7 +230,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         // End of fenced area to prevent time reordering
         _mm_mfence();
 
-        // Get the difference between the predicted and real time
+        // Get the predicted time minus the actual time
         bool reply_good =  self->time_diff_recv( tdr );
 
         // Update flag used to track if clock sync is working
@@ -258,5 +258,6 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
     // 8.7us = 20% of a 131072 buffer at 3Gsps (noDDR Cyan)
     // 1.8ms = 20% of a 4608000 buffer at 500Msps (Chestnut)
     UHD_LOG_INFO("CLOCK_SYNC", "The worst prediction while synced was: " + std::to_string(worst_difference));
+    fprintf(stderr, "worst_difference: %lf\n", worst_difference);
 #endif
 }

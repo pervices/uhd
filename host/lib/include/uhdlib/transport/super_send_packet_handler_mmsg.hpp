@@ -100,6 +100,14 @@ private:
 
     double _sample_rate = 0;
 
+    /**
+     * How close (in seconds) to being late a packet can be before we drop it
+     * Reasons to drop packets to avoid any arrive late:
+     * Currently the FPGA will play late packets when they arrive, result in permenant loss of phase (this is being changed but until then this is needed to reduce the chance of loss of phase)
+     * To better catch up from underflows
+     */
+    double drop_lead = 0;
+
     // Sockets used to send sample packets to the device
     int send_sockets[MAX_CHANNELS] = {};
 
@@ -597,7 +605,7 @@ private:
             // Send packets without tsf since they don't have a set time
             // Also ignore send time in blocking fc mode since it doesn't apply
             if(
-                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= _clock_sync->get_device_time().to_ticks(_TICK_RATE) ||
+                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= ( _clock_sync->get_device_time().to_ticks(_TICK_RATE) + drop_lead ) ||
                 /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
