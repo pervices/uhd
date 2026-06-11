@@ -134,7 +134,9 @@ void send_packet_handler_mmsg::set_samp_rate(const double rate) {
 
     // Drop packets if they are within thw lower of 20% of a buffer of being late and 40us
     // 40e-6 was chosen since it is extremely rare for packets to be over 35e-6 seconds late based on clock sync predictions
-    drop_lead = std::min(0.2 * _DEVICE_BUFFER_SIZE / _sample_rate, 40e-6);
+    // TODO: reduce the minimum
+    // The worst clock sync error I measured was less than 400e-6 so I am using 500e-6 here, but this does mean the minimum latency is 500e-6 for tx
+    drop_lead = std::min(0.2 * _DEVICE_BUFFER_SIZE / _sample_rate, 500e-6);
 }
 
 void send_packet_handler_mmsg::enable_blocking_fc(int64_t blocking_setpoint) {
