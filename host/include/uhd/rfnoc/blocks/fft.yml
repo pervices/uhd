@@ -1,5 +1,9 @@
 schema: rfnoc_modtool_args
 module_name: fft
+name: FFT
+description: |
+  An FFT implementation that provides forward and inverse FFT, cyclic prefix
+  insertion and removal, variable FFT sizes and different output formats.
 version: "1.0"
 rfnoc_version: "1.0"
 chdr_width: 64
@@ -8,7 +12,7 @@ noc_id: 0xFF700002
 # Provide a custom path to Makefile.srcs for this block relative to the
 # FPGA repository
 makefile_srcs: "${fpga_lib_dir}/blocks/rfnoc_block_fft/Makefile.srcs"
-
+# [FFT_YML]
 parameters:
   NIPC: 1
   NUM_PORTS: 1
@@ -25,7 +29,7 @@ parameters:
   EN_MAGNITUDE: 0
   EN_MAGNITUDE_SQ: 1
   USE_APPROX_MAG: 1
-
+# [FFT_YML]
 clocks:
   - name: rfnoc_chdr
     freq: "[]"
@@ -55,7 +59,6 @@ data:
       info_fifo_depth: 32
       payload_fifo_depth: 32
       format: sc16
-      mdata_sig: ~
   outputs:
     out:
       num_ports: NUM_PORTS
@@ -65,4 +68,3 @@ data:
       payload_fifo_depth: 32
       sideband_at_end: True
       format: sc16
-      mdata_sig: ~

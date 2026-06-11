@@ -11,10 +11,9 @@
 #include <uhd/image_loader.hpp>
 #include <uhd/types/dict.hpp>
 #include <uhd/usrp/mboard_eeprom.hpp>
+#include <uhd/utils/cast.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/assign.hpp>
-#include <boost/lexical_cast.hpp>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -57,8 +56,9 @@ static b200_iface::sptr get_b200_iface(
 
         // At this point, we should have a single B2XX
         if (applicable_dev_handles.size() == 1) {
-            mb_eeprom = eeprom;
             handle    = applicable_dev_handles[0];
+            iface     = b200_iface::make(usb_control::make(handle, 0));
+            mb_eeprom = b200_impl::get_mb_eeprom(iface);
             return iface;
         } else if (applicable_dev_handles.size() > 1) {
             std::string err_msg =
@@ -111,7 +111,7 @@ static bool b200_image_loader(const image_loader::image_loader_args_t& image_loa
          * filename for us to use.
          */
         std::string product = mb_eeprom.get("product");
-        if (not B2XX_PRODUCT_ID.has_key(boost::lexical_cast<uint16_t>(product))) {
+        if (not B2XX_PRODUCT_ID.has_key(uhd::cast::from_str<uint16_t>(product))) {
             if (user_specified) {
                 // The user specified a bad device but expects us to know what it is
                 throw uhd::runtime_error("Could not determine model. You must manually "

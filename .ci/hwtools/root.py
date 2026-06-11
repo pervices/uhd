@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
-# Copyright 2021 Ettus Research, a National Instruments Brand
+# Copyright 2025 Ettus Research, a National Instruments Brand
 #
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #
@@ -12,21 +12,28 @@
 
 import sys
 
+
 def do_setup():
     from hwtools.api import rootapi
 
     rootapi.set_workspace_name(name="uhddev", pretty_name="UHD FPGA")
     rootapi.set_major_version("1")
 
-    rootapi.add_tool(name="hwtools",  version="head")
-    rootapi.add_tool(name="Vivado",   version="2021.1", allowlater=False)
+    # Note: The hwtools version for CI purposes is fixed in run_setup.sh
+    rootapi.add_tool(name="hwtools", version="head")
+    rootapi.add_tool(name="Vivado", version="2021.1", allowlater=False)
     rootapi.add_tool(name="modelsim", version="2020.4", allowlater=True)
+    rootapi.add_tool(name="Diamond", version="3.12", allowlater=True)
+    rootapi.add_tool(name="Quartus", version="20.1", allowlater=True)
+
 
 def do_finish():
     pass
 
+
 def do_publish():
     pass
+
 
 if __name__ == "__main__":
     sys.exit(-1)

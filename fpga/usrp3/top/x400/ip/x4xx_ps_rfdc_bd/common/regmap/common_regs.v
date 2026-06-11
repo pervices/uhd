@@ -19,9 +19,6 @@
 //    <window name="RPU"          offset="0x0080000000" size="0x00010000">
 //      <info>Space reserved for RPU access</info>
 //    </window>
-//    <window name="JTAG_ENGINE"  offset="0x1000000000" size="0x1000">
-//      <info>Register space for the JTAG engine for MB CPLD programming.</info>
-//    </window>
 //    <window name="RESERVED"     offset="0x100003F000" size="0x1000">
 //      <info>Register space reserved for future use.</info>
 //    </window>
@@ -387,6 +384,13 @@
 //      </bitfield>
 //      <bitfield name="RFDC_INFO_SPC_TX"          range="9..7" initialvalue="1">
 //        <info>Log2 of SPC value for TX connection (fabric into RFDC) for daughterboard 0.</info>
+//      </bitfield>
+//      <bitfield name="RFDC_CLK_DIV4_ENABLE"             range="15" initialvalue="0">
+//        <info>
+//          This flag applies to X410 only.
+//          RFDC clock in PS block diagram gets divided by 4 if this flag is set.
+//          The resulting ratio between rfdc_clk and rfdc_clk2x is 1:8.
+//        </info>
 //      </bitfield>
 //      <bitfield name="RFDC_INFO_XTRA_RESAMP_DB1" range="19..16" initialvalue="1">
 //        <info>Additional resampling happening outside the RFDC for daughterboard 0.</info>

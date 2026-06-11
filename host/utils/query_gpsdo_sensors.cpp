@@ -5,15 +5,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/usrp_clock/multi_usrp_clock.hpp>
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/filesystem.hpp>
-
 #include <boost/format.hpp>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -21,12 +18,13 @@
 #include <complex>
 #include <cstdlib>
 #include <ctime>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <thread>
 
 namespace po = boost::program_options;
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 void print_notes(void)
 {
@@ -191,7 +189,6 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << "Waiting for the GPSDO to warm up..." << std::flush;
     auto end = std::chrono::steady_clock::now() + std::chrono::seconds(30);
     while (std::chrono::steady_clock::now() < end) {
-
         try {
             usrp->get_mboard_sensor("gps_locked", 0);
             break;

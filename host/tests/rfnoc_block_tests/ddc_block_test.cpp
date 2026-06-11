@@ -4,23 +4,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "../rfnoc_graph_mock_nodes.hpp"
 #include <uhd/rfnoc/actions.hpp>
 #include <uhd/rfnoc/ddc_block_control.hpp>
 #include <uhd/rfnoc/defaults.hpp>
+#include <uhd/rfnoc/detail/graph.hpp>
 #include <uhd/rfnoc/duc_block_control.hpp>
 #include <uhd/rfnoc/mock_block.hpp>
+#include <uhd/rfnoc/mock_nodes.hpp>
+#include <uhd/rfnoc/node_accessor.hpp>
 #include <uhd/rfnoc/null_block_control.hpp>
-#include <uhdlib/rfnoc/graph.hpp>
-#include <uhdlib/rfnoc/node_accessor.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <boost/test/unit_test.hpp>
 #include <iostream>
 
 using namespace uhd::rfnoc;
-
-// Redeclare this here, since it's only defined outside of UHD_API
-noc_block_base::make_args_t::~make_args_t() = default;
+using namespace uhd::rfnoc::test;
 
 namespace {
 
@@ -107,6 +105,11 @@ BOOST_AUTO_TEST_CASE(test_ddc_block)
     BOOST_CHECK(mock_sink_term.get_edge_property<double>(
                     "scaling", {res_source_info::INPUT_EDGE, 0})
                 != 1.0);
+
+    BOOST_CHECK_CLOSE(test_ddc->get_output_rates(0).start(),
+        DEFAULT_RATE / ((1 << num_hb) * max_cic),
+        1e-6);
+    BOOST_CHECK_CLOSE(test_ddc->get_output_rates(0).stop(), DEFAULT_RATE, 1e-6);
 
     BOOST_CHECK_CLOSE(test_ddc->get_frequency_range(0).start(), -DEFAULT_RATE / 2, 1e-6);
     BOOST_CHECK_CLOSE(test_ddc->get_frequency_range(0).stop(), DEFAULT_RATE / 2, 1e-6);

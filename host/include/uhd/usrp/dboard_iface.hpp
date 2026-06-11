@@ -8,6 +8,7 @@
 #pragma once
 
 #include <uhd/config.hpp>
+#include <uhd/exception.hpp>
 #include <uhd/types/serial.hpp>
 #include <uhd/types/time_spec.hpp>
 #include <uhd/usrp/gpio_defs.hpp>
@@ -57,14 +58,14 @@ public:
     typedef dboard_iface_special_props_t special_props_t;
 
     //! tells the host which unit to use
-    enum unit_t {
+    enum unit_t : uint32_t {
         UNIT_RX   = int('r'),
         UNIT_TX   = int('t'),
         UNIT_BOTH = int('b'),
     };
 
     //! aux dac selection enums (per unit)
-    enum aux_dac_t {
+    enum aux_dac_t : uint32_t {
         AUX_DAC_A = int('a'),
         AUX_DAC_B = int('b'),
         AUX_DAC_C = int('c'),
@@ -72,7 +73,7 @@ public:
     };
 
     //! aux adc selection enums (per unit)
-    enum aux_adc_t { AUX_ADC_A = int('a'), AUX_ADC_B = int('b') };
+    enum aux_adc_t : uint32_t { AUX_ADC_A = int('a'), AUX_ADC_B = int('b') };
 
     typedef uhd::usrp::gpio_atr::gpio_atr_reg_t atr_reg_t;
 
@@ -246,6 +247,17 @@ public:
      * \return the codec rate in Hz
      */
     virtual double get_codec_rate(unit_t unit) = 0;
+
+    /*!
+     * Lock the clock rate for the dboard.
+     *
+     * \param unit which unit rx or tx
+     * \return true if clock rate was locked
+     */
+    virtual bool lock_clock_rate([[maybe_unused]] const unit_t unit)
+    {
+        return false; // default implementation does not support locking
+    }
 
     /*!
      * Configure the front-end connection parameters.

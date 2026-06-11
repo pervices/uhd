@@ -1,6 +1,3 @@
-<%!
-import math
-%>\
 <%namespace name="func" file="/functions.mako"/>\
 //
 // Copyright ${year} ${copyright_holder}
@@ -44,9 +41,6 @@ module rfnoc_block_${config['module_name']} #(
 %for clock in config['clocks']:
   input  wire                   ${clock['name']}_clk,
 %endfor
-  // RFNoC Backend Interface
-  input  wire [511:0]           rfnoc_core_config,
-  output wire [511:0]           rfnoc_core_status,
 %if has_inputs:
   // AXIS-CHDR Input Ports (from framework)
   input  wire [(${func.num_ports_in_str()})*CHDR_W-1:0] s_rfnoc_chdr_tdata,
@@ -70,7 +64,25 @@ module rfnoc_block_${config['module_name']} #(
   output wire [31:0]            m_rfnoc_ctrl_tdata,
   output wire                   m_rfnoc_ctrl_tlast,
   output wire                   m_rfnoc_ctrl_tvalid,
-  input  wire                   m_rfnoc_ctrl_tready
+  input  wire                   m_rfnoc_ctrl_tready,
+% for name, io_port in config.get("io_ports", {}).items():
+%   if loop.first:
+  // IO Ports
+%   endif
+  //   ${ name }
+%   for wire in io_port["wires"]:
+<%
+    # Note: the wire direction gets populated in expand_io_port_desc(), which
+    # flips the direction to make it compatible with the image core viewpoint.
+    # We therefore flip it back here.
+    direction = "input " if wire["direction"] == "output" else "output"
+%>\
+  ${ direction } wire ${ render_wire_width(wire.get("width", 1), 17) } ${ wire["name"] },
+%   endfor
+% endfor
+  // RFNoC Backend Interface
+  input  wire [511:0]           rfnoc_core_config,
+  output wire [511:0]           rfnoc_core_status
 );
 
   //---------------------------------------------------------------------------
@@ -191,6 +203,28 @@ module rfnoc_block_${config['module_name']} #(
   //---------------------------------------------------------------------------
 
   // < Replace this section with your logic >
+<%
+  i_cfg = config['data']['inputs']
+  o_cfg = config['data']['outputs']
+  connect_loopback = bool(
+      len(i_cfg) == 1 and
+      len(o_cfg) == 1 and
+      list(i_cfg.values())[0].get('num_ports', 1) == list(o_cfg.values())[0].get('num_ports', 1))
+%>
+%if connect_loopback:
+  // Default assignment: The input and output ports are connected in a loopback
+  // fashion. This will make all port pairs act as a passthrough (e.g., data
+  // sent into input port 0 will be forwarded to output port 0 directly). This
+  // is to show off basic RFNoC functionality, and should be removed when the
+  // block's desired logic is connected here.
+%if fpga_data_iface == "axis_chdr":
+<%include file="/modules/axis_chdr_loopback_template.mako"/>\
+%elif fpga_data_iface == "axis_pyld_ctxt":
+<%include file="/modules/axis_pyld_ctxt_loopback_template.mako"/>\
+%elif fpga_data_iface == "axis_data":
+<%include file="/modules/axis_data_loopback_template.mako"/>\
+%endif
+%endif
 
   // Nothing to do yet, so just drive control signals to default values
 %if config['control']['fpga_iface'] == "ctrlport":
@@ -206,6 +240,7 @@ module rfnoc_block_${config['module_name']} #(
   assign m_axis_ctrl_tready = 1'b0;
   assign s_axis_ctrl_tvalid = 1'b0;
 %endif
+%if not connect_loopback:
 %if fpga_data_iface == "axis_chdr":
   %for port_name, port_info in config['data']['inputs'].items():
     %if 'num_ports' in port_info:
@@ -256,8 +291,8 @@ module rfnoc_block_${config['module_name']} #(
     %endif
   %endfor
 %endif
+%endif
 
 endmodule // rfnoc_block_${config['module_name']}
-
 
 `default_nettype wire

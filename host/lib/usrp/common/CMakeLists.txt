@@ -31,6 +31,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/adf535x.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lmx2592.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lmx2572.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tmp468.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/apply_corrections.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/validate_subdev_spec.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/recv_packet_demuxer.cpp
@@ -41,6 +42,14 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/clock_sync.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/stream_cmd_issuer.cpp
 )
+
+if(ENABLE_X400)
+    LIBUHD_APPEND_SOURCES(
+        ${CMAKE_CURRENT_SOURCE_DIR}/admv1320.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/admv1420.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ltc5594.cpp
+    )
+endif(ENABLE_X400)
 
 if(ENABLE_DPDK)
     set_property(

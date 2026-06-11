@@ -68,7 +68,7 @@ ctrlport_spi_master.v \
 cpld_interface.v \
 cpld_interface_regs.v \
 qsfp_led_controller.v \
-rfdc_timing_control.v \
+rfdc_timing_control.sv \
 x4xx_pps_sync.v \
 ../../lib/timing/pps_generator.v \
 dboards/ctrlport_byte_serializer.v \
@@ -87,6 +87,25 @@ rf/x410/x410_rf_reset_controller.vhd \
 dboards/zbx/db_gpio_interface.v
 endif
 
+ifdef X420
+TOP_SRCS += \
+rf/full/rf_core_full.sv \
+rf/common/adc_iq_repacker.v \
+rf/x420/x420_rf_reset_controller.vhd \
+rf/1000m/XmlSvPkgIQ_IMPAIRMENT_REGMAP.sv \
+rf/1000m/XmlSvPkgRF_CORE_REGMAP.sv \
+rf/1000m/XmlSvPkgDC_OFFSET_REGMAP.sv \
+rf/1000m/impairment_correction_dsp.sv \
+rf/1000m/impairment_correction.sv \
+rf/1000m/dc_offset.sv \
+rf/1000m/rf_core_1000m.sv \
+regmap/x420/XmlSvPkgDB_WINDOW_REGMAP.sv \
+regmap/x420/XmlSvPkgFPGA_GPIO_REGMAP.sv\
+regmap/x420/XmlSvPkgHBX_SYNC_INJECTION_REGMAP.sv \
+dboards/hbx/db_gpio_interface.sv \
+dboards/hbx/hbx_sync_injection.sv
+endif
+
 ifdef X440
 TOP_SRCS += \
 rf/100m/rf_core_100m.v \
@@ -103,6 +122,15 @@ endif
 ifdef X410
 MB_XDC += \
 constraints/timing/x410_clocks.xdc
+endif
+
+ifdef X420
+ifneq (,$(findstring RF_BW=200,$(RFNOC_IMAGE_CORE_DEFS)))
+MB_XDC += \
+constraints/timing/x420_clocks_200.xdc
+endif
+MB_XDC += \
+constraints/timing/x420_clocks.xdc
 endif
 
 ifdef X440
@@ -132,6 +160,13 @@ constraints/pins/x410/db_gpio.xdc \
 constraints/timing/x410.xdc
 endif
 
+ifdef X420
+MB_XDC += \
+constraints/pins/rfdc_3x3.xdc \
+constraints/pins/x420/db_gpio.xdc \
+constraints/timing/x420.xdc
+endif
+
 ifdef X440
 MB_XDC += \
 constraints/pins/rfdc_4x4.xdc \
@@ -151,10 +186,10 @@ $(SIMPLE_GEMAC_SRCS) $(TIMING_SRCS) $(COREGEN_DSP_SRCS) \
 $(VRT_SRCS) $(UDP_SRCS) $(COREGEN_SRCS) $(EXTRAM_SRCS) $(WISHBONE_SRCS) \
 $(XGE_SRCS) $(XGE_INTERFACE_SRCS) $(AURORA_PHY_SRCS) \
 $(XGE_PCS_PMA_SRCS) \
-$(PACKET_PROC_SRCS) $(VITA_SRCS) $(DSP_SRCS) $(DRAM_SRCS) \
+$(RFNOC_FRAMEWORK_SRCS) $(PACKET_PROC_SRCS) $(VITA_SRCS) $(DSP_SRCS) $(DRAM_SRCS) \
 $(RADIO_SRCS) $(CAP_GEN_GENERIC_SRCS) $(IP_XCI_SRCS) $(BD_SRCS) \
 $(LIB_IP_XCI_SRCS) $(LIB_HLS_IP_SRCS) $(LIBCOREGEN_SRCS) $(WB_SPI_SRCS) \
-$(RFNOC_FRAMEWORK_SRCS) $(RFNOC_SRCS) $(RFNOC_OOT_SRCS) \
+$(RFNOC_SRCS) \
 $(RFNOC_XPORT_SV_SRCS) $(RFNOC_IMAGE_CORE_SRCS) \
 $(DB_COMMON_SRCS) $(TOP_SRCS) \
 )
@@ -170,26 +205,29 @@ IMAGE_CORE_HEADER_DEF="RFNOC_IMAGE_CORE_HDR=$(BUILD_DIR)/rfnoc_image_core.vh"
 
 VERILOG_DEFS=$(EXTRA_DEFS) $(CUSTOM_DEFS) $(GIT_HASH_VERILOG_DEF) $(IMAGE_CORE_HEADER_DEF) $(RFNOC_IMAGE_CORE_DEFS)
 
+$(OOT_SRCS_FILE):
+	@printf "%s\n" $(RFNOC_OOT_SRCS) > $@
+
 show-var:
 	@echo "IP_BUILD_DIR: $(IP_BUILD_DIR)"
 
 # DESIGN_SRCS and VERILOG_DEFS must be defined
-bin: .prereqs
+bin: .prereqs $(OOT_SRCS_FILE)
 	@echo "Build directory:: $(BUILD_DIR)"
 	@echo "Printing MB_XDC:: $(MB_XDC)"
 	@echo "Printing VERILOG_DEFS:: $(VERILOG_DEFS)"
 	$(call BUILD_VIVADO_DESIGN,$(abspath ./build_x4xx.tcl),$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-synth: .prereqs
+synth: .prereqs $(OOT_SRCS_FILE)
 	$(call BUILD_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_synth.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-rtl: .prereqs
+rtl: .prereqs $(OOT_SRCS_FILE)
 	$(call CHECK_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_check_syntax.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
 viv_ip: show-var .prereqs $$(DESIGN_SRCS) ip
 	@echo "IP build for $(NAME) DONE . . ."
 
-secure_core: .prereqs
+secure_core: .prereqs $(OOT_SRCS_FILE)
 	$(call BUILD_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_secure_synth.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-.PHONY: bin synth rtl viv_ip secure_synth_netlist
+.PHONY: bin synth rtl viv_ip secure_synth_netlist $(OOT_SRCS_FILE)

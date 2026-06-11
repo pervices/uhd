@@ -7,12 +7,13 @@
 X4xx motherboard CPLD control
 """
 
-import sys
 import inspect
+import sys
+
 from usrp_mpm import lib  # Pulls in everything from C++-land
+from usrp_mpm.dboard_manager import FBX, HBX, ZBX
 from usrp_mpm.mpmutils import parse_encoded_git_hash
-from usrp_mpm.dboard_manager import ZBX
-from usrp_mpm.dboard_manager import FBX
+
 
 class X4xxMboardCPLD:
     """
@@ -20,7 +21,9 @@ class X4xxMboardCPLD:
 
     Derive from this class for a specific implementation of the X4xx MB CPLD.
     """
+
     # pylint: disable=bad-whitespace
+    # fmt: off
     SIGNATURE_OFFSET         = 0x0000
     COMPAT_REV_OFFSET        = 0x0004
     OLDEST_COMPAT_REV_OFFSET = 0x0008
@@ -56,6 +59,7 @@ class X4xxMboardCPLD:
 
     COMPATIBLE_DB_PIDS      = []
     # pylint: enable=bad-whitespace
+    # fmt: on
 
     def __init__(self, regs, log):
         self.log = log
@@ -71,22 +75,24 @@ class X4xxMboardCPLD:
         if the clock-enable was successful by polling the CPLD, and throws if
         not.
         """
+
         def check_pll_enabled():
             return self.peek32(self.DB_ENABLE_OFFSET) & self.PLL_REF_CLOCK_ENABLED
+
         if enable:
             self.poke32(self.DB_ENABLE_OFFSET, self.ENABLE_PRC)
             if not check_pll_enabled():
                 self.log.error("PRC enable failed!")
-                raise RuntimeError('PRC enable failed!')
+                raise RuntimeError("PRC enable failed!")
             return
         # Disable PRC:
         self.poke32(self.DB_ENABLE_OFFSET, self.DISABLE_PRC)
         if check_pll_enabled():
-            self.log.error('PRC reset failed!')
-            raise RuntimeError('PRC reset failed!')
+            self.log.error("PRC reset failed!")
+            raise RuntimeError("PRC reset failed!")
 
     def enable_daughterboard(self, db_id, enable=True):
-        """ Enable or disable clock forwarding to a given DB """
+        """Enable or disable clock forwarding to a given DB"""
         assert db_id in (0, 1)
         if db_id == 0:
             release_reset = self.RELEASE_RST_DB0
@@ -98,13 +104,13 @@ class X4xxMboardCPLD:
         if enable:
             # De-assert reset
             value = (value | release_reset) & (~assert_reset)
-        else: #disable
+        else:  # disable
             # Assert reset
             value = (value | assert_reset) & (~release_reset)
         self.poke32(self.DB_ENABLE_OFFSET, value)
 
     def enable_daughterboard_support_clock(self, db_id, enable=True):
-        """ Enable or disable clock forwarding to a given DB """
+        """Enable or disable clock forwarding to a given DB"""
         if db_id == 0:
             clk_enable = self.ENABLE_CLK_DB0
             clk_disable = self.DISABLE_CLK_DB0
@@ -115,7 +121,7 @@ class X4xxMboardCPLD:
         if enable:
             # Enable clock
             value = (value | clk_enable) & (~clk_disable)
-        else: #disable
+        else:  # disable
             # Disable clock
             value = (value | clk_disable) & (~clk_enable)
         self.poke32(self.DB_ENABLE_OFFSET, value)
@@ -130,23 +136,26 @@ class X4xxMboardCPLD:
         cpld_image_compat_revision = self.peek32(self.OLDEST_COMPAT_REV_OFFSET)
         if cpld_image_compat_revision < self.OLDEST_REQ_COMPAT_REV:
             error_message = (
-                'MB CPLD oldest compatible revision'
-                f' 0x{cpld_image_compat_revision:08x} is out of date. Update'
-                f' your CPLD image to 0x{self.OLDEST_REQ_COMPAT_REV:08x}.')
+                "MB CPLD oldest compatible revision"
+                f" 0x{cpld_image_compat_revision:08x} is out of date. Update"
+                f" your CPLD image to 0x{self.OLDEST_REQ_COMPAT_REV:08x}."
+            )
             self.log.error(error_message)
             raise RuntimeError(error_message)
         if cpld_image_compat_revision > self.OLDEST_REQ_COMPAT_REV:
             error_message = (
-                'MB CPLD oldest compatible revision'
-                f' 0x{cpld_image_compat_revision:08x} is unknown. Downgrade'
-                f' your CPLD image to 0x{self.OLDEST_REQ_COMPAT_REV:08x}.')
+                "MB CPLD oldest compatible revision"
+                f" 0x{cpld_image_compat_revision:08x} is unknown. Downgrade"
+                f" your CPLD image to 0x{self.OLDEST_REQ_COMPAT_REV:08x}."
+            )
             self.log.error(error_message)
             raise RuntimeError(error_message)
 
         if not self.has_compat_version(self.REQ_COMPAT_REV):
             error_message = (
                 "MB CPLD compatible revision is too old. Update your CPLD"
-                f" image to at least 0x{self.REQ_COMPAT_REV:08x}.")
+                f" image to at least 0x{self.REQ_COMPAT_REV:08x}."
+            )
             self.log.error(error_message)
             raise RuntimeError(error_message)
 
@@ -158,7 +167,8 @@ class X4xxMboardCPLD:
             self.log.warning(
                 "Somebody called MB CPLD has_compat_version with revision"
                 f" 0x{min_required_version:x} which is older than the mandated"
-                f" version 0x{self.REQ_COMPAT_REV:x}.")
+                f" version 0x{self.REQ_COMPAT_REV:x}."
+            )
         cpld_image_compat_revision = self.peek32(self.COMPAT_REV_OFFSET)
         return cpld_image_compat_revision >= min_required_version
 
@@ -168,8 +178,7 @@ class X4xxMboardCPLD:
         """
         git_hash_rb = self.peek32(self.GIT_HASH_OFFSET)
         (git_hash, dirtiness_qualifier) = parse_encoded_git_hash(git_hash_rb)
-        self.log.trace("MB CPLD build GIT Hash: {:07x} ({})".format(
-            git_hash, dirtiness_qualifier))
+        self.log.trace("MB CPLD build GIT Hash: {:07x} ({})".format(git_hash, dirtiness_qualifier))
 
     def set_serial_number(self, serial_number):
         """
@@ -177,7 +186,7 @@ class X4xxMboardCPLD:
         """
         assert len(serial_number) > 0
         assert len(serial_number) <= 8
-        serial_number_string = str(serial_number, 'ascii')
+        serial_number_string = str(serial_number, "ascii")
         serial_number_int = int(serial_number_string, 16)
         self.poke32(self.SERIAL_NO_LO_OFFSET, serial_number_int & 0xFFFFFFFF)
         self.poke32(self.SERIAL_NO_HI_OFFSET, serial_number_int >> 32)
@@ -196,18 +205,21 @@ class X4xxMboardCPLD:
         return bool(self.peek32(self.CMI_OFFSET))
 
 
-class X410MboardCPLD(X4xxMboardCPLD):
+class X410X420MboardCPLD(X4xxMboardCPLD):
     """
-    MB CPLD Image for USRP X410 (which means there are ZBX daughterboards
-    installed).
+    MB CPLD Image for USRP X410/X420 (which means there are ZBX or HBX
+    daughterboards installed).
     """
+
     # pylint: disable=bad-whitespace
+    # fmt: off
     # change these revisions only on breaking changes
     OLDEST_REQ_COMPAT_REV   = 0x20122114
     REQ_COMPAT_REV          = 0x20122114
     SIGNATURE               = 0x0A522D27
-    COMPATIBLE_DB_PIDS      = ZBX.pids
+    COMPATIBLE_DB_PIDS      = ZBX.pids + HBX.pids
     # pylint: enable=bad-whitespace
+    # fmt: on
 
 
 class X440MboardCPLD(X4xxMboardCPLD):
@@ -215,13 +227,16 @@ class X440MboardCPLD(X4xxMboardCPLD):
     MB CPLD Image for USRP X440 (which means there are FBX daughterboards
     installed).
     """
+
     # pylint: disable=bad-whitespace
+    # fmt: off
     # change these revisions only on breaking changes
     OLDEST_REQ_COMPAT_REV   = 0x22080414
     REQ_COMPAT_REV          = 0x22080414
     SIGNATURE               = 0x0A522D28
     COMPATIBLE_DB_PIDS      = FBX.pids
     # pylint: enable=bad-whitespace
+    # fmt: on
 
 
 def make_mb_cpld_ctrl(spi_dev_node, log):
@@ -231,25 +246,29 @@ def make_mb_cpld_ctrl(spi_dev_node, log):
     log = log.getChild("CPLD")
     regs = lib.spi.make_spidev_regs_iface(
         spi_dev_node,
-        1000000, # Speed (Hz)
-        0,       # SPI mode
-        32,      # Addr shift
-        0,       # Data shift
-        0,       # Read flag
-        1<<47    # Write flag
+        1000000,  # Speed (Hz)
+        0,  # SPI mode
+        32,  # Addr shift
+        0,  # Data shift
+        0,  # Read flag
+        1 << 47,  # Write flag
     )
     cpld_signature = regs.peek32(X4xxMboardCPLD.SIGNATURE_OFFSET)
     log.trace("Found MB CPLD signature: %x", cpld_signature)
+
     def _map_sig_to_class(signature):
         for name, obj in sys.modules[__name__].__dict__.items():
-            if inspect.isclass(obj) and \
-                    issubclass(obj, X4xxMboardCPLD) and \
-                    getattr(obj, 'SIGNATURE') == signature:
+            if (
+                inspect.isclass(obj)
+                and issubclass(obj, X4xxMboardCPLD)
+                and getattr(obj, "SIGNATURE") == signature
+            ):
                 log.debug("Found MB CPLD control class: %s", name)
                 return obj
         raise RuntimeError(
-            "Unable to find a MB CPLD controller for CPLD with signature "
-            f"{cpld_signature:X}!")
+            "Unable to find a MB CPLD controller for CPLD with signature " f"{cpld_signature:X}!"
+        )
+
     cpld_control = _map_sig_to_class(cpld_signature)(regs, log)
     cpld_control.check_compat_version()
     cpld_control.trace_git_hash()

@@ -9,11 +9,13 @@
 #include <uhd/rfnoc/rfnoc_types.hpp>
 #include <uhd/types/endianness.hpp>
 #include <uhd/utils/byteswap.hpp>
-#include <boost/format.hpp>
-#include <boost/optional.hpp>
+#include <cstdint>
 #include <deque>
+#include <functional>
 #include <list>
 #include <memory>
+#include <optional>
+#include <string>
 #include <vector>
 
 namespace uhd { namespace rfnoc { namespace chdr {
@@ -31,7 +33,7 @@ enum packet_type_t {
 // CHDR Header
 //----------------------------------------------------
 
-class chdr_header
+class UHD_API chdr_header
 {
 public: // Functions
     chdr_header()                       = default;
@@ -176,18 +178,7 @@ public: // Functions
     }
 
     //! Return a string representation of this object
-    inline const std::string to_string() const
-    {
-        // The static_casts are because vc and num_mdata are uint8_t -> unsigned char
-        // For some reason, despite the %u meaning unsigned int, boost still formats them
-        // as chars
-        return str(boost::format("chdr_header{vc:%u, eob:%c, eov:%c, pkt_type:%u, "
-                                 "num_mdata:%u, seq_num:%u, length:%u, dst_epid:%u}\n")
-                   % static_cast<uint16_t>(get_vc()) % (get_eob() ? 'Y' : 'N')
-                   % (get_eov() ? 'Y' : 'N') % get_pkt_type()
-                   % static_cast<uint16_t>(get_num_mdata()) % get_seq_num() % get_length()
-                   % get_dst_epid());
-    }
+    const std::string to_string() const;
 
 private:
     // The flattened representation of the header stored in host order
@@ -272,7 +263,7 @@ public: // Members
     //! Sequence number (6 bits)
     uint8_t seq_num = 0;
     //! Has Time Flag (1 bit) and timestamp (64 bits)
-    boost::optional<uint64_t> timestamp = boost::none;
+    std::optional<uint64_t> timestamp{};
     //! Is Acknowledgment Flag (1 bit)
     bool is_ack = false;
     //! Source endpoint ID of transaction (16 bits)
@@ -415,7 +406,36 @@ public: // Members
     //! Buffer info (16 bits)
     uint16_t buff_info = 0;
     //! Extended status info (48 bits)
-    uint64_t status_info = 0;
+    union {
+        uint64_t info = 0;
+        struct
+        {
+            uint16_t last_control_seq_num  : 16;
+            uint16_t expected_seq_num      : 16;
+            uint16_t reserved_1            : 12;
+            bool stop_on_seq_error_enabled : 1;
+            bool seq_error_occoured        : 1;
+            bool reserved_2                : 1;
+            bool flow_control_due          : 1;
+        } status;
+        struct
+        {
+            uint16_t current_seq_num       : 16;
+            uint16_t expected_seq_num      : 16;
+            uint8_t chdr_packet_type       : 3;
+            uint16_t reserved_1            : 9;
+            bool stop_on_seq_error_enabled : 1;
+            bool seq_error_occoured        : 1;
+            bool reserved_2                : 1;
+            bool reserved_3                : 1;
+        } sequence_error;
+        struct
+        {
+            uint16_t dest_epid  : 16;
+            uint16_t this_epid  : 16;
+            uint32_t reserved_1 : 32;
+        } routing_error;
+    } status_info;
 
 public: // Functions
     strs_payload()                        = default;

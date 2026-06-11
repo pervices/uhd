@@ -33,6 +33,9 @@ PYBIND11_MODULE(rfnoc_gain_python, m)
     // (otherwise we will see segmentation faults)
     init_numpy();
 
-    // uhd::rfnoc::python::export_noc_block_base(m);
+    // Import UHD's rfnoc Python module so pybind11 can resolve
+    // noc_block_base.
+    py::module_::import("uhd.libpyuhd.rfnoc");
+
     export_gain_block_control(m);
 }

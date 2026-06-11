@@ -91,6 +91,7 @@ steps:
       symbol: ⚙️
   - parse_descriptor:
       source: "${ descriptor }"
+      expand_io_sig: true
   - log:
       msg: "Parsed block descriptor file ${ descriptor }."
   # RFNoC block gateware
@@ -104,18 +105,18 @@ steps:
           msg: "Aborting."
   - write_template:
       template: noc_shell_template.sv.mako
-      dest: "fpga/${ MODULE_NAME }/${ blockname_full }/noc_shell_${ blockname }.sv"
+      dest: "rfnoc/fpga/${ MODULE_NAME }/${ blockname_full }/noc_shell_${ blockname }.sv"
   - write_template:
       template: rfnoc_block_template.sv.mako
-      dest: "fpga/${ MODULE_NAME }/${ blockname_full }/${ blockname_full }.sv"
+      dest: "rfnoc/fpga/${ MODULE_NAME }/${ blockname_full }/${ blockname_full }.sv"
   - write_template:
       template: Makefile.srcs.mako
-      dest: "fpga/${ MODULE_NAME }/${ blockname_full }/Makefile.srcs"
+      dest: "rfnoc/fpga/${ MODULE_NAME }/${ blockname_full }/Makefile.srcs"
   - write_template:
       template: CMakeLists.txt.mako
-      dest: "fpga/${ MODULE_NAME }/${ blockname_full }/CMakeLists.txt"
+      dest: "rfnoc/fpga/${ MODULE_NAME }/${ blockname_full }/CMakeLists.txt"
   - append:
-      file: "fpga/${ MODULE_NAME }/CMakeLists.txt"
+      file: "rfnoc/fpga/${ MODULE_NAME }/CMakeLists.txt"
       text: "add_subdirectory(${ blockname_full })\n"
   - log:
       msg: "Added gateware templates to fpga/${ MODULE_NAME }/${ blockname_full }."
@@ -125,10 +126,10 @@ steps:
       steps:
       - write_template:
           template: rfnoc_block_template_tb.sv.mako
-          dest: "fpga/${ MODULE_NAME }/${ blockname_full }/${ blockname_full }_tb.sv"
+          dest: "rfnoc/fpga/${ MODULE_NAME }/${ blockname_full }/${ blockname_full }_tb.sv"
       - write_template:
           template: Makefile.mako
-          dest: "fpga/${ MODULE_NAME }/${ blockname_full }/Makefile"
+          dest: "rfnoc/fpga/${ MODULE_NAME }/${ blockname_full }/Makefile"
       - log:
           msg: "Added testbench templates."
   - run_if:
@@ -144,6 +145,9 @@ steps:
   - write_template:
       template: template_block_control.cpp.mako
       dest: "lib/${ blockname }_block_control.cpp"
+  - write_template:
+      template: template_block_test.cpp.mako
+      dest: "tests/${ blockname }_block_test.cpp"
   - insert_after:
       file: "include/rfnoc/${ MODULE_NAME }/CMakeLists.txt"
       pattern: "install.*FILES"
@@ -152,6 +156,10 @@ steps:
       file: "lib/CMakeLists.txt"
       pattern: "APPEND *rfnoc_${ MODULE_NAME }_sources"
       text: "\n    ${ blockname }_block_control.cpp"
+  - insert_after:
+      file: "tests/CMakeLists.txt"
+      pattern: "set\\(test_sources"
+      text: "\n    ${ blockname }_block_test.cpp"
   - log:
       msg: "Added C++ block controller templates."
   # RFNoC block Python bindings

@@ -7,6 +7,7 @@
 
 #include <uhd/exception.hpp>
 #include <uhd/types/ranges.hpp>
+#include <uhdlib/usrp/common/x4xx_ch_modes.hpp>
 #include <unordered_map>
 #include <array>
 #include <cstddef>
@@ -19,6 +20,7 @@
 #include <cstdint>
 
 namespace uhd { namespace usrp { namespace fbx {
+using uhd::usrp::x400::ch_mode;
 
 /******************************************************************************
  * Important: When changing values here, check if that also requires updating
@@ -26,9 +28,8 @@ namespace uhd { namespace usrp { namespace fbx {
  * other sales/marketing material, make sure to let the appropriate people know!
  *****************************************************************************/
 
-// The FBX has a non-configurable analog bandwidth of 400 MHz. At lower frequency,
-// the usable bandwidth may be smaller though. For those smaller bandwidths, see
-// the tune maps.
+// The FBX has a non-configurable analog bandwidth of 1600 MHz. At lower frequency,
+// or lower master clock rates, the usable bandwidth may be smaller though.
 static constexpr double FBX_DEFAULT_BANDWIDTH = 1.6e9; // Hz
 
 static constexpr double FBX_MIN_FREQ     = 1e6; // Hz
@@ -81,5 +82,8 @@ static constexpr uint32_t ATR_ADDR_XX    = 3; // Full-duplex
 static constexpr uint32_t NUM_ATR_STATES = 4;
 // Helper for looping
 static constexpr std::array<uint32_t, NUM_ATR_STATES> ATR_ADDRS{0, 1, 2, 3};
+
+// In which mode do we operate channels on this device
+static const ch_mode FBX_CH_MODE = ch_mode::REAL;
 
 }}} // namespace uhd::usrp::fbx

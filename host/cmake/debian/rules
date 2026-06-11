@@ -8,8 +8,9 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo "-DCMAKE_BUILD_TYPE=RelWithDebInfo -D
 					-DENABLE_STATIC_LIBS=OFF \
 					-DUHD_VERSION=$(DEB_VERSION) \
 					-DENABLE_PYTHON_API=ON \
+					-DENABLE_RFNOC_DEV=ON \
 					-DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3 \
-					-DPKG_LIB_DIR="/usr/lib/uhd" \
+					-DPKG_LIB_DIR="/usr/libexec/uhd" \
 					-DDOXYGEN_HAVE_DOT=True \
 					-DUHD_PYTHON_DIR="lib/python3/dist-packages" \
 					-DUSRP_MPM_PYTHON_DIR="lib/python3/dist-packages" \
@@ -29,31 +30,40 @@ override_dh_auto_test:
 
 override_dh_auto_install-indep:
 	dh_auto_install
-	rm -rf debian/tmp/usr/share/man
+#	rm -rf debian/tmp/usr/share/man
 	rm -rf debian/tmp/usr/share/doc/uhd/LICENSE
 	rm -rf debian/tmp/usr/share/doc/uhd/README.md
 # Remove source files used to generate documentation
 	rm -rf debian/tmp/usr/share/doc/uhd/doxygen/latex
+	rm -f debian/tmp/usr/libexec/uhd/utils/uhd-usrp.rules
 
 override_dh_auto_install-arch:
 	cp debian/uhd-host.limits debian/uhd-host/etc/security/limits.d/uhd.conf
-	cp debian/uhd-host.sysctl debian/uhd-host/etc/sysctl.d/uhd-usrp2.conf
+	cp debian/uhd-host.sysctl debian/uhd-host/usr/lib/sysctl.d/50-uhd-usrp2.conf
 	dh_auto_install
-	chmod -x debian/tmp/usr/lib/uhd/tests/devtest/*.py
-	chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/parse_benchmark_rate.py
-	chmod -x debian/tmp/usr/lib/uhd/tests/streaming_performance/run_benchmark_rate.py
-	rm -rf debian/tmp/usr/share/man
+	chmod -x debian/tmp/usr/libexec/uhd/tests/devtest/*.py
+	chmod -x debian/tmp/usr/libexec/uhd/tests/streaming_performance/parse_benchmark_rate.py
+	chmod -x debian/tmp/usr/libexec/uhd/tests/streaming_performance/run_benchmark_rate.py
+#	 rm -rf debian/tmp/usr/share/man
 	rm -rf debian/tmp/usr/share/doc/uhd/LICENSE
 	rm -rf debian/tmp/usr/share/doc/uhd/README.md
 # Remove source files used to generate documentation
 	rm -rf debian/tmp/usr/share/doc/uhd/doxygen/latex
+	rm -f debian/tmp/usr/libexec/uhd/utils/uhd-usrp.rules
 
 override_dh_acc:
 	- dh_acc $@
 	- cat logs/libuhd-dev/*/log.txt
 
 override_dh_shlibdeps:
-	dh_shlibdeps --package=uhd-host --libpackage=libuhd4.8.0
-	dh_shlibdeps --package=libuhd4.8.0 --libpackage=libuhd4.8.0
-	dh_shlibdeps --package=libuhd-dev --libpackage=libuhd4.8.0
-	dh_shlibdeps --package=python3-uhd --libpackage=libuhd4.8.0
+	dh_shlibdeps --package=uhd-host --libpackage=libuhd4.10.0
+	dh_shlibdeps --package=libuhd4.10.0 --libpackage=libuhd4.10.0
+	dh_shlibdeps --package=libuhd-dev --libpackage=libuhd4.10.0
+	dh_shlibdeps --package=python3-uhd --libpackage=libuhd4.10.0
+
+override_dh_auto_clean:
+	rm -rf host/tests/__pycache__
+	rm -rf host/tests/common/chdr_resource/__pycache__
+	rm -rf host/utils/__pycache__
+	rm -rf uhdplain
+	dh_auto_clean $@

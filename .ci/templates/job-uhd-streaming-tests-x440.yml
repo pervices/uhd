@@ -1,8 +1,4 @@
 parameters:
-- name: testOS
-  type: string
-  values:
-    - ubuntu2204
 - name: uhdSrcDir
   type: string
 - name: uhdArtifactSource
@@ -23,14 +19,12 @@ jobs:
 - template: job-uhd-streaming-tests.yml
   parameters:
     suiteName: 'streamingx440'
-    testOS: '${{ parameters.testOS }}'
     testLength: '${{ parameters.testLength }}'
     toolset: 'make'
     nicType: '100gbe'
     uhdSrcDir: '${{ parameters.uhdSrcDir }}'
     uhdArtifactSource: ${{ parameters.uhdArtifactSource }}
     uhdFpgaArtifactSource: '${{ parameters.uhdFpgaArtifactSource }}'
-    xilinxLocation: /opt/Xilinx/Vivado_Lab/2023.2
     dpdkDirs: '${{ parameters.dpdkDirs }}'
     dutMatrix:
       X440-0 CG_400:

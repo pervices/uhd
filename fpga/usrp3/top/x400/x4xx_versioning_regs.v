@@ -71,6 +71,8 @@ module x4xx_versioning_regs #(
   // Variant-dependent register map.
   `ifdef X440
     `include "regmap/x440/versioning_regs_regmap_utils.vh"
+  `elsif X420
+    `include "regmap/x420/versioning_regs_regmap_utils.vh"
   `else // Use X410 as the default variant for regmap.
     `include "regmap/x410/versioning_regs_regmap_utils.vh"
   `endif
@@ -168,7 +170,7 @@ endmodule
 
 
 //XmlParse xml_on
-//<regmap name="VERSIONING_REGS_REGMAP" readablestrobes="false" generatevhdl="true" ettusguidelines="true">
+//<regmap name="VERSIONING_REGS_REGMAP" readablestrobes="false" generatevhdl="true" generatesv="false" ettusguidelines="true">
 //  <group name="VERSIONING_REGS">
 //    <regtype name="VERSION_TYPE" size="32" attributes="Readable">
 //      <bitfield name="MAJOR" range="31..23" initialvalue="0">

@@ -343,7 +343,7 @@ module x4xx_gpio_spi #(
   // SPI master
   //---------------------------------------------------------------------------
 
-  `ifdef X440
+  `ifndef X410
 
     simple_spi_core #(
       .BASE     (0),
@@ -476,7 +476,7 @@ module x4xx_gpio_spi #(
       assign gated_sclk[i]   = gpio_is_sclk[i] ? sclk : 1'b0;
 
       // register signals once remapping logic is resolved
-      `ifdef X440
+      `ifndef X410
         always @ (posedge ctrlport_clk) begin
           mosi_mux_out_dlyd[i] <= mosi_mux_out[i];
           gpio_is_sclk_dlyd[i] <= gpio_is_sclk[i];
@@ -571,7 +571,13 @@ endmodule
 //      </bitfield>
 //    </regtype>
 //    <register name="SPI_SLAVE_CONFIG" typename="SPI_SETUP"  offset="0x00" count="4" options="--step 4">
-//      <info> Set of configuration registers for the supported slaves. </info>
+//      <info>Set of configuration registers for the supported slaves.
+//            Starting from FPGA compat number 10.1, the bit order for "Port A GPIO"
+//            and "Port B GPIO" matches the pin order of the "DIO" signals on the
+//            frontpanel connectors (which is the same order as the HDMI pin numbering
+//            with ground pins and pin 14 (HEC/ARC) left out). Up until FPGA compat
+//            number 10.0, software had to apply a mapping on software side to compensate
+//            for non-linear mapping in the FPGA.</info>
 //    </register>
 //    <register name="SPI_TRANSACTION_CONFIG" offset="0x10" size="32">
 //      <info>

@@ -31,6 +31,22 @@ static inline constexpr field_t get_field_u64(
 }
 
 //----------------------------------------------------
+// CHDR Header
+//----------------------------------------------------
+const std::string chdr_header::to_string() const
+{
+    // The static_casts are because vc and num_mdata are uint8_t -> unsigned char
+    // For some reason, despite the %u meaning unsigned int, boost still formats them
+    // as chars
+    return str(boost::format("chdr_header{vc:%u, eob:%c, eov:%c, pkt_type:%u, "
+                             "num_mdata:%u, seq_num:%u, length:%u, dst_epid:%u}\n")
+               % static_cast<uint16_t>(get_vc()) % (get_eob() ? 'Y' : 'N')
+               % (get_eov() ? 'Y' : 'N') % get_pkt_type()
+               % static_cast<uint16_t>(get_num_mdata()) % get_seq_num() % get_length()
+               % get_dst_epid());
+}
+
+//----------------------------------------------------
 // CHDR Control Payload
 //----------------------------------------------------
 
@@ -60,16 +76,15 @@ size_t ctrl_payload::serialize(uint64_t* buff,
         | ((static_cast<uint64_t>(data_vtr.size()) & mask_u64(NUM_DATA_WIDTH))
             << NUM_DATA_OFFSET)
         | ((static_cast<uint64_t>(seq_num) & mask_u64(SEQ_NUM_WIDTH)) << SEQ_NUM_OFFSET)
-        | ((static_cast<uint64_t>(timestamp.is_initialized() ? 1 : 0)
-               & mask_u64(HAS_TIME_WIDTH))
+        | ((static_cast<uint64_t>(bool(timestamp) ? 1 : 0) & mask_u64(HAS_TIME_WIDTH))
             << HAS_TIME_OFFSET)
         | ((static_cast<uint64_t>(is_ack) & mask_u64(IS_ACK_WIDTH)) << IS_ACK_OFFSET)
         | ((static_cast<uint64_t>(src_epid) & mask_u64(SRC_EPID_WIDTH))
             << SRC_EPID_OFFSET));
 
     // Populate optional timestamp
-    if (timestamp.is_initialized()) {
-        buff[ptr++] = conv_byte_order(timestamp.get());
+    if (bool(timestamp)) {
+        buff[ptr++] = conv_byte_order(*timestamp);
     }
 
     // Populate control operation word
@@ -93,7 +108,7 @@ size_t ctrl_payload::serialize(uint64_t* buff,
     }
 
     // This really should be impossible but we'll leave it for safety's sake
-    UHD_ASSERT_THROW(ptr <= max_size_bytes);
+    UHD_ASSERT_THROW(ptr * sizeof(uint64_t) <= max_size_bytes);
     // Return bytes written
     return (ptr * sizeof(uint64_t));
 }
@@ -119,7 +134,7 @@ void ctrl_payload::deserialize(const uint64_t* buff,
     if (get_field_u64<bool>(ctrl_header, HAS_TIME_OFFSET, HAS_TIME_WIDTH)) {
         timestamp = conv_byte_order(buff[ptr++]);
     } else {
-        timestamp = boost::none;
+        timestamp = {};
     }
 
     // Read control operation word
@@ -157,9 +172,7 @@ size_t ctrl_payload::get_length() const
 bool ctrl_payload::operator==(const ctrl_payload& rhs) const
 {
     return (dst_port == rhs.dst_port) && (src_port == rhs.src_port)
-           && (seq_num == rhs.seq_num)
-           && (timestamp.is_initialized() == rhs.timestamp.is_initialized())
-           && ((!timestamp.is_initialized()) || (timestamp.get() == rhs.timestamp.get()))
+           && (seq_num == rhs.seq_num) && (timestamp == rhs.timestamp)
            && (is_ack == rhs.is_ack) && (src_epid == rhs.src_epid)
            && (address == rhs.address) && (data_vtr == rhs.data_vtr)
            && (byte_enable == rhs.byte_enable) && (op_code == rhs.op_code)
@@ -168,15 +181,18 @@ bool ctrl_payload::operator==(const ctrl_payload& rhs) const
 
 std::string ctrl_payload::to_string() const
 {
-    return str(
-        boost::format("ctrl_payload{dst_port:%d, dst_port:%d, seq_num:%d, timestamp:%s, "
-                      "is_ack:%s, src_epid:%d, address:0x%05x, byte_enable:0x%x, "
-                      "op_code:%d, status:%d, data[0]:0x%08x}\n")
-        % dst_port % src_port % int(seq_num)
-        % (timestamp.is_initialized() ? str(boost::format("0x%016x") % timestamp.get())
-                                      : std::string("<not present>"))
-        % (is_ack ? "true" : "false") % src_epid % address % int(byte_enable) % op_code
-        % status % data_vtr[0]);
+    return str(boost::format(
+                   "ctrl_payload{dst_port:%d, src_port:%d, seq_num:%d, timestamp:%s, "
+                   "is_ack:%s, src_epid:%d, address:0x%05x, byte_enable:0x%x, "
+                   "op_code:%d, status:%d, num_data:%d")
+               % dst_port % src_port % int(seq_num)
+               % (bool(timestamp) ? str(boost::format("0x%016x") % *timestamp)
+                                  : std::string("<not present>"))
+               % (is_ack ? "true" : "false") % src_epid % address % int(byte_enable)
+               % op_code % status % int(data_vtr.size()))
+           + (data_vtr.empty() ? std::string()
+                               : str(boost::format(" data[0]:0x%08x") % data_vtr[0]))
+           + "}\n";
 }
 
 //----------------------------------------------------
@@ -218,7 +234,7 @@ size_t strs_payload::serialize(uint64_t* buff,
     buff[3] = conv_byte_order(
         ((static_cast<uint64_t>(buff_info) & mask_u64(BUFF_INFO_WIDTH))
             << BUFF_INFO_OFFSET)
-        | ((static_cast<uint64_t>(status_info) & mask_u64(STATUS_INFO_WIDTH))
+        | ((static_cast<uint64_t>(status_info.info) & mask_u64(STATUS_INFO_WIDTH))
             << STATUS_INFO_OFFSET));
 
     // Return bytes written
@@ -251,7 +267,8 @@ void strs_payload::deserialize(const uint64_t* buff,
     // Read fourth word
     uint64_t word3 = conv_byte_order(buff[3]);
     buff_info      = get_field_u64<uint16_t>(word3, BUFF_INFO_OFFSET, BUFF_INFO_WIDTH);
-    status_info = get_field_u64<uint64_t>(word3, STATUS_INFO_OFFSET, STATUS_INFO_WIDTH);
+    status_info.info =
+        get_field_u64<uint64_t>(word3, STATUS_INFO_OFFSET, STATUS_INFO_WIDTH);
 }
 
 size_t strs_payload::get_length() const
@@ -266,7 +283,7 @@ bool strs_payload::operator==(const strs_payload& rhs) const
            && (capacity_pkts == rhs.capacity_pkts)
            && (xfer_count_pkts == rhs.xfer_count_pkts)
            && (xfer_count_bytes == rhs.xfer_count_bytes) && (buff_info == rhs.buff_info)
-           && (status_info == rhs.status_info);
+           && (status_info.info == rhs.status_info.info);
 }
 
 std::string strs_payload::to_string() const
@@ -276,7 +293,7 @@ std::string strs_payload::to_string() const
                              "xfer_count_pkts:%lu, xfer_count_bytes:%lu, "
                              "buff_info:0x%x, status_info:0x%x}\n")
                % src_epid % int(status) % capacity_bytes % capacity_pkts % xfer_count_pkts
-               % xfer_count_bytes % buff_info % status_info);
+               % xfer_count_bytes % buff_info % status_info.info);
 }
 
 //----------------------------------------------------
@@ -491,6 +508,7 @@ size_t mgmt_payload::serialize(uint64_t* buff,
     const std::function<uint64_t(uint64_t)>& conv_byte_order) const
 {
     std::vector<uint64_t> target;
+    target.reserve(_padding_size + 1);
     // Insert header
     target.push_back(conv_byte_order(
         (static_cast<uint64_t>(_protover) << 48)
@@ -507,7 +525,7 @@ size_t mgmt_payload::serialize(uint64_t* buff,
     for (const auto& hop : _hops) {
         hop.serialize(target, conv_byte_order, _padding_size);
     }
-    UHD_ASSERT_THROW(target.size() <= max_size_bytes);
+    UHD_ASSERT_THROW(target.size() * sizeof(uint64_t) <= max_size_bytes);
 
     // We use a vector and copy just for ease of implementation
     // These transactions are not performance critical

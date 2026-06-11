@@ -66,6 +66,13 @@ elseif(MPM_DEVICE STREQUAL "x4xx")
 endif(MPM_DEVICE STREQUAL "n3xx")
 
 if(NOT ENABLE_SIM)
+    # Place the built .so directly in the build-tree Python package directory so
+    # that `make test` (CTest) can import it.
+    if(NOT WIN32)
+        set_target_properties(pyusrp_periphs PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/usrp_mpm"
+        )
+    endif(NOT WIN32)
     target_include_directories(pyusrp_periphs PUBLIC
         ${PYTHON_INCLUDE_DIRS}
         ${CMAKE_SOURCE_DIR}/lib/
@@ -84,7 +91,7 @@ print(sysconfig.get_python_version())"
         OUTPUT_STRIP_TRAILING_WHITESPACE)
     message(STATUS "On-target Python version: ${UHD_PYTHON_VERSION_ON_TARGET}")
     # Now install the Python module from the build directory to the final destination.
-    set(UHD_PYTHON_DIR "${LIBRARY_DIR}/python${UHD_PYTHON_VERSION_ON_TARGET}/site-packages")
+    set(UHD_PYTHON_DIR "${CMAKE_INSTALL_LIBDIR}/python${UHD_PYTHON_VERSION_ON_TARGET}/site-packages")
     UHD_PYTHON_INSTALL_MODULE(
         MODULE "usrp_mpm"
         LIBTARGET pyusrp_periphs
@@ -127,39 +134,39 @@ endif(NOT DEFINED USRP_MPM_PYTHON_DIR)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/build/lib/usrp_mpm DESTINATION ${USRP_MPM_PYTHON_DIR})
 install(PROGRAMS
     usrp_hwd.py
-    DESTINATION ${RUNTIME_DIR}
+    DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 if(NOT ENABLE_SIM)
     install(PROGRAMS
         aurora_bist_test.py
         usrp_update_fs
-        DESTINATION ${RUNTIME_DIR}
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
     if (ENABLE_MYKONOS)
         install(PROGRAMS
             n3xx_bist
-            DESTINATION ${RUNTIME_DIR}
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
     elseif (ENABLE_E320)
         install(PROGRAMS
             e320_bist
-            DESTINATION ${RUNTIME_DIR}
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
     elseif (ENABLE_X400)
         install(PROGRAMS
             x4xx_bist
-            DESTINATION ${RUNTIME_DIR}
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
         )
         install(PROGRAMS
-            usrp_mpm/dboard_manager/zbx_update_cpld.py
-            DESTINATION ${RUNTIME_DIR}
-            RENAME zbx_update_cpld
+            usrp_mpm/dboard_manager/x4xx_db_update_cpld.py
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
+            RENAME x4xx_db_update_cpld
         )
         install(PROGRAMS
             usrp_mpm/periph_manager/x4xx_update_cpld.py
-            DESTINATION ${RUNTIME_DIR}
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
             RENAME x4xx_update_cpld
         )
     endif (ENABLE_MYKONOS)

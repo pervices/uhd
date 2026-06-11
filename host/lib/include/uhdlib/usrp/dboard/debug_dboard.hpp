@@ -13,6 +13,7 @@
 #include <uhd/types/eeprom.hpp>
 #include <uhdlib/rfnoc/rf_control/dboard_iface.hpp>
 #include <uhdlib/usrp/common/mpmd_mb_controller.hpp>
+#include <uhdlib/usrp/common/x4xx_ch_modes.hpp>
 #include <string>
 
 #define UHD_LOG_SKIP_CFG() \
@@ -20,6 +21,7 @@
         "RFNOC::DEBUG_DB", "Skipping unsupported debug db config for " << UHD_FUNCTION);
 
 namespace uhd { namespace rfnoc {
+using uhd::usrp::x400::ch_mode;
 
 const static uint16_t EMPTY_DB_PID       = 0x0;
 const static uint16_t DEBUG_DB_PID       = 0x4001;
@@ -47,11 +49,9 @@ public:
         return false;
     }
 
-    uhd::usrp::x400::adc_self_cal_params_t get_adc_self_cal_params(double) final
+    uhd::usrp::x400::adc_self_cal_params_t get_adc_self_cal_params() final
     {
         return {
-            0.0,
-            0.0,
             {0, 0},
             0,
             0,
@@ -61,7 +61,18 @@ public:
         };
     }
 
-    bool select_adc_self_cal_gain(size_t) final
+    uhd::usrp::x400::adc_self_cal_freqs_t get_adc_self_cal_freqs(
+        uhd::usrp::x400::ch_mode) final
+    {
+        return {0.0, 0.0, uhd::usrp::x400::custom_freq_t::ALLOW};
+    }
+
+    std::vector<ch_mode> get_ch_modes() const override
+    {
+        return {};
+    }
+
+    bool select_adc_self_cal_gain(size_t, size_t) final
     {
         return true;
     }
