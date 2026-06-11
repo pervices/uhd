@@ -120,7 +120,7 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     // Conver the user provided struct to a packet
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
     _sfp_control_mutex->lock();
-    command_socket->send( &clear_rx_stream_cmd_packet, sizeof( clear_rx_stream_cmd_packet ) );
+    // command_socket->send( &clear_rx_stream_cmd_packet, sizeof( clear_rx_stream_cmd_packet ) );
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
     _sfp_control_mutex->unlock();
 }
