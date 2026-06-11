@@ -7,6 +7,7 @@
 
 #include <uhd/types/tune_request.hpp>
 #include <uhd/usrp/multi_usrp.hpp>
+#include <uhd/utils/cast.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
 #include <boost/algorithm/string.hpp>
@@ -15,6 +16,7 @@
 #include <chrono>
 #include <complex>
 #include <csignal>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -25,6 +27,7 @@
 #include <atomic>
 
 namespace po = boost::program_options;
+namespace fs = std::filesystem;
 
 static bool stop_signal_called = false;
 void sig_int_handler(int)
@@ -226,8 +229,8 @@ void send_from_file(
 
         if (samples_sent != samples_to_send) {
             UHD_LOG_ERROR("TX-STREAM",
-                "The tx_stream timed out sending " << sample_manager->total_samples << " samples ("
-                                                   << total_samples_sent << " sent).");
+                          "The tx_stream timed out sending " << sample_manager->total_samples << " samples ("
+                          << total_samples_sent << " sent).");
             return;
         }
 
@@ -239,18 +242,77 @@ void send_from_file(
         md.has_time_spec = false;
     }
 
-    // Sends eob packet if requests
-    if(include_eob) {
+    // Sends eob packet if requested for this iteration, or if the stop signal was called
+    if(include_eob || stop_signal_called) {
         md.end_of_burst = true;
         tx_stream->send("", 0, md);
     }
-
 }
 
 int UHD_SAFE_MAIN(int argc, char* argv[])
 {
+    // program documentation string
+    const std::string program_doc =
+        "usage: tx_samples_from_file [-h] [--args ARGS] --file FILE -r RATE -f FREQ\n"
+        "                              [--type {double,float,short}] [--spb SPB]\n"
+        "                              [--lo-offset LO_OFFSET] [--gain GAIN]\n"
+        "                              [--power POWER] [--ant ANT] [--subdev SUBDEV]\n"
+        "                              [--bw BW] [--ref {internal,external,mimo,gpsdo}]\n"
+        "                              [--otw {sc16,sc8}] [--delay DELAY]\n"
+        "                              [--channel CHANNEL] [--channels CHANNELS]\n"
+        "                              [--repeat] [--int-n]"
+        "\n\n"
+        "This example demonstrates how to transmit samples from a binary file\n"
+        "using the UHD multi_usrp API.\n"
+        "It allows you to play back pre-recorded or arbitrary baseband data\n"
+        "through multiple TX channels and multiple USRP devices.\n"
+        "The same data is played back for all configured channels and USRP\n"
+        "devices.\n"
+        "\n"
+        "Key features:\n"
+        "  - Supports simultaneous transmission of complex baseband samples read\n"
+        "    from file from multiple TX channels and multiple USRP devices.\n"
+        "  - Supports multiple sample formats.\n"
+        "  - Allows repeated playback with an optional delay between individual\n"
+        "    transmissions of the file content.\n"
+        "  - Configurable sample rate, frequency, gain, bandwidth, LO offset,\n"
+        "    antenna, and more via command-line options.\n"
+        "\n"
+        "Supported file formats:\n"
+        "  - Raw binary files containing complex samples in one of the following\n"
+        "    formats: 'double' (64-bit float, fc64), 'float' (32-bit float, fc32),\n"
+        "    or 'short' (16-bit integer, sc16, scaled to int16 range -32768 to 32767).\n"
+        "  - The format is selected with the --type argument. The file must match\n"
+        "    the selected type and contain interleaved IQ samples.\n"
+        "\n"
+        "How to create compatible files for playback:\n"
+        "  - Use example rx_samples_to_file to record samples.\n"
+        "  - Use Python, Matlab or C++ to generate binary files.\n"
+        "    Using Python this can be done with numpy:\n"
+        "      import numpy as np\n"
+        "      # Create a complex array of samples\n"
+        "      iq = np.random.randn(1000) + 1j * np.random.randn(1000)\n"
+        "      # Write to a binary file\n"
+        "      iq.astype(np.complex64).tofile('iq_data_fc32.bin')\n"
+        "\n"
+        "Usage examples:\n"
+        " 1. Transmit samples from a 16-bit signed integer file at 2.4 GHz,\n"
+        "    and repeat without delay:\n"
+        "      tx_samples_from_file --args \"addr=192.168.10.2\" --freq 2.4e9\n"
+        "                           --rate 10e6 --file \"iq_data_sc16.bin\"\n"
+        "                           --type short --repeat\n"
+        " 2. Transmit samples from a 32-bit float file, and repeat with 1s delay:\n"
+        "      tx_samples_from_file --args \"addr=192.168.10.2\" --freq 2.4e9\n"
+        "                           --rate 10e6 --file \"iq_data_fc32.bin\"\n"
+        "                           --type float --repeat --delay 1.0\n"
+        " 3. Transmit IQ samples for four channels from a file using two USRPs,\n"
+        "    each with two channels, at a sample rate of 10 MHz:\n"
+        "      tx_samples_from_file --args \"addr0=192.168.10.2,addr1=192.168.10.3\"\n"
+        "                           --freq 2.4e9 --rate 10e6 --channels \"0,1,2,3\"\n"
+        "                           --file \"iq_data_4chan_fc32.bin\" --type float\n";
+
     // variables to be set by po
-    std::string args, file, type, ant, subdev, ref, wirefmt, channels;
+    std::string args, file, type, ant, subdev, ref, otw, channels;
     size_t spb, max_buffer, single_channel = 0;
     double rate, freq, gain, power, bw, delay, lo_offset = 0;
 
@@ -258,27 +320,80 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     po::options_description desc("Allowed options");
     // clang-format off
     desc.add_options()
-        ("help", "help message")
-        ("args", po::value<std::string>(&args)->default_value(""), "multi uhd device address args")
-        ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "name of the file to read binary samples from")
-        ("type", po::value<std::string>(&type)->default_value("short"), "sample type: double, float, or short")
+        ("help,h", "Show this help message and exit.")
+        ("args", po::value<std::string>(&args)->default_value(""), "USRP device selection and configuration "
+            "arguments."
+            "\nSpecify key-value pairs (e.g., addr, serial, type, master_clock_rate) separated by commas."
+            "\nFor multi-device setups, specify multiple IP addresses (e.g., addr0, addr1) to group multiple USRPs into a "
+            "single virtual device."
+            "\nSee the UHD manual for model-specific options."
+            "\nExamples:"
+            "\n  --args \"addr=192.168.10.2\""
+            "\n  --args \"addr=192.168.10.2,master_clock_rate=200e6\""
+            "\n  --args \"addr0=192.168.10.2,addr1=192.168.10.3\""
+            "\nIf not specified, UHD connects to the first available device.")
+        ("file", po::value<std::string>(&file)->default_value("usrp_samples.dat"), "Name of the raw binary "
+            "file to read and transmit data from. The file must contain interleaved IQ samples in order I0, Q0, I1, Q1, "
+            "... in the numeric data format indicated by the --type argument.")
+        ("type", po::value<std::string>(&type)->default_value("short"), "Specifies the numeric data format of "
+            "the binary file specified by the --file option. The following formats are supported: 'double' (64-bit float, "
+            "fc64), 'float' (32-bit float, fc32), or 'short' (16-bit integer, sc16, scaled to int16 range -32768 to "
+            "32767).")
         ("max_buffer", po::value<size_t>(&max_buffer)->default_value(1e9), "maximum number of samples that may be stored in memory")
-        ("spb", po::value<size_t>(&spb), "samples per send command. Useful for performance tuning")
-        ("rate", po::value<double>(&rate), "rate of outgoing samples")
-        ("freq", po::value<double>(&freq), "RF center frequency in Hz")
-        ("lo-offset", po::value<double>(&lo_offset), "Offset for frontend LO in Hz (optional)")
-        ("gain", po::value<double>(&gain), "gain for the RF chain")
-        ("power", po::value<double>(&power), "transmit power")
-        ("ant", po::value<std::string>(&ant), "antenna selection")
-        ("subdev", po::value<std::string>(&subdev), "subdevice specification")
-        ("bw", po::value<double>(&bw), "analog frontend filter bandwidth in Hz")
-        ("ref", po::value<std::string>(&ref), "clock reference (internal, external, mimo, gpsdo)")
-        ("wirefmt", po::value<std::string>(&wirefmt)->default_value("sc16"), "wire format (sc8 or sc16)")
-        ("delay", po::value<double>(&delay)->default_value(0.0), "specify a delay between repeated transmission of file (in seconds)")
-        ("channel", po::value<size_t>(&single_channel), "which channel to use")
-        ("channels", po::value<std::string>(&channels), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
-        ("repeat", "repeatedly transmit file")
-        ("int-n", "tune USRP with integer-n tuning")
+        ("spb", po::value<size_t>(&spb)->default_value(10000), "Size of the host data buffer that is "
+            "allocated for each Tx channel."
+            "\nLarger values can improve throughput but may increase latency."
+            "\nTypical values range from 1,000 to 10,000 samples, but optimal values depend on device, transport, and "
+            "application requirements.")
+        ("rate,r", po::value<double>(&rate)->required(), "TX sample rate in samples/second. Note that each "
+            "USRP device only supports a set of discrete sample rates, which depend on the hardware model and "
+            "configuration. If you request a rate that is not supported, the USRP device will automatically select and "
+            "use the closest available rate.")
+        ("freq,f", po::value<double>(&freq)->required(), "RF center frequency in Hz.")
+        ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
+            "LO offset for the frontend in Hz.")
+        ("gain", po::value<double>(&gain), "Gain for the RF chain in dB. Will be ignored, if --power is "
+            "specified.")
+        ("power", po::value<double>(&power), "Transmit power in dBm."
+            "\nThis option is available only, if it is supported by the USRP. An error is returned otherwise.")
+        ("ant", po::value<std::string>(&ant), "Antenna port selection string selecting a specific antenna "
+            "port for USRP daughterboards having multiple antenna connectors per RF channel."
+            "\nExample: --ant \"TX/RX\"")
+        ("subdev", po::value<std::string>(&subdev), "TX subdevice configuration defining the mapping of "
+            "channels to RF TX paths."
+            "\nThe format and available values depend on your USRP model. If not specified, the channels will be numbered "
+            "in order of the devices, daughterboard slots, and their RF TX channels."
+            "\nFor typical applications, this default subdevice configuration is sufficient."
+            "\nNote: this example program expects a single-USRP subdevice configuration which is applied to all USRPs "
+            "equally, if multiple USRPs are configured."
+            "\nExample:"
+            "\nAssume we have an X310 with two UBX daughterboards installed. Then the default channel mapping is:"
+            "\n  - Ch 0 -> A:0 (1st UBX in slot A, RF TX 0)"
+            "\n  - Ch 1 -> B:0 (2nd UBX in slot B, RF TX 0)"
+            "\nSpecifying --subdev=\"B:0 A:0\" would change the channel mapping to:"
+            "\n  - Ch 0 -> B:0 (2nd UBX in slot B RF TX 0)"
+            "\n  - Ch 1 -> A:0 (1st UBX in slot A RF TX 0)")
+        ("bw", po::value<double>(&bw), "Sets the analog frontend filter bandwidth for the TX path in Hz. Not "
+            "all USRP devices support programmable bandwidth; if an unsupported value is requested, the device will use "
+            "the nearest supported bandwidth instead.")
+        ("ref", po::value<std::string>(&ref), "Sets the source for the frequency reference. Available values "
+            "depend on the USRP model. Typical values are 'internal', 'external', 'mimo', and 'gpsdo'.")
+        ("otw,wirefmt", po::value<std::string>(&otw)->default_value("sc16"), "Specifies the over-the-wire (OTW) data "
+            "format used for transmission between the host and the USRP device. Common values are \"sc16\" (16-bit signed "
+            "complex) and \"sc8\" (8-bit signed complex). Using \"sc8\" can reduce network bandwidth at the cost of "
+            "dynamic range."
+            "\nNote, that not all conversions between CPU and OTW formats are possible.")
+        ("repeat", "Enables repeated transmission of the file data. Optionally having a --delay in between "
+            "repetitions.")
+        ("delay", po::value<double>(&delay)->default_value(0.0), "Specify a delay between repeated "
+            "transmission of the file data (in seconds). Requires repeated transmission enabled by the --repeat flag.")
+        ("channel", po::value<size_t>(&single_channel), "Specifies which single channel to use. E.g. \"0\", "
+            "\"1\". This option cannot be used together with --channels option.")
+        ("channels", po::value<std::string>(&channels), "Specifies which channels to use. E.g. \"0\", \"1\", "
+            "\"0,1\", etc.  This option cannot be used together with --channel option.")
+        ("int-n", "Use integer-N tuning for USRP RF synthesizers. With this mode, the LO can only be tuned in "
+            "discrete steps, which are integer multiples of the reference frequency. This mode can improve phase noise "
+            "and spurious performance at the cost of coarser frequency resolution.")
     ;
     // clang-format on
     po::variables_map vm;
@@ -298,7 +413,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // create a usrp device
     std::cout << std::endl;
     std::cout << boost::format("Creating the usrp device with: %s...") % args
-              << std::endl;
+    << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     // Channels
@@ -346,9 +461,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_tx_rate(rate, channel);
         rate = usrp->get_tx_rate();
         std::cout << boost::format("Actual TX Rate: %f Msps...")
-                         % (usrp->get_tx_rate(channel) / 1e6)
-                  << std::endl
-                  << std::endl;
+        % (usrp->get_tx_rate(channel) / 1e6)
+        << std::endl
+        << std::endl;
     }
 
     // set the center frequency
@@ -372,13 +487,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         tune_request.args = uhd::device_addr_t("mode_n=integer");
     for (std::size_t channel : channel_nums) {
         uhd::tune_result_t tune_result = usrp->set_tx_freq(tune_request, channel);
-            if(manual_lo) {
-                std::cout << boost::format("Actual TX LO: %f MHz...") % (tune_result.actual_rf_freq / 1e6)
-                    << std::endl;
-            }
-            std::cout << boost::format("Actual TX Freq: %f MHz...") % ((tune_result.actual_rf_freq + tune_result.actual_dsp_freq) / 1e6)
-                    << std::endl
-                    << std::endl;
+        if(manual_lo) {
+            std::cout << boost::format("Actual TX LO: %f MHz...") % (tune_result.actual_rf_freq / 1e6)
+            << std::endl;
+        }
+        std::cout << boost::format("Actual TX Freq: %f MHz...") % ((tune_result.actual_rf_freq + tune_result.actual_dsp_freq) / 1e6)
+        << std::endl
+        << std::endl;
     }
 
     // set the rf gain
@@ -386,41 +501,41 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         for (std::size_t channel : channel_nums) {
             if (!usrp->has_tx_power_reference(channel)) {
                 std::cout << "ERROR: USRP does not have a reference power API on channel "
-                          << channel << "!" << std::endl;
+                << channel << "!" << std::endl;
                 return EXIT_FAILURE;
             }
             std::cout << "Setting TX output power: " << power << " dBm..." << std::endl;
             usrp->set_tx_power_reference(power, channel);
             std::cout << "Actual TX output power: "
-                      << usrp->get_tx_power_reference(channel) << " dBm..." << std::endl;
+            << usrp->get_tx_power_reference(channel) << " dBm..." << std::endl;
         }
 
         if (vm.count("gain")) {
             std::cout << "WARNING: If you specify both --power and --gain, "
-                         " the latter will be ignored."
-                      << std::endl;
+            " the latter will be ignored."
+            << std::endl;
         }
     } else if (vm.count("gain")) {
         for (std::size_t channel : channel_nums) {
             std::cout << boost::format("Setting TX Gain: %f dB...") % gain << std::endl;
             usrp->set_tx_gain(gain, channel);
             std::cout << boost::format("Actual TX Gain: %f dB...")
-                             % usrp->get_tx_gain(channel)
-                      << std::endl
-                      << std::endl;
+            % usrp->get_tx_gain(channel)
+            << std::endl
+            << std::endl;
         }
     }
 
     // set the analog frontend filter bandwidth
     if (vm.count("bw")) {
         std::cout << boost::format("Setting TX Bandwidth: %f MHz...") % (bw / 1e6)
-                  << std::endl;
+        << std::endl;
         for (std::size_t channel : channel_nums) {
             usrp->set_tx_bandwidth(bw, channel);
             std::cout << boost::format("Actual TX Bandwidth: %f MHz...")
-                             % (usrp->get_tx_bandwidth(channel) / 1e6)
-                      << std::endl
-                      << std::endl;
+            % (usrp->get_tx_bandwidth(channel) / 1e6)
+            << std::endl
+            << std::endl;
         }
     }
 
@@ -440,45 +555,45 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked")
             != sensor_names.end()) {
             uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", channel);
-            std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string()
-                      << std::endl;
-            UHD_ASSERT_THROW(lo_locked.to_bool());
-        }
+        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string()
+        << std::endl;
+        UHD_ASSERT_THROW(lo_locked.to_bool());
+            }
     }
     sensor_names = usrp->get_mboard_sensor_names(0);
     if ((ref == "mimo")
         and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked")
-             != sensor_names.end())) {
+        != sensor_names.end())) {
         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", 0);
-        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string()
-                  << std::endl;
-        UHD_ASSERT_THROW(mimo_locked.to_bool());
-    }
-    if ((ref == "external")
-        and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked")
-             != sensor_names.end())) {
-        uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", 0);
+    std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string()
+    << std::endl;
+    UHD_ASSERT_THROW(mimo_locked.to_bool());
+        }
+        if ((ref == "external")
+            and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked")
+            != sensor_names.end())) {
+            uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", 0);
         std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string()
-                  << std::endl;
+        << std::endl;
         UHD_ASSERT_THROW(ref_locked.to_bool());
-    }
+            }
 
-    // set sigint if user wants to receive
-    if (repeat) {
-        std::signal(SIGINT, &sig_int_handler);
-        std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
-    }
+            // set sigint if user wants to receive
+            if (repeat) {
+                std::signal(SIGINT, &sig_int_handler);
+                std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
+            }
 
-    // create a transmit streamer
-    std::string cpu_format;
-    if (type == "double")
-        cpu_format = "fc64";
+            // create a transmit streamer
+            std::string cpu_format;
+            if (type == "double")
+                cpu_format = "fc64";
     else if (type == "float")
         cpu_format = "fc32";
     else if (type == "short")
         cpu_format = "sc16";
 
-    uhd::stream_args_t stream_args(cpu_format, wirefmt);
+    uhd::stream_args_t stream_args(cpu_format, otw);
     stream_args.channels             = channel_nums;
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 

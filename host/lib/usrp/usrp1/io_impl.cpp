@@ -236,7 +236,7 @@ void usrp1_impl::io_impl::flush_send_buff(void)
  **********************************************************************/
 void usrp1_impl::io_init(void)
 {
-    _io_impl = UHD_PIMPL_MAKE(io_impl, (_data_transport));
+    _io_impl = std::make_shared<io_impl>(_data_transport);
 
     // init as disabled, then call the real function (uses restore)
     this->enable_rx(false);
@@ -640,7 +640,6 @@ double usrp1_impl::update_tx_dsp_freq(const size_t dspno, const double freq)
  **********************************************************************/
 bool usrp1_impl::recv_async_msg(async_metadata_t& async_metadata, double timeout)
 {
-    boost::this_thread::disable_interruption di; // disable because the wait can throw
     return _soft_time_ctrl->get_async_queue().pop_with_timed_wait(
         async_metadata, timeout);
 }

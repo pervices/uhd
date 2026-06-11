@@ -9,21 +9,21 @@
 #include <uhd/exception.hpp>
 #include <uhd/transport/usb_control.hpp>
 #include <uhd/transport/usb_device_handle.hpp>
+#include <uhd/utils/cast.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/scope_exit.hpp>
 #include <b200_iface.hpp>
 #include <libusb.h>
 #include <stdint.h>
-#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/functional/hash.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -32,7 +32,7 @@
 #include <thread>
 
 namespace po = boost::program_options;
-namespace fs = boost::filesystem;
+namespace fs = std::filesystem;
 
 namespace {
 struct vid_pid_t
@@ -45,6 +45,7 @@ const vid_pid_t known_vid_pids[] = {{FX3_VID, FX3_DEFAULT_PID},
     {B200_VENDOR_ID, B200_PRODUCT_ID},
     {B200_VENDOR_ID, B200MINI_PRODUCT_ID},
     {B200_VENDOR_ID, B205MINI_PRODUCT_ID},
+    {B200_VENDOR_ID, B206MINI_PRODUCT_ID},
     {B200_VENDOR_NI_ID, B200_PRODUCT_NI_ID},
     {B200_VENDOR_NI_ID, B210_PRODUCT_NI_ID}};
 const std::vector<vid_pid_t> known_vid_pid_vector(known_vid_pids,
@@ -109,7 +110,7 @@ uint16_t atoh(const std::string& string)
         interpreter >> hh;
         return hh.value;
     }
-    return boost::lexical_cast<uint16_t>(string);
+    return uhd::cast::from_str<uint16_t>(string);
 }
 
 int reset_usb()

@@ -45,6 +45,7 @@ RUN apt-get update && \
         debhelper \
         libncurses5-dev \
         python3-ruamel.yaml \
+        pkgconf \
     # Install GNURadio dependencies
         python3-sphinx \
         python3-lxml \
@@ -74,7 +75,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Optionally use cached index.
-RUN if [[ -n "$PIP_INDEX_URL" ]]; then \
+RUN if [ -n "$PIP_INDEX_URL" ]; then \
         python3 -m pip config --global set global.index-url $PIP_INDEX_URL && \
         python3 -m pip config --global set global.trusted-host $PIP_INDEX_HOST; \
     fi

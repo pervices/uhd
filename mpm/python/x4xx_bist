@@ -13,7 +13,11 @@ Will work on all derivatives of the X4xx series.
 import sys
 import time
 import subprocess
+from typing import Optional
+from dataclasses import dataclass
 from usrp_mpm import bist
+from usrp_mpm.periph_manager.x4xx_periphs import FrontpanelGPIO
+
 
 # Timeout values are in seconds:
 GPS_WARMUP_TIMEOUT = 70 # Data sheet says "about a minute"
@@ -110,7 +114,7 @@ class X4XXBIST(bist.UsrpBIST):
     def __init__(self):
         bist.UsrpBIST.__init__(self)
         self.product_id = bist.get_product_id_from_eeprom(
-            valid_ids=['x410', 'x440'],
+            valid_ids=['x410', 'x420', 'x440'],
             cmd='eeprom-id mb')
 
     def get_mb_periph_mgr(self):
@@ -175,6 +179,7 @@ class X4XXBIST(bist.UsrpBIST):
             100: [122.88e6, 125e6],
             200: [122.88e6*2, 125e6*2],
             400: [122.88e6*4, 125e6*4],
+            1000: [1250e6],
             1600: [122.88e6*4, 125e6*4, 2000e6],
         }[bandwidth]
 
@@ -428,10 +433,10 @@ class X4XXBIST(bist.UsrpBIST):
         """
         BIST for testing the fabric_clk signal from the motherboard
 
-        Description: Checks to see if the LMK will detect the experimental fabric_clk 
+        Description: Checks to see if the LMK will detect the experimental fabric_clk
 
         External Equipment: None
-        
+
         Return dictionary:
         - fabric_clk successfully enabled and validated: signal has been validated
         - fabric_clk successfully disabled: signal has been disabled
@@ -451,7 +456,7 @@ class X4XXBIST(bist.UsrpBIST):
             }
 
         mpm_c = usrp_dev.get_mpm_client()
-        
+
         # Make sure fabric_clk is turned off
         mpm_c.enable_ecpri_clocks(False)
         # Check validation bit - reg 0x19B second bit as per datasheet
@@ -469,7 +474,7 @@ class X4XXBIST(bist.UsrpBIST):
         mpm_c.enable_ecpri_clocks(False)
         # Check validation bit - reg 0x19B second bit as per datasheet
         pri_ref_disabled = not (int(mpm_c.peek_clkaux(0x19B),16) & 0x4)
-         
+
         result = pri_ref_disabled and using_pri_ref and pri_ref_enabled and pri_ref_disabled_condition
 
         return result, {"fabric_clock_successfully_enabled": pri_ref_enabled,
@@ -524,7 +529,7 @@ class X4XXBIST(bist.UsrpBIST):
         # for locking to the gty_rcv_clk cause the mboard to lose ref_lock
         # to the nsync lmk. For x440 setting clock source must be done
         # at device initialization.
-        if self.product_id == 'x440':
+        if self.product_id in {'x420', 'x440'}:
             usrp_dev = None
             usrp_dev = multi_usrp.MultiUSRP("type=x4xx,addr=localhost,clock_source=internal,"
                                             "master_clock_rate={}".format(str(mcr)))
@@ -630,22 +635,22 @@ class X4XXBIST(bist.UsrpBIST):
         - write_patterns: A list of patterns that were written
         - read_patterns: A list of patterns that were read back
         """
-        assert 'gpio' in self.tests_to_run
+        assert "gpio" in self.tests_to_run
         if self.args.dry_run:
             patterns = range(64)
             return True, {
-                'write_patterns': list(patterns),
-                'read_patterns': list(patterns),
+                "write_patterns": list(patterns),
+                "read_patterns": list(patterns),
             }
         from uhd.usrp import multi_usrp
+
         try:
             usrp_dev = multi_usrp.MultiUSRP("type=x4xx,addr=localhost")
         except Exception as ex:
-            return False, {
-                'error_msg': "Failed to create usrp device: {}".format(str(ex))
-            }
+            return False, {"error_msg": "Failed to create usrp device: {}".format(str(ex))}
         mpm_c = usrp_dev.get_mpm_client()
-        def _run_sub_test(inport, outport, pin_mode, voltage, pattern):
+
+        def _run_sub_test(inport, outport, pin_mode, voltage, pattern, gpio_src_in, gpio_src_out):
             """
             Closure to run an actual test. The GPIO control object is enclosed.
 
@@ -660,6 +665,8 @@ class X4XXBIST(bist.UsrpBIST):
             # We set all pins to be driven by the PS
             # in HDMI mode not all pins can be accessed by the user
             if pin_mode == "HDMI":
+                assert gpio_src_in == "MPM"
+                assert gpio_src_out == "MPM"
                 mask = 0xDB6D
             else:
                 mask = 0xFFF
@@ -667,37 +674,84 @@ class X4XXBIST(bist.UsrpBIST):
                 "PORTA": "GPIO0",
                 "PORTB": "GPIO1",
             }
-            ps_control_args = ["MPM"] * 12
-            mpm_c.dio_set_gpio_src(bank_convert[inport], ps_control_args)
-            mpm_c.dio_set_gpio_src(bank_convert[outport], ps_control_args)
+            mpm_c.dio_set_gpio_src(bank_convert[inport], [gpio_src_in] * 12)
+            mpm_c.dio_set_gpio_src(bank_convert[outport], [gpio_src_out] * 12)
             mpm_c.dio_set_voltage_level(inport, voltage)
             mpm_c.dio_set_voltage_level(outport, voltage)
             mpm_c.dio_set_pin_directions(inport, 0x00000)
             mpm_c.dio_set_pin_directions(outport, 0xFFFFF)
-            mpm_c.dio_set_pin_outputs(outport, pattern)
-            read_values = mpm_c.dio_get_pin_inputs(inport)
+            if gpio_src_out == "MPM":
+                mpm_c.dio_set_pin_outputs(outport, pattern)
+            else:
+                gpio_out = FrontpanelGPIO(mask, bank_convert[outport])
+                for i in range(12):
+                    if (mask >> i) & 1:
+                        gpio_out.set(i, (pattern >> i) & 1)
+            if gpio_src_in == "MPM":
+                read_values = mpm_c.dio_get_pin_inputs(inport)
+            else:
+                gpio_in = FrontpanelGPIO(0x000, bank_convert[inport])
+                read_values = 0
+                for i in range(12):
+                    if (mask >> i) & 1:
+                        read_values |= gpio_in.get(i) << i
             if (pattern & mask) != read_values:
+                if gpio_src_out == "PS":
+                    sys.stdout.write(f"output from PS: 0x{pattern:04x}\n")
+                if gpio_src_in == "PS":
+                    sys.stdout.write(f"input to PS:    0x{read_values:04x}\n")
                 sys.stderr.write(mpm_c.dio_status())
-                return False, {'write_patterns': ["0x{:04X}".format(pattern)],
-                               'read_patterns': ["0x{:04X}".format(read_values)]}
-            return True, {'write_patterns': ["0x{:04X}".format(pattern)],
-                          'read_patterns': ["0x{:04X}".format(read_values)]}
+                return False, {
+                    "write_patterns": ["0x{:04X}".format(pattern)],
+                    "read_patterns": ["0x{:04X}".format(read_values)],
+                }
+            return True, {
+                "write_patterns": ["0x{:04X}".format(pattern)],
+                "read_patterns": ["0x{:04X}".format(read_values)],
+            }
+
+        status, data = False, None
         # Now run tests:
         for voltage in ["1V8", "2V5", "3V3"]:
-            for mode in ["DIO", "HDMI"]:
-                for pattern in [0xFFFF, 0xA5A5, 0x5A5A, 0x0000]:
-                    sys.stderr.write("test: PortA -> PortB, {}, {}, 0x{:04X}\n"
-                                     .format(voltage, mode, pattern))
-                    status, data = _run_sub_test(
-                        "PORTB", "PORTA", mode, voltage, pattern)
-                    if not status:
-                        return status, data
-                    sys.stderr.write("test: PortB -> PortA, {}, {}, 0x{:04X}\n"
-                                     .format(voltage, mode, pattern))
-                    status, data = _run_sub_test(
-                        "PORTA", "PORTB", mode, voltage, pattern)
-                    if not status:
-                        return status, data
+            extended_test = voltage in ["3V3"]
+            if extended_test:
+                gpio_in_out_combinations = [
+                    ("PS", "PS"),
+                    ("MPM", "MPM"),
+                    ("MPM", "PS"),
+                    ("PS", "MPM"),
+                ]
+            else:
+                gpio_in_out_combinations = [("MPM", "MPM")]
+            for gpio_src_in, gpio_src_out in gpio_in_out_combinations:
+                if (gpio_src_in, gpio_src_out) == ("MPM", "MPM"):
+                    pin_modes = ["HDMI", "DIO"]
+                else:
+                    pin_modes = ["DIO"]
+                for pin_mode in pin_modes:
+                    for inport, outport in [("PORTB", "PORTA"), ("PORTA", "PORTB")]:
+                        patterns = [0xFFFF, 0xA5A5, 0x5A5A, 0x0000]
+                        if extended_test:
+                            patterns += [1 << i for i in range(12)]
+                        for pattern in patterns:
+                            sys.stderr.write(
+                                f"test: {outport}({gpio_src_out}) -> {inport}({gpio_src_in}), "
+                                f"{voltage}, {pin_mode}, 0x{pattern:04X}\n"
+                            )
+                            try:
+                                status, data = _run_sub_test(
+                                    inport,
+                                    outport,
+                                    pin_mode,
+                                    voltage,
+                                    pattern,
+                                    gpio_src_in,
+                                    gpio_src_out,
+                                )
+                            except KeyboardInterrupt:
+                                return False, data
+                            if not status:
+                                return status, data
         return status, data
 
 
@@ -1075,6 +1129,263 @@ class X4XXBIST(bist.UsrpBIST):
             "Read Test": read_test_output if read_error_msg is None else read_error_msg
         }
 
+    def bist_lmx_lo(self):
+        """
+        BIST for testing the LMX2572 LO on X410 and X420.
+
+        Description: Checks if all LOs are accessible by creating
+        a SPI connection to them and poking/peeking the scratch register.
+
+        External Equipment: None
+        Return dictionary:
+        - <LO name>: {
+            - "available": True if the LO is accessible, False otherwise
+            - "error_msg": Error message if the LO is not accessible
+        }
+        """
+        assert 'lmx_lo' in self.tests_to_run
+
+        if self.args.dry_run:
+            return True, {}
+
+        from uhd.utils import mpmtools
+        from time import sleep
+
+        # default MPM port
+        MPM_PORT = 49601
+
+        mpm_c = mpmtools.MPMClient(mpmtools.InitMode.Claim, "localhost", MPM_PORT)
+
+        los_to_test = None
+        result = True
+        error = ""
+        data = {}
+
+        @dataclass
+        class SpiConfig:
+            """
+            Configuration for SPI communication with LMX2572.
+            - start_bit: Bit position for SPI_START_TRANSACTION
+            - read_bit: Bit position for SPI_READ
+            - addr_width: Width of the address field in bits
+            - data_width: Width of the data field in bits
+            - lo_select_bit: Bit position for LO_SELECT (if applicable)
+            - lo_select: Value to select the LO (if applicable)
+            """
+            start_bit: int
+            read_bit: int
+            addr_width: int
+            data_width: int
+            poke_addr: [int]
+            peek_addr: [int]
+            lo_select_bit: Optional[int] = None
+            lo_select: Optional[int] = None
+
+        def get_spi_command(register, value, conf, is_read):
+            command = 0b0000_0000_0000_0000_0000_0000_0000_0000
+            command |= 1 << conf.start_bit
+            command |= (1 if is_read else 0) << conf.read_bit
+            if conf.lo_select_bit is not None and conf.lo_select is not None:
+                command |= (conf.lo_select & 0x7) << conf.lo_select_bit
+            command |= (register & ((1 << conf.addr_width) - 1)) << conf.data_width
+            command |= (value & ((1 <<conf.data_width) - 1))
+            return command
+
+        def write_lmx(db, spi_conf, register, value):
+            """
+            Write a value to the LMX2572 register.
+            """
+            cmd = get_spi_command(register, value, spi_conf, False)
+            mpm_c.poke_db(db, spi_conf.poke_addr, cmd)
+
+        def read_lmx(db, spi_conf, register):
+            """
+            Read a value from the LMX2572 register.
+            """
+            cmd = get_spi_command(register, 0, spi_conf, True)
+            mpm_c.poke_db(db, spi_conf.poke_addr, cmd)
+            sleep(0.1)
+            status = int(mpm_c.peek_db(db, spi_conf.peek_addr), 0)
+            return status & ((1 << spi_conf.data_width) - 1)
+
+        if self.product_id == 'x420':
+            los_to_test = {'TX_LO': 0x1000, 'RX_LO': 0x1010}
+            def get_spi_info(db, lo):
+                spi_info = int(mpm_c.peek_db(db, lo[1]), 0)
+                data_width = spi_info & 0xFF
+                addr_width = (spi_info >> 8) & 0xFF
+                return SpiConfig(start_bit = 31,
+                                 read_bit = 30,
+                                 addr_width = addr_width,
+                                 data_width = data_width,
+                                 poke_addr = lo[1]+0x4,
+                                 peek_addr = lo[1]+0x8)
+        elif self.product_id == 'x410':
+            los_to_test = {"TX0_LO1" : 0,
+                        "TX0_LO2" : 1,
+                        "TX1_LO1" : 2,
+                        "TX1_LO2" : 3,
+                        "RX0_LO1" : 4,
+                        "RX0_LO2" : 5,
+                        "RX1_LO1" : 6,
+                        "RX1_LO2" : 7}
+            def get_spi_info(_db, lo):
+                return SpiConfig(start_bit = 28,
+                                 read_bit = 23,
+                                 addr_width = 0x7f,
+                                 data_width = 16,
+                                 poke_addr = 0x1020,
+                                 peek_addr = 0x1020,
+                                 lo_select_bit = 24,
+                                 lo_select = lo[1])
+
+        if los_to_test is not None:
+            for db in range(2):
+                for lo, addr in los_to_test.items():
+                    try:
+                        spi_conf = get_spi_info(db, (lo, addr))
+                        # Enable read-back mode (and leave everything else default)
+                        write_lmx(db, spi_conf, 0, 0x218)
+                        # Check the magic register:
+                        magic = read_lmx(db, spi_conf, 125)
+                        if magic != 0x2288:
+                            raise ValueError(f"Magic number mismatch for {lo} "
+                                    f"on DB{db}: expected 0x2288, got 0x{magic:04X}")
+                        data[f"db{db}-{lo}"] = True
+                    except Exception as ex:
+                        # If we got here, then this LO is not accessible
+                        result = False
+                        error = str(ex)
+                        data[f"db{db}-{lo}"] =  False
+
+        try:
+            mpm_c.unclaim()
+        except Exception as ex:
+            pass
+        data["error_msg"] = error
+        data["status"] = result
+        return result, data
+
+    def bist_db_connector(self):
+        """
+        BIST for testing the daughterboard connectors from X4xx motherboard to 
+        the daughterboards. The methodology is to create a loopback between TX and RX,
+        use the cal mux as TX tone, set static gains (if possible) and query the
+        RX threshold value that we are able to exceed with this. If we are above
+        a certain threshold we assume that the connector is working.
+        """
+        assert 'db_connector' in self.tests_to_run
+        if self.args.dry_run:
+            return True, {"0 Real": True,
+                          "1 Real": True}
+
+        import uhd
+        data = {}
+        THRESHOLD = 4000
+
+        def is_x410(usrp):
+            """Returns True if executed on X410."""
+            return usrp.get_mboard_name() == "x410"
+
+        def is_x420(usrp):
+            """Returns True if executed on X420."""
+            return usrp.get_mboard_name() == "x420"
+
+        def is_x440(usrp):
+            """Returns True if executed on X440."""
+            return usrp.get_mboard_name() == "x440"
+
+        def get_mixmode_name(mode):
+            """Returns the name of the mixer mode."""
+            return (
+                ("Real", "I", "Q", "Disable", "IQ", "All")[mode] if mode in range(6) else "Unknown"
+            )
+
+        def settings(usrp):
+            """Returns the settings matching the X4xx device."""
+            if is_x410(usrp):
+                return [{"gain": 30, "rx_freq": 2.5e9, "tx_freq": 2.5e9}]
+            if is_x440(usrp):
+                return [{"gain": None, "rx_freq": 397.55e6, "tx_freq": 397.55e6}]
+            if is_x420(usrp):
+                # Gain values taken from ADC self-cal auto-leveling
+                return [
+                    {"gain": 27, "rx_freq": 397.55e6, "tx_freq": 397.55e6},
+                    {"gain": 25, "rx_freq": 1000e6, "tx_freq": 1397.55e6},
+                    {"gain": 25, "rx_freq": 1000e6, "tx_freq": 1397.55e6},
+                ]
+            sys.exit(1)
+
+        def set_gain(usrp, gain, channel):
+            """Sets the gain for X410 and X420 (X440 has no gain stages)."""
+            if is_x410(usrp):
+                usrp.set_rx_gain_profile("default", channel)
+                usrp.set_tx_gain_profile("default", channel)
+                usrp.set_rx_gain(gain, channel)
+                usrp.set_tx_gain(gain, channel)
+                usrp.set_rx_gain_profile("table_noatr", channel)
+                usrp.set_tx_gain_profile("table_noatr", channel)
+                usrp.set_rx_gain(0b11, "TABLE", channel)
+                usrp.set_rx_gain(0b11, "TABLE", channel)
+            elif is_x420(usrp):
+                radio = usrp.get_radio_control(channel)
+                radio.poke32(0x810A4, 0)  # Switch to SW ATR mode
+                radio.poke32(0x810A8, 3)  # Switch to TRX to have the chain active
+                usrp.set_tx_gain(46, channel)  # Approx. 0 dB
+                usrp.set_rx_gain(gain, channel)
+                time.sleep(0.1)  # Let the gain settle
+
+        def reset_gain(usrp, channel):
+            """Resets the gain values for X410 after running this script."""
+            if is_x410(usrp):
+                usrp.set_rx_gain_profile("default", channel)
+                usrp.set_tx_gain_profile("default", channel)
+                usrp.set_rx_gain(0, channel)
+                usrp.set_tx_gain(0, channel)
+            elif is_x420(usrp):
+                usrp.set_tx_gain(0, channel)
+                usrp.set_rx_gain(0, channel)
+                radio = usrp.get_radio_control(channel)
+                radio.poke32(0x810A4, 1)  # Switch back to Classic ATR mode
+
+
+        def check(mc, board, channel, mode, value):
+            """Checks if the given threshold value returns a valid threshold status."""
+            mc.setup_threshold(board, channel, mode, 0, "hysteresis", 10000, value - 100, value)
+            time.sleep(0.01)
+            return mc.get_threshold_status(board, channel, mode, 0)
+
+        usrp = uhd.usrp.MultiUSRP(self.device_args)
+        settings = settings(usrp)
+        mc = usrp.get_mpm_client()
+        mc.set_dac_mux_data(0x7FFF, 0)
+        ch_per_board = usrp.get_rx_num_channels() // 2
+        num_modes = 3 if is_x420(usrp) else 1
+        result = True
+        for i in range(usrp.get_rx_num_channels()):
+            for j in range(num_modes):
+                ch_name = f"{i} {get_mixmode_name(j)}"
+                set_gain(usrp, settings[j]["gain"], i)
+                usrp.set_rx_antenna("CAL_LOOPBACK", i)
+                usrp.set_tx_antenna("CAL_LOOPBACK", i)
+                usrp.set_rx_freq(settings[j]["rx_freq"], i)
+                usrp.set_tx_freq(settings[j]["tx_freq"], i)
+                slot = i // ch_per_board
+                chan = i % ch_per_board
+                # I DAC Mux needs to be enabled for both I and Q subchannels,
+                # so just turn them all on (5: All)
+                mc.set_dac_mux_enable(slot, chan, 1, 5)
+                if check(mc, slot, chan, j, THRESHOLD):
+                    data[ch_name] = True
+                else:
+                    data[ch_name] = False
+                    result = False
+                mc.set_dac_mux_enable(slot, chan, 0, 5)
+                reset_gain(usrp, i)
+
+        data["error_msg"] = "" if result else "One or more channels failed"
+        data["status"] = result
+        return result, data
 ##############################################################################
 # main
 ##############################################################################

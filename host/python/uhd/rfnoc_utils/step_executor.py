@@ -16,6 +16,8 @@ import logging
 import os
 import re
 import shutil
+import stat
+import subprocess
 import sys
 import traceback
 from argparse import Namespace
@@ -24,7 +26,8 @@ from pathlib import Path
 import mako.lookup
 from ruamel.yaml import YAML
 
-from .template import Template
+from . import yaml_utils
+from .template import Template, render_wire_width
 from .utils import resolve
 
 
@@ -51,6 +54,30 @@ def get_file_list(**kwargs):
         file_list.append(kwargs["file"])
     # Only return unique files that exist
     return [f for f in set(file_list) if os.path.isfile(f)]
+
+
+def expand_io_sig(filename, config):
+    """Expand io signatures.
+
+    This expands the IO signatures in a block descriptor YAML file. After
+    expansion, every entry in the IO signatures sub-dictionary is extended with
+    detailed information about the wires used, their direction, etc.
+
+    Arguments:
+        filename: The name of the YAML file this data was pulled from.
+        config: The contents of the block descriptor YAML file as a dictionary.
+
+    Return value:
+    The same config object, but the entries of the IO ports section has additional
+    information about the wires.
+    """
+    from uhd import get_pkg_data_path
+
+    signatures = yaml_utils.io_signatures(
+        yaml_utils.get_core_config_path(get_pkg_data_path()), {filename: config}
+    )
+    config = yaml_utils.IOConfig(config, signatures)
+    return config
 
 
 class StepExecutor:
@@ -118,6 +145,36 @@ class StepExecutor:
         if self._resolve(condition):
             self.run(steps)
 
+    def run_subprocess(self, cmd, **kwargs):
+        """Run a command as a subprocess.
+
+        Arguments:
+        - cmd: The command to run as a list of arguments.
+        - dst_var: If provided, the output will be stored in this variable.
+        """
+        cmd = [self._resolve(arg) for arg in cmd]
+        cmd = [arg for arg in cmd if arg]
+        dst_var = kwargs.get("dst_var")
+        try:
+            self._log.debug("Running command: %s", cmd)
+            proc_result = subprocess.run(
+                cmd,
+                check=True,
+                env=os.environ.copy(),
+                capture_output=dst_var is not None,
+            )
+        except subprocess.CalledProcessError as e:
+            if "error_msg" in kwargs:
+                self._log.error(kwargs["error_msg"])
+            else:
+                self._log.error("Command failed with return code %s", e.returncode)
+            raise StepExecutor.StepError(f"Command failed: {e}")
+        if dst_var:
+            if proc_result.stdout:
+                self._setv(dst_var, proc_result.stdout.decode("utf-8").strip())
+            else:
+                self._setv(dst_var, "")
+
     def copy_dir(self, src, dst, **kwargs):
         """Copy a directory from src to dest, recursively."""
         self._log.debug("Copying directory %s to %s", src, dst)
@@ -140,9 +197,23 @@ class StepExecutor:
         if sys.version_info >= (3, 8):
             copytree_kwargs["dirs_exist_ok"] = True
         shutil.copytree(src, dst, **copytree_kwargs)
+        # Ensure the destination root directory itself is writable
+        os.chmod(dst, os.stat(dst).st_mode | stat.S_IWUSR)
+        for root, dirs, files in os.walk(dst):
+            for d in dirs:
+                dir_path = os.path.join(root, d)
+                os.chmod(dir_path, os.stat(dir_path).st_mode | stat.S_IWUSR)
+            for f in files:
+                file_path = os.path.join(root, f)
+                os.chmod(file_path, os.stat(file_path).st_mode | stat.S_IWUSR)
 
     def search_and_replace(self, **kwargs):
-        """Search and replace text in a file."""
+        """Search and replace text in a file.
+
+        pattern: The pattern to search for
+        repl: Replacement string
+        count: Max number of replacements (default: 0, all)
+        """
         file_list = get_file_list(**kwargs)
         for file in file_list:
             self._log.debug(
@@ -196,6 +267,8 @@ class StepExecutor:
         try:
             with open(source, "r", encoding="utf-8") as f:
                 self.global_vars[var] = yaml.load(f)
+            if kwargs.get("expand_io_sig"):
+                self.global_vars[var] = expand_io_sig(source, self.global_vars[var])
         except FileNotFoundError:
             raise StepExecutor.StepError(f"Descriptor file {source} not found.")
         except Exception as e:
@@ -221,7 +294,7 @@ class StepExecutor:
         if os.path.exists(dest):
             self._log.warning("Overwriting existing file %s", dest)
         with open(dest, "w", encoding="utf-8") as f:
-            f.write(tpl.render(**self.global_vars, **vars))
+            f.write(tpl.render(**self.global_vars, **vars, render_wire_width=render_wire_width))
 
     def _insert_text(self, pattern, text, repl, **kwargs):
         """Insert text into a file based on a regex."""
@@ -291,15 +364,48 @@ class StepExecutor:
             message = f"{symbol}   {message}"
         getattr(self._log, level)(message)
 
-    def find_file(self, **kwargs):
-        """Find files matching a pattern and store them in a variable."""
+    def find_file(self, dst_var, required=False, **kwargs):
+        """Find a file matching a pattern and store its path in a variable.
+
+        Arguments:
+        - glob/file/files: The pattern to match files against. See get_file_list for details.
+        - dst_var: The name of the variable to store the path in.
+        - required: If true, then an error is raised if no file is found. If
+                    false, the variable is set to None if no file is found. This
+                    is the default.
+        - error_msg: The message to display if no file is found and required is true.
+        """
         file_list = get_file_list(**kwargs)
         if len(file_list) > 1:
             raise StepExecutor.StepError(f"More than one file found matching pattern.")
         if len(file_list) == 0:
-            self.cmd["variables"][kwargs["dst_var"]] = None
+            if required:
+                raise StepExecutor.StepError(
+                    kwargs.get("error_msg", "No file found matching pattern.")
+                )
+            self.cmd["variables"][dst_var] = None
         else:
-            self.cmd["variables"][kwargs["dst_var"]] = file_list[0]
+            self.cmd["variables"][dst_var] = file_list[0]
+
+    def find_executable(self, dst_var, name, **kwargs):
+        """Find an executable in the PATH and store it in a variable.
+
+        Parameters:
+        - dst_var: The name of the variable to store the executable in.
+        - name: The name of the executable to find.
+
+        Optional:
+        - error_msg: The message to display if the executable is not found.
+        """
+        if "error_msg" in kwargs:
+            error_msg = kwargs["error_msg"]
+        else:
+            error_msg = f"Executable {name} not found in PATH."
+        path = shutil.which(name)
+        if path is None:
+            raise StepExecutor.StepError(error_msg)
+        self._log.debug("Found executable %s at %s", name, path)
+        self._setv(dst_var, os.path.abspath(path))
 
     def exit(self, **kwargs):
         """Exit the script."""
@@ -384,6 +490,12 @@ class StepExecutor:
         if command not in cmds:
             raise StepExecutor.StepError(f"Unknown command {command}")
         cmd = cmds[command]
+        for arg_name, arg_info in cmd.get("args", {}).items():
+            if arg_name not in args:
+                if "default" in arg_info:
+                    setattr(args, arg_name, arg_info["default"])
+                else:
+                    raise StepExecutor.StepError(f"Missing required argument {arg_name}")
         assert not cmd.get(
             "skip_identify_module", False
         ), "Cannot fork a command that skips module identification"
@@ -395,3 +507,11 @@ class StepExecutor:
             ", ".join([f"{k}={v}" for k, v in args.__dict__.items()]),
         )
         sub_executor.run(cmds[command]["steps"])
+
+    def set(self, name, value, is_global=False, **kwargs):
+        """Set a variable in the command script."""
+        self._log.debug("Setting variable %s to %s", name, value)
+        if is_global:
+            self.global_vars[name] = self._resolve(value)
+        else:
+            self._setv(name, self._resolve(value))

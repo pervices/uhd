@@ -8,6 +8,7 @@
 #include "mpmd_link_if_ctrl_udp.hpp"
 #include "mpmd_impl.hpp"
 #include "mpmd_link_if_mgr.hpp"
+#include <uhd/exception.hpp>
 #include <uhd/rfnoc/constants.hpp>
 #include <uhd/transport/udp_constants.hpp>
 #include <uhd/transport/udp_simple.hpp>
@@ -27,6 +28,8 @@ using namespace uhd::transport;
 using namespace uhd::mpmd::xport;
 
 namespace {
+
+constexpr char LOG_ID[] = "MPMD::XPORT::UDP";
 
 //! Maximum CHDR packet size in bytes.
 // Our 10GbE connections use custom FPGA code which caps frames at 8192 bytes.
@@ -73,12 +76,33 @@ mpmd_link_if_ctrl_udp::udp_link_info_map get_udp_info_from_xport_info(
             throw uhd::runtime_error(
                 "Invalid response from get_chdr_link_options()! No `port' key!");
         }
-        const std::string udp_port  = link_info.at("port");
-        const size_t link_rate      = link_info.count("link_rate")
-                                          ? std::stoul(link_info.at("link_rate"))
-                                          : MAX_RATE_1GIGE;
+        const std::string udp_port = link_info.at("port");
+        const size_t link_rate     = [&link_info]() {
+            if (!link_info.count("link_rate")) {
+                return MAX_RATE_1GIGE;
+            }
+            try {
+                return uhd::cast::from_str<size_t>(link_info.at("link_rate"));
+            } catch (const uhd::runtime_error&) {
+                UHD_LOG_THROW(uhd::runtime_error,
+                    "MPMD::XPORT::UDP",
+                    "Invalid response from get_chdr_link_options()! "
+                        "Invalid `link_rate' key: `"
+                        << link_info.at("link_rate") << "'");
+            }
+        }();
         const std::string link_type = link_info.at("type");
-        const size_t if_mtu         = std::stoul(link_info.at("mtu"));
+        const size_t if_mtu         = [&link_info]() {
+            try {
+                return uhd::cast::from_str<size_t>(link_info.at("mtu"));
+            } catch (const uhd::runtime_error&) {
+                UHD_LOG_THROW(uhd::runtime_error,
+                    "MPMD::XPORT::UDP",
+                    "Invalid response from get_chdr_link_options()! "
+                            "Invalid `mtu' key: `"
+                        << link_info.at("mtu") << "'");
+            }
+        }();
         result.emplace(link_info.at("ipv4"),
             mpmd_link_if_ctrl_udp::udp_link_info_t{
                 udp_port, link_rate, link_type, if_mtu});
@@ -165,7 +189,7 @@ size_t run_mtu_plausibility_check(const size_t detected_mtu)
         constexpr size_t MAX_1GBE_MTU_COERCE_VALUE = 1500; // bytes
         if (detected_mtu > MIN_1GBE_MTU_COERCE_VALUE
             && detected_mtu < MAX_1GBE_MTU_COERCE_VALUE) {
-            UHD_LOG_DEBUG("MPMD",
+            UHD_LOG_DEBUG(LOG_ID,
                 "MTU discovery detected "
                     << detected_mtu
                     << " bytes. This may be due to a faulty MTU discovery. Coercing to "
@@ -213,7 +237,7 @@ size_t discover_mtu(const std::string& address,
             return dpdk_simple::make_broadcast(addr, port);
         };
 #else
-        UHD_LOG_WARNING("MPMD",
+        UHD_LOG_WARNING(LOG_ID,
             "DPDK was requested but is not available, falling back to regular UDP");
 #endif
     }
@@ -242,7 +266,7 @@ size_t discover_mtu(const std::string& address,
                                      "discovery return packet!");
         }
     };
-    UHD_LOG_TRACE("MPMD", "Determining UDP MTU... ");
+    UHD_LOG_TRACE(LOG_ID, "Determining UDP MTU... ");
     size_t seq_no = 0;
     while (min_frame_size < max_frame_size) {
         // Only test multiples of 4 bytes!
@@ -258,7 +282,7 @@ size_t discover_mtu(const std::string& address,
             ";%04lu,%04lu",
             seq_no++,
             test_frame_size);
-        UHD_LOG_TRACE("MPMD", "Testing frame size " << test_frame_size);
+        UHD_LOG_TRACE(LOG_ID, "Testing frame size " << test_frame_size);
         udp->send(boost::asio::buffer(&send_buf[0], test_frame_size));
 
         const size_t len = udp->recv(boost::asio::buffer(recv_buf), echo_timeout);
@@ -273,14 +297,14 @@ size_t discover_mtu(const std::string& address,
             // This is an odd case. Something must have snipped the packet
             // on the way back. Still, we'll just back off and try
             // something smaller.
-            UHD_LOG_DEBUG("MPMD", "Unexpected packet truncation during MTU discovery.");
+            UHD_LOG_DEBUG(LOG_ID, "Unexpected packet truncation during MTU discovery.");
             require_bufs_match(len);
             max_frame_size = len;
         }
     }
 
     min_frame_size = run_mtu_plausibility_check(min_frame_size);
-    UHD_LOG_DEBUG("MPMD", "Path MTU for address " << address << ": " << min_frame_size);
+    UHD_LOG_DEBUG(LOG_ID, "Path MTU for address " << address << ": " << min_frame_size);
     return min_frame_size;
 }
 
@@ -302,11 +326,24 @@ mpmd_link_if_ctrl_udp::mpmd_link_if_ctrl_udp(const uhd::device_addr_t& mb_args,
         mb_args.has_key("use_dpdk"); // FIXME use constrained_device_args
     const std::string mpm_discovery_port = _mb_args.get(
         mpmd_impl::MPM_DISCOVERY_PORT_KEY, std::to_string(mpmd_impl::MPM_DISCOVERY_PORT));
-    auto discover_mtu_for_ip = [mpm_discovery_port, use_dpdk](
-                                   const std::string& ip_addr, size_t max_frame_size) {
+
+    const bool force_mtu = mb_args.has_key("force_mtu");
+    if (force_mtu) {
+        _mtu = mb_args.cast<size_t>("force_mtu", MPMD_1GE_DATA_FRAME_MAX_SIZE)
+               & ~size_t(3);
+        UHD_LOG_INFO(LOG_ID,
+            "Using manual override to set MTU to: "
+                << _mtu
+                << " bytes. Note this may cause issues if Ethernet link is not "
+                   "configured correspondingly.");
+    }
+
+    auto discover_mtu_for_ip = [mpm_discovery_port, use_dpdk](const std::string& ip_addr,
+                                   size_t min_frame_size,
+                                   size_t max_frame_size) {
         return discover_mtu(ip_addr,
             mpm_discovery_port,
-            IP_PROTOCOL_MIN_MTU_SIZE - IP_PROTOCOL_UDP_PLUS_IP_HEADER,
+            min_frame_size,
             max_frame_size,
             MPMD_MTU_DISCOVERY_TIMEOUT,
             use_dpdk);
@@ -325,11 +362,25 @@ mpmd_link_if_ctrl_udp::mpmd_link_if_ctrl_udp(const uhd::device_addr_t& mb_args,
                                                   << std::to_string(info.if_mtu));
                 _mtu = std::min(_mtu, info.if_mtu);
             } else {
-                _mtu = std::min(_mtu,
-                    discover_mtu_for_ip(ip_addr,
-                        info.link_rate == MAX_RATE_1GIGE
-                            ? MPMD_1GE_DATA_FRAME_MAX_SIZE
-                            : MPMD_10GE_DATA_FRAME_MAX_SIZE));
+                if (force_mtu) {
+                    // If force_mtu is set, we still do a single ping on the discovery
+                    // port to test the validity of the connection, but we fix the MTU
+                    // size. The (_mtu - 4) is to make the discovery algorithm
+                    // work.
+                    size_t discovered_mtu = discover_mtu_for_ip(ip_addr, _mtu - 4, _mtu);
+                    if (discovered_mtu < _mtu) {
+                        UHD_LOG_WARNING(LOG_ID,
+                            "Manually set MTU " << _mtu << " failed to test on address "
+                                                << ip_addr);
+                    }
+                } else {
+                    _mtu = std::min(_mtu,
+                        discover_mtu_for_ip(ip_addr,
+                            IP_PROTOCOL_MIN_MTU_SIZE - IP_PROTOCOL_UDP_PLUS_IP_HEADER,
+                            info.link_rate == MAX_RATE_1GIGE
+                                ? MPMD_1GE_DATA_FRAME_MAX_SIZE
+                                : MPMD_10GE_DATA_FRAME_MAX_SIZE));
+                }
             }
             _available_addrs.push_back(ip_addr);
         } catch (const uhd::exception& ex) {
@@ -401,7 +452,7 @@ uhd::transport::both_links_t mpmd_link_if_ctrl_udp::get_link(const size_t link_i
             true,
             enable_fc);
 #else
-        UHD_LOG_WARNING("MPMD", "Cannot create DPDK transport, falling back to UDP");
+        UHD_LOG_WARNING(LOG_ID, "Cannot create DPDK transport, falling back to UDP");
 #endif
     }
     auto link = uhd::transport::udp_boost_asio_link::make(ip_addr,

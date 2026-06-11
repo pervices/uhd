@@ -134,7 +134,18 @@ double zbx_dboard_impl::set_tx_frequency(const double req_freq, const size_t cha
     // Since the expert nodes are protected by a mutex, it will hang if we try to call
     // update_power() from inside the expert resolve methods (resolve() -> update_power()
     // -> set_tx_gain -> resolve())
-    _tx_pwr_mgr.at(chan)->update_power();
+    // Because the power manager can only work when using the default gain profile, we'll
+    // only update the power if we are in that profile:
+    if (_tx_gain_profile_api->get_gain_profile(chan) == ZBX_GAIN_PROFILE_DEFAULT) {
+        _tx_pwr_mgr.at(chan)->update_power();
+    } else if (_tx_pwr_mgr.at(chan)->get_tracking_mode()
+               == uhd::usrp::pwr_cal_mgr::tracking_mode::TRACK_POWER) {
+        // If the power manager is in TRACK_GAIN mode, update_power() won't do anything.
+        // If we are in TRACK_POWER mode, however, but not in the default gain profile, we
+        // will warn.
+        RFNOC_LOG_WARNING("Not updating TX power, because power manager is only "
+                          "available in the default gain profile.");
+    }
 
     return _tree->access<double>(fe_path / "freq").get();
 }
@@ -149,7 +160,18 @@ double zbx_dboard_impl::set_rx_frequency(const double req_freq, const size_t cha
     // Since the expert nodes are protected by a mutex, it will hang if we try to call
     // update_power() from inside the expert resolve methods (resolve() -> update_power()
     // -> set_rx_gain -> resolve())
-    _rx_pwr_mgr.at(chan)->update_power();
+    // Because the power manager can only work when using the default gain profile, we'll
+    // only update the power if we are in that profile:
+    if (_rx_gain_profile_api->get_gain_profile(chan) == ZBX_GAIN_PROFILE_DEFAULT) {
+        _rx_pwr_mgr.at(chan)->update_power();
+    } else if (_rx_pwr_mgr.at(chan)->get_tracking_mode()
+               == uhd::usrp::pwr_cal_mgr::tracking_mode::TRACK_POWER) {
+        // If the power manager is in TRACK_GAIN mode, update_power() won't do anything.
+        // If we are in TRACK_POWER mode, however, but not in the default gain profile, we
+        // will warn.
+        RFNOC_LOG_WARNING("Not updating RX power, because power manager is only "
+                          "available in the default gain profile.");
+    }
 
     return _tree->access<double>(fe_path / "freq").get();
 }
@@ -511,14 +533,14 @@ freq_range_t zbx_dboard_impl::_get_lo_freq_range(
         // used when the LO frequencies are automatically calculated (which is
         // the normal use case). When setting LO frequencies manually, it is
         // possible to set LOs to values outside of the step size.
-        return freq_range_t{LMX2572_MIN_FREQ, LMX2572_MAX_FREQ};
+        return freq_range_t(LMX2572_MIN_FREQ, LMX2572_MAX_FREQ);
     }
     if (name == RFDC_NCO) {
         // It might make sense to constrain the possible NCO values more, since
         // the bandpass filters for IF2 only allow a certain range. Note that LO1
         // and LO2 freq ranges are also constrained by their analog filters.
         // But in principle, this is the range for the NCO... so why not.
-        return freq_range_t{0.0, _rfdc_rate};
+        return freq_range_t(0.0, _rfdc_rate);
     }
     throw uhd::value_error("Invalid LO name: " + name);
 }
@@ -656,7 +678,7 @@ std::string zbx_dboard_impl::get_dboard_fe_from_chan(
 /*********************************************************************
  * ADC Self Cal API
  **********************************************************************/
-bool zbx_dboard_impl::select_adc_self_cal_gain(size_t chan)
+bool zbx_dboard_impl::select_adc_self_cal_gain(size_t chan, size_t mode)
 {
     constexpr double min_gain = 10.0;
     constexpr double max_gain = 50.0;
@@ -685,7 +707,7 @@ bool zbx_dboard_impl::select_adc_self_cal_gain(size_t chan)
 
         try {
             const bool threshold_status =
-                _mb_rpcc->get_threshold_status(_db_idx, chan, 0);
+                _mb_rpcc->get_threshold_status(_db_idx, chan, mode, 0);
             if (threshold_status) {
                 found_gain = true;
                 break;

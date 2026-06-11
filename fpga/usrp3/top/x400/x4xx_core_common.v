@@ -145,6 +145,9 @@ module x4xx_core_common #(
   // RF Reset Control
   output wire                       start_nco_reset,
   input  wire                       nco_reset_done,
+  input  wire                       noc_reset_sync_failed,
+  output wire  [7:0]                sysref_wait_cycles,
+
   output wire [NUM_TIMEKEEPERS-1:0] adc_reset_pulse,
   output wire [NUM_TIMEKEEPERS-1:0] dac_reset_pulse,
 
@@ -440,7 +443,7 @@ module x4xx_core_common #(
       ) ctrlport_timer_i (
         .clk                      (radio_clk[db_i]),
         .rst                      (radio_rst[db_i]),
-     `ifdef X440
+     `ifndef X410
         .time_now                 (radio_time[64*db_i+:64]),
         .time_now_stb             (sample_rx_stb[db_i]),
      `else
@@ -690,6 +693,8 @@ module x4xx_core_common #(
     .s_ctrlport_resp_data             (rf_ctrlport_resp_data),
     .start_nco_reset                  (start_nco_reset),
     .nco_reset_done                   (nco_reset_done),
+    .noc_reset_sync_failed            (noc_reset_sync_failed),
+    .sysref_wait_cycles               (sysref_wait_cycles),
     .adc_reset_pulse                  (adc_reset_pulse),
     .dac_reset_pulse                  (dac_reset_pulse)
   );
@@ -904,16 +909,16 @@ endmodule
 //    starts at offset 0x80000 in the RFNoC Radio block's register space.
 //    The following diagram displays the distribution of the CtrlPort
 //    interface to the different modules it interacts with.
-//    <img src = "../common/x4xx_core_common_buses.svg"
+//    <img src = "doc/x4xx_core_common_buses.svg"
 // </info>
-//    <window name="DB_WINDOW"        offset="0x00000" size="0x08000">
+//    <window name="DB_WINDOW"        offset="0x00000" size="0x08000" targetregmap="DB_WINDOW_REGMAP">
 //      <info>Daughterboard GPIO interface. Register access within this space
 //      is directed to the associated daughterboard CPLD.</info>
 //    </window>
 //    <window name="RFDC_TIMING_WINDOW" offset="0x08000" size="0x02000" targetregmap="RFDC_TIMING_REGMAP">
 //      <info>RFDC timing control interface.</info>
 //    </window>
-//    <window name="RF_CORE_WINDOW" offset="0x0A000" size="0x02000">
+//    <window name="RF_CORE_WINDOW" offset="0x0A000" size="0x02000" targetregmap="RF_CORE_REGMAP">
 //      <info>Interface for the RF core.</info>
 //    </window>
 //    <window name="DIO_WINDOW" offset="0x0C000" size="0x04000" targetregmap="RADIO_DIO_REGMAP">

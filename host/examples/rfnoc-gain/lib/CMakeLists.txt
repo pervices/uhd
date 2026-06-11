@@ -37,11 +37,10 @@ add_library(rfnoc-gain SHARED
     ${rfnoc_gain_sources}
 )
 target_link_libraries(rfnoc-gain
-    ${UHD_LIBRARIES}
-    ${Boost_LIBRARIES}
+    UHD::uhd
 )
 set_target_properties(rfnoc-gain
-    PROPERTIES DEFINE_SYMBOL "rfnoc_gain_EXPORTS")
+    PROPERTIES DEFINE_SYMBOL "RFNOC_GAIN_DLL_EXPORTS")
 
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/lib/rfnoc-gain CONTENT "$<TARGET_FILE_NAME:rfnoc-gain>\n")
 
@@ -49,9 +48,9 @@ file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/lib/rfnoc-gain CONTENT "$<TARGET_FILE_N
 # Install built library files
 ########################################################################
 install(TARGETS rfnoc-gain
-    LIBRARY DESTINATION lib${LIB_SUFFIX} # .so/.dylib file
-    ARCHIVE DESTINATION lib${LIB_SUFFIX} # .lib file
-    RUNTIME DESTINATION bin              # .dll file
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} # .so/.dylib file
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} # .lib file
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} # .dll file
 )
 install(FILES
     ${CMAKE_BINARY_DIR}/lib/rfnoc-gain

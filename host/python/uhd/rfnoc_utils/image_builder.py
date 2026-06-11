@@ -22,6 +22,7 @@ import sys
 import mako.lookup
 from mako import exceptions
 
+from .. import get_pkg_data_path
 from . import grc, yaml_utils
 from .builder_config import ImageBuilderConfig
 from .template import Template
@@ -47,6 +48,7 @@ DEVICE_DIR_MAP = {
     "n320": "n3xx",
     "x400": "x400",
     "x410": "x400",
+    "x420": "x400",
     "x440": "x400",
 }
 
@@ -55,6 +57,7 @@ DEVICE_DEFAULTTARGET_MAP = {
     "x300": "X300_HG",
     "x310": "X310_HG",
     "x410": "X410",
+    "x420": "X420",
     "x440": "X440",
     "e310": "E310_SG3",
     "e320": "E320_1G",
@@ -74,6 +77,7 @@ SECURE_CORE_INST_PATH = {
     "n320": "n3xx_core/rfnoc_sandbox_i/secure_image_core_i",
     "x400": "x4xx_core_i/rfnoc_image_core_i/secure_image_core_i",
     "x410": "x4xx_core_i/rfnoc_image_core_i/secure_image_core_i",
+    "x420": "x4xx_core_i/rfnoc_image_core_i/secure_image_core_i",
     "x440": "x4xx_core_i/rfnoc_image_core_i/secure_image_core_i",
 }
 
@@ -84,7 +88,7 @@ def get_vivado_path(fpga_top_dir, args):
     if args.get("vivado_path"):
         viv_path = args["vivado_path"]
     else:
-        get_viv_path_cmd = '. ./setupenv.sh && echo "VIVADO_PATH=\$VIVADO_PATH"'
+        get_viv_path_cmd = '. ./setupenv.sh && echo "VIVADO_PATH=$VIVADO_PATH"'
         try:
             output = subprocess.check_output(
                 f'{BASH_EXECUTABLE} -c "{get_viv_path_cmd}"',
@@ -184,7 +188,9 @@ def patch_netlist_constraints(device, build_dir):
         file.write(constraints)
 
 
-def gen_make_command(args, build_dir, device, use_secure_netlist, makefile_src_paths):
+def gen_make_command(
+    args, build_dir, build_output_dir, build_ip_dir, device, use_secure_netlist, makefile_src_paths
+):
     """Generate the 'make' command that will build the desired bitfiles.
 
     This generates a full make command, including all the necessary options.
@@ -210,16 +216,10 @@ def gen_make_command(args, build_dir, device, use_secure_netlist, makefile_src_p
         + (" --jobs " + args["num_jobs"] if args.get("num_jobs") else "")
         + (" PROJECT=1" if args.get("save_project") else "")
         + (" IP_ONLY=1" if args.get("ip_only") else "")
-        + (
-            " BUILD_OUTPUT_DIR=" + os.path.abspath(args["build_output_dir"])
-            if args.get("build_output_dir")
-            else ""
-        )
-        + (
-            " BUILD_IP_DIR=" + os.path.abspath(args["build_ip_dir"])
-            if args.get("build_ip_dir")
-            else ""
-        )
+        + " BUILD_OUTPUT_DIR="
+        + build_output_dir
+        + " BUILD_IP_DIR="
+        + build_ip_dir
     )
 
 
@@ -254,10 +254,13 @@ def build(fpga_top_dir, device, build_dir, use_secure_netlist, base_dir, **args)
     """
     ret_val = 0
     build_dir = os.path.abspath(build_dir)
-    cwd = os.getcwd()
     if not os.path.isdir(fpga_top_dir):
         logging.error("Not a valid directory: %s", fpga_top_dir)
         return 1
+    build_output_dir = os.path.abspath(
+        args.get("build_output_dir") or os.path.join(base_dir, "build")
+    )
+    build_ip_dir = os.path.abspath(args.get("build_ip_dir") or os.path.join(base_dir, "build-ip"))
     makefile_src_paths = [
         os.path.join(os.path.abspath(os.path.normpath(x)), os.path.join("fpga", "Makefile.srcs"))
         for x in args.get("include_paths", [])
@@ -268,7 +271,15 @@ def build(fpga_top_dir, device, build_dir, use_secure_netlist, base_dir, **args)
     make_cmd = ""
     if "clean_all" in args and args["clean_all"]:
         make_cmd += "make cleanall && "
-    make_cmd += gen_make_command(args, build_dir, device, use_secure_netlist, makefile_src_paths)
+    make_cmd += gen_make_command(
+        args,
+        build_dir,
+        build_output_dir,
+        build_ip_dir,
+        device,
+        use_secure_netlist,
+        makefile_src_paths,
+    )
 
     if args.get("generate_only"):
         logging.info("Skipping build (--generate-only option given)!")
@@ -276,16 +287,6 @@ def build(fpga_top_dir, device, build_dir, use_secure_netlist, base_dir, **args)
         return 0
 
     make_cmd = setup_cmd + "&& " + make_cmd
-    build_output_dir = args.get("build_output_dir")
-    if build_output_dir is None:
-        build_output_dir = os.path.join(base_dir, "build")
-    else:
-        build_output_dir = os.path.abspath(build_output_dir)
-    build_ip_dir = args.get("build_ip_dir")
-    if build_ip_dir is None:
-        build_ip_dir = os.path.join(base_dir, "build-ip")
-    else:
-        build_ip_dir = os.path.abspath(build_ip_dir)
     logging.info("Launching build with the following settings:")
     logging.info(" * FPGA Directory: %s", fpga_top_dir)
     logging.info(" * Build Artifacts Directory: %s", build_dir)
@@ -399,11 +400,9 @@ def load_image_core_source(
     return config, device, get_image_core_name(config), target
 
 
-def build_image(repo_fpga_path, config_path, device, **args):
+def build_image(repo_fpga_path, device, **args):
     """Generate image dependent Verilog code and run FPGA toolchain, if requested.
 
-    :param config: A dictionary containing the image configuration options.
-                   This must obey the rfnoc_image_builder_args schema.
     :param repo_fpga_path: A path that holds the FPGA sources (/path/to/uhd/fpga).
                            Under this path, there should be a usrp3/top/
                            directory.
@@ -421,6 +420,7 @@ def build_image(repo_fpga_path, config_path, device, **args):
                                     (e.g., usrp_x410_fpga_CG_400)
     :return: Exit result of build process or 0 if generate-only is given.
     """
+    config_path = get_pkg_data_path()
     # We start by loading some core/standard files that are always needed.
     core_config_path = yaml_utils.get_core_config_path(config_path)
     include_paths = check_include_paths_backward_compat(args.get("include_paths", [])) + [

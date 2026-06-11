@@ -60,7 +60,8 @@ public:
         fc_payload.xfer_count_bytes = counts.bytes;
         fc_payload.xfer_count_pkts  = counts.packets;
 
-        _fc_packet->refresh(buff->data(), header, fc_payload);
+        _fc_packet->refresh(
+            buff->data(), send_link->get_send_frame_size(), header, fc_payload);
         const size_t size = header.get_length();
 
         buff->set_packet_size(size);
@@ -391,7 +392,7 @@ private:
         packet_info_t info;
         info.eob           = header.get_eob();
         info.eov           = header.get_eov();
-        info.has_tsf       = optional_time.is_initialized();
+        info.has_tsf       = optional_time.has_value();
         info.tsf           = optional_time ? *optional_time : 0;
         info.payload_bytes = _recv_packet->get_payload_size();
         info.payload       = _recv_packet->get_payload_const_ptr();

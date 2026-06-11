@@ -237,7 +237,7 @@ freq_range_t fbx_dboard_impl::_get_lo_freq_range(
     const std::string& name, const size_t /*chan*/) const
 {
     _validate_lo_name(name, "_get_lo_freq_range");
-    return freq_range_t{0.0, _rfdc_rate};
+    return freq_range_t(0.0, _rfdc_rate);
 }
 
 void fbx_dboard_impl::_validate_lo_name(
@@ -286,9 +286,9 @@ std::string fbx_dboard_impl::get_dboard_fe_from_chan(
 /*********************************************************************
  * ADC Self Cal API
  **********************************************************************/
-bool fbx_dboard_impl::select_adc_self_cal_gain(size_t chan)
+bool fbx_dboard_impl::select_adc_self_cal_gain(size_t chan, size_t mode)
 {
-    return _mb_rpcc->get_threshold_status(_db_idx, chan, 0);
+    return _mb_rpcc->get_threshold_status(_db_idx, chan, mode, 0);
 }
 
 }}} // namespace uhd::usrp::fbx

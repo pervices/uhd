@@ -875,7 +875,7 @@ private: // Functions
                     return uhd::cast::from_str<double>(ratio_s) / 100.0;
                 }
                 return uhd::cast::from_str<double>(ratio_s);
-            } catch (const std::invalid_argument&) {
+            } catch (const uhd::runtime_error&) {
                 UHD_LOG_WARNING(LOG_ID,
                     "Invalid throttle argument provided: `"
                         << throttle_ratio_s << "', setting throttle to 1.0.");
@@ -1123,7 +1123,8 @@ private: // Functions
                 LOG_ID, "Timed out getting send buff for management transaction");
             throw uhd::io_error("Timed out getting send buff for management transaction");
         }
-        _send_pkt->refresh(send_buff->data(), header, payload);
+        _send_pkt->refresh(
+            send_buff->data(), xport.get_send_frame_size(), header, payload);
         send_buff->set_packet_size(header.get_length());
         xport.release_send_buff(std::move(send_buff));
     }

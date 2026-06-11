@@ -34,7 +34,7 @@ parameters:
 - name: add_tests
   displayName: Force-enable modules
   type: string
-  default: "none"
+  default: "uhd.build.all"
 - name: remove_tests
   displayName: Force-disable modules
   type: string
@@ -51,6 +51,10 @@ parameters:
   - 'stress'
   displayName: Test Length
   default: 'smoke'
+- name: create_sbom
+  type: boolean
+  displayName: Create SBOM for filesystem images
+  default: true
 - name: build_sdk
   type: boolean
   displayName: Build embedded image SDKs
@@ -78,6 +82,10 @@ parameters:
 - name: build_x4xx
   type: boolean
   displayName: Build x4xx image
+  default: true
+- name: ext_fpga
+  type: boolean
+  displayName: Use pipeline FPGA build
   default: true
   # This is the source of FPGA images only if they're not being built in this
   # pipeline. If they are being built, the source is the pipeline itself.
@@ -139,6 +147,7 @@ extends:
     remove_tests: ${{ parameters.remove_tests }}
     release_binaries: ${{ parameters.release_binaries }}
     testLength: ${{ parameters.testLength }}
+    create_sbom: ${{ parameters.create_sbom }}
     build_sdk: ${{ parameters.build_sdk }}
     cache_sstate: ${{ parameters.cache_sstate }}
     build_e310_sg1: ${{ parameters.build_e310_sg1 }}

@@ -7,14 +7,14 @@
 #include <uhd/exception.hpp>
 #include <uhd/rfnoc/constants.hpp>
 #include <uhd/rfnoc/defaults.hpp>
+#include <uhd/rfnoc/detail/graph.hpp>
 #include <uhd/rfnoc/mb_controller.hpp>
-#include <uhd/rfnoc/noc_block_make_args.hpp>
 #include <uhd/rfnoc/node.hpp>
 #include <uhd/rfnoc_graph.hpp>
 #include <uhdlib/rfnoc/block_container.hpp>
 #include <uhdlib/rfnoc/factory.hpp>
-#include <uhdlib/rfnoc/graph.hpp>
 #include <uhdlib/rfnoc/graph_stream_manager.hpp>
+#include <uhdlib/rfnoc/noc_block_make_args.hpp>
 #include <uhdlib/rfnoc/rfnoc_device.hpp>
 #include <uhdlib/rfnoc/rfnoc_rx_streamer.hpp>
 #include <uhdlib/rfnoc/rfnoc_tx_streamer.hpp>
@@ -603,6 +603,13 @@ public:
         return _device->get_mb_iface(mb_index).get_chdr_w();
     }
 
+    std::map<std::string, device_addr_t> get_chdr_xport_adapters(
+        size_t mb_index) const override
+    {
+        UHD_ASSERT_THROW(mb_index < _num_mboards);
+        return _device->get_mb_iface(mb_index).get_chdr_xport_adapters();
+    }
+
 private:
     /**************************************************************************
      * Device Setup
@@ -748,9 +755,11 @@ private:
             }
             auto block_reg_iface = _gsm->get_block_register_iface(
                 ctrl_sep_addr, portno, *ctrlport_clk_iface.get(), *tb_clk_iface.get());
-            auto make_args_uptr      = std::make_unique<noc_block_base::make_args_t>();
-            make_args_uptr->noc_id   = noc_id;
-            make_args_uptr->block_id = block_id;
+            block_reg_iface->set_log_id(block_id.to_string());
+            auto make_args_uptr =
+                noc_block_base::make_args_ptr(new noc_block_base::make_args_int_t());
+            make_args_uptr->noc_id           = noc_id;
+            make_args_uptr->block_id         = block_id;
             make_args_uptr->num_input_ports  = block_info.num_inputs;
             make_args_uptr->num_output_ports = block_info.num_outputs;
             make_args_uptr->mtu =
@@ -1101,10 +1110,9 @@ rfnoc_graph::sptr make_rfnoc_graph(
 
     // Check if a graph was already created for this device
     std::lock_guard<std::mutex> lock(_map_mutex);
-    if (dev_to_graph.count(dev) and not dev_to_graph[dev].expired()) {
-        graph = dev_to_graph[dev].lock();
-        if (graph != nullptr) {
-            return graph;
+    if (dev_to_graph.count(dev)) {
+        if (rfnoc_graph::sptr p = dev_to_graph[dev].lock()) {
+            return p;
         }
     }
 

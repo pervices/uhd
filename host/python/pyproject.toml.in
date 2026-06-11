@@ -4,11 +4,10 @@ version = "${UHD_VERSION_MAJOR}.${UHD_VERSION_API}.${UHD_VERSION_ABI}.${UHD_VERS
 description = "Universal Software Radio Peripheral (USRP) Hardware Driver Python API"
 keywords=["SDR", "UHD", "USRP"]
 authors=["Ettus Research <uhd.maintainer@emerson.com>"]
-license="GPLv3"
+license="GPL-3.0-or-later"
 readme = "README.md"
 classifiers=[
     "@UHD_DEV_STATUS@",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: C++",
     "Programming Language :: Python",
     "Topic :: System :: Hardware :: Hardware Drivers",
@@ -18,7 +17,7 @@ exclude = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.10,<3.14"
 numpy = "^@UHD_NUMPY_MIN_VERSION@"
 mako = ">=@UHD_PY_MAKO_MIN_VERSION@"
 ruamel-yaml = ">=@UHD_RUAMEL_YAML_MIN_VERSION@"

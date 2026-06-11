@@ -5,18 +5,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include <uhd/cal/cal_utils.hpp>
 #include <uhd/cal/container.hpp>
 #include <uhd/cal/database.hpp>
 #include <uhd/cal/iq_cal.hpp>
+#include <uhd/cal/iq_dc_cal.hpp>
 #include <uhd/usrp/dboard_eeprom.hpp>
 #include <uhd/utils/csv.hpp>
+#include <uhd/utils/interpolation.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/usrp/common/apply_corrections.hpp>
 #include <uhdlib/utils/paths.hpp>
 #include <unordered_map>
-#include <boost/filesystem.hpp> // For deprecated CSV reader only
 #include <complex>
 #include <cstdio>
+#include <filesystem> // For deprecated CSV reader only
 #include <fstream>
 #include <mutex>
 
@@ -38,7 +41,7 @@ bool load_legacy_fe_corrections(const std::string& cal_key,
     const std::string& db_serial,
     const std::string& file_prefix)
 {
-    namespace fs                             = boost::filesystem;
+    namespace fs                             = std::filesystem;
     const std::string file_prefix_deprecated = file_prefix + "_cal_v0.2_";
     // make the calibration file path
     const fs::path cal_data_path = fs::path(uhd::get_appdata_path()) / ".uhd" / "cal"
@@ -197,4 +200,103 @@ void uhd::usrp::apply_rx_fe_corrections(
     const uhd::fs_path corr_path("rx_frontends/" + slot);
 
     apply_rx_fe_corrections(sub_tree, db_serial, corr_path, lo_freq);
+}
+
+/******************************************************************************
+ * Wideband IQ + DC correction versions (using iq_dc_cal)
+ *****************************************************************************/
+namespace {
+
+// Separate cache and mutex for wideband IQ+DC correction data
+std::mutex wb_cal_cache_mutex;
+std::unordered_map<std::string, iq_dc_cal::sptr> wb_cal_cache;
+
+void load_wb_correction_data(const std::string& db_serial, const std::string& file_prefix)
+{
+    const auto cal_key = file_prefix + ":" + db_serial;
+    if (!wb_cal_cache.count(cal_key)) {
+        if (database::has_cal_data(file_prefix, db_serial)) {
+            try {
+                const auto cal_data = database::read_cal_data(file_prefix, db_serial);
+                wb_cal_cache.insert({cal_key, container::make<iq_dc_cal>(cal_data)});
+                UHD_LOG_DEBUG("CAL",
+                    "Loaded wideband cal data for " << file_prefix
+                                                    << " serial=" << db_serial);
+            } catch (const uhd::exception& ex) {
+                UHD_LOG_WARNING("CAL",
+                    "Error reading wideband cal data: `" << ex.what()
+                                                         << "'. Skipping future loads.");
+                wb_cal_cache.insert({cal_key, nullptr});
+            }
+        } else {
+            wb_cal_cache.insert({cal_key, nullptr});
+            UHD_LOG_DEBUG("CAL",
+                "No wideband calibration data found for " << file_prefix
+                                                          << " serial=" << db_serial);
+        }
+    }
+}
+
+uhd::iq_dc_cal_coeffs_t get_wb_fe_corrections(
+    const std::string& db_serial, const std::string& file_prefix, const double freq)
+{
+    load_wb_correction_data(db_serial, file_prefix);
+
+    const auto cal_key = file_prefix + ":" + db_serial;
+    if (wb_cal_cache.at(cal_key) == nullptr) {
+        return uhd::iq_dc_cal_coeffs_t{};
+    }
+    // Use nearest neighbor for wideband IQ correction
+    wb_cal_cache.at(cal_key)->set_interp_mode(uhd::math::interp_mode::NEAREST_NEIGHBOR);
+
+    return wb_cal_cache.at(cal_key)->get_cal_coeff(freq);
+}
+
+} // namespace
+
+uhd::iq_dc_cal_coeffs_t uhd::usrp::get_wideband_tx_iq_dc_corrections(
+    const std::string& db_serial,
+    const double sample_rate,
+    const size_t chan,
+    const double tx_freq)
+{
+    std::lock_guard<std::mutex> l(wb_cal_cache_mutex);
+    try {
+        std::string file_prefix = "tx" + std::to_string(chan) + "_rate"
+                                  + std::to_string(static_cast<int>(sample_rate))
+                                  + "_iq_dc";
+        return get_wb_fe_corrections(db_serial, file_prefix, tx_freq);
+    } catch (const std::exception& e) {
+        UHD_LOGGER_ERROR("CAL")
+            << "Failure in get_wideband_tx_iq_dc_corrections: " << e.what();
+    }
+    return uhd::iq_dc_cal_coeffs_t{};
+}
+
+uhd::iq_dc_cal_coeffs_t uhd::usrp::get_wideband_rx_iq_dc_corrections(
+    const std::string& db_serial,
+    const double sample_rate,
+    const size_t chan,
+    const double rx_freq)
+{
+    std::lock_guard<std::mutex> l(wb_cal_cache_mutex);
+    try {
+        std::string file_prefix = "rx" + std::to_string(chan) + "_rate"
+                                  + std::to_string(static_cast<int>(sample_rate))
+                                  + "_iq_dc";
+        return get_wb_fe_corrections(db_serial, file_prefix, rx_freq);
+    } catch (const std::exception& e) {
+        UHD_LOGGER_ERROR("CAL")
+            << "Failure in get_wideband_rx_iq_dc_corrections: " << e.what();
+    }
+    return uhd::iq_dc_cal_coeffs_t{};
+}
+
+void uhd::usrp::cal::clear_fe_correction_cache()
+{
+    UHD_LOG_DEBUG("CAL", "Clearing all front-end correction caches.");
+    std::lock_guard<std::mutex> l(wb_cal_cache_mutex);
+    wb_cal_cache.clear();
+    std::lock_guard<std::mutex> l2(corrections_mutex);
+    fe_cal_cache.clear();
 }

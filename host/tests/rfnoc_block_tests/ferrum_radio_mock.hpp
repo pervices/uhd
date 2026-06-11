@@ -9,8 +9,9 @@
 #include "../../lib/usrp/x400/x400_radio_control.hpp"
 #include "x4xx_fbx_mpm_mock.hpp"
 #include <uhd/rfnoc/mock_block.hpp>
+#include <uhd/rfnoc/node_accessor.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhdlib/rfnoc/node_accessor.hpp>
+#include <chrono>
 #include <iostream>
 
 using namespace uhd;
@@ -18,9 +19,6 @@ using namespace uhd::rfnoc;
 using namespace std::chrono_literals;
 using namespace uhd::usrp::fbx;
 using namespace uhd::experts;
-
-// Redeclare this here, since it's only defined outside of UHD_API
-noc_block_base::make_args_t::~make_args_t() = default;
 
 namespace {
 /* This class extends mock_reg_iface_t by adding a constructor that initializes
@@ -55,6 +53,10 @@ public:
 
         // Setup the GPIO addresses
         read_memory[gpio_offset + 0x4] = 0;
+
+        // Disable the complex gain feature
+        read_memory[radio_control_impl::regmap::RADIO_BASE_ADDR
+                    + radio_control_impl::regmap::REG_FEATURES_PRESENT] = 0;
     }
 
     void _poke_cb(uint32_t addr, uint32_t data, uhd::time_spec_t, bool) override

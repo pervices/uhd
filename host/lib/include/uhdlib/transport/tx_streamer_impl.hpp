@@ -14,7 +14,9 @@
 #include <uhd/utils/tasks.hpp>
 #include <uhdlib/transport/tx_streamer_zero_copy.hpp>
 #include <algorithm>
+#include <atomic>
 #include <limits>
+#include <optional>
 #include <vector>
 
 namespace uhd { namespace transport {
@@ -109,11 +111,22 @@ public:
         , _out_buffs(num_chans)
         , _chans_connected(num_chans, false)
     {
+        if ((stream_args.args.cast<std::string>("transmit_policy", "default")
+                == "stop_on_seq_error")
+            && (num_chans > 1)) {
+            UHD_LOG_THROW(uhd::value_error,
+                "TX Streamer",
+                "STREAM_MODE_STOP_ON_SEQ_ERROR is not supported for multi-channel "
+                "streams.");
+        }
         _setup_converters(num_chans, stream_args);
         _zero_copy_streamer.set_bytes_per_item(_convert_info.bytes_per_otw_item);
 
         if (stream_args.args.has_key("spp")) {
             _spp = stream_args.args.cast<size_t>("spp", _spp);
+        }
+        if (stream_args.args.has_key("mtu")) {
+            _mtu_override = stream_args.args.cast<size_t>("mtu", _mtu);
         }
     }
 
@@ -128,9 +141,7 @@ public:
             _chans_connected.cend(),
             [](const bool connected) { return connected; });
 
-        if (mtu < _mtu) {
-            set_mtu(mtu);
-        }
+        set_mtu(_mtu_override.value_or(std::min(_mtu, mtu)));
     }
 
     size_t get_num_channels() const override
@@ -156,6 +167,24 @@ public:
         const uhd::tx_metadata_t& metadata_,
         const double timeout) override
     {
+        if (_sequence_error.load()) {
+            /* If there is a pending sequence error (implies we have enabled
+             * STREAM_MODE_STOP_ON_SEQ_ERROR), we try to reset the streamer
+             * by calling _send_str_init() several times. If the sequence error
+             * flag is still set after the attempts, we do not send any data.
+             * The FPGA will reject any data with sequence error until the
+             * init stream command is sent.
+             */
+            UHD_LOG_DEBUG(
+                "TX STRM", "Pending sequence error, try to reinitialize stream control.");
+            _send_str_init();
+            if (_sequence_error.load()) {
+                UHD_LOG_DEBUG(
+                    "TX STRM", "Sequence error still pending, not sending data.");
+                return 0;
+            }
+        }
+
         if (!_all_chans_connected) {
             throw uhd::runtime_error("[tx_stream] Attempting to call send() before all "
                                      "channels are connected!");
@@ -286,6 +315,12 @@ public:
                     }
 
                     metadata.start_of_burst = false;
+
+                    if (_sequence_error.load()) {
+                        UHD_LOG_DEBUG(
+                            "TX STRM", "Sequence error detected, stop sending data.");
+                        return total_nsamps_sent;
+                    }
                 }
 
                 // Send the final fragment
@@ -370,6 +405,9 @@ protected:
         _zero_copy_streamer.set_tick_rate(rate);
     }
 
+    //! Flag used to indicate that FPGA detected a sequence error.
+    std::atomic_bool _sequence_error = false;
+
 private:
     //! Converter and associated item sizes
     struct convert_info
@@ -378,6 +416,11 @@ private:
         size_t bytes_per_cpu_item;
         size_t otw_item_bit_width;
     };
+
+    void _send_str_init()
+    {
+        _zero_copy_streamer.resend_init();
+    }
 
     //! Convert samples for one channel and sends a packet
     size_t _send_one_packet(const uhd::tx_streamer::buffs_type& buffs,
@@ -463,8 +506,11 @@ private:
     // Sample rate used to calculate metadata time_spec_t
     double _samp_rate = 1.0;
 
-    // MTU, determined when xport is connected and modifiable by subclass
+    // MTU, determined when xport is connected or by an MTU override
     size_t _mtu = std::numeric_limits<std::size_t>::max();
+
+    //! Set this if the user provided an override value for the MTU
+    std::optional<size_t> _mtu_override{};
 
     // Size of CHDR header in bytes
     size_t _hdr_len = 0;

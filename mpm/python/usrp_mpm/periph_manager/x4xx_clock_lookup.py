@@ -7,6 +7,7 @@
 X4xx Clock parameter lookup tables
 These lookup tables are pre-calculated and fixed for the hardware X440 uses.
 """
+# fmt: off
 # The shape of this lookup table is
 # Converter_Rate: (PLL_Fin1, PLL_Fin2, ...)
 RFDC_PLL_CONFIGS = {
@@ -176,6 +177,7 @@ MCR_LMK_VCO = {
     1198080000.0: [3194880000.0,],
     1200000000.0: [3200000000.0,3000000000.0],
     1228800000.0: [2457600000.0,],
+    1250000000.0: [2500000000.0,],
     1280000000.0: [3200000000.0,3072000000.0],
     1290240000.0: [2949120000.0,],
     1310720000.0: [2949120000.0,2457600000.0],
@@ -482,3 +484,4 @@ MMCM_FILTERGROUP_LOOKUP = ( \
     0b1101_1000_11,
     0b1101_1000_11     # M=128
 )
+# fmt: on

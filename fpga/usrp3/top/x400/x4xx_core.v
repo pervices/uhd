@@ -337,6 +337,8 @@ module x4xx_core #(
   // RF Reset Control
   output wire                       start_nco_reset,
   input  wire                       nco_reset_done,
+  input  wire                       noc_reset_sync_failed,
+  output wire [7:0]                 sysref_wait_cycles,
   output wire [NUM_TIMEKEEPERS-1:0] adc_reset_pulse,
   output wire [NUM_TIMEKEEPERS-1:0] dac_reset_pulse,
 
@@ -430,6 +432,12 @@ module x4xx_core #(
 
   wire [95:0] device_dna;
 
+  // Front-Panel GPIO
+  wire [11:0]                     rfnoc_gpio0_out;
+  wire [11:0]                     rfnoc_gpio0_in;
+  wire [11:0]                     rfnoc_gpio1_out;
+  wire [11:0]                     rfnoc_gpio1_in;
+
   x4xx_core_common #(
     .CHDR_CLK_RATE   (CHDR_CLK_RATE),
     .CHDR_W          (CHDR_W),
@@ -482,10 +490,10 @@ module x4xx_core #(
     .gpio_out_b                       (gpio_out_b),
     .gpio_en_a                        (gpio_en_a),
     .gpio_en_b                        (gpio_en_b),
-    .gpio_in_fabric_a                 (),
-    .gpio_in_fabric_b                 (),
-    .gpio_out_fabric_a                (12'b0),
-    .gpio_out_fabric_b                (12'b0),
+    .gpio_in_fabric_a                 (rfnoc_gpio0_in),
+    .gpio_in_fabric_b                 (rfnoc_gpio1_in),
+    .gpio_out_fabric_a                (rfnoc_gpio0_out),
+    .gpio_out_fabric_b                (rfnoc_gpio1_out),
     .ps_gpio_out_a                    (ps_gpio_out_a),
     .ps_gpio_in_a                     (ps_gpio_in_a),
     .ps_gpio_ddr_a                    (ps_gpio_ddr_a),
@@ -518,6 +526,8 @@ module x4xx_core #(
     .m_rf_core_ctrlport_resp_data     (m_ctrlport_rf_core_resp_data),
     .start_nco_reset                  (start_nco_reset),
     .nco_reset_done                   (nco_reset_done),
+    .noc_reset_sync_failed            (noc_reset_sync_failed),
+    .sysref_wait_cycles               (sysref_wait_cycles),
     .adc_reset_pulse                  (adc_reset_pulse),
     .dac_reset_pulse                  (dac_reset_pulse),
     .tx_running                       (tx_running),
@@ -819,7 +829,7 @@ module x4xx_core #(
     .chdr_aclk                      (rfnoc_chdr_clk),
     .ctrl_aclk                      (rfnoc_ctrl_clk),
     .core_arst                      (areset),
-  `ifdef X440
+  `ifndef X410
     .radio0_clk                     (radio_clk[0]),
     .radio0_2x_clk                  (radio_clk_2x[0]),
     .radio1_clk                     (radio_clk[1]),
@@ -864,7 +874,7 @@ module x4xx_core #(
     .radio_tx_stb_radio0            ({       tx_stb0}),
     .radio_tx_data_radio0           ({      tx_data0}),
     .radio_tx_running_radio0        ({   tx_running0}),
-  `ifdef X440
+  `ifndef X410
     .radio_time0                    (radio_time[0*64+:64]),
     .radio_time1                    (radio_time[1*64+:64]),
     .pps0                           (pps_radioclk[0]     ),
@@ -1106,7 +1116,13 @@ module x4xx_core #(
     .m_dma_tdata                    (m_dma_tdata),
     .m_dma_tlast                    (m_dma_tlast),
     .m_dma_tvalid                   (m_dma_tvalid),
-    .m_dma_tready                   (m_dma_tready)
+    .m_dma_tready                   (m_dma_tready),
+    .gpio0_out                      (rfnoc_gpio0_out),
+    .gpio0_ddr                      (),
+    .gpio0_in                       (rfnoc_gpio0_in),
+    .gpio1_out                      (rfnoc_gpio1_out),
+    .gpio1_ddr                      (),
+    .gpio1_in                       (rfnoc_gpio1_in)
   );
 
 endmodule
