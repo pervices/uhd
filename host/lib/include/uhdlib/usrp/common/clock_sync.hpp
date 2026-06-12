@@ -105,9 +105,9 @@ private:
     alignas(CACHE_LINE_SIZE) volatile double time_diff = 0;
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
-    alignas(CACHE_LINE_SIZE) bool is_converged = false;
+    alignas(CACHE_LINE_SIZE) volatile bool is_converged = false;
     // Stores if a resync has been requested
-    alignas(CACHE_LINE_SIZE) bool resync_requested = true;
+    alignas(CACHE_LINE_SIZE) volatile bool resync_requested = true;
     // The difference between the device and host time in seconds
     // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
 
