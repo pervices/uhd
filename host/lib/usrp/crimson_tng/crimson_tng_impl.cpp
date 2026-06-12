@@ -263,6 +263,7 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
 void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
     _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
     request_resync_time_diff();
+    ::sleep(1);
 }
 
 // TODO: handle case where clock sync is incomplete/failed
