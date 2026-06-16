@@ -190,13 +190,6 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         then += UPDATE_PERIOD,
         host_control_time = uhd::get_system_time()
     ) {
-        if(self->is_resync_requested()) {
-            // Record that the resync request has been ackcknowledged (also sets it as desynced)
-            self->resync_acknowledge();
-            // Reset PID to clear old values
-            self->reset_time_diff_pid();
-        }
-
         dt = then - host_control_time;
         if ( dt > 0.0 ) {
             // Wait until its time for the next sync packet if its in the future
@@ -208,9 +201,21 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
             continue;
         }
 
-        // Skip this round if a previous one failed and clock sync is not needed
-        if(reply_failed && !self->clock_sync_desired) {
+        if(
+            // Skip this round if a previous one failed and clock sync is not needed
+            (reply_failed && !self->clock_sync_desired)
+            ||
+            // Skip this round if the time is currently being set since we are about to need to reset anyway
+            self->set_time_in_progress
+        ) {
             continue;
+        }
+
+        if(self->is_resync_requested()) {
+            // Record that the resync request has been ackcknowledged (also sets it as desynced)
+            self->resync_acknowledge();
+            // Reset PID to clear old values
+            self->reset_time_diff_pid();
         }
 
         double time_diff = self->time_diff_pidc.get_control_variable();
@@ -227,7 +232,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         // Send the predicted time
         self->time_diff_send( device_predicted_time );
 
-        // End of fenced area to prevent time reordering
+        // End of fenced area to prevent reordering
         _mm_mfence();
 
         // Get the predicted time minus the actual time

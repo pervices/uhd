@@ -261,8 +261,9 @@ void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
 }
 
 void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
+    set_time_initiated();
     _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
-    request_resync_time_diff();
+    set_time_finished();
 }
 
 // TODO: handle case where clock sync is incomplete/failed
@@ -1916,8 +1917,12 @@ double crimson_tng_impl::get_tx_rate(size_t chan) {
     return _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 }
 
-inline void crimson_tng_impl::request_resync_time_diff() {
-    device_clock_sync_info->request_resync();
+void crimson_tng_impl::set_time_initiated() {
+    device_clock_sync_info->set_time_initiated();
+}
+
+void crimson_tng_impl::set_time_finished() {
+    device_clock_sync_info->set_time_finished();
 }
 
 bool crimson_tng_impl::ping_check(std::string sfp, std::string ip) {

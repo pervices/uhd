@@ -285,8 +285,13 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
-    // Request to resync time diffs
-    virtual void request_resync_time_diff() {
+    // Tells clock sync that time is being set to avoid problematic readings while being set
+    virtual void set_time_initiated() {
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    // Tells clock sync that setting time is finished and it can resume
+    virtual void set_time_finished() {
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
