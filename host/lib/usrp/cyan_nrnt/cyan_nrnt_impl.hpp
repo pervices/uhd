@@ -253,7 +253,8 @@ private:
     double get_tx_rate(size_t chan) override;
 
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override;
-    void request_resync_time_diff();
+    void set_time_initiated() override;
+    void set_time_finished() override;
 
     // Checks if an ip address can be pinged
     // Return true if ping succeeded

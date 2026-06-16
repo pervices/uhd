@@ -77,6 +77,9 @@ private:
     // Stores if a resync has been requested
     volatile bool resync_requested = true;
 
+    // Stores if setting time is in progress
+    volatile bool set_time_in_progress = false;
+
     /*
      * Start of member vaiables that are not used by the critical thread
      * They must be on a separate cache line from variables used by the critical thread but otherwise don't matter
@@ -221,9 +224,21 @@ public:
     void wait_for_sync();
 
     /**
-     * Sets the flag to indicate that a resync has been requested
+     * Tells this that setting time has been initiated.
+     * It is used to indicate than any time values will be inaccurate
      */
-    inline void request_resync() {
+    inline void set_time_initiated() {
+        set_time_in_progress = true;
+        resync_requested = true;
+        _mm_sfence();
+    }
+
+    /**
+     * Tells this that setting time has been compelted.
+     * Clock sync can be resumed
+     */
+    inline void set_time_finished() {
+        set_time_in_progress = false;
         resync_requested = true;
         _mm_sfence();
     }
