@@ -53,13 +53,33 @@ struct time_diff_resp {
 class alignas(CACHE_LINE_SIZE) clock_sync
 {
 private:
-
+    // How many times per second clock sync is checked
     static constexpr double UPDATES_PER_SECOND = 100;
-    // TODO: make UPDATE_PERIOD a constexpr (will require changes to the class)
-    static inline uhd::time_spec_t UPDATE_PERIOD = uhd::time_spec_t(1.0/UPDATES_PER_SECOND);
+    static constexpr double UPDATE_PERIOD = 1.0 / UPDATES_PER_SECOND;
+
+    /**
+     * Start of variables that will frequently be accessed by the critical thread
+     * NOTE: they are at the start of the class so that variables not needed by the ciritcal thread act as padding to prevent false sharing from unrelated data
+     */
+
+    /**
+     * Diference between the host and device time in seconds
+     * This isn't actually used by the critical thread, but it's constant so it's fine to have it there
+     */
+    alignas(CACHE_LINE_SIZE) const double _tick_rate;
+
+    // Tick rate of time diff packets
+    volatile double time_diff = 0;
+
+    // Stores if the predicted time and actual time have convered (clock sync completed)
+    volatile bool is_converged = false;
+
+    // Stores if a resync has been requested
+    volatile bool resync_requested = true;
 
     /*
-     * Start of member vaiables that are not used by the critical thread, and therefore don't to be on separate cache lines
+     * Start of member vaiables that are not used by the critical thread
+     * They must be on a separate cache line from variables used by the critical thread but otherwise don't matter
      */
 
     // NOTE: at present the PID is only used in the sync thread. If will need to be aligned and padded to cache lines if it is changes so that the critical thread(s) access it directly
@@ -70,7 +90,7 @@ private:
      *     such that the error is forced to zero.
      *     => Crimson Time Now := Host Time Now + CV
      */
-    uhd::pidc time_diff_pidc;
+    alignas(CACHE_LINE_SIZE) uhd::pidc time_diff_pidc;
 
     // The socket used to send and receive time diffs
     transport::udp_simple::sptr sync_socket;
@@ -87,29 +107,6 @@ private:
      * Start of variables set during the constructor.
      * They must be a sparate cache line from other stuff for false sharing but can be on the same one as each other.
      */
-
-    // Tick rate of time diff packets
-    alignas(CACHE_LINE_SIZE) const double _tick_rate;
-
-    /**
-     * Start of variables that must be cache line aligned to prevent false sharing
-     */
-    // TODO: figure out if these variables need to be volatile
-
-    // Diference between the host and device time in seconds
-    /**
-     * TODO: change it so that time_diff is a function of current device time.
-     * Currently this only acounts for differences is clock rate when this variable is updated
-     * It does not account for the clock mismatch between updates
-     */
-    alignas(CACHE_LINE_SIZE) volatile double time_diff = 0;
-
-    // Stores if the predicted time and actual time have convered (clock sync completed)
-    alignas(CACHE_LINE_SIZE) bool is_converged = false;
-    // Stores if a resync has been requested
-    alignas(CACHE_LINE_SIZE) bool resync_requested = true;
-    // The difference between the device and host time in seconds
-    // Put it on it's own cache line to avoid false sharing since it will be updated for often than the previous variables
 
     /**
      * Create an instance of clock_sync.
