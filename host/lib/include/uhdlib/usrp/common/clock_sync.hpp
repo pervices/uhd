@@ -100,6 +100,9 @@ private:
 
     std::thread sync_thread;
 
+    // The seconds part of the last time the user attempted to set the time on the device
+    volatile int64_t last_time_set_seconds = INT64_MIN;
+
     // Tells the sync thread to exit
     volatile bool sync_thread_should_exit = false;
 
@@ -226,10 +229,15 @@ public:
     /**
      * Tells this that setting time has been initiated.
      * It is used to indicate than any time values will be inaccurate
+     * @param planned_time_s The time the caller plans on setting the time to in seconds
      */
-    inline void set_time_initiated() {
+    inline void set_time_initiated(int64_t planned_time_s) {
         set_time_in_progress = true;
         resync_requested = true;
+
+        // This could be set during set_time_finished, but it is set here to avoid additional fences to set it before clearing set_time_in_progress
+        last_time_set_seconds = planned_time_s;
+
         _mm_sfence();
     }
 

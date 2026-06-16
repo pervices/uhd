@@ -401,7 +401,7 @@ public:
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
-            this->get_device()->set_time_initiated();
+            this->get_device()->set_time_initiated(time_spec.get_full_secs());
             this->get_device()->set_time_now(time_spec, mboard);
             this->get_device()->set_time_finished();
             return;
@@ -414,7 +414,7 @@ public:
     void set_time_next_pps(const time_spec_t& time_spec, size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
-            this->get_device()->set_time_initiated();
+            this->get_device()->set_time_initiated(time_spec.get_full_secs());
             _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").set(time_spec);
             this->get_device()->set_time_finished();
             return;

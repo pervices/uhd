@@ -212,6 +212,22 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         }
 
         if(self->is_resync_requested()) {
+            uhd::time_spec_t zero_time(0.0);
+
+            self->time_diff_send( zero_time );
+
+            bool current_time_received =  self->time_diff_recv( tdr );
+
+            /**
+             * The seconds part of time on the FPGA updates on a 1 second clock regardless of what the tick count is.
+             * Therefore the time between last_time_set_seconds and last_time_set_seconds + 1 will be less than 1 second.
+             * To avoid the clock jump do not sync until after last_time_set_seconds + 1
+             */
+            if(-tdr.tv_sec < self->last_time_set_seconds + 1 || !current_time_received) {
+                continue;
+            }
+
+
             // Record that the resync request has been ackcknowledged (also sets it as desynced)
             self->resync_acknowledge();
             // Reset PID to clear old values
