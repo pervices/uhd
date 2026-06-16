@@ -47,9 +47,23 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return EXIT_SUCCESS;
     }
 
+    uint_fast32_t attempts = 0;
+
     // discover the usrps and print the results
     const uhd::device_addr_t args(vm["args"].as<std::string>());
-    uhd::device_addrs_t device_addrs = uhd::device::find(append_findall(args));
+    uhd::device_addrs_t device_addrs;
+
+    do {
+        attempts++;
+
+        device_addrs = uhd::device::find(append_findall(args));
+
+        // Devices have been found, exit search loop
+        if(!device_addrs.empty()) {
+            break;
+        }
+    } while(attempts <= 5);
+
     if (device_addrs.empty()) {
         std::cerr << "No UHD Devices Found" << std::endl;
         return EXIT_FAILURE;
