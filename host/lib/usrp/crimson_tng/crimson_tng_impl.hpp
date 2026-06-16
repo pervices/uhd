@@ -231,7 +231,7 @@ private:
     double get_tx_rate(size_t chan) override;
 
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override;
-    void set_time_initiated() override;
+    void set_time_initiated(int64_t planned_time_s) override;
     void set_time_finished() override;
 
     // Checks if an ip address can be pinged

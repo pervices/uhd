@@ -285,8 +285,12 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
-    // Tells clock sync that time is being set to avoid problematic readings while being set
-    virtual void set_time_initiated() {
+    /**
+     * Tells clock sync that time is being set to avoid problematic readings while being set
+     * @param planned_time_s The time we plan on setting the device to. This is used internally to avoid clock sync issues
+     */
+    virtual void set_time_initiated(int64_t planned_time_s) {
+        (void) planned_time_s;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 

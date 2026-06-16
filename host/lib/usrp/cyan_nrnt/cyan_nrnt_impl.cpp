@@ -271,7 +271,7 @@ void cyan_nrnt_impl::set_user_reg(const std::string key, user_reg_t value) {
 }
 
 void cyan_nrnt_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
-    set_time_initiated();
+    set_time_initiated(time_spec.get_full_secs());
     _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
     set_time_finished();
 }
@@ -1916,8 +1916,8 @@ double cyan_nrnt_impl::get_tx_rate(size_t chan) {
     return _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 }
 
-void cyan_nrnt_impl::set_time_initiated() {
-    device_clock_sync_info->set_time_initiated();
+void cyan_nrnt_impl::set_time_initiated(int64_t planned_time_s) {
+    device_clock_sync_info->set_time_initiated(planned_time_s);
 }
 
 void cyan_nrnt_impl::set_time_finished() {
