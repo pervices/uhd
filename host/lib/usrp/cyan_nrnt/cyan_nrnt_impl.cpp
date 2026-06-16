@@ -271,8 +271,9 @@ void cyan_nrnt_impl::set_user_reg(const std::string key, user_reg_t value) {
 }
 
 void cyan_nrnt_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
+    set_time_initiated();
     _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
-    request_resync_time_diff();
+    set_time_finished();
 }
 
 // TODO: handle case where clock sync is incomplete/failed
@@ -972,7 +973,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     // TODO: see if time/clk/cmd is used anywhere, and if not remove it
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     // This line will get time spec, the time diff port must be initialized first
-    // Call request_resync_time_diff anytime this is set
+    // Call set_time_initiated before setting time/clk/cur_time and set_time_finished after
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
@@ -1915,8 +1916,12 @@ double cyan_nrnt_impl::get_tx_rate(size_t chan) {
     return _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 }
 
-inline void cyan_nrnt_impl::request_resync_time_diff() {
-    device_clock_sync_info->request_resync();
+void cyan_nrnt_impl::set_time_initiated() {
+    device_clock_sync_info->set_time_initiated();
+}
+
+void cyan_nrnt_impl::set_time_finished() {
+    device_clock_sync_info->set_time_finished();
 }
 
 bool cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
