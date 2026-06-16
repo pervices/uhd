@@ -128,19 +128,39 @@ device::sptr device::make(const device_addr_t& hint, device_filter_t filter, siz
     typedef std::tuple<device_addr_t, make_t> dev_addr_make_t;
     std::vector<dev_addr_make_t> dev_addr_makers;
 
-    for (const dev_fcn_reg_t& fcn : get_dev_fcn_regs()) {
-        try {
-            if (filter == ANY or std::get<2>(fcn) == filter) {
-                for (device_addr_t dev_addr : std::get<0>(fcn)(hint)) {
-                    // append the discovered address and its factory function
-                    dev_addr_makers.push_back(
-                        dev_addr_make_t(dev_addr, std::get<1>(fcn)));
+    uint_fast32_t attempts = 0;
+    do {
+        attempts++;
+
+        for (const dev_fcn_reg_t& fcn : get_dev_fcn_regs()) {
+            try {
+                if (filter == ANY or std::get<2>(fcn) == filter) {
+                    for (device_addr_t dev_addr : std::get<0>(fcn)(hint)) {
+                        // append the discovered address and its factory function
+                        dev_addr_makers.push_back(
+                            dev_addr_make_t(dev_addr, std::get<1>(fcn)));
+                    }
                 }
+            } catch (const std::exception& e) {
+                UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what();
             }
-        } catch (const std::exception& e) {
-            UHD_LOGGER_ERROR("UHD") << "Device discovery error: " << e.what();
         }
-    }
+
+        // Retry if we didn't find any devices
+        if (dev_addr_makers.empty()) {
+            continue;
+        }
+
+        // Retry if the the requested index is invalid
+        else if (dev_addr_makers.size() <= which) {
+            continue;
+        }
+
+        // The device was found, exit search loop
+        else {
+            break;
+        }
+    } while (attempts <= 5);
 
     // check that we found any devices
     if (dev_addr_makers.empty()) {
@@ -151,7 +171,7 @@ device::sptr device::make(const device_addr_t& hint, device_filter_t filter, siz
     // check that the which index is valid
     if (dev_addr_makers.size() <= which) {
         throw uhd::index_error("No device at index " + std::to_string(which)
-                               + " for ----->\n" + hint.to_pp_string());
+        + " for ----->\n" + hint.to_pp_string());
     }
 
     // create a unique hash for the device address
