@@ -79,7 +79,7 @@ pv_iface::~pv_iface() {
 // else it will mess up the protocol with the sequencing and will contian no error checks.
 void pv_iface::poke_str(std::string data) {
     // populate the command string with sequence number
-    data = data.insert(0, (boost::lexical_cast<std::string>(seq++) + ","));
+    data = data.insert(0, (std::to_string(seq++) + ","));
 
     // Send data using UDP if the TCP connection in uninitilized
     if(tcp_connection == nullptr) [[unlikely]] {
@@ -196,38 +196,40 @@ void pv_iface::set_string(const std::string pre, std::string data) {
 
 // wrapper for type <double> through the ASCII Crimson interface
 double pv_iface::get_double(std::string req) {
-    try { return boost::lexical_cast<double>( get_string(req) );
-    } catch(boost::bad_lexical_cast &e) {
+    try { return std::stod( get_string(req) );
+    } catch(std::exception &e) {
         UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get double property: " << e.what();
     }
     return 0;
 }
 void pv_iface::set_double(const std::string pre, double data){
-    set_string(pre, boost::lexical_cast<std::string>(data));
+    set_string(pre, std::to_string(data));
 }
 
 // wrapper for type <bool> through the ASCII Crimson interface
 bool pv_iface::get_bool(std::string req) {
-    try { return boost::lexical_cast<bool>( get_string(req) );
-    } catch(boost::bad_lexical_cast &e) {
+    try {
+        int x = std::stoi(req);
+        return x != 0;
+    } catch(std::exception &e) {
         UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get bool property: " << e.what();
     }
     return 0;
 }
 void pv_iface::set_bool(const std::string pre, bool data){
-    set_string(pre, boost::lexical_cast<std::string>(data));
+    set_string(pre, std::to_string(data));
 }
 
 // wrapper for type <int> through the ASCII Crimson interface
 int pv_iface::get_int(std::string req) {
-	try { return boost::lexical_cast<int>( get_string(req) );
-    } catch(boost::bad_lexical_cast &e) {
+	try { return std::stoi( get_string(req) );
+    } catch(std::exception &e) {
         UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "Failed to get int property: " << e.what();
     }
     return 0;
 }
 void pv_iface::set_int(const std::string pre, int data){
-    set_string(pre, boost::lexical_cast<std::string>(data));
+    set_string(pre, std::to_string(data));
 }
 
 // wrapper for type <mboard_eeprom_t> through the ASCII Crimson interface
