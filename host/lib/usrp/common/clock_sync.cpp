@@ -91,7 +91,8 @@ bool clock_sync::time_diff_recv(time_diff_resp & reply) {
 void clock_sync::reset_time_diff_pid() {
     _mm_mfence();
 
-    uhd::time_spec_t reset_now = uhd::get_system_time();
+    uhd::time_spec_t reset_now(0.0);
+    uhd::time_spec_t reset_offset = uhd::get_system_time();
 
     struct time_diff_resp reset_tdr;
 
@@ -101,7 +102,7 @@ void clock_sync::reset_time_diff_pid() {
 
     time_diff_recv( reset_tdr );
 
-    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick /  _tick_rate);
+    double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick /  _tick_rate) + reset_offset.get_real_secs();
 
     time_diff_pidc.reset(reset_now, new_offset);
 
