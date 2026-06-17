@@ -1,3 +1,11 @@
+uhdpv (4.8.0.34-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixed io_uring error for high channel count devices
+  * Improve clock sync reliability
+  * Improve finding devices reliability
+
+ -- Per Vices <packages@pervices.com>  Wed, 17 Jun 2026 15:32:39 -0400
+
 uhdpv (4.8.0.33-0ubuntu1) ubuntu_release; urgency=medium
 
   * Fixed recovering when using io_uring for recv
