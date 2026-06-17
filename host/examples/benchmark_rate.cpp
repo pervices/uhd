@@ -501,6 +501,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             "USRP contains a number of samples that is a multiple of the specified value."
             "\nThis enforces optimal alignment for the device's internal data path (CHDR width and radio samples per "
             "cycle), which can improve streaming efficiency."
+            "\nAdvanced option; most users can leave this unset.")
         ("rx_otw", po::value<std::string>(&rx_otw)->default_value("sc16"), "Specifies the over-the-wire (OTW) "
             "data format used for transmission between the USRP device and the host. Common values are \"sc16\" (16-bit "
             "signed complex) and \"sc8\" (8-bit signed complex). Using \"sc8\" can reduce network bandwidth at the cost "
