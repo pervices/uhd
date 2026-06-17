@@ -94,7 +94,6 @@ INCLUDE_SUBDIRECTORY(ic_reg_maps)
 INCLUDE_SUBDIRECTORY(types)
 INCLUDE_SUBDIRECTORY(convert)
 INCLUDE_SUBDIRECTORY(rfnoc)
-
 INCLUDE_SUBDIRECTORY(usrp)
 INCLUDE_SUBDIRECTORY(usrp_clock)
 INCLUDE_SUBDIRECTORY(utils)
@@ -125,9 +124,7 @@ configure_file(
 ########################################################################
 LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_BINARY_DIR}/build_info.cpp
-
     ${CMAKE_CURRENT_SOURCE_DIR}/device.cpp
-
     ${CMAKE_CURRENT_SOURCE_DIR}/image_loader.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/stream.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/exception.cpp
@@ -236,7 +233,7 @@ if(ENABLE_LIBURING)
     # Flag that gets passed to source and header files so they can know if ENABLE_LIBUHD is set
     add_definitions(-DHAVE_LIBURING)
     # Adds linking to liburing
-    target_link_libraries(uhd uring)
+    target_link_libraries(uhd PRIVATE uring)
 endif()
 if(APPLE)
     target_link_options(uhd PRIVATE "LINKER:-undefined,dynamic_lookup")
@@ -310,7 +307,6 @@ function(UHD_ADD_STATIC_LIB)
         Boost::date_time
         Boost::filesystem
         Boost::serialization
-        Boost::system
         Boost::thread
         ${libuhd_boost_msvc_libs}
     )
