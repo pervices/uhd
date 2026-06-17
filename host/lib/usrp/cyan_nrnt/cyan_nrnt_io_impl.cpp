@@ -726,7 +726,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         const size_t chan = args.channels[chan_i];
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+        std::string num     = std::string(1, (char)(chan + 'A'));
         const fs_path rx_path   = CYAN_NRNT_MB_PATH / "rx";
         const fs_path rx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "rx_frontends" / ch;
         const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / chan;
@@ -774,7 +774,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
         const size_t chan = args.channels[chan_i];
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+        std::string num     = std::string(1, (char)(chan + 'A'));
         const fs_path rx_path   = CYAN_NRNT_MB_PATH / "rx";
         const fs_path rx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "rx_frontends" / ch;
         const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / chan;
