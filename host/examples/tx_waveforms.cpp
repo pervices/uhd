@@ -82,7 +82,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     "                   --rate 10e6 --channels \"0,1,2,3\" --wave-type SINE\n"
     "                   --wave-freq 1e6 --pps mimo\n";
     // variables to be set by po
-    std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list;
+    std::string args, wave_type, ant, subdev, ref, pps, otw, channel_list, ampl_calibration;
     uint64_t total_num_samps;
     size_t spb;
     double rate, freq, gain, power, wave_freq, bw, lo_offset;
@@ -150,6 +150,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         "\nComb spacing for COMB waves. Ignored in CONST waves."
         "\nThis option is required for waveform types SQUARE, RAMP, SINE, SINE_NO_Q, and COMB.")
     ("wave-ampl,ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
+    ("ampl-calibration", po::value<std::string>(&ampl_calibration)->default_value(""),
+        "Optional config file to improve linearity with comb waves.\n"
+        "Format: A list of decimal numbers which is a fraction between 0 and the edge of the band, "
+        "followed by another line with a list of values to multiply the amplitude at the location specified by the list of fractions. "
+        "The multipliers are applied at + and - the specified locations.\n "
+        "Example to multiply the amplitude by 1 at the center, 5 at halfway from the center to the edge of the band and 10 at the edge of the band:\n# Example file\n0, 0.5, 1\n1, 5, 10\n"
+        "See tx_waveforms_example_calibration.txt for an example")
     ("ref", po::value<std::string>(&ref), "Sets the source for the frequency reference. Available values "
         "depend on the USRP model. Typical values are 'internal', 'external', 'mimo', and 'gpsdo'.")
     ("pps", po::value<std::string>(&pps), "Specifies the PPS source for time synchronization. Available "
