@@ -584,7 +584,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
         //because we will never commit more than the SRAM can hold.
-        device_addr["send_buff_size"] = boost::lexical_cast<std::string>( (size_t) (CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CRIMSON_TNG_MAX_MTU-CRIMSON_TNG_UDP_OVERHEAD))) );
+        device_addr["send_buff_size"] = std::to_string( (size_t) (CRIMSON_TNG_BUFF_SIZE * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CRIMSON_TNG_MAX_MTU-CRIMSON_TNG_UDP_OVERHEAD))) );
     }
 
     device_addrs_t device_args = separate_device_addr(device_addr);
@@ -675,7 +675,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     tx_channel_lock_fd.resize(num_tx_channels);
     tx_streaming_lock_fd.resize(num_tx_channels);
     for (size_t n = 0; n < num_tx_channels; n++) {
-        std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
+        std::string channel_name  = std::string(1, (char)(n + 'a'));
         try {
             // Get tx board serial number to use a lockfile name unique to the channel so it does not interfere with other devices.
             std::string tx_serial = _mbc.iface->get_string("tx/" + channel_name + "/about/serial");
@@ -716,7 +716,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     rx_channel_lock_fd.resize(num_rx_channels);
     rx_streaming_lock_fd.resize(num_rx_channels);
     for (size_t n = 0; n < num_rx_channels; n++) {
-        std::string channel_name  = boost::lexical_cast<std::string>((char)(n + 'a'));
+        std::string channel_name  = std::string(1, (char)(n + 'a'));
         try {
             // Get rx board serial number to use a lockfile name unique to the channel so it does not interfere with other devices.
             std::string rx_serial = _mbc.iface->get_string("rx/" + channel_name + "/about/serial");
@@ -998,8 +998,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // loop for all RX chains
     for( size_t dspno = 0; dspno < num_rx_channels; dspno++ ) {
-        std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-        std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+        std::string lc_num  = std::string(1, (char)(dspno + 'a'));
+        std::string num     = std::string(1, (char)(dspno + 'A'));
         std::string chan    = "Channel_" + num;
 
         const fs_path rx_codec_path = CRIMSON_TNG_MB_PATH / "rx_codecs" / num;
@@ -1124,8 +1124,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     // loop for all TX chains
     for( size_t dspno = 0; dspno < num_tx_channels; dspno++ ) {
-        std::string lc_num  = boost::lexical_cast<std::string>((char)(dspno + 'a'));
-        std::string num     = boost::lexical_cast<std::string>((char)(dspno + 'A'));
+        std::string lc_num  = std::string(1, (char)(dspno + 'a'));
+        std::string num     = std::string(1, (char)(dspno + 'A'));
         std::string chan    = "Channel_" + num;
 
         const fs_path tx_codec_path = CRIMSON_TNG_MB_PATH / "tx_codecs" / num;

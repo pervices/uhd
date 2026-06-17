@@ -761,7 +761,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         const size_t chan = args.channels[chan_i];
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+        std::string num     = std::string(1, (char)(chan + 'A'));
         const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
         const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
         const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
@@ -809,7 +809,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         const size_t chan = args.channels[chan_i];
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        std::string num     = boost::lexical_cast<std::string>((char)(chan + 'A'));
+        std::string num     = std::string(1, (char)(chan + 'A'));
         const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
         const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
         const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
