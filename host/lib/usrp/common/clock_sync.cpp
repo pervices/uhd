@@ -122,23 +122,36 @@ void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_
     bool time_diff_converged = time_diff_pidc.is_converged( now, &reset_advised );
 
     // We only update is_converged when it changes to avoid unnecessarily invalidating it and requiring the other core to fetch the new identical value
-    // Record that convergance was gained
-    if(time_diff_converged && !is_converged) [[unlikely]] {
-        is_converged = true;
-    // Record that convergance was lost
-    } else if(!time_diff_converged && is_converged) [[unlikely]] {
+    // Record that convergance was lost ASAP after it is lost
+    /**
+     * TODO: handle the case where clock sync is lost between when someone calls wait_for_sync and get_device_time
+     * Currently we rely on clock sync only being lost when time is adjusted
+     */
+    if(!time_diff_converged && is_converged) [[unlikely]] {
         is_converged = false;
     }
-    // Fence to ensure is_converged was updated
-    _mm_sfence();
 
-    if(reset_advised) {
-        reset_time_diff_pid();
-    }
+    _mm_sfence();
 
     // For SoB, record the instantaneous time difference + compensation
     if (time_diff_converged ) {
         set_time_diff( cv );
+    }
+
+    // We only update is_converged when it changes to avoid unnecessarily invalidating it and requiring the other core to fetch the new identical value
+    // Record that convergance was gained
+    if(time_diff_converged && !is_converged) [[unlikely]] {
+        // Ensure time diff is updated before setting convergance to true
+        _mm_sfence();
+
+        is_converged = true;
+    }
+
+    // Ensure is_converged gets updated quickly
+    _mm_sfence();
+
+    if(reset_advised) {
+        reset_time_diff_pid();
     }
 }
 
