@@ -7,7 +7,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhdlib/transport/adapter.hpp>
 #include <uhdlib/transport/udp_boost_asio_link.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 using namespace uhd::transport;
 
@@ -44,8 +44,8 @@ udp_boost_asio_link::udp_boost_asio_link(
     auto& ctx   = adapter_ctx::get();
     _adapter_id = ctx.register_adapter(info);
 
-    UHD_LOGGER_TRACE("UDP") << boost::format("Created UDP link to %s:%s") % addr % port;
-    UHD_LOGGER_TRACE("UDP") << boost::format("Local UDP socket endpoint: %s:%s")
+    UHD_LOGGER_TRACE("UDP") << std::format("Created UDP link to %s:%s") % addr % port;
+    UHD_LOGGER_TRACE("UDP") << std::format("Local UDP socket endpoint: %s:%s")
                                    % get_local_addr() % get_local_port();
 }
 

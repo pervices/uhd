@@ -119,13 +119,13 @@ mboard_eeprom_t b200_impl::get_mb_eeprom(uhd::i2c_iface::sptr iface)
     if (rev > 0) {
         if (mb_eeprom["magic"] != EXPECTED_MAGIC) {
             throw uhd::runtime_error(
-                str(boost::format("EEPROM magic value mismatch. Device returns %s, but "
+                str(std::format("EEPROM magic value mismatch. Device returns %s, but "
                                   "should have been %s.")
                     % mb_eeprom["magic"] % EXPECTED_MAGIC));
         }
         if (mb_eeprom["eeprom_compat"] != EXPECTED_COMPAT) {
             throw uhd::runtime_error(
-                str(boost::format("EEPROM compat value mismatch. Device returns %s, but "
+                str(std::format("EEPROM compat value mismatch. Device returns %s, but "
                                   "should have been %s.")
                     % mb_eeprom["eeprom_compat"] % EXPECTED_COMPAT));
         }

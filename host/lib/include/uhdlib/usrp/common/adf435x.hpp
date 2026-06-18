@@ -500,15 +500,15 @@ public:
         _regs.ldf = int_n_mode ? adf435x_regs_t::LDF_INT_N : adf435x_regs_t::LDF_FRAC_N;
 
         // clang-format off
-        UHD_LOG_TRACE("ADF435X", boost::format(
+        UHD_LOG_TRACE("ADF435X", std::format(
             "ADF 435X Frequencies (MHz): REQUESTED=%0.9f, ACTUAL=%0.9f")
             % (target_freq / 1e6) % (actual_freq / 1e6));
-        UHD_LOG_TRACE("ADF435X", boost::format(
+        UHD_LOG_TRACE("ADF435X", std::format(
             "ADF 435X Intermediates (MHz): Feedback=%0.2f, VCO=%0.2f, PFD=%0.2f, BAND=%0.2f, REF=%0.2f")
             % (feedback_freq / 1e6) % (vco_freq / 1e6) % (pfd_freq / 1e6) % (pfd_freq / BS / 1e6) % (_reference_freq / 1e6));
         UHD_LOG_TRACE("ADF435X",
             "ADF 435X Tuning: " << ((int_n_mode) ? "Integer-N" : "Fractional"));
-        UHD_LOG_TRACE("ADF435X", boost::format(
+        UHD_LOG_TRACE("ADF435X", std::format(
             "ADF 435X Settings: R=%d, BS=%d, N=%d, FRAC=%d, MOD=%d, T=%d, D=%d, RFdiv=%d")
             % R % BS % N % FRAC % MOD % T % D % RFdiv);
         // clang-format on

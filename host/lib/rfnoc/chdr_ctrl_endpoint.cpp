@@ -11,7 +11,7 @@
 #include <uhd/utils/thread.hpp>
 #include <uhdlib/rfnoc/chdr_ctrl_endpoint.hpp>
 #include <uhdlib/rfnoc/chdr_packet_writer.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/thread.hpp>
 #include <atomic>
 #include <mutex>
@@ -38,10 +38,10 @@ public:
         , _stop_recv_thread(false)
         , _recv_thread([this]() { recv_worker(); })
     {
-        const std::string thread_name(str(boost::format("uhd_ctrl_ep%04x") % _my_epid));
+        const std::string thread_name(str(std::format("uhd_ctrl_ep%04x") % _my_epid));
         uhd::set_thread_name(&_recv_thread, thread_name);
         UHD_LOG_DEBUG("RFNOC",
-            boost::format(
+            std::format(
                 "Started thread %s to process messages control messages on EPID %d")
                 % thread_name % _my_epid);
     }
@@ -106,7 +106,7 @@ public:
                 timebase_clk);
             _endpoint_map.insert(std::make_pair(key, ctrlport_ep));
             UHD_LOG_DEBUG("RFNOC",
-                boost::format("Created ctrlport endpoint for port %d on EPID %d")
+                std::format("Created ctrlport endpoint for port %d on EPID %d")
                     % dst_port % _my_epid);
             return ctrlport_ep;
         } else {

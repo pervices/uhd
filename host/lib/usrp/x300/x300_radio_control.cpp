@@ -74,7 +74,7 @@ size_t _get_chan_from_map(std::unordered_map<size_t, map_type> map, const std::s
         }
     }
     throw uhd::lookup_error(
-        str(boost::format("Invalid daughterboard frontend name: %s") % fe));
+        str(std::format("Invalid daughterboard frontend name: %s") % fe));
 }
 
 constexpr double DEFAULT_RATE  = 200e6;
@@ -267,7 +267,7 @@ public:
         if (_basic_lf_tx) {
             if (not uhd::usrp::dboard::basic_and_lf::antenna_mode_to_conn.has_key(ant)) {
                 throw uhd::lookup_error(
-                    str(boost::format("Invalid antenna mode: %s") % ant));
+                    str(std::format("Invalid antenna mode: %s") % ant));
             }
             const std::string connection =
                 uhd::usrp::dboard::basic_and_lf::antenna_mode_to_conn[ant];
@@ -299,7 +299,7 @@ public:
         if (_basic_lf_rx) {
             if (not uhd::usrp::dboard::basic_and_lf::antenna_mode_to_conn.has_key(ant)) {
                 throw uhd::lookup_error(
-                    str(boost::format("Invalid antenna mode: %s") % ant));
+                    str(std::format("Invalid antenna mode: %s") % ant));
             }
             const std::string connection =
                 uhd::usrp::dboard::basic_and_lf::antenna_mode_to_conn[ant];
@@ -1232,7 +1232,7 @@ public:
 
         if ((i_status != "Good") or (q_status != "Good")) {
             throw uhd::runtime_error(
-                (boost::format("ADC self-test failed for %s. Ramp checker status: "
+                (std::format("ADC self-test failed for %s. Ramp checker status: "
                                "{ADC_A=%s, ADC_B=%s}")
                     % get_unique_id() % i_status % q_status)
                     .str());
@@ -1386,7 +1386,7 @@ private:
                         }
                     }
                 }
-                // UHD_LOGGER_INFO("X300 RADIO") << (boost::format("CapTap=%d, Error=%d")
+                // UHD_LOGGER_INFO("X300 RADIO") << (std::format("CapTap=%d, Error=%d")
                 // % dly_tap % err_code);
             }
 
@@ -1423,7 +1423,7 @@ private:
 
         double tap_delay = (1.0e12 / 200e6) / (2 * 32); // in ps
         RFNOC_LOG_DEBUG(
-            boost::format("ADC capture delay self-cal done (Tap=%d, Window=%d, "
+            std::format("ADC capture delay self-cal done (Tap=%d, Window=%d, "
                           "TapDelay=%.3fps, Iter=%d)")
             % ideal_tap % (win_stop - win_start) % tap_delay % iter);
     }
@@ -1439,7 +1439,7 @@ private:
         // in FPGA
         const uint32_t adc_rb = get_adc_rx_word() ^ 0xfffc0000;
         if (val != adc_rb) {
-            RFNOC_LOG_ERROR(boost::format("ADC self-test failed! (Exp=0x%x, Got=0x%x)")
+            RFNOC_LOG_ERROR(std::format("ADC self-test failed! (Exp=0x%x, Got=0x%x)")
                             % val % adc_rb);
             throw uhd::runtime_error("ADC self-test failed!");
         }

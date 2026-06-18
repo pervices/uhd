@@ -19,7 +19,7 @@
 #include <uhd/utils/tasks.hpp>
 #include <uhdlib/asio.hpp> //used for htonl and ntohl
 #include <uhdlib/utils/paths.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/functional/hash.hpp>
 #include <boost/tokenizer.hpp>
 #include <algorithm>
@@ -305,14 +305,14 @@ public:
             uint32_t compat = ntohl(ctrl_data_in->proto_ver);
             if (len >= sizeof(uint32_t) and (hi < compat or lo > compat)) {
                 throw uhd::runtime_error(str(
-                    boost::format(
+                    std::format(
                         "\nPlease update the firmware and FPGA images for your device.\n"
                         "See the application notes for USRP2/N-Series for instructions.\n"
                         "Expected protocol compatibility number %s, but got %d:\n"
                         "The firmware build is not compatible with the host code build.\n"
                         "%s\n")
-                    % ((lo == hi) ? (boost::format("%d") % hi)
-                                  : (boost::format("[%d to %d]") % lo % hi))
+                    % ((lo == hi) ? (std::format("%d") % hi)
+                                  : (std::format("[%d to %d]") % lo % hi))
                     % compat % this->images_warn_help_message()));
             }
             if (len >= sizeof(usrp2_ctrl_data_t)
@@ -374,7 +374,7 @@ public:
     {
         uint32_t minor =
             this->get_reg<uint32_t, USRP2_REG_ACTION_FW_PEEK32>(U2_FW_REG_VER_MINOR);
-        return str(boost::format("%u.%u") % _protocol_compat % minor);
+        return str(std::format("%u.%u") % _protocol_compat % minor);
     }
 
     std::string images_warn_help_message(void) override
@@ -425,7 +425,7 @@ public:
             fw_image_path   = uhd::find_image_path(fw_image);
             fpga_image_path = uhd::find_image_path(fpga_image);
         } catch (const std::exception&) {
-            return str(boost::format("Could not find %s and %s in your images path!\n%s")
+            return str(std::format("Could not find %s and %s in your images path!\n%s")
                        % fw_image % fpga_image
                        % print_utility_error("uhd_images_downloader.py"));
         }
@@ -441,9 +441,9 @@ public:
         if (this->get_rev() == USRP2_REV3 or this->get_rev() == USRP2_REV4) {
             const std::string card_burner = uhd::find_utility("usrp2_card_burner_gui.py");
             const std::string card_burner_cmd =
-                str(boost::format(" %s\"%s\" %s--fpga=\"%s\" %s--fw=\"%s\"") % sudo
+                str(std::format(" %s\"%s\" %s--fpga=\"%s\" %s--fw=\"%s\"") % sudo
                     % card_burner % ml % fpga_image_path % ml % fw_image_path);
-            return str(boost::format("%s\n%s")
+            return str(std::format("%s\n%s")
                        % print_utility_error("uhd_images_downloader.py")
                        % card_burner_cmd);
         } else {
@@ -451,9 +451,9 @@ public:
             const std::string image_loader_path =
                 uhd::find_uhd_command("uhd_image_loader");
             const std::string image_loader_cmd =
-                str(boost::format(" \"%s\" %s--args=\"type=usrp2,addr=%s\"")
+                str(std::format(" \"%s\" %s--args=\"type=usrp2,addr=%s\"")
                     % image_loader_path % ml % addr);
-            return str(boost::format("%s\n%s")
+            return str(std::format("%s\n%s")
                        % print_utility_error("uhd_images_downloader.py")
                        % image_loader_cmd);
         }

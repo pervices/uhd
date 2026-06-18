@@ -23,7 +23,7 @@
 #include <uhdlib/usrp/gpio_defs.hpp>
 #include <uhdlib/usrp/multi_usrp_utils.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <bitset>
 #include <chrono>
@@ -65,7 +65,7 @@ UHD_INLINE std::string string_vector_to_string(
 
 #define THROW_GAIN_NAME_ERROR(name, chan, dir)                                   \
     throw uhd::exception::runtime_error(                                         \
-        (boost::format(                                                          \
+        (std::format(                                                          \
              "%s: gain \"%s\" not found for channel %d.\nAvailable gains: %s\n") \
             % UHD_FUNCTION % name % chan                                         \
             % string_vector_to_string(get_##dir##_gain_names(chan)))             \
@@ -87,7 +87,7 @@ static void freq_error_check(
     // The different between the actual and is extreme, through an error
     // Technically this is different behaviour than upstream, but if someone encounters this they are doing something wrong
     if(diff > error_threshold) {
-        std::string message = str(boost::format(
+        std::string message = str(std::format(
                    "Extreme difference between target and actual when setting %s center frequency:\n"
                    "Target center frequency: %f MHz\n"
                    "Actual center frequency: %f MHz\n")
@@ -97,7 +97,7 @@ static void freq_error_check(
 
     } else if (diff > warn_threshold) {
         UHD_LOGGER_WARNING("MULTI_USRP")
-            << boost::format(
+            << std::format(
                    "Error while attempting to set the requested %s center frequency:\n"
                    "Target center frequency: %f MHz\n"
                    "Actual center frequency: %f MHz\n")
@@ -336,12 +336,12 @@ public:
 
     std::string get_pp_string(void) override
     {
-        std::string buff = str(boost::format("%s USRP:\n"
+        std::string buff = str(std::format("%s USRP:\n"
                                              "  Device: %s\n")
                                % ((get_num_mboards() > 1) ? "Multi" : "Single")
                                % (_tree->access<std::string>("/name").get()));
         for (size_t m = 0; m < get_num_mboards(); m++) {
-            buff += str(boost::format("  Mboard %d: %s\n") % m
+            buff += str(std::format("  Mboard %d: %s\n") % m
                         % (_tree->access<std::string>(mb_root(m) / "name").get()));
         }
 
@@ -349,7 +349,7 @@ public:
         for (size_t m = 0, chan = 0; m < get_num_mboards(); m++) {
             for (; chan < (m + 1) * get_rx_subdev_spec(m).size(); chan++) {
                 buff += str(
-                    boost::format("  RX Channel: %u\n"
+                    std::format("  RX Channel: %u\n"
                                   "    RX DSP: %s\n"
                                   "    RX Dboard: %s\n"
                                   "    RX Subdev: %s\n")
@@ -363,7 +363,7 @@ public:
         for (size_t m = 0, chan = 0; m < get_num_mboards(); m++) {
             for (; chan < (m + 1) * get_tx_subdev_spec(m).size(); chan++) {
                 buff += str(
-                    boost::format("  TX Channel: %u\n"
+                    std::format("  TX Channel: %u\n"
                                   "    TX DSP: %s\n"
                                   "    TX Dboard: %s\n"
                                   "    TX Subdev: %s\n")
@@ -461,7 +461,7 @@ public:
                 or (time_i - time_0)
                        > time_spec_t(0.01)) { // 10 ms: greater than time to issue the get time request but not too big
                 UHD_LOGGER_WARNING("MULTI_USRP")
-                    << boost::format(
+                    << std::format(
                            "Detected time deviation between board %d and board 0.\n"
                            "Board 0 time is %f seconds.\n"
                            "Board %d time is %f seconds.\n")
@@ -585,7 +585,7 @@ public:
             if(result == "Error Unlocked PLL with External Reference") {
                 UHD_LOGGER_ERROR("MULTI_USRP")  << "PLL unlocked while using external reference. Verify if the external reference is connected";
             } else if(result.substr(0, source.size()) != source) {
-                UHD_LOGGER_ERROR("MULTI_USRP")  <<boost::format( "Unable to set clock source. The program attempted to set it to %s but it returned: %s") % source % result ;
+                UHD_LOGGER_ERROR("MULTI_USRP")  <<std::format( "Unable to set clock source. The program attempted to set it to %s but it returned: %s") % source % result ;
             }
             return;
         }
@@ -844,7 +844,7 @@ public:
                     .set(spec);
             } catch (const std::exception& e) {
                 throw uhd::index_error(
-                    str(boost::format("multi_usrp::get_rx_subdev_spec(%u) failed to make "
+                    str(std::format("multi_usrp::get_rx_subdev_spec(%u) failed to make "
                                       "default spec - %s")
                         % mboard % e.what()));
             }
@@ -2325,7 +2325,7 @@ public:
         if(last_trigger_dir_set_by == tx) {
             if(previous_trigger_dir != trigger_dir) {
                 UHD_LOGGER_WARNING("MULTI_USRP")
-                    << boost::format(
+                    << std::format(
                         "Warning trigger direction was set to a a different value when configuring tx. RX and TX use the same trigger port. The value from tx is being overwritten Previously set to %s, changing it to % while setting up tx trigger\n")
                         % previous_trigger_dir % trigger_dir;
             }
@@ -2508,7 +2508,7 @@ public:
                 return;
             } else {
                 throw uhd::runtime_error(str(
-                    boost::format("The hardware has no gpio attribute: `%s':\n") % attr));
+                    std::format("The hardware has no gpio attribute: `%s':\n") % attr));
             }
         }
         if (bank.size() > 2 and bank[1] == 'X') {
@@ -2545,7 +2545,7 @@ public:
             return;
         }
         throw uhd::runtime_error(
-            str(boost::format("The hardware has no GPIO bank `%s'") % bank));
+            str(std::format("The hardware has no GPIO bank `%s'") % bank));
     }
 
     uint32_t get_gpio_attr(
@@ -2583,7 +2583,7 @@ public:
                 return 0;
             } else {
                 throw uhd::runtime_error(str(
-                    boost::format("The hardware has no gpio attribute: `%s'") % attr));
+                    std::format("The hardware has no gpio attribute: `%s'") % attr));
             }
         }
         if (bank.size() > 2 and bank[1] == 'X') {
@@ -2612,7 +2612,7 @@ public:
                 return iface->read_gpio(unit);
         }
         throw uhd::runtime_error(
-            str(boost::format("The hardware has no gpio bank `%s'") % bank));
+            str(std::format("The hardware has no gpio bank `%s'") % bank));
     }
 
     // The next four methods are only for RFNoC devices
@@ -2687,7 +2687,7 @@ private:
         }
         if (mcp.mboard >= get_num_mboards()) {
             throw uhd::index_error(str(
-                boost::format(
+                std::format(
                     "multi_usrp: RX channel %u out of range for configured RX frontends")
                 % chan));
         }
@@ -2712,7 +2712,7 @@ private:
         }
         if (mcp.mboard >= get_num_mboards()) {
             throw uhd::index_error(str(
-                boost::format(
+                std::format(
                     "multi_usrp: TX channel %u out of range for configured TX frontends")
                 % chan));
         }
@@ -2727,11 +2727,11 @@ private:
                 return tree_path;
             } else {
                 throw uhd::index_error(str(
-                    boost::format("multi_usrp::mb_root(%u) - path not found") % mboard));
+                    std::format("multi_usrp::mb_root(%u) - path not found") % mboard));
             }
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                str(boost::format("multi_usrp::mb_root(%u) - %s") % mboard % e.what()));
+                str(std::format("multi_usrp::mb_root(%u) - %s") % mboard % e.what()));
         }
     }
 
@@ -2759,13 +2759,13 @@ private:
                 return tree_path;
             } else {
                 throw uhd::index_error(
-                    str(boost::format(
+                    str(std::format(
                             "multi_usrp::rx_dsp_root(%u) - mcp(%u) - path not found")
                         % chan % mcp.chan));
             }
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                str(boost::format("multi_usrp::rx_dsp_root(%u) - mcp(%u) - %s") % chan
+                str(std::format("multi_usrp::rx_dsp_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
     }
@@ -2793,13 +2793,13 @@ private:
                 return tree_path;
             } else {
                 throw uhd::index_error(
-                    str(boost::format(
+                    str(std::format(
                             "multi_usrp::tx_dsp_root(%u) - mcp(%u) - path not found")
                         % chan % mcp.chan));
             }
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                str(boost::format("multi_usrp::tx_dsp_root(%u) - mcp(%u) - %s") % chan
+                str(std::format("multi_usrp::tx_dsp_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
     }
@@ -2812,7 +2812,7 @@ private:
             return mb_root(mcp.mboard) / "rx_frontends" / spec.db_name;
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                str(boost::format("multi_usrp::rx_fe_root(%u) - mcp(%u) - %s") % chan
+                str(std::format("multi_usrp::rx_fe_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
     }
@@ -2830,7 +2830,7 @@ private:
             return mb_root(mcp.mboard) / "tx_frontends" / spec.db_name;
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                str(boost::format("multi_usrp::tx_fe_root(%u) - mcp(%u) - %s") % chan
+                str(std::format("multi_usrp::tx_fe_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
     }
@@ -2853,7 +2853,7 @@ private:
             return 3;
         } else {
             throw uhd::key_error(str(
-                boost::format("[multi_usrp]: radio slot name %s out of supported range.")
+                std::format("[multi_usrp]: radio slot name %s out of supported range.")
                 % slot_name));
         }
     }
@@ -2867,7 +2867,7 @@ private:
                    / spec.sd_name;
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                str(boost::format("multi_usrp::rx_rf_fe_root(%u) - mcp(%u) - %s") % chan
+                str(std::format("multi_usrp::rx_rf_fe_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
     }
@@ -2881,7 +2881,7 @@ private:
                    / spec.sd_name;
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                str(boost::format("multi_usrp::tx_rf_fe_root(%u) - mcp(%u) - %s") % chan
+                str(std::format("multi_usrp::tx_rf_fe_root(%u) - mcp(%u) - %s") % chan
                     % mcp.chan % e.what()));
         }
     }

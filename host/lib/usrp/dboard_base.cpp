@@ -6,7 +6,7 @@
 
 #include "dboard_ctor_args.hpp"
 #include <uhd/usrp/dboard_base.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <stdexcept>
 
 using namespace uhd;
@@ -75,12 +75,12 @@ xcvr_dboard_base::xcvr_dboard_base(ctor_args_t args) : dboard_base(args)
 {
     if (get_rx_id() == dboard_id_t::none()) {
         throw uhd::runtime_error(
-            str(boost::format("cannot create xcvr board when the rx id is \"%s\"")
+            str(std::format("cannot create xcvr board when the rx id is \"%s\"")
                 % dboard_id_t::none().to_pp_string()));
     }
     if (get_tx_id() == dboard_id_t::none()) {
         throw uhd::runtime_error(
-            str(boost::format("cannot create xcvr board when the tx id is \"%s\"")
+            str(std::format("cannot create xcvr board when the tx id is \"%s\"")
                 % dboard_id_t::none().to_pp_string()));
     }
 }
@@ -92,7 +92,7 @@ rx_dboard_base::rx_dboard_base(ctor_args_t args) : dboard_base(args)
 {
     if (get_tx_id() != dboard_id_t::none()) {
         throw uhd::runtime_error(
-            str(boost::format("cannot create rx board when the tx id is \"%s\""
+            str(std::format("cannot create rx board when the tx id is \"%s\""
                               " -> expected a tx id of \"%s\"")
                 % get_tx_id().to_pp_string() % dboard_id_t::none().to_pp_string()));
     }
@@ -105,7 +105,7 @@ tx_dboard_base::tx_dboard_base(ctor_args_t args) : dboard_base(args)
 {
     if (get_rx_id() != dboard_id_t::none()) {
         throw uhd::runtime_error(
-            str(boost::format("cannot create tx board when the rx id is \"%s\""
+            str(std::format("cannot create tx board when the rx id is \"%s\""
                               " -> expected a rx id of \"%s\"")
                 % get_rx_id().to_pp_string() % dboard_id_t::none().to_pp_string()));
     }

@@ -15,7 +15,7 @@
 #include <uhdlib/transport/nirio/niriok_proxy.h>
 #include <uhdlib/transport/nirio/status.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <mutex>
 #include <thread>
@@ -47,7 +47,7 @@ public:
                 return this->__poke32(addr, data);
             } catch (const uhd::io_error& ex) {
                 std::string error_msg =
-                    str(boost::format("%s: x300 fw communication failure #%u\n%s")
+                    str(std::format("%s: x300 fw communication failure #%u\n%s")
                         % __loc_info() % i % ex.what());
                 if (errors)
                     UHD_LOGGER_ERROR("X300") << error_msg;
@@ -66,7 +66,7 @@ public:
                 return data;
             } catch (const uhd::io_error& ex) {
                 std::string error_msg =
-                    str(boost::format("%s: x300 fw communication failure #%u\n%s")
+                    str(std::format("%s: x300 fw communication failure #%u\n%s")
                         % __loc_info() % i % ex.what());
                 if (errors)
                     UHD_LOGGER_ERROR("X300") << error_msg;

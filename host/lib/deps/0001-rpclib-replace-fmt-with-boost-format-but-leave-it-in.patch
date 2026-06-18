@@ -1,7 +1,7 @@
 From 74505c84e326f8524a374911fcfe5dc29426a274 Mon Sep 17 00:00:00 2001
 From: Andrej Rode <andrej.rode@ettus.com>
 Date: Thu, 6 Apr 2017 15:53:37 -0700
-Subject: [PATCH 1/3] rpclib: replace fmt with boost::format (but leave it in
+Subject: [PATCH 1/3] rpclib: replace fmt with std::format (but leave it in
  logging)
 
 Signed-off-by: Andrej Rode <andrej.rode@ettus.com>
@@ -21,7 +21,7 @@ index 5ab9780..e5d0117 100644
  
  #include "asio.hpp"
 -#include "format.h"
-+#include <boost/format.hpp>
++#include <format>
  
  #include "rpc/detail/async_writer.h"
  #include "rpc/detail/dev_utils.h"
@@ -31,7 +31,7 @@ index 5ab9780..e5d0117 100644
      throw rpc::timeout(
 -        RPCLIB_FMT::format("Timeout of {}ms while calling RPC function '{}'",
 -                           get_timeout(), func_name));
-+        str(boost::format("Timeout of %dms while calling RPC function '%s'") %
++        str(std::format("Timeout of %dms while calling RPC function '%s'") %
 +                           get_timeout() % func_name));
  }
  
@@ -42,7 +42,7 @@ index 263141f..deea2f6 100644
 +++ b/lib/rpc/detail/client_error.cc
 @@ -1,4 +1,4 @@
 -#include "format.h"
-+#include <boost/format.hpp>
++#include <format>
  
  #include "rpc/detail/client_error.h"
  
@@ -52,7 +52,7 @@ index 263141f..deea2f6 100644
  client_error::client_error(code c, const std::string &msg)
 -    : what_(RPCLIB_FMT::format("client error C{0:04x}: {1}",
 -                               static_cast<uint16_t>(c), msg)) {}
-+    : what_(str(boost::format("client error C%d: %") %
++    : what_(str(std::format("client error C%d: %") %
 +                               static_cast<uint16_t>(c) % msg)) {}
  
  const char *client_error::what() const noexcept { return what_.c_str(); }
@@ -64,7 +64,7 @@ index e8954b8..c502b80 100644
 @@ -1,5 +1,5 @@
  #include "rpc/dispatcher.h"
 -#include "format.h"
-+#include <boost/format.hpp>
++#include <format>
  #include "rpc/detail/client_error.h"
  #include "rpc/this_handler.h"
  
@@ -73,7 +73,7 @@ index e8954b8..c502b80 100644
          } catch (rpc::detail::client_error &e) {
              return response::make_error(
 -                id, RPCLIB_FMT::format("rpclib: {}", e.what()));
-+                id, str(boost::format("rpclib: %s") % e.what()));
++                id, str(std::format("rpclib: %s") % e.what()));
          } catch (std::exception &e) {
              if (!suppress_exceptions) {
                  throw;
@@ -81,7 +81,7 @@ index e8954b8..c502b80 100644
              return response::make_error(
                  id,
 -                RPCLIB_FMT::format("rpclib: function '{0}' (called with {1} "
-+                str(boost::format("rpclib: function '%s' (called with %d "
++                str(std::format("rpclib: function '%s' (called with %d "
                                     "arg(s)) "
                                     "threw an exception. The exception "
 -                                   "contained this information: {2}.",
@@ -96,7 +96,7 @@ index e8954b8..c502b80 100644
              return response::make_error(
                  id,
 -                RPCLIB_FMT::format("rpclib: function '{0}' (called with {1} "
-+                str(boost::format("rpclib: function '%s' (called with %d "
++                str(std::format("rpclib: function '%s' (called with %d "
                                     "arg(s)) threw an exception. The exception "
                                     "is not derived from std::exception. No "
 -                                   "further information available.",
@@ -109,7 +109,7 @@ index e8954b8..c502b80 100644
 -        id, RPCLIB_FMT::format("rpclib: server could not find "
 -                               "function '{0}' with argument count {1}.",
 -                               name, args.via.array.size));
-+        id, str(boost::format("rpclib: server could not find "
++        id, str(std::format("rpclib: server could not find "
 +                          "function '%s' with argument count %d.") %
 +                               name % args.via.array.size));
  }
@@ -123,7 +123,7 @@ index e8954b8..c502b80 100644
 -                "Function '{0}' was called with an invalid number of "
 -                "arguments. Expected: {1}, got: {2}",
 -                func, expected, found));
-+            str(boost::format(
++            str(std::format(
 +                "Function '%s' was called with an invalid number of "
 +                "arguments. Expected: %d, got: %d") %
 +                func % expected % found));
@@ -137,7 +137,7 @@ index 8af7006..dcf3c1c 100644
 @@ -1,5 +1,5 @@
  #include "rpc/rpc_error.h"
 -#include "format.h"
-+#include <boost/format.hpp>
++#include <format>
  
  namespace rpc {
  
@@ -146,7 +146,7 @@ index 8af7006..dcf3c1c 100644
  timeout::timeout(std::string const &what_arg) : std::runtime_error(what_arg) {
      formatted =
 -        RPCLIB_FMT::format("rpc::timeout: {}", std::runtime_error::what());
-+        str(boost::format("rpc::timeout: %s") % std::runtime_error::what());
++        str(std::format("rpc::timeout: %s") % std::runtime_error::what());
  }
  
  const char *timeout::what() const noexcept { return formatted.data(); }

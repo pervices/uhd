@@ -11,7 +11,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
 #include <atomic>
@@ -59,7 +59,7 @@ inline std::string time_delta_str(const start_time_type& ref_time)
     const auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(
         delta - hours - minutes - seconds);
 
-    return str(boost::format("%02d:%02d:%02d.%06d") % hours.count() % minutes.count()
+    return str(std::format("%02d:%02d:%02d.%06d") % hours.count() % minutes.count()
                % seconds.count() % nanoseconds.count());
 }
 
@@ -91,7 +91,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
     auto time_stamp   = NOW();
     auto rx_rate      = usrp->get_rx_rate() / 1e6;
     auto num_channels = rx_stream->get_num_channels();
-    std::cout << boost::format("[%s] Testing receive rate %f Msps on %u channels\n")
+    std::cout << std::format("[%s] Testing receive rate %f Msps on %u channels\n")
                      % time_stamp % rx_rate % num_channels;
 
     // setup variables and allocate buffer
@@ -233,7 +233,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
     auto time_stamp   = NOW();
     auto tx_rate      = usrp->get_tx_rate();
     auto num_channels = tx_stream->get_num_channels();
-    std::cout << boost::format("[%s] Testing transmit rate %f Msps on %u channels\n")
+    std::cout << std::format("[%s] Testing transmit rate %f Msps on %u channels\n")
                      % time_stamp % (tx_rate / 1e6) % num_channels;
 
     // setup variables and allocate buffer
@@ -579,7 +579,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                   << std::endl;
     }
     start_time_type start_time(std::chrono::steady_clock::now());
-    std::cout << boost::format("[%s] Creating the usrp device with: %s...") % NOW() % args
+    std::cout << std::format("[%s] Creating the usrp device with: %s...") % NOW() % args
               << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
@@ -591,7 +591,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_tx_subdev_spec(tx_subdev);
     }
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
     int num_mboards = usrp->get_num_mboards();
 
     boost::thread_group thread_group;
@@ -697,7 +697,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
     }
 
-    std::cout << boost::format("[%s] Setting device timestamp to 0...") % NOW()
+    std::cout << std::format("[%s] Setting device timestamp to 0...") % NOW()
               << std::endl;
     if (pps == "mimo" or ref == "mimo") {
         // only set the master's time, the slave's is automatically sync'd
@@ -922,7 +922,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     const bool tx_timeout_threshold_err = num_timeouts_tx > tx_timeout_threshold;
     const bool rx_timeout_threshold_err = num_timeouts_rx > rx_timeout_threshold;
     std::cout << std::endl
-              << boost::format("Benchmark rate summary:\n"
+              << std::format("Benchmark rate summary:\n"
                                "  Num received samples:     %u\n"
                                "  Num dropped samples:      %u\n" //-- don't need to check because num_seqrx_errors has the same purpsoe but on a packet level instead of samples
                                "  Num overruns detected:    %u\n" //-- checked -- num_overruns
@@ -944,37 +944,37 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         || seq_threshold_err || tx_timeout_threshold_err || rx_timeout_threshold_err) {
         std::cout << "The following error thresholds were exceeded:\n";
         if (overrun_threshold_err) {
-            std::cout << boost::format("  * Overruns (%d/%d)") % num_overruns
+            std::cout << std::format("  * Overruns (%d/%d)") % num_overruns
                              % overrun_threshold
                       << std::endl;
         }
         if (underrun_threshold_err) {
-            std::cout << boost::format("  * Underruns (%d/%d)") % num_underruns
+            std::cout << std::format("  * Underruns (%d/%d)") % num_underruns
                              % underrun_threshold
                       << std::endl;
         }
         if (drop_threshold_err) {
-            std::cout << boost::format("  * Dropped packets (RX) (%d/%d)")
+            std::cout << std::format("  * Dropped packets (RX) (%d/%d)")
                              % num_seqrx_errors % drop_threshold
                       << std::endl;
         }
         if (seq_threshold_err) {
-            std::cout << boost::format("  * Sequence errors (TX) (%d/%d)")
+            std::cout << std::format("  * Sequence errors (TX) (%d/%d)")
                              % num_seq_errors % seq_threshold
                       << std::endl;
         }
         if (late_command_threshold_err) {
-            std::cout << boost::format("  * Late commands (RX) (%d/%d)")
+            std::cout << std::format("  * Late commands (RX) (%d/%d)")
                              % num_late_commands % late_cmd_threshold
                       << std::endl;
         }
         if (tx_timeout_threshold_err) {
-            std::cout << boost::format("  * Timeout (TX) (%d/%d)")
+            std::cout << std::format("  * Timeout (TX) (%d/%d)")
                              % num_timeouts_tx % tx_timeout_threshold
                       << std::endl;
         }
         if (rx_timeout_threshold_err) {
-            std::cout << boost::format("  * Timeout (RX) (%d/%d)")
+            std::cout << std::format("  * Timeout (RX) (%d/%d)")
                              % num_timeouts_rx % rx_timeout_threshold
                       << std::endl;
         }

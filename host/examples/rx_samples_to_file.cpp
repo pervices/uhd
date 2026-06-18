@@ -11,7 +11,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #ifdef __linux__
 #    include <boost/filesystem.hpp>
@@ -241,7 +241,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
             if (overflow_message) {
                 overflow_message = false;
                 std::cerr
-                    << boost::format(
+                    << std::format(
                            "Got an overflow indication. Please consider the following:\n"
                            "  Your write medium must sustain a rate of %0.3fMB/s.\n"
                            "  Dropped samples will not be written to the file.\n"
@@ -311,7 +311,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         std::cout << std::endl;
         const double actual_duration_seconds =
             std::chrono::duration<float>(actual_stop_time - start_time).count();
-        std::cout << boost::format("%sReceived %d samples in %f seconds") % thread_prefix
+        std::cout << std::format("%sReceived %d samples in %f seconds") % thread_prefix
                          % num_total_samps % actual_duration_seconds
                   << std::endl;
 
@@ -354,7 +354,7 @@ bool check_locked_sensor(std::vector<std::string> sensor_names,
             if (std::chrono::steady_clock::now() > setup_timeout) {
                 std::cout << std::endl;
                 throw std::runtime_error(
-                    str(boost::format(
+                    str(std::format(
                             "timed out waiting for consecutive locks on sensor \"%s\"")
                         % sensor_name));
             }
@@ -604,25 +604,25 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cerr << "Please specify a valid sample rate" << std::endl;
         return ~0;
     }
-    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    std::cout << std::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
     usrp->set_rx_rate(rate, uhd::usrp::multi_usrp::ALL_CHANS);
-    std::cout << boost::format("Actual RX Rate: %f Msps...")
+    std::cout << std::format("Actual RX Rate: %f Msps...")
                      % (usrp->get_rx_rate(channel_list[0]) / 1e6)
               << std::endl
               << std::endl;
 
     // set the center frequency
     if (vm.count("freq")) {
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq / 1e6)
+        std::cout << std::format("Setting RX Freq: %f MHz...") % (freq / 1e6)
                   << std::endl;
-        std::cout << boost::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
+        std::cout << std::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
                   << std::endl;
         uhd::tune_request_t tune_request(freq, lo_offset);
         if (vm.count("int-n"))
             tune_request.args = uhd::device_addr_t("mode_n=integer");
         for (size_t chan : channel_list)
             usrp->set_rx_freq(tune_request, chan);
-        std::cout << boost::format("Actual RX Freq: %f MHz...")
+        std::cout << std::format("Actual RX Freq: %f MHz...")
                          % (usrp->get_rx_freq(channel_list[0]) / 1e6)
                   << std::endl
                   << std::endl;
@@ -630,9 +630,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // set the rf gain
     if (vm.count("gain")) {
-        std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+        std::cout << std::format("Setting RX Gain: %f dB...") % gain << std::endl;
         usrp->set_rx_gain(gain, uhd::usrp::multi_usrp::ALL_CHANS);
-        std::cout << boost::format("Actual RX Gain: %f dB...")
+        std::cout << std::format("Actual RX Gain: %f dB...")
                          % usrp->get_rx_gain(channel_list[0])
                   << std::endl
                   << std::endl;
@@ -640,11 +640,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // set the IF filter bandwidth
     if (vm.count("bw")) {
-        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw / 1e6)
+        std::cout << std::format("Setting RX Bandwidth: %f MHz...") % (bw / 1e6)
                   << std::endl;
         for (size_t chan : channel_list)
             usrp->set_rx_bandwidth(bw, chan);
-        std::cout << boost::format("Actual RX Bandwidth: %f MHz...")
+        std::cout << std::format("Actual RX Bandwidth: %f MHz...")
                          % (usrp->get_rx_bandwidth(channel_list[0]) / 1e6)
                   << std::endl
                   << std::endl;
@@ -701,7 +701,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         uhd::convert::get_bytes_per_item(otw), channel_list.size(), spb, file);
     if (disk_rate_meas > 0 && req_disk_rate >= disk_rate_meas) {
         std::cerr
-            << boost::format(
+            << std::format(
                    "  Disk write test indicates that an overflow is likely to occur.\n"
                    "  Your write medium must sustain a rate of %0.3fMB/s,\n"
                    "  but write test returned write speed of %0.3fMB/s.\n"

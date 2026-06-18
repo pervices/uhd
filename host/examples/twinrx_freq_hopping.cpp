@@ -134,7 +134,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // Create a USRP device
-    std::cout << boost::format("\nCreating the USRP device with args: \"%s\"...\n")
+    std::cout << std::format("\nCreating the USRP device with args: \"%s\"...\n")
                      % args;
     usrp = uhd::usrp::multi_usrp::make(args);
 
@@ -159,7 +159,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
     if (start_freq < rx_freq_range.start() or end_freq > rx_freq_range.stop()) {
         throw uhd::runtime_error(
-            (boost::format("Start and stop frequencies must be between %d and %d MHz")
+            (std::format("Start and stop frequencies must be between %d and %d MHz")
                 % (rx_freq_range.start() / 1e6) % (rx_freq_range.stop() / 1e6))
                 .str());
     }
@@ -179,18 +179,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     usrp->set_rx_lo_source("disabled", uhd::usrp::multi_usrp::ALL_LOS, UNUSED_CHAN);
 
     // Set user settings
-    std::cout << boost::format("Setting antenna to:     %s\n") % ant;
+    std::cout << std::format("Setting antenna to:     %s\n") % ant;
     usrp->set_rx_antenna(ant, ACTIVE_CHAN);
-    std::cout << boost::format("Actual antenna:         %s\n")
+    std::cout << std::format("Actual antenna:         %s\n")
                      % usrp->get_rx_antenna(ACTIVE_CHAN);
 
-    std::cout << boost::format("Setting sample rate to: %d\n") % rate;
+    std::cout << std::format("Setting sample rate to: %d\n") % rate;
     usrp->set_rx_rate(rate);
-    std::cout << boost::format("Actual sample rate:     %d\n") % usrp->get_rx_rate();
+    std::cout << std::format("Actual sample rate:     %d\n") % usrp->get_rx_rate();
 
-    std::cout << boost::format("Setting gain to: %d\n") % gain;
+    std::cout << std::format("Setting gain to: %d\n") % gain;
     usrp->set_rx_gain(gain);
-    std::cout << boost::format("Actual gain:     %d\n") % usrp->get_rx_gain();
+    std::cout << std::format("Actual gain:     %d\n") % usrp->get_rx_gain();
 
     // Get an rx_streamer from the device
     uhd::stream_args_t stream_args("fc32", "sc16");
@@ -202,7 +202,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     for (double rx_freq = start_freq; rx_freq <= end_freq; rx_freq += rate) {
         rf_freqs.push_back(rx_freq);
     }
-    std::cout << boost::format("Total Hops: %d\n") % rf_freqs.size();
+    std::cout << std::format("Total Hops: %d\n") % rf_freqs.size();
 
     // Set up buffers
     buffs = recv_buffs_t(rf_freqs.size(), recv_buff_t(spb));
@@ -262,7 +262,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
 
         auto end_time = boost::get_system_time();
-        std::cout << boost::format("Sweep done in %d milliseconds.\n")
+        std::cout << std::format("Sweep done in %d milliseconds.\n")
                          % ((end_time - start_time).total_milliseconds() * 1000);
 
         // Optionally convert received samples to FFT and write to file

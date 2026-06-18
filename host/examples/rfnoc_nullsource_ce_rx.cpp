@@ -26,7 +26,7 @@
 #include <uhd/rfnoc_graph.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <complex>
@@ -142,7 +142,7 @@ void recv_to_file(uhd::rx_streamer::sptr rx_stream,
         std::cout << std::endl;
         const double actual_duration_seconds =
             std::chrono::duration<float>(actual_stop_time - start_time).count();
-        std::cout << boost::format("Received %d samples in %f seconds") % num_total_samps
+        std::cout << std::format("Received %d samples in %f seconds") % num_total_samps
                          % actual_duration_seconds
                   << std::endl;
         const double rate = (double)num_total_samps / actual_duration_seconds;

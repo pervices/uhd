@@ -6,7 +6,7 @@
 
 #include <uhdlib/utils/config_parser.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/property_tree/ini_parser.hpp>
 
 using namespace uhd;
@@ -18,7 +18,7 @@ config_parser::config_parser(const std::string& path)
             boost::property_tree::ini_parser::read_ini(path, _pt);
         } catch (const boost::property_tree::ini_parser_error&) {
             throw uhd::runtime_error(
-                str(boost::format("Unable to parse file %s") % path));
+                str(std::format("Unable to parse file %s") % path));
         }
     }
 }

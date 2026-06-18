@@ -12,7 +12,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/lexical_cast.hpp>
 #include <boost/algorithm/string.hpp>
 #include <iostream>
@@ -48,7 +48,7 @@ bool check_locked_sensor(
         + std::chrono::milliseconds(int64_t(setup_time * 1000));
     bool lock_detected = false;
 
-    std::cout << boost::format("Waiting for \"%s\": ") % sensor_name;
+    std::cout << std::format("Waiting for \"%s\": ") % sensor_name;
     std::cout.flush();
 
     while (true) {
@@ -66,7 +66,7 @@ bool check_locked_sensor(
             if (std::chrono::steady_clock::now() > setup_timeout) {
                 std::cout << std::endl;
                 throw std::runtime_error(str(
-                    boost::format("timed out waiting for consecutive locks on sensor \"%s\"")
+                    std::format("timed out waiting for consecutive locks on sensor \"%s\"")
                     % sensor_name
                 ));
             }
@@ -114,7 +114,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD RX stream init %s") % desc << std::endl;
+        std::cout << std::format("UHD RX stream init %s") % desc << std::endl;
         std::cout
             << std::endl
             << "This application starts streaming data from all channels synchronously.\n"
@@ -129,7 +129,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //detect which channels to use
@@ -172,7 +172,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //always select the subdevice first, the channel mapping affects the other settings
     if (vm.count("subdev")) usrp->set_rx_subdev_spec(subdev);
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //set the sample rate
     if (rate <= 0.0){
@@ -183,9 +183,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("rate")) {
         for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting ch%i RX Rate: %f") % channel % rate << std::endl;
+            std::cout << std::format("Setting ch%i RX Rate: %f") % channel % rate << std::endl;
             usrp->set_rx_rate(rate, channel);
-            std::cout << boost::format("Actual ch%i RX Rate: %f") % channel % usrp->get_rx_rate(channel) << std::endl << std::endl;
+            std::cout << std::format("Actual ch%i RX Rate: %f") % channel % usrp->get_rx_rate(channel) << std::endl << std::endl;
         }
     }
 
@@ -194,12 +194,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
             double freq = lo_freq+dsp_freq;
-            std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel % (freq/1e6) << std::endl;
+            std::cout << std::format("Setting ch%i RX Freq: %f MHz...") % channel % (freq/1e6) << std::endl;
             // the overload used required an extra argument to avoid conflict with a different constructor, the 0 does nothing else
             uhd::tune_request_t tune_request(-dsp_freq, lo_freq, 0);
             if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
             usrp->set_rx_freq(tune_request, channel);
-            std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % channel % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
+            std::cout << std::format("Actual ch%i RX Freq: %f MHz...") % channel % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
         }
     } else {
         std::cerr << "Please specify a dsp shift and lo frequency" << std::endl;
@@ -210,9 +210,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("gain")) {
         for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % channel % gain << std::endl;
+            std::cout << std::format("Setting ch%i RX Gain: %f dB...") % channel % gain << std::endl;
             usrp->set_rx_gain(gain, channel);
-            std::cout << boost::format("Actual ch%i RX Gain: %f dB...") % channel % usrp->get_rx_gain(channel) << std::endl << std::endl;
+            std::cout << std::format("Actual ch%i RX Gain: %f dB...") % channel % usrp->get_rx_gain(channel) << std::endl << std::endl;
         }
     }
 
@@ -220,9 +220,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("bw")) {
         for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << boost::format("Setting ch%i RX Bandwidth: %f MHz...") % channel % (bw/1e6) << std::endl;
+            std::cout << std::format("Setting ch%i RX Bandwidth: %f MHz...") % channel % (bw/1e6) << std::endl;
             usrp->set_rx_bandwidth(bw, channel);
-            std::cout << boost::format("Actual ch%i RX Bandwidth: %f MHz...") % channel % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
+            std::cout << std::format("Actual ch%i RX Bandwidth: %f MHz...") % channel % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
         }
     }
 

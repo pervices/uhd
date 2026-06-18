@@ -9,7 +9,7 @@
 #include <uhdlib/rfnoc/chdr_ctrl_endpoint.hpp>
 #include <uhdlib/rfnoc/link_stream_manager.hpp>
 #include <uhdlib/rfnoc/mgmt_portal.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <map>
 
 using namespace uhd;

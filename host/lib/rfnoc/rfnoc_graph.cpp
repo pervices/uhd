@@ -950,7 +950,7 @@ private:
                 dst_sep_addr, src_sep_addr, false, 0.1, 0.0, false);
 
             UHD_LOGGER_DEBUG(LOG_ID)
-                << boost::format(
+                << std::format(
                        "Data stream between EPID %d and EPID %d established "
                        "where downstream buffer can hold %lu bytes and %u packets")
                        % std::get<0>(strm_info).first % std::get<0>(strm_info).second

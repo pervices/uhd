@@ -18,7 +18,7 @@
 #include <uhdlib/usrp/common/apply_corrections.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -433,7 +433,7 @@ void rhodium_radio_control_impl::_update_atr(
     _gpio->set_atr_reg(gpio_atr::ATR_REG_FULL_DUPLEX, atr_dx, RHODIUM_GPIO_MASK);
 
     RFNOC_LOG_TRACE(
-        str(boost::format("Wrote ATR registers i:0x%02X, r:0x%02X, t:0x%02X, d:0x%02X")
+        str(std::format("Wrote ATR registers i:0x%02X, r:0x%02X, t:0x%02X, d:0x%02X")
             % atr_idle % atr_rx % atr_tx % atr_dx));
 
     if (dir == RX_DIRECTION) {
@@ -490,7 +490,7 @@ bool rhodium_radio_control_impl::_get_spur_dodging_enabled(uhd::direction_t dir)
         return false;
     } else {
         const std::string err_msg = str(
-            boost::format(
+            std::format(
                 "Invalid spur_dodging argument: %s Valid options are [enabled, disabled]")
             % spur_dodging_arg);
         RFNOC_LOG_ERROR(err_msg);
@@ -521,7 +521,7 @@ bool rhodium_radio_control_impl::_get_highband_spur_reduction_enabled(
         return false;
     } else {
         throw uhd::value_error(
-            str(boost::format("Invalid highband_spur_reduction argument: %s Valid "
+            str(std::format("Invalid highband_spur_reduction argument: %s Valid "
                               "options are [enabled, disabled]")
                 % highband_spur_reduction_arg));
     }

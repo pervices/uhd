@@ -1,6 +1,6 @@
 #include <exception>
 
-#include <boost/format.hpp>
+#include <format>
 #include <boost/test/unit_test.hpp>
 
 #include "../lib/usrp/crimson_tng/xlate.hpp"
@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE( test_real_to_double_positive ) {
 	BOOST_CHECK_MESSAGE(
 		actual_double == expected_double,
 		(
-			boost::format( "Expected: %.9f Actual: %.9f" )
+			std::format( "Expected: %.9f Actual: %.9f" )
 			% expected_double
 			% actual_double
 		)
@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE( test_complex_to_double_positive ) {
 	BOOST_CHECK_MESSAGE(
 		actual_double == expected_double,
 		(
-			boost::format( "Expected: %.9f Actual: %.9f" )
+			std::format( "Expected: %.9f Actual: %.9f" )
 			% expected_double
 			% actual_double
 		)
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE( test_real_to_double_negative ) {
 	BOOST_CHECK_MESSAGE(
 		actual_double == expected_double,
 		(
-			boost::format( "Expected: %.9f Actual: %.9f" )
+			std::format( "Expected: %.9f Actual: %.9f" )
 			% expected_double
 			% actual_double
 		)
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE( test_real_to_int16_positive ) {
 	BOOST_CHECK_MESSAGE(
 		actual_int16 == expected_int16,
 		(
-			boost::format( "Expected: %d Actual: %d" )
+			std::format( "Expected: %d Actual: %d" )
 			% expected_int16
 			% actual_int16
 		)
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE( test_real_to_int16_negative ) {
 	BOOST_CHECK_MESSAGE(
 		actual_int16 == expected_int16,
 		(
-			boost::format( "Expected: %d Actual: %d" )
+			std::format( "Expected: %d Actual: %d" )
 			% expected_int16
 			% actual_int16
 		)

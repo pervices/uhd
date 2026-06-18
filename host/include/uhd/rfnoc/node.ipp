@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <boost/format.hpp>
+#include <format>
 #include <boost/units/detail/utility.hpp>
 
 namespace {
@@ -20,14 +20,14 @@ uhd::rfnoc::property_t<prop_data_t>* _assert_prop(
     // First check if the pointer is valid at all:
     if (prop_base_ptr == nullptr) {
         throw uhd::lookup_error(
-            str(boost::format("[%s] Unknown property: `%s'") % node_id % prop_id));
+            str(std::format("[%s] Unknown property: `%s'") % node_id % prop_id));
     }
 
     // Next, check if we can cast the pointer to the desired type:
     auto prop_ptr = dynamic_cast<uhd::rfnoc::property_t<prop_data_t>*>(prop_base_ptr);
     if (!prop_ptr) {
         throw uhd::type_error(str(
-            boost::format(
+            std::format(
                 "[%s] Found property `%s', but could not cast to requested type `%s'!")
             % node_id % prop_id
             % boost::units::detail::demangle(typeid(prop_data_t).name())));

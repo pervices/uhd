@@ -15,7 +15,7 @@
 #include <uhd/types/time_spec.hpp>
 #include <uhd/utils/log.hpp>
 #include <unordered_map>
-#include <boost/format.hpp>
+#include <format>
 #include <vector>
 
 namespace uhd { namespace rfnoc {
@@ -69,7 +69,7 @@ public:
             return read_memory.at(addr);
         } catch (const std::out_of_range&) {
             throw uhd::runtime_error(
-                str(boost::format("No data defined for address: 0x%04X") % addr));
+                str(std::format("No data defined for address: 0x%04X") % addr));
         }
     }
 

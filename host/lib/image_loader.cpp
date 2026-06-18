@@ -12,7 +12,7 @@
 
 #include <uhd/utils/static.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -56,7 +56,7 @@ bool uhd::image_loader::load(
         std::string type = image_loader_args.args.get("type");
         if (get_image_loaders().find(type) == get_image_loaders().end()) {
             throw uhd::runtime_error(
-                str(boost::format(
+                str(std::format(
                         "There is no image loader registered for given type \"%s\".")
                     % type));
         } else

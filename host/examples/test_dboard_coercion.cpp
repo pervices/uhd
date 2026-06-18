@@ -8,7 +8,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/math/special_functions/round.hpp>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -30,7 +30,7 @@ typedef std::vector<std::pair<double, double>> pair_vector;
 
 std::string MHz_str(double freq)
 {
-    return std::string(str(boost::format("%5.2f MHz") % (freq / 1e6)));
+    return std::string(str(std::format("%5.2f MHz") % (freq / 1e6)));
 }
 
 std::string return_usrp_config_string(
@@ -50,7 +50,7 @@ std::string return_usrp_config_string(
         mboard_serial = tx_info.get("mboard_serial");
 
     info_string =
-        str(boost::format("Motherboard: %s (%s)\n") % mboard_id % mboard_serial);
+        str(std::format("Motherboard: %s (%s)\n") % mboard_id % mboard_serial);
 
     if (test_tx) {
         if (tx_info.get("tx_serial").empty())
@@ -61,8 +61,8 @@ std::string return_usrp_config_string(
         tx_subdev_spec = tx_info.get("tx_subdev_spec");
 
         info_string +=
-            is_b2xx ? str(boost::format("TX: %s (%s)") % tx_subdev_name % tx_subdev_spec)
-                    : str(boost::format("TX: %s (%s, %s)") % tx_subdev_name % tx_serial
+            is_b2xx ? str(std::format("TX: %s (%s)") % tx_subdev_name % tx_subdev_spec)
+                    : str(std::format("TX: %s (%s, %s)") % tx_subdev_name % tx_serial
                           % tx_subdev_spec);
     }
     if (test_tx and test_rx)
@@ -76,8 +76,8 @@ std::string return_usrp_config_string(
         rx_subdev_spec = rx_info.get("rx_subdev_spec");
 
         info_string +=
-            is_b2xx ? str(boost::format("RX: %s (%s)") % rx_subdev_name % rx_subdev_spec)
-                    : str(boost::format("RX: %s (%s, %s)") % rx_subdev_name % rx_serial
+            is_b2xx ? str(std::format("RX: %s (%s)") % rx_subdev_name % rx_subdev_spec)
+                    : str(std::format("RX: %s (%s, %s)") % rx_subdev_name % rx_serial
                           % rx_subdev_spec);
     }
 
@@ -106,7 +106,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
     uhd::freq_range_t freq_ranges = (type == "TX") ? usrp->get_fe_tx_freq_range(chan)
                                                    : usrp->get_fe_rx_freq_range(chan);
 
-    std::cout << boost::format("\nTesting %s coercion...") % type << std::endl;
+    std::cout << std::format("\nTesting %s coercion...") % type << std::endl;
 
     for (const uhd::range_t& range : freq_ranges) {
         double freq_begin = range.start();
@@ -177,12 +177,12 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
         if (freq == 0.0) {
             if (floor(actual_freq + 0.5) == 0.0) {
                 if (verbose)
-                    std::cout << boost::format("\n%s frequency successfully tuned to %s.")
+                    std::cout << std::format("\n%s frequency successfully tuned to %s.")
                                      % type % MHz_str(freq)
                               << std::endl;
             } else {
                 if (verbose)
-                    std::cout << boost::format(
+                    std::cout << std::format(
                                      "\n%s frequency tuned to %s instead of %s.")
                                      % type % MHz_str(actual_freq) % MHz_str(freq)
                               << std::endl;
@@ -191,12 +191,12 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
         } else {
             if ((freq / actual_freq > 0.9999) and (freq / actual_freq < 1.0001)) {
                 if (verbose)
-                    std::cout << boost::format("\n%s frequency successfully tuned to %s.")
+                    std::cout << std::format("\n%s frequency successfully tuned to %s.")
                                      % type % MHz_str(freq)
                               << std::endl;
             } else {
                 if (verbose)
-                    std::cout << boost::format(
+                    std::cout << std::format(
                                      "\n%s frequency tuned to %s instead of %s.")
                                      % type % MHz_str(actual_freq) % MHz_str(freq)
                               << std::endl;
@@ -218,13 +218,13 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
             }
             if (is_locked) {
                 if (verbose)
-                    std::cout << boost::format(
+                    std::cout << std::format(
                                      "LO successfully locked at %s frequency %s.")
                                      % type % MHz_str(freq)
                               << std::endl;
             } else {
                 if (verbose)
-                    std::cout << boost::format(
+                    std::cout << std::format(
                                      "LO did not successfully lock at %s frequency %s.")
                                      % type % MHz_str(freq)
                               << std::endl;
@@ -249,13 +249,13 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
                 if (gain == 0.0) {
                     if (actual_gain == 0.0) {
                         if (verbose)
-                            std::cout << boost::format("Gain successfully set to %5.2f "
+                            std::cout << std::format("Gain successfully set to %5.2f "
                                                        "at %s frequency %s.")
                                              % gain % type % MHz_str(freq)
                                       << std::endl;
                     } else {
                         if (verbose)
-                            std::cout << boost::format("Gain set to %5.2f instead of "
+                            std::cout << std::format("Gain set to %5.2f instead of "
                                                        "%5.2f at %s frequency %s.")
                                              % actual_gain % gain % type % MHz_str(freq)
                                       << std::endl;
@@ -264,13 +264,13 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
                 } else {
                     if ((gain / actual_gain) > 0.9999 and (gain / actual_gain) < 1.0001) {
                         if (verbose)
-                            std::cout << boost::format("Gain successfully set to %5.2f "
+                            std::cout << std::format("Gain successfully set to %5.2f "
                                                        "at %s frequency %s.")
                                              % gain % type % MHz_str(freq)
                                       << std::endl;
                     } else {
                         if (verbose)
-                            std::cout << boost::format("Gain set to %5.2f instead of "
+                            std::cout << std::format("Gain set to %5.2f instead of "
                                                        "%5.2f at %s frequency %s.")
                                              % actual_gain % gain % type % MHz_str(freq)
                                       << std::endl;
@@ -281,24 +281,24 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
         }
     }
 
-    std::string results = str(boost::format("%s Summary:\n") % type);
+    std::string results = str(std::format("%s Summary:\n") % type);
     if (subdev_name.find("XCVR2450") == 0) {
-        results += str(boost::format("Frequency Range: %s - %s, %s - %s\n")
+        results += str(std::format("Frequency Range: %s - %s, %s - %s\n")
                        % MHz_str(xcvr_freqs[0]) % MHz_str(xcvr_freqs[1])
                        % MHz_str(xcvr_freqs[2]) % MHz_str(xcvr_freqs[3]));
     } else
         results +=
-            str(boost::format("Frequency Range: %s - %s (Step: %s)\n")
+            str(std::format("Frequency Range: %s - %s (Step: %s)\n")
                 % MHz_str(freqs.front()) % MHz_str(freqs.back()) % MHz_str(freq_step));
     if (test_gain)
-        results += str(boost::format("Gain Range:%5.2f - %5.2f (Step:%5.2f)\n")
+        results += str(std::format("Gain Range:%5.2f - %5.2f (Step:%5.2f)\n")
                        % gains.front() % gains.back() % gain_step);
 
     if (bad_tune_freqs.empty())
         results += "USRP successfully tuned to all frequencies.";
     else if (bad_tune_freqs.size() > 10 and not verbose) {
         // If tuning fails at many values, don't print them all
-        results += str(boost::format("USRP did not successfully tune at %d frequencies.")
+        results += str(std::format("USRP did not successfully tune at %d frequencies.")
                        % bad_tune_freqs.size());
     } else {
         results += "USRP did not successfully tune to the following frequencies: ";
@@ -315,7 +315,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
         else if (no_lock_freqs.size() > 10 and not verbose) {
             // If locking fails at many values, don't print them all
             results +=
-                str(boost::format("USRP did not successfully lock at %d frequencies.")
+                str(std::format("USRP did not successfully lock at %d frequencies.")
                     % no_lock_freqs.size());
         } else {
             results += "LO did not lock at the following frequencies: ";
@@ -334,7 +334,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
         else if (bad_gain_vals.size() > 10 and not verbose) {
             // If gain fails at many values, don't print them all
             results +=
-                str(boost::format("USRP did not successfully set gain at %d values.")
+                str(std::format("USRP did not successfully set gain at %d values.")
                     % bad_gain_vals.size());
         } else {
             results +=
@@ -342,7 +342,7 @@ std::string coercion_test(uhd::usrp::multi_usrp::sptr usrp,
             for (auto& bad_pair : bad_gain_vals) {
                 double bad_freq = bad_pair.first;
                 double bad_gain = bad_pair.second;
-                results += str(boost::format("\nFrequency: %s, Gain: %5.2f")
+                results += str(std::format("\nFrequency: %s, Gain: %5.2f")
                                % MHz_str(bad_freq) % bad_gain);
             }
         }
@@ -407,11 +407,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // Create a USRP device
     std::cout << std::endl;
     uhd::device_addrs_t device_addrs = uhd::device::find(args, uhd::device::USRP);
-    std::cout << boost::format("Creating the USRP device with: %s...") % args
+    std::cout << std::format("Creating the USRP device with: %s...") % args
               << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
     std::cout << std::endl
-              << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+              << std::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
     usrp->set_tx_rate(SAMP_RATE);
     usrp->set_rx_rate(SAMP_RATE);
 
@@ -440,7 +440,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::string tx_dboard_name = usrp->get_usrp_tx_info(chan).get("tx_id");
         if (tx_dboard_name == "Basic TX (0x0000)" or tx_dboard_name == "LF TX (0x000e)") {
             std::cout << desc << std::endl;
-            std::cout << boost::format(
+            std::cout << std::format(
                              "This test does not work with the %s daughterboard.")
                              % tx_dboard_name
                       << std::endl;
@@ -459,7 +459,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::string rx_dboard_name = usrp->get_usrp_rx_info(chan).get("rx_id");
         if (rx_dboard_name == "Basic RX (0x0001)" or rx_dboard_name == "LF RX (0x000f)") {
             std::cout << desc << std::endl;
-            std::cout << boost::format(
+            std::cout << std::format(
                              "This test does not work with the %s daughterboard.")
                              % rx_dboard_name
                       << std::endl;
@@ -485,7 +485,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked")
              != sensor_names.end())) {
         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", 0);
-        std::cout << boost::format("Checking MIMO lock: %s ...")
+        std::cout << std::format("Checking MIMO lock: %s ...")
                          % mimo_locked.to_pp_string()
                   << std::endl;
         UHD_ASSERT_THROW(mimo_locked.to_bool());
@@ -494,7 +494,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked")
              != sensor_names.end())) {
         uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", 0);
-        std::cout << boost::format("Checking REF lock: %s ...")
+        std::cout << std::format("Checking REF lock: %s ...")
                          % ref_locked.to_pp_string()
                   << std::endl;
         UHD_ASSERT_THROW(ref_locked.to_bool());

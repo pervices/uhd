@@ -105,12 +105,12 @@ void check_lo_below( tune_lo_and_dsp_test_fixture & f, double expected_lo, bool 
 		if ( warn ) {
 			BOOST_WARN_MESSAGE(
 				actual_lo >= expected_lo,
-				( boost::format( "lo (%f) is below %f" ) % actual_lo % expected_lo ).str()
+				( std::format( "lo (%f) is below %f" ) % actual_lo % expected_lo ).str()
 			);
 		} else {
 			BOOST_CHECK_MESSAGE(
 				actual_lo >= expected_lo,
-				( boost::format( "lo (%f) is below %f" ) % actual_lo % expected_lo ).str()
+				( std::format( "lo (%f) is below %f" ) % actual_lo % expected_lo ).str()
 			);
 		}
 	}
@@ -129,7 +129,7 @@ void check_lo_modulus( tune_lo_and_dsp_test_fixture & f ) {
 	BOOST_CHECK_MESSAGE(
 		expected_double == actual_double,
 		(
-			boost::format( "LO (%f MHz) is not a multiple of LO step size (%f MHz)" )
+			std::format( "LO (%f MHz) is not a multiple of LO step size (%f MHz)" )
 			% ( lo / 1e6 )
 			% ( lo_step / 1e6 )
 		).str()

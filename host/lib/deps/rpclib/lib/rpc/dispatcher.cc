@@ -1,5 +1,5 @@
 #include "rpc/dispatcher.h"
-#include <boost/format.hpp>
+#include <format>
 #include "rpc/detail/client_error.h"
 #include "rpc/this_handler.h"
 
@@ -48,14 +48,14 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             return response::make_result(id, std::move(result));
         } catch (rpc::detail::client_error &e) {
             return response::make_error(
-                id, str(boost::format("rpclib: %s") % e.what()));
+                id, str(std::format("rpclib: %s") % e.what()));
         } catch (std::exception &e) {
             if (!suppress_exceptions) {
                 throw;
             }
             return response::make_error(
                 id,
-                str(boost::format("rpclib: function '%s' (called with %d "
+                str(std::format("rpclib: function '%s' (called with %d "
                                    "arg(s)) "
                                    "threw an exception. The exception "
                               "contained this information: %s.") %
@@ -72,7 +72,7 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             }
             return response::make_error(
                 id,
-                str(boost::format("rpclib: function '%s' (called with %d "
+                str(std::format("rpclib: function '%s' (called with %d "
                                    "arg(s)) threw an exception. The exception "
                                    "is not derived from std::exception. No "
                               "further information available.") %
@@ -80,7 +80,7 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
         }
     }
     return response::make_error(
-        id, str(boost::format("rpclib: server could not find "
+        id, str(std::format("rpclib: server could not find "
                           "function '%s' with argument count %d.") %
                                name % args.via.array.size));
 }
@@ -124,7 +124,7 @@ void dispatcher::enforce_arg_count(std::string const &func, std::size_t found,
     if (found != expected) {
         throw client_error(
             client_error::code::wrong_arity,
-            str(boost::format(
+            str(std::format(
                 "Function '%s' was called with an invalid number of "
                 "arguments. Expected: %d, got: %d") %
                 func % expected % found));

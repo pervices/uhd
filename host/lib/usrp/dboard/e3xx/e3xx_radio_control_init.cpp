@@ -39,7 +39,7 @@ void e3xx_radio_control_impl::_init_defaults()
         block_args.cast<double>("master_clock_rate", _master_clock_rate);
     if (block_args_mcr != _master_clock_rate) {
         throw uhd::runtime_error(
-            str(boost::format("Master clock rate mismatch. Device returns %f MHz, "
+            str(std::format("Master clock rate mismatch. Device returns %f MHz, "
                               "but should have been %f MHz.")
                 % (_master_clock_rate / 1e6) % (block_args_mcr / 1e6)));
     }

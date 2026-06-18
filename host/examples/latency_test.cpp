@@ -8,7 +8,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <complex>
 #include <iostream>
@@ -102,28 +102,28 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // create a usrp device
     std::cout << std::endl;
-    // std::cout << boost::format("Creating the usrp device with: %s...") % args <<
+    // std::cout << std::format("Creating the usrp device with: %s...") % args <<
     // std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    // std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() <<
+    // std::cout << std::format("Using Device: %s") % usrp->get_pp_string() <<
     // std::endl;
 
     usrp->set_time_now(uhd::time_spec_t(0.0));
 
     // set the tx sample rate
     usrp->set_tx_rate(rate);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate() / 1e6)
+    std::cout << std::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate() / 1e6)
               << std::endl;
 
     // set the rx sample rate
     usrp->set_rx_rate(rate);
     double actual_rx_rate = usrp->get_rx_rate();
-    std::cout << boost::format("Actual RX Rate: %f Msps...") % (actual_rx_rate / 1e6)
+    std::cout << std::format("Actual RX Rate: %f Msps...") % (actual_rx_rate / 1e6)
               << std::endl;
 
     double rx_time = nsamps / actual_rx_rate;
     if (from_eob) {
-        std::cout << boost::format("Will add %f seconds to timespec for RX samples...")
+        std::cout << std::format("Will add %f seconds to timespec for RX samples...")
                          % (rx_time)
                   << std::endl;
     }
@@ -159,7 +159,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         size_t num_rx_samps = rx_stream->recv(&buffer.front(), buffer.size(), rx_md);
 
         if (verbose) {
-            std::cout << boost::format(
+            std::cout << std::format(
                              "Run %d: Got packet: %u samples, %u full secs, %f frac secs")
                              % nrun % num_rx_samps % rx_md.time_spec.get_full_secs()
                              % rx_md.time_spec.get_frac_secs()
@@ -181,7 +181,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
         size_t num_tx_samps = tx_stream->send(&buffer.front(), buffer.size(), tx_md);
         if (verbose) {
-            std::cout << boost::format("Sent %d samples") % num_tx_samps << std::endl;
+            std::cout << std::format("Sent %d samples") % num_tx_samps << std::endl;
         }
 
         /***************************************************************
@@ -189,7 +189,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
          **************************************************************/
         uhd::async_metadata_t async_md;
         if (not tx_stream->recv_async_msg(async_md)) {
-            std::cout << boost::format("failed:\n    Async message recv timed out.\n")
+            std::cout << std::format("failed:\n    Async message recv timed out.\n")
                       << std::endl;
             continue;
         }
@@ -207,7 +207,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 break;
 
             default:
-                std::cerr << boost::format(
+                std::cerr << std::format(
                                  "failed:\n    Got unexpected event code 0x%x.\n")
                                  % async_md.event_code
                           << std::endl;
@@ -235,7 +235,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 break;
 
             default:
-                std::cerr << boost::format(
+                std::cerr << std::format(
                                  "failed:\n    Got unexpected event code 0x%x.\n")
                                  % async_md.event_code
                           << std::endl;

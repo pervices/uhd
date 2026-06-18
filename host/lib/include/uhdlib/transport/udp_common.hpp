@@ -16,7 +16,7 @@
 #include <uhdlib/asio.hpp>
 #include <uhdlib/transport/links.hpp>
 #include <uhdlib/utils/narrow.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <thread>
 #include <errno.h>
@@ -156,7 +156,7 @@ UHD_INLINE size_t recv_udp_packet(
         }
         if (len < 0) {
             throw uhd::io_error(
-                str(boost::format("recv error on socket: %s") % strerror(errno)));
+                str(std::format("recv error on socket: %s") % strerror(errno)));
         }
         return len;
     }
@@ -180,7 +180,7 @@ UHD_INLINE void send_udp_packet(int sock_fd, void* mem, size_t len)
         }
         if (ret == -1) {
             throw uhd::io_error(
-                str(boost::format("send error on socket: %s") % strerror(errno)));
+                str(std::format("send error on socket: %s") % strerror(errno)));
         }
         UHD_ASSERT_THROW(ret == ssize_t(len));
     }
@@ -214,7 +214,7 @@ UHD_INLINE size_t resize_udp_socket_buffer_with_warning(
     size_t actual_size = 0;
     std::string help_message;
 #if defined(UHD_PLATFORM_LINUX)
-    help_message = str(boost::format("Please run: sudo sysctl -w net.core.%smem_max=%d")
+    help_message = str(std::format("Please run: sudo sysctl -w net.core.%smem_max=%d")
                        % ((name == "recv") ? "r" : "w") % target_size);
 #endif /*defined(UHD_PLATFORM_LINUX)*/
 
@@ -224,11 +224,11 @@ UHD_INLINE size_t resize_udp_socket_buffer_with_warning(
 
         //see udp_zero_copy make for the code that automatically sets the buffer size
         UHD_LOGGER_TRACE("UDP")
-            << boost::format("Target/actual %s sock buff size: %d/%d bytes") % name
+            << std::format("Target/actual %s sock buff size: %d/%d bytes") % name
                    % target_size % actual_size;
         if (actual_size < target_size)
             UHD_LOGGER_WARNING("UDP")
-                << boost::format(
+                << std::format(
                        "The %s buffer could not be resized sufficiently.\n"
                        "Target sock buff size: %d bytes.\n"
                        "Actual sock buff size: %d bytes.\n"

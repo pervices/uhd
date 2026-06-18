@@ -12,7 +12,7 @@
 #include <uhd/usrp_clock/multi_usrp_clock.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <functional>
@@ -63,7 +63,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // Create a Multi-USRP-Clock device (currently OctoClock only)
-    std::cout << boost::format("\nCreating the Clock device with: %s") % clock_args
+    std::cout << std::format("\nCreating the Clock device with: %s") % clock_args
               << std::endl;
     multi_usrp_clock::sptr clock = multi_usrp_clock::make(clock_args);
 
@@ -76,7 +76,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // Create a Multi-USRP device
-    std::cout << boost::format("\nCreating the USRP device with: %s") % usrp_args
+    std::cout << std::format("\nCreating the USRP device with: %s") % usrp_args
               << std::endl;
     multi_usrp::sptr usrp = multi_usrp::make(usrp_args);
 
@@ -90,7 +90,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     bool all_locked = true;
     for (size_t ch = 0; ch < usrp->get_num_mboards(); ch++) {
         std::string ref_locked = usrp->get_mboard_sensor("ref_locked", ch).value;
-        std::cout << boost::format(" * %s: %s") % serials[ch] % ref_locked << std::endl;
+        std::cout << std::format(" * %s: %s") % serials[ch] % ref_locked << std::endl;
 
         if (ref_locked != "true")
             all_locked = false;
@@ -106,7 +106,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     usrp->set_time_next_pps(uhd::time_spec_t(double(clock_time + 1)));
     srand((unsigned int)time(NULL));
 
-    std::cout << boost::format("Running %d comparisons at random intervals.") % num_tests
+    std::cout << std::format("Running %d comparisons at random intervals.") % num_tests
               << std::endl;
     uint32_t num_matches = 0;
     for (size_t i = 0; i < num_tests; i++) {
@@ -124,11 +124,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // Wait for threads to complete
         thread_group.join_all();
 
-        std::cout << boost::format("Comparison #%d") % (i + 1) << std::endl;
+        std::cout << std::format("Comparison #%d") % (i + 1) << std::endl;
         bool all_match = true;
-        std::cout << boost::format(" * Clock time: %d") % clock_time << std::endl;
+        std::cout << std::format(" * Clock time: %d") % clock_time << std::endl;
         for (size_t j = 0; j < usrp->get_num_mboards(); j++) {
-            std::cout << boost::format(" * %s time: %d") % serials[j] % usrp_times[j]
+            std::cout << std::format(" * %s time: %d") % serials[j] % usrp_times[j]
                       << std::endl;
             if (usrp_times[j] != clock_time)
                 all_match = false;
@@ -138,7 +138,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     std::cout << std::endl
-              << boost::format("Number of matches: %d/%d") % num_matches % num_tests
+              << std::format("Number of matches: %d/%d") % num_matches % num_tests
               << std::endl;
 
     return EXIT_SUCCESS;

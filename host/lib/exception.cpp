@@ -7,7 +7,7 @@
 //
 
 #include <uhd/exception.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/functional/hash.hpp>
 
 using namespace uhd;
@@ -21,7 +21,7 @@ exception::exception(const std::string& what) : std::runtime_error(what)
 
 #define make_exception_impl(name, class, base) \
     class::class(const std::string &what): \
-        base(str(boost::format("%s: %s") % name % what)){} \
+        base(str(std::format("%s: %s") % name % what)){} \
     unsigned class::code(void) const{return boost::hash<std::string>()(#class) & 0xfff;} \
     class *class::dynamic_clone(void) const{return new class(*this);} \
     void class::dynamic_throw(void) const{throw *this;}
@@ -51,7 +51,7 @@ make_exception_impl("RoutingError",          routing_error,           rfnoc_erro
 
 
 usb_error::usb_error(int code, const std::string &what) :
-    runtime_error(str(boost::format("%s %d: %s") % "USBError" % code % what)),
+    runtime_error(str(std::format("%s %d: %s") % "USBError" % code % what)),
     _code(code)
 {}
 

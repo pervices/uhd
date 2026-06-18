@@ -12,7 +12,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <complex>
 #include <cstdlib>
@@ -60,7 +60,7 @@ bool test_late_command_message(uhd::usrp::multi_usrp::sptr usrp,
             return false;
 
         default:
-            std::cout << boost::format(
+            std::cout << std::format(
                              "failed:\n"
                              "    Got unexpected error code 0x%x (%s), nsamps %u.\n")
                              % md.error_code % md.strerror() % nsamps
@@ -100,19 +100,19 @@ bool test_broken_chain_message(UHD_UNUSED(uhd::usrp::multi_usrp::sptr usrp),
 
     switch (md.error_code) {
         case uhd::rx_metadata_t::ERROR_CODE_BROKEN_CHAIN:
-            std::cout << boost::format("success:\n"
+            std::cout << std::format("success:\n"
                                        "    Got error code broken chain message.\n")
                       << std::endl;
             return true;
 
         case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
-            std::cout << boost::format("failed:\n"
+            std::cout << std::format("failed:\n"
                                        "    Inline message recv timed out.\n")
                       << std::endl;
             return false;
 
         default:
-            std::cout << boost::format("failed:\n"
+            std::cout << std::format("failed:\n"
                                        "    Got unexpected error code 0x%x (%s).\n")
                              % md.error_code % md.strerror()
                       << std::endl;
@@ -154,7 +154,7 @@ bool test_burst_ack_message(
             return true;
 
         default:
-            std::cout << boost::format("failed:\n"
+            std::cout << std::format("failed:\n"
                                        "    Got unexpected event code 0x%x.\n")
                              % async_md.event_code
                       << std::endl;
@@ -183,20 +183,20 @@ bool test_underflow_message(
     uhd::async_metadata_t async_md;
     bool result = false;
     if (not tx_stream->recv_async_msg(async_md, 1)) {
-        std::cout << boost::format("failed:\n"
+        std::cout << std::format("failed:\n"
                                    "    Async message recv timed out.\n")
                   << std::endl;
     } else {
         switch (async_md.event_code) {
             case uhd::async_metadata_t::EVENT_CODE_UNDERFLOW:
-                std::cout << boost::format("success:\n"
+                std::cout << std::format("success:\n"
                                            "    Got event code underflow message.\n")
                           << std::endl;
                 result = true;
                 break;
 
             default:
-                std::cout << boost::format("failed:\n"
+                std::cout << std::format("failed:\n"
                                            "    Got unexpected event code 0x%x.\n")
                                  % async_md.event_code
                           << std::endl;
@@ -236,7 +236,7 @@ bool test_time_error_message(uhd::usrp::multi_usrp::sptr usrp,
 
     uhd::async_metadata_t async_md;
     if (not tx_stream->recv_async_msg(async_md)) {
-        std::cout << boost::format("failed:\n"
+        std::cout << std::format("failed:\n"
                                    "    Async message recv timed out.\n")
                   << std::endl;
         return false;
@@ -244,13 +244,13 @@ bool test_time_error_message(uhd::usrp::multi_usrp::sptr usrp,
 
     switch (async_md.event_code) {
         case uhd::async_metadata_t::EVENT_CODE_TIME_ERROR:
-            std::cout << boost::format("success:\n"
+            std::cout << std::format("success:\n"
                                        "    Got event code time error message.\n")
                       << std::endl;
             return true;
 
         default:
-            std::cout << boost::format("failed:\n"
+            std::cout << std::format("failed:\n"
                                        "    Got unexpected event code 0x%x.\n")
                              % async_md.event_code
                       << std::endl;
@@ -331,10 +331,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args
+    std::cout << std::format("Creating the usrp device with: %s...") % args
               << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     // create RX and TX streamers
     uhd::stream_args_t stream_args("fc32"); // complex floats
@@ -397,7 +397,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     bool any_failure = false;
     std::cout << std::endl << "Summary:" << std::endl << std::endl;
     for (const std::string& key : tests.keys()) {
-        std::cout << boost::format("%s   ->   %3u successes, %3u failures") % key
+        std::cout << std::format("%s   ->   %3u successes, %3u failures") % key
                          % successes[key] % failures[key]
                   << std::endl;
         any_failure = any_failure or (failures[key] > 0);

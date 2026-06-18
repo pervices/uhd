@@ -12,7 +12,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -110,7 +110,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
             continue;
         }
         else if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-            std::cout << boost::format("Timeout while streaming") << std::endl;
+            std::cout << std::format("Timeout while streaming") << std::endl;
             if(continue_on_bad_packet) continue;
             else {
                 std::cout << num_total_samps << " samples received before timeout" << std::endl;
@@ -121,7 +121,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
             if (overflow_message) {
                 overflow_message = false;
                 std::cerr
-                    << boost::format(
+                    << std::format(
                            "Got an overflow indication. Please consider the following:\n"
                            "  Your write medium must sustain a rate of %fMB/s.\n"
                            "  Dropped samples will not be written to the file.\n"
@@ -132,7 +132,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
             continue;
         }
         else if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
-            std::string error = str(boost::format("Receiver error: %s") % md.strerror());
+            std::string error = str(std::format("Receiver error: %s") % md.strerror());
             if (continue_on_bad_packet) {
                 std::cerr << error << std::endl;
                 continue;
@@ -185,7 +185,7 @@ void recv_to_file(uhd::usrp::multi_usrp::sptr usrp,
         const double actual_duration_seconds =
             std::chrono::duration<float>(actual_stop_time - start_time).count();
 
-        std::cout << boost::format("Received %d samples in %f seconds") % num_total_samps
+        std::cout << std::format("Received %d samples in %f seconds") % num_total_samps
 
                          % actual_duration_seconds
                   << std::endl;
@@ -218,7 +218,7 @@ bool check_locked_sensor(std::vector<std::string> sensor_names,
                          + std::chrono::milliseconds(int64_t(setup_time * 1000));
     bool lock_detected = false;
 
-    std::cout << boost::format("Waiting for \"%s\": ") % sensor_name;
+    std::cout << std::format("Waiting for \"%s\": ") % sensor_name;
     std::cout.flush();
 
     while (true) {
@@ -236,7 +236,7 @@ bool check_locked_sensor(std::vector<std::string> sensor_names,
             if (std::chrono::steady_clock::now() > setup_timeout) {
                 std::cout << std::endl;
                 throw std::runtime_error(
-                    str(boost::format(
+                    str(std::format(
                             "timed out waiting for consecutive locks on sensor \"%s\"")
                         % sensor_name));
             }
@@ -299,7 +299,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // ETTUS changed a lot of this example program
         // This is being kept as a backup in case we run into issues with their changes
         // Removing this file after we know the new rx_samples_to_file has no suprises
-        std::cout << boost::format("UHD RX samples to file old version%s") % desc << std::endl;
+        std::cout << std::format("UHD RX samples to file old version%s") % desc << std::endl;
         std::cout << std::endl
                   << "This application streams data from a single channel of a USRP "
                      "device to a file.\n"
@@ -319,7 +319,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args
+    std::cout << std::format("Creating the usrp device with: %s...") % args
               << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
@@ -332,7 +332,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     if (vm.count("subdev"))
         usrp->set_rx_subdev_spec(subdev);
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     // set the sample rate
     if (rate <= 0.0) {
@@ -340,9 +340,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
-    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    std::cout << std::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
     usrp->set_rx_rate(rate, channel);
-    std::cout << boost::format("Actual RX Rate: %f Msps...")
+    std::cout << std::format("Actual RX Rate: %f Msps...")
                      % (usrp->get_rx_rate(channel) / 1e6)
               << std::endl
               << std::endl;
@@ -351,7 +351,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // manual lo
     if(vm.count("lo-offset")) {
-        std::cout << boost::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
+        std::cout << std::format("Setting RX LO Offset: %f MHz...") % (lo_offset / 1e6)
                   << std::endl;
         double target_dsp;
         double target_lo_freq;
@@ -362,7 +362,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             target_lo_freq = 0;
             target_dsp = 0;
         }
-        std::cout << boost::format("Setting RX DSP NCO: %f MHz...") % ((target_dsp) / 1e6)
+        std::cout << std::format("Setting RX DSP NCO: %f MHz...") % ((target_dsp) / 1e6)
                 << std::endl;
         //the argument order for a manual tune request specifying nco and lo is nco (Hz), lo (Hz), any value
         //the 3rd value is there to avoid a conflict with a different overload for the tune request constructor
@@ -375,7 +375,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             freq = 0;
         }
         tune_request = uhd::tune_request_t(freq);
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq / 1e6)
+        std::cout << std::format("Setting RX Freq: %f MHz...") % (freq / 1e6)
                   << std::endl;
     }
 
@@ -385,16 +385,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     if(vm.count("lo-offset")) {
         double actual_lo = usrp->get_rx_lo_freq("", channel);
-        std::cout << boost::format("Actual RX LO: %f MHz...")
+        std::cout << std::format("Actual RX LO: %f MHz...")
                          % (actual_lo / 1e6)
                   << std::endl;
         // there is no command to get the dsp freq directly, but it will be the difference between the total and lo freqs
-        std::cout << boost::format("Actual RX DSP NCO: %f MHz...")
+        std::cout << std::format("Actual RX DSP NCO: %f MHz...")
                          % ((usrp->get_rx_freq(channel)-actual_lo) / 1e6)
                   << std::endl
                   << std::endl;
     } else {
-        std::cout << boost::format("Actual RX Freq: %f MHz...")
+        std::cout << std::format("Actual RX Freq: %f MHz...")
                          % (usrp->get_rx_freq(channel) / 1e6)
                   << std::endl
                   << std::endl;
@@ -403,9 +403,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // set the rf gain
     if (vm.count("gain")) {
-        std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+        std::cout << std::format("Setting RX Gain: %f dB...") % gain << std::endl;
         usrp->set_rx_gain(gain, channel);
-        std::cout << boost::format("Actual RX Gain: %f dB...")
+        std::cout << std::format("Actual RX Gain: %f dB...")
                          % usrp->get_rx_gain(channel)
                   << std::endl
                   << std::endl;
@@ -413,10 +413,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // set the IF filter bandwidth
     if (vm.count("bw")) {
-        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw / 1e6)
+        std::cout << std::format("Setting RX Bandwidth: %f MHz...") % (bw / 1e6)
                   << std::endl;
         usrp->set_rx_bandwidth(bw, channel);
-        std::cout << boost::format("Actual RX Bandwidth: %f MHz...")
+        std::cout << std::format("Actual RX Bandwidth: %f MHz...")
                          % (usrp->get_rx_bandwidth(channel) / 1e6)
                   << std::endl
                   << std::endl;

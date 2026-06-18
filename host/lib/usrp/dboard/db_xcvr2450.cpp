@@ -51,7 +51,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhdlib/utils/narrow.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -118,7 +118,7 @@ private:
     {
         uint32_t value = _max2829_regs.get_reg(addr);
         UHD_LOGGER_TRACE("XCVR2450")
-            << boost::format("XCVR2450: send reg 0x%02x, value 0x%05x") % int(addr)
+            << std::format("XCVR2450: send reg 0x%02x, value 0x%05x") % int(addr)
                    % value;
         this->get_iface()->write_spi(
             dboard_iface::UNIT_RX, spi_config_t::EDGE_RISE, value, 24);
@@ -425,12 +425,12 @@ done_loop:
     _lo_freq = (N * ref_freq) / (scaler * R * _ad9515div);
 
     UHD_LOGGER_TRACE("XCVR2450")
-        << boost::format("XCVR2450 tune:\n")
-        << boost::format("    R=%d, N=%f, ad9515=%d, scaler=%f\n") % R % N % _ad9515div
+        << std::format("XCVR2450 tune:\n")
+        << std::format("    R=%d, N=%f, ad9515=%d, scaler=%f\n") % R % N % _ad9515div
                % scaler
-        << boost::format("    Ref    Freq=%fMHz\n") % (ref_freq / 1e6)
-        << boost::format("    Target Freq=%fMHz\n") % (target_freq / 1e6)
-        << boost::format("    Actual Freq=%fMHz\n") % (_lo_freq / 1e6);
+        << std::format("    Ref    Freq=%fMHz\n") % (ref_freq / 1e6)
+        << std::format("    Target Freq=%fMHz\n") % (target_freq / 1e6)
+        << std::format("    Actual Freq=%fMHz\n") % (_lo_freq / 1e6);
 
     // high-high band or low-high band?
     if (_lo_freq > (5.35e9 + 5.47e9) / 2.0) {
@@ -717,7 +717,7 @@ double xcvr2450::set_rx_bandwidth(double bandwidth)
     send_reg(0x7);
 
     UHD_LOGGER_TRACE("XCVR2450")
-        << boost::format(
+        << std::format(
                "XCVR2450 RX Bandwidth (lp_fc): %f Hz, coarse reg: %d, fine reg: %d")
                % _rx_bandwidth % (int(_max2829_regs.rx_lpf_coarse_adj))
                % (int(_max2829_regs.rx_lpf_fine_adj));
@@ -740,7 +740,7 @@ double xcvr2450::set_tx_bandwidth(double bandwidth)
     send_reg(0x7);
 
     UHD_LOGGER_TRACE("XCVR2450")
-        << boost::format("XCVR2450 TX Bandwidth (lp_fc): %f Hz, coarse reg: %d")
+        << std::format("XCVR2450 TX Bandwidth (lp_fc): %f Hz, coarse reg: %d")
                % _tx_bandwidth % (int(_max2829_regs.tx_lpf_coarse_adj));
 
     // convert lowpass back to complex bandpass bandwidth

@@ -27,7 +27,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhdlib/rfnoc/device_id.hpp>
 #include <uhdlib/utils/paths.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <fstream>
 #include <thread>
@@ -72,7 +72,7 @@ device_addrs_t x300_find(const device_addr_t& hint_)
             device_addrs_t found_devices_i = x300_find(hint_i);
             if (found_devices_i.size() != 1)
                 error_msg +=
-                    str(boost::format(
+                    str(std::format(
                             "Could not resolve device hint \"%s\" to a single device.")
                         % hint_i.to_string());
             else
@@ -439,13 +439,13 @@ uhd::compat_num32 x300_impl::check_fw_compat(
     if (compat_major != X300_FW_COMPAT_MAJOR) {
         const std::string image_loader_path = uhd::find_uhd_command("uhd_image_loader");
         const std::string image_loader_cmd  = str(
-            boost::format("\"%s\" --args=\"type=x300,%s=%s\"") % image_loader_path
+            std::format("\"%s\" --args=\"type=x300,%s=%s\"") % image_loader_path
             % (members.xport_path == xport_path_t::ETH ? "addr" : "resource")
             % (members.xport_path == xport_path_t::ETH ? members.args.get_first_addr()
                                                         : members.args.get_resource()));
 
         throw uhd::runtime_error(
-            str(boost::format(
+            str(std::format(
                     "Expected firmware compatibility number %d, but got %d:\n"
                     "The FPGA/firmware image on your device is not compatible with this "
                     "host code build.\n"
@@ -460,7 +460,7 @@ uhd::compat_num32 x300_impl::check_fw_compat(
                 % print_utility_error("uhd_images_downloader.py") % image_loader_cmd));
     }
     _tree->create<std::string>(mb_path / "fw_version")
-        .set(str(boost::format("%u.%u") % compat_major % compat_minor));
+        .set(str(std::format("%u.%u") % compat_major % compat_minor));
 
     return {static_cast<uint16_t>(compat_major), static_cast<uint16_t>(compat_minor)};
 }
@@ -475,13 +475,13 @@ uhd::compat_num32 x300_impl::check_fpga_compat(
     if (compat_major != X300_FPGA_COMPAT_MAJOR || compat_minor < X300_FPGA_COMPAT_MINOR) {
         const std::string image_loader_path = uhd::find_uhd_command("uhd_image_loader");
         const std::string image_loader_cmd  = str(
-            boost::format("\"%s\" --args=\"type=x300,%s=%s\"") % image_loader_path
+            std::format("\"%s\" --args=\"type=x300,%s=%s\"") % image_loader_path
             % (members.xport_path == xport_path_t::ETH ? "addr" : "resource")
             % (members.xport_path == xport_path_t::ETH ? members.args.get_first_addr()
                                                         : members.args.get_resource()));
 
         throw uhd::runtime_error(
-            str(boost::format(
+            str(std::format(
                     "Expected FPGA compatibility number %d.%d, but got %d.%d:\n"
                     "The FPGA image on your device is not compatible with this host code "
                     "build.\n"
@@ -497,11 +497,11 @@ uhd::compat_num32 x300_impl::check_fpga_compat(
                 % print_utility_error("uhd_images_downloader.py") % image_loader_cmd));
     }
     _tree->create<std::string>(mb_path / "fpga_version")
-        .set(str(boost::format("%u.%u") % compat_major % compat_minor));
+        .set(str(std::format("%u.%u") % compat_major % compat_minor));
 
     const uint32_t git_hash =
         members.zpu_ctrl->peek32(SR_ADDR(SET0_BASE, ZPU_RB_GIT_HASH));
-    const std::string git_hash_str = str(boost::format("%07x%s") % (git_hash & 0x0FFFFFFF)
+    const std::string git_hash_str = str(std::format("%07x%s") % (git_hash & 0x0FFFFFFF)
                                          % ((git_hash & 0xF0000000) ? "-dirty" : ""));
     _tree->create<std::string>(mb_path / "fpga_version_hash").set(git_hash_str);
     UHD_LOG_DEBUG("X300",

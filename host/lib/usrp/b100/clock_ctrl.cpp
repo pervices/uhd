@@ -14,7 +14,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <chrono>
 #include <numeric>
@@ -71,7 +71,7 @@ struct clock_settings_type
     }
     std::string to_pp_string(void) const
     {
-        return str(boost::format("  r_counter: %d\n"
+        return str(std::format("  r_counter: %d\n"
                                  "  a_counter: %d\n"
                                  "  b_counter: %d\n"
                                  "  prescaler: %d\n"
@@ -185,7 +185,7 @@ static clock_settings_type get_clock_settings(double rate)
     }
 
     throw uhd::value_error(str(
-        boost::format(
+        std::format(
             "USRP-B100 clock control: could not calculate settings for clock rate %fMHz")
         % (rate / 1e6)));
 }

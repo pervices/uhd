@@ -11,7 +11,7 @@
 #include <uhd/rfnoc/block_id.hpp>
 #include <uhd/rfnoc/constants.hpp>
 #include <uhd/utils/cast.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <iostream>
 #include <regex>
 
@@ -49,12 +49,12 @@ bool block_id_t::is_valid_block_id(const std::string& block_id)
 
 std::string block_id_t::to_string() const
 {
-    return str(boost::format("%d/%s") % get_device_no() % get_local());
+    return str(std::format("%d/%s") % get_device_no() % get_local());
 }
 
 std::string block_id_t::get_local() const
 {
-    return str(boost::format("%s#%d") % get_block_name() % get_block_count());
+    return str(std::format("%s#%d") % get_block_name() % get_block_count());
 }
 
 uhd::fs_path block_id_t::get_tree_root() const

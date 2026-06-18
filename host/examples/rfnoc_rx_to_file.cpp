@@ -557,7 +557,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         uhd::tune_request_t tune_request(freq);
 
         if (vm.count("lo-offset")) {
-            std::cout << boost::format("Setting RX LO Offset: %f MHz...")
+            std::cout << std::format("Setting RX LO Offset: %f MHz...")
                              % (lo_offset / 1e6)
                       << std::endl;
             tune_request = uhd::tune_request_t(freq, lo_offset);

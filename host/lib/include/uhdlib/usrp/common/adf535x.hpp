@@ -15,7 +15,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <functional>
 #include <iomanip>
@@ -146,7 +146,7 @@ public:
     {
         if (pfd_freq > ADF535X_MAX_FREQ_PFD) {
             UHD_LOGGER_ERROR("ADF535x")
-                << boost::format("%f MHz is above the maximum PFD frequency of %f MHz\n")
+                << std::format("%f MHz is above the maximum PFD frequency of %f MHz\n")
                        % (pfd_freq / 1e6) % (ADF535X_MAX_FREQ_PFD / 1e6);
             return;
         }
@@ -435,12 +435,12 @@ inline double adf535x_impl<adf5355_regs_t>::_set_frequency(
     const double coerced_out_freq = coerced_vco_freq / rf_divider;
 
     UHD_LOG_TRACE("ADF5355",
-        boost::format("ADF5355 Frequencies (MHz): Requested=%f "
+        std::format("ADF5355 Frequencies (MHz): Requested=%f "
                       "Actual=%f TargetVCO=%f ActualVCO=%f")
             % (target_freq / 1e6) % (coerced_out_freq / 1e6) % (target_vco_freq / 1e6)
             % (coerced_vco_freq / 1e6));
     UHD_LOG_TRACE("ADF5355",
-        boost::format("ADF5355 Settings: N=%f INT=%d FRAC1=%u MOD2=%d FRAC2=%u") % N % INT
+        std::format("ADF5355 Settings: N=%f INT=%d FRAC1=%u MOD2=%d FRAC2=%u") % N % INT
             % FRAC1 % MOD2 % FRAC2);
 
     /* Update registers */
@@ -577,12 +577,12 @@ inline double adf535x_impl<adf5356_regs_t>::_set_frequency(
     const double coerced_out_freq = coerced_vco_freq / rf_divider;
 
     UHD_LOG_TRACE("ADF5356",
-        boost::format("ADF5356 Frequencies (MHz): Requested=%f "
+        std::format("ADF5356 Frequencies (MHz): Requested=%f "
                       "Actual=%f TargetVCO=%f ActualVCO=%f")
             % (target_freq / 1e6) % (coerced_out_freq / 1e6) % (target_vco_freq / 1e6)
             % (coerced_vco_freq / 1e6));
     UHD_LOG_TRACE("ADF5356",
-        boost::format("ADF5356 Settings: N=%f INT=%d FRAC1=%u MOD2=%d FRAC2=%u") % N % INT
+        std::format("ADF5356 Settings: N=%f INT=%d FRAC1=%u MOD2=%d FRAC2=%u") % N % INT
             % FRAC1 % MOD2 % FRAC2);
 
     /* Update registers */

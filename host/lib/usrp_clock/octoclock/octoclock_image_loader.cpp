@@ -17,7 +17,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhdlib/utils/ihex.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -91,7 +91,7 @@ static void octoclock_read_bin(octoclock_session_t& session)
 static void octoclock_validate_firmware_image(octoclock_session_t& session)
 {
     if (not fs::exists(session.image_filepath)) {
-        throw uhd::runtime_error(str(boost::format("Could not find image at path \"%s\"")
+        throw uhd::runtime_error(str(std::format("Could not find image at path \"%s\"")
                                      % session.image_filepath));
     }
 
@@ -103,12 +103,12 @@ static void octoclock_validate_firmware_image(octoclock_session_t& session)
         session.image = hex_reader.to_vector(OCTOCLOCK_FIRMWARE_MAX_SIZE_BYTES);
     } else
         throw uhd::runtime_error(
-            str(boost::format("Invalid extension \"%s\". Extension must be .hex or .bin.")
+            str(std::format("Invalid extension \"%s\". Extension must be .hex or .bin.")
                 % extension));
 
     if (session.image.size() > OCTOCLOCK_FIRMWARE_MAX_SIZE_BYTES) {
         throw uhd::runtime_error(
-            str(boost::format("The specified firmware image is too large: %d vs. %d")
+            str(std::format("The specified firmware image is too large: %d vs. %d")
                 % session.image.size() % OCTOCLOCK_FIRMWARE_MAX_SIZE_BYTES));
     }
 
@@ -136,9 +136,9 @@ static void octoclock_setup_session(octoclock_session_t& session,
         for (const uhd::device_addr_t& dev : devs) {
             std::string name =
                 (dev["type"] == "octoclock")
-                    ? str(boost::format("OctoClock r%d") % dev.get("revision", "4"))
+                    ? str(std::format("OctoClock r%d") % dev.get("revision", "4"))
                     : "OctoClock Bootloader";
-            err_msg += str(boost::format(" * %s (addr=%s)\n") % name % dev.get("addr"));
+            err_msg += str(std::format(" * %s (addr=%s)\n") % name % dev.get("addr"));
         }
 
         err_msg += "\nSpecify one of these devices with the given args to load an image "
@@ -153,7 +153,7 @@ static void octoclock_setup_session(octoclock_session_t& session,
     // If no filepath is given, use the default
     if (filepath.empty()) {
         session.image_filepath =
-            find_image_path(str(boost::format("octoclock_r%s_fw.hex")
+            find_image_path(str(std::format("octoclock_r%s_fw.hex")
                                 % session.dev_addr.get("revision", "4")));
     } else
         session.image_filepath = filepath;
@@ -206,7 +206,7 @@ static void octoclock_reset_into_bootloader(octoclock_session_t& session)
         // Make sure this device is now in its bootloader
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         uhd::device_addrs_t octoclocks = uhd::device::find(
-            uhd::device_addr_t(str(boost::format("addr=%s") % session.dev_addr["addr"])));
+            uhd::device_addr_t(str(std::format("addr=%s") % session.dev_addr["addr"])));
         if (octoclocks.empty()) {
             std::cout << "failed." << std::endl;
             throw uhd::runtime_error("Failed to reset OctoClock.");
@@ -256,7 +256,7 @@ static void octoclock_burn(octoclock_session_t& session)
         pkt_out.sequence = uhd::htonx<uint32_t>(++session.sequence);
         pkt_out.addr     = i * OCTOCLOCK_BLOCK_SIZE;
 
-        std::cout << str(boost::format("\r -- Loading firmware: %d%% (%d/%d blocks)")
+        std::cout << str(std::format("\r -- Loading firmware: %d%% (%d/%d blocks)")
                          % int((double(i) / double(session.num_blocks)) * 100) % i
                          % session.num_blocks)
                   << std::flush;
@@ -275,7 +275,7 @@ static void octoclock_burn(octoclock_session_t& session)
         }
     }
 
-    std::cout << str(boost::format("\r -- Loading firmware: 100%% (%d/%d blocks)")
+    std::cout << str(std::format("\r -- Loading firmware: 100%% (%d/%d blocks)")
                      % session.num_blocks % session.num_blocks)
               << std::endl;
 }
@@ -294,7 +294,7 @@ static void octoclock_verify(octoclock_session_t& session)
         pkt_out.addr     = i * OCTOCLOCK_BLOCK_SIZE;
 
         std::cout << str(
-            boost::format("\r -- Verifying firmware load: %d%% (%d/%d blocks)")
+            std::format("\r -- Verifying firmware load: %d%% (%d/%d blocks)")
             % int((double(i) / double(session.num_blocks)) * 100) % i
             % session.num_blocks)
                   << std::flush;
@@ -321,7 +321,7 @@ static void octoclock_verify(octoclock_session_t& session)
         }
     }
 
-    std::cout << str(boost::format("\r -- Verifying firmware load: 100%% (%d/%d blocks)")
+    std::cout << str(std::format("\r -- Verifying firmware load: 100%% (%d/%d blocks)")
                      % session.num_blocks % session.num_blocks)
               << std::endl;
 }
@@ -356,7 +356,7 @@ bool octoclock_image_loader(const image_loader::image_loader_args_t& image_loade
     if (!session.found or !image_loader_args.load_firmware)
         return false;
 
-    std::cout << boost::format("Unit: OctoClock (%s)") % session.dev_addr["addr"]
+    std::cout << std::format("Unit: OctoClock (%s)") % session.dev_addr["addr"]
               << std::endl;
     std::cout << "Firmware: " << session.image_filepath << std::endl;
 

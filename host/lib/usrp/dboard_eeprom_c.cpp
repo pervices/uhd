@@ -8,7 +8,7 @@
 #include <uhd/error.h>
 #include <uhd/usrp/dboard_eeprom.h>
 #include <string.h>
-#include <boost/format.hpp>
+#include <format>
 
 uhd_error uhd_dboard_eeprom_make(uhd_dboard_eeprom_handle* h)
 {
@@ -55,10 +55,10 @@ int _convert_rev_with_exception(const std::string& rev_str)
         return std::stoi(rev_str);
     } catch (const std::invalid_argument&) {
         throw uhd::lookup_error(
-            str(boost::format("Error retrieving revision from string `%s`") % rev_str));
+            str(std::format("Error retrieving revision from string `%s`") % rev_str));
     } catch (const std::out_of_range&) {
         throw uhd::lookup_error(
-            str(boost::format("Error retrieving revision from string `%s`") % rev_str));
+            str(std::format("Error retrieving revision from string `%s`") % rev_str));
     }
 }
 

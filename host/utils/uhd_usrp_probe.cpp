@@ -18,7 +18,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/version.hpp>
 #include <boost/algorithm/string.hpp> //for split
-#include <boost/format.hpp>
+#include <format>
 
 #include <boost/program_options.hpp>
 #include <cstdlib>
@@ -32,9 +32,9 @@ using namespace uhd;
 static std::string make_border(const std::string& text)
 {
     std::stringstream ss;
-    ss << boost::format("  _____________________________________________________")
+    ss << std::format("  _____________________________________________________")
        << std::endl;
-    ss << boost::format(" /") << std::endl;
+    ss << std::format(" /") << std::endl;
     std::vector<std::string> lines;
     boost::split(lines, text, boost::is_any_of("\n"));
     while (lines.back().empty())
@@ -42,7 +42,7 @@ static std::string make_border(const std::string& text)
     if (!lines.empty())
         lines[0] = "    " + lines[0]; // indent the title line
     for (const std::string& line : lines) {
-        ss << boost::format("|   %s") % line << std::endl;
+        ss << std::format("|   %s") % line << std::endl;
     }
     return ss.str();
 }
@@ -51,10 +51,10 @@ static std::string get_dsp_pp_string(
     const std::string& type, property_tree::sptr tree, const fs_path& path)
 {
     std::stringstream ss;
-    ss << boost::format("%s DSP: %s") % type % path.leaf() << std::endl;
+    ss << std::format("%s DSP: %s") % type % path.leaf() << std::endl;
     ss << std::endl;
     meta_range_t freq_range = tree->access<meta_range_t>(path / "freq/range").get();
-    ss << boost::format("Freq range: %.3f to %.3f MHz") % (freq_range.start() / 1e6)
+    ss << std::format("Freq range: %.3f to %.3f MHz") % (freq_range.start() / 1e6)
               % (freq_range.stop() / 1e6)
        << std::endl;
     ;
@@ -75,22 +75,22 @@ static std::string get_frontend_pp_string(
     const std::string& type, property_tree::sptr tree, const fs_path& path)
 {
     std::stringstream ss;
-    ss << boost::format("%s Frontend: %s") % type % path.leaf() << std::endl;
+    ss << std::format("%s Frontend: %s") % type % path.leaf() << std::endl;
 
-    ss << boost::format("Name: %s") % (tree->access<std::string>(path / "name").get())
+    ss << std::format("Name: %s") % (tree->access<std::string>(path / "name").get())
        << std::endl;
-    ss << boost::format("Antennas: %s")
+    ss << std::format("Antennas: %s")
               % prop_names_to_pp_string(
                   tree->access<std::vector<std::string>>(path / "antenna/options").get())
        << std::endl;
     if (tree->exists(path / "sensors")) {
-        ss << boost::format("Sensors: %s")
+        ss << std::format("Sensors: %s")
                   % prop_names_to_pp_string(tree->list(path / "sensors"))
            << std::endl;
     }
 
     meta_range_t freq_range = tree->access<meta_range_t>(path / "freq/range").get();
-    ss << boost::format("Freq range: %.3f to %.3f MHz") % (freq_range.start() / 1e6)
+    ss << std::format("Freq range: %.3f to %.3f MHz") % (freq_range.start() / 1e6)
               % (freq_range.stop() / 1e6)
        << std::endl;
 
@@ -100,22 +100,22 @@ static std::string get_frontend_pp_string(
     for (const std::string& name : gain_names) {
         meta_range_t gain_range =
             tree->access<meta_range_t>(path / "gains" / name / "range").get();
-        ss << boost::format("Gain range %s: %.1f to %.1f step %.1f dB") % name
+        ss << std::format("Gain range %s: %.1f to %.1f step %.1f dB") % name
                   % gain_range.start() % gain_range.stop() % gain_range.step()
            << std::endl;
     }
     if (tree->exists(path / "bandwidth" / "range")) {
         meta_range_t bw_range =
             tree->access<meta_range_t>(path / "bandwidth" / "range").get();
-        ss << boost::format("Bandwidth range: %.1f to %.1f step %.1f Hz")
+        ss << std::format("Bandwidth range: %.1f to %.1f step %.1f Hz")
                   % bw_range.start() % bw_range.stop() % bw_range.step()
            << std::endl;
     }
 
-    ss << boost::format("Connection Type: %s")
+    ss << std::format("Connection Type: %s")
               % (tree->access<std::string>(path / "connection").get())
        << std::endl;
-    ss << boost::format("Uses LO offset: %s")
+    ss << std::format("Uses LO offset: %s")
               % ((tree->exists(path / "use_lo_offset")
                      and tree->access<bool>(path / "use_lo_offset").get())
                       ? "Yes"
@@ -130,9 +130,9 @@ static std::string get_codec_pp_string(
 {
     std::stringstream ss;
     if (tree->exists(path / "name")) {
-        ss << boost::format("%s Codec: %s") % type % path.leaf() << std::endl;
+        ss << std::format("%s Codec: %s") % type % path.leaf() << std::endl;
 
-        ss << boost::format("Name: %s") % (tree->access<std::string>(path / "name").get())
+        ss << std::format("Name: %s") % (tree->access<std::string>(path / "name").get())
            << std::endl;
         std::vector<std::string> gain_names = tree->list(path / "gains");
         if (gain_names.empty())
@@ -140,7 +140,7 @@ static std::string get_codec_pp_string(
         for (const std::string& name : gain_names) {
             meta_range_t gain_range =
                 tree->access<meta_range_t>(path / "gains" / name / "range").get();
-            ss << boost::format("Gain range %s: %.1f to %.1f step %.1f dB") % name
+            ss << std::format("Gain range %s: %.1f to %.1f step %.1f dB") % name
                       % gain_range.start() % gain_range.stop() % gain_range.step()
                << std::endl;
         }
@@ -154,15 +154,15 @@ static std::string get_dboard_pp_string(const std::string& type,
     const fs_path& path)
 {
     std::stringstream ss;
-    ss << boost::format("%s Dboard: %s") % type % name << std::endl;
+    ss << std::format("%s Dboard: %s") % type % name << std::endl;
     const std::string prefix = (type == "RX") ? "rx" : "tx";
     if (tree->exists(path / (prefix + "_eeprom"))) {
         usrp::dboard_eeprom_t db_eeprom =
             tree->access<usrp::dboard_eeprom_t>(path / (prefix + "_eeprom")).get();
         if (db_eeprom.id != usrp::dboard_id_t::none())
-            ss << boost::format("ID: %s") % db_eeprom.id.to_pp_string() << std::endl;
+            ss << std::format("ID: %s") % db_eeprom.id.to_pp_string() << std::endl;
         if (not db_eeprom.serial.empty())
-            ss << boost::format("Serial: %s") % db_eeprom.serial << std::endl;
+            ss << std::format("Serial: %s") % db_eeprom.serial << std::endl;
         if (not db_eeprom.revision.empty()) {
             ss << "Revision: " << db_eeprom.revision << std::endl;
         }
@@ -170,9 +170,9 @@ static std::string get_dboard_pp_string(const std::string& type,
             usrp::dboard_eeprom_t gdb_eeprom =
                 tree->access<usrp::dboard_eeprom_t>(path / "gdb_eeprom").get();
             if (gdb_eeprom.id != usrp::dboard_id_t::none())
-                ss << boost::format("ID: %s") % gdb_eeprom.id.to_pp_string() << std::endl;
+                ss << std::format("ID: %s") % gdb_eeprom.id.to_pp_string() << std::endl;
             if (not gdb_eeprom.serial.empty())
-                ss << boost::format("Serial: %s") % gdb_eeprom.serial << std::endl;
+                ss << std::format("Serial: %s") % gdb_eeprom.serial << std::endl;
             if (not gdb_eeprom.revision.empty()) {
                 ss << "Revision: " << gdb_eeprom.revision << std::endl;
             }
@@ -231,7 +231,7 @@ static std::string get_rfnoc_pp_string(
 static std::string get_mboard_pp_string(property_tree::sptr tree, const fs_path& path)
 {
     std::stringstream ss;
-    ss << boost::format("Mboard: %s") % (tree->access<std::string>(path / "name").get())
+    ss << std::format("Mboard: %s") % (tree->access<std::string>(path / "name").get())
        << std::endl;
 
     if (tree->exists(path / "eeprom")) {
@@ -239,7 +239,7 @@ static std::string get_mboard_pp_string(property_tree::sptr tree, const fs_path&
             tree->access<usrp::mboard_eeprom_t>(path / "eeprom").get();
         for (const std::string& key : mb_eeprom.keys()) {
             if (not mb_eeprom[key].empty())
-                ss << boost::format("%s: %s") % key % mb_eeprom[key] << std::endl;
+                ss << std::format("%s: %s") % key % mb_eeprom[key] << std::endl;
         }
     } else {
         ss << "No mboard EEPROM found." << std::endl;
@@ -317,7 +317,7 @@ static std::string get_mboard_pp_string(property_tree::sptr tree, const fs_path&
 static std::string get_device_pp_string(property_tree::sptr tree)
 {
     std::stringstream ss;
-    ss << boost::format("Device: %s") % (tree->access<std::string>("/name").get())
+    ss << std::format("Device: %s") % (tree->access<std::string>("/name").get())
        << std::endl;
     for (const std::string& name : tree->list("/mboards")) {
         ss << make_border(get_mboard_pp_string(tree, "/mboards/" + name));
@@ -431,7 +431,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD USRP Probe %s") % desc << std::endl;
+        std::cout << std::format("UHD USRP Probe %s") % desc << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -488,7 +488,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     if (vm.count("range")) {
         meta_range_t range =
             tree->access<meta_range_t>(vm["range"].as<std::string>()).get();
-        std::cout << boost::format("%.1f:%.1f:%.1f") % range.start() % range.step()
+        std::cout << std::format("%.1f:%.1f:%.1f") % range.start() % range.step()
                          % range.stop()
                   << std::endl;
         return EXIT_SUCCESS;

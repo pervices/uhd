@@ -11,7 +11,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <complex>
 
 using namespace uhd;
@@ -31,7 +31,7 @@ bool convert::operator==(const convert::id_type& lhs, const convert::id_type& rh
 
 std::string convert::id_type::to_pp_string(void) const
 {
-    return str(boost::format("conversion ID\n"
+    return str(std::format("conversion ID\n"
                              "  Input format:  %s\n"
                              "  Num inputs:    %d\n"
                              "  Output format: %s\n"
@@ -42,7 +42,7 @@ std::string convert::id_type::to_pp_string(void) const
 
 std::string convert::id_type::to_string(void) const
 {
-    return str(boost::format("%s (%d) -> %s (%d)") % this->input_format % this->num_inputs
+    return str(std::format("%s (%d) -> %s (%d)") % this->input_format % this->num_inputs
                % this->output_format % this->num_outputs);
 }
 
@@ -63,7 +63,7 @@ void uhd::convert::register_converter(
     get_table()[id][prio] = fcn;
 
     //----------------------------------------------------------------//
-    // UHD_LOG_TRACE("CONVERT", boost::format("register_converter: %s prio: %s") %
+    // UHD_LOG_TRACE("CONVERT", std::format("register_converter: %s prio: %s") %
     // id.to_string() % prio)
     //----------------------------------------------------------------//
 }

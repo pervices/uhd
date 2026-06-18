@@ -13,7 +13,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -101,10 +101,10 @@ basic_rx::basic_rx(ctor_args_t args, double max_freq)
         switch (get_rx_id().to_uint16()) {
             case BASIC_RX_PID:
             case BASIC_RX_RFNOC_PID:
-                return str(boost::format("%s (%s)") % "BasicRX" % get_subdev_name());
+                return str(std::format("%s (%s)") % "BasicRX" % get_subdev_name());
             case LF_RX_PID:
             case LF_RX_RFNOC_PID:
-                return str(boost::format("%s (%s)") % "LFRX" % get_subdev_name());
+                return str(std::format("%s (%s)") % "LFRX" % get_subdev_name());
             default:
                 UHD_THROW_INVALID_CODE_PATH();
         }
@@ -198,10 +198,10 @@ basic_tx::basic_tx(ctor_args_t args, double max_freq) : tx_dboard_base(args)
         switch (get_tx_id().to_uint16()) {
             case BASIC_TX_PID:
             case BASIC_TX_RFNOC_PID:
-                return str(boost::format("%s (%s)") % "BasicTX" % get_subdev_name());
+                return str(std::format("%s (%s)") % "BasicTX" % get_subdev_name());
             case LF_TX_PID:
             case LF_TX_RFNOC_PID:
-                return str(boost::format("%s (%s)") % "LFTX" % get_subdev_name());
+                return str(std::format("%s (%s)") % "LFTX" % get_subdev_name());
             default:
                 UHD_THROW_INVALID_CODE_PATH();
         }

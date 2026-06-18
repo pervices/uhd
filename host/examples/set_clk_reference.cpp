@@ -12,7 +12,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <fstream>
@@ -44,7 +44,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("set_clk_reference %s") % desc << std::endl;
+        std::cout << std::format("set_clk_reference %s") % desc << std::endl;
         std::cout
             << std::endl
             << "This application attempts to set the clk reference, then attempts to read it back.\n"
@@ -52,18 +52,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    std::cout << boost::format("Starting: %s") % argv[0] << std::endl;
+    std::cout << std::format("Starting: %s") % argv[0] << std::endl;
 
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //Sets the clock source
-    std::cout << boost::format("Setting clock source to: %s") % ref << std::endl;
+    std::cout << std::format("Setting clock source to: %s") % ref << std::endl;
     usrp->set_clock_source(ref, mboard);
 
     std::string actual_ref = usrp->get_clock_source(mboard);
 
-    std::cout << boost::format("The clock source is %s") % actual_ref << std::endl;
+    std::cout << std::format("The clock source is %s") % actual_ref << std::endl;
 
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 

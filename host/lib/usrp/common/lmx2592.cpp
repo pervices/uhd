@@ -391,7 +391,7 @@ public:
         const auto lock_status = (value_read == 0xFFFF);
 
         UHD_LOG_TRACE("LMX2592",
-            str(boost::format("Read Lock status: 0x%04X")
+            str(std::format("Read Lock status: 0x%04X")
                 % static_cast<unsigned int>(value_read)));
 
         return lock_status;

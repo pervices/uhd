@@ -7,7 +7,7 @@
 
 #include <uhd/usrp/dboard_id.hpp>
 #include <uhd/utils/cast.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <iostream>
 #include <sstream>
 
@@ -62,7 +62,7 @@ dboard_id_t dboard_id_t::from_string(const std::string& string)
 
 std::string dboard_id_t::to_string(void) const
 {
-    return str(boost::format("0x%04x") % this->to_uint16());
+    return str(std::format("0x%04x") % this->to_uint16());
 }
 
 // Note: to_pp_string is implemented in the dboard manager

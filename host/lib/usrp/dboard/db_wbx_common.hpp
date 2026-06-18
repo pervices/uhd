@@ -63,7 +63,7 @@
 #include <uhd/usrp/dboard_base.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/math/special_functions/round.hpp>
 #include <functional>
 #include <memory>

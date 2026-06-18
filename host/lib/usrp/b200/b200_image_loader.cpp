@@ -69,7 +69,7 @@ static b200_iface::sptr get_b200_iface(
                 eeprom = b200_impl::get_mb_eeprom(
                     b200_iface::make(usb_control::make(dev_handle, 0)));
                 err_msg += str(
-                    boost::format(" * %s (serial=%s)\n")
+                    std::format(" * %s (serial=%s)\n")
                     % B2XX_STR_NAMES.get(get_b200_product(dev_handle, mb_eeprom), "B2XX")
                     % mb_eeprom.get("serial"));
             }
@@ -126,7 +126,7 @@ static bool b200_image_loader(const image_loader::image_loader_args_t& image_loa
     } else
         fpga_path = image_loader_args.fpga_path;
 
-    std::cout << boost::format("Unit: USRP %s (%s)")
+    std::cout << std::format("Unit: USRP %s (%s)")
                      % B2XX_STR_NAMES.get(get_b200_product(handle, mb_eeprom), "B2XX")
                      % mb_eeprom.get("serial")
               << std::endl;

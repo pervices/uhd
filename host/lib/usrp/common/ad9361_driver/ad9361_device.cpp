@@ -14,7 +14,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/scoped_array.hpp>
 #include <chrono>
 #include <cmath>
@@ -1229,7 +1229,7 @@ double ad9361_device_t::_tune_bbvco(const double rate)
         throw uhd::runtime_error("[ad9361_device_t] _tune_bbvco: wrong vcorate");
 
     UHD_LOG_TRACE("AD936X",
-        boost::format("[ad9361_device_t::_tune_bbvco] vcodiv=%d vcorate=%.10f") % vcodiv
+        std::format("[ad9361_device_t::_tune_bbvco] vcodiv=%d vcorate=%.10f") % vcodiv
             % vcorate);
     /* Fo = Fref * (Nint + Nfrac / mod) */
     int nint = static_cast<int>(vcorate / fref);
@@ -1240,11 +1240,11 @@ double ad9361_device_t::_tune_bbvco(const double rate)
         "[ad9361_device_t::_tune_bbvco] (nfrac)=" << ((vcorate / fref) - (double)nint)
                                                          * (double)modulus);
     UHD_LOG_TRACE("AD936X",
-        boost::format("[ad9361_device_t::_tune_bbvco] nint=%d nfrac=%d") % nint % nfrac);
+        std::format("[ad9361_device_t::_tune_bbvco] nint=%d nfrac=%d") % nint % nfrac);
     const double actual_vcorate =
         fref * ((double)nint + ((double)nfrac / (double)modulus));
     UHD_LOG_TRACE("AD936X",
-        boost::format("[ad9361_device_t::_tune_bbvco] actual vcorate=%.10f")
+        std::format("[ad9361_device_t::_tune_bbvco] actual vcorate=%.10f")
             % actual_vcorate);
 
     /* Scale CP current according to VCO rate */
@@ -1626,7 +1626,7 @@ void ad9361_device_t::initialize()
     uint32_t device_id = (_io_iface->peek8(0x037) & 0xf8);
     if (device_id != 0x8) {
         throw uhd::runtime_error(
-            str(boost::format("[ad9361_device_t::initialize] Device ID readback failure. "
+            str(std::format("[ad9361_device_t::initialize] Device ID readback failure. "
                               "Expected: 0x8, Received: 0x%x")
                 % device_id));
     }

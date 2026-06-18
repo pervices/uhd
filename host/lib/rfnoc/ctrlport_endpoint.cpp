@@ -10,7 +10,7 @@
 #include <uhdlib/rfnoc/chdr_packet_writer.hpp>
 #include <uhdlib/rfnoc/ctrlport_endpoint.hpp>
 #include <condition_variable>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/optional.hpp>
 #include <algorithm>
 #include <chrono>
@@ -46,7 +46,7 @@ constexpr uint8_t MAX_SEQ_NUM = SEQ_NUM_MASK + 1;
 std::string uhd::rfnoc::register_iface_stats::to_string() const
 {
     return (
-        boost::format(
+        std::format(
             "ctrl_packets_sent: %1%, ack_packets_received: %2%, async_packets_received: "
             "%3%, ack_packets_sent: %4%, ctrl_dropped: %5%, ctrl_out_of_sequence: %6%, "
             "buffer_fullness: %7%")

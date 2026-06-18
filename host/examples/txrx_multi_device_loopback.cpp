@@ -11,7 +11,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
@@ -623,7 +623,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("%s") % desc << std::endl;
+        std::cout << std::format("%s") % desc << std::endl;
         return ~0;
     }
 
@@ -636,7 +636,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // Connects to each device
     // TODO: parallelize connecting to devices
     for(size_t n = 0; n < devices.size(); n++) {
-        std::cout << boost::format("Creating the usrp device with: %s...") % parameters[n].args << std::endl;
+        std::cout << std::format("Creating the usrp device with: %s...") % parameters[n].args << std::endl;
         devices[n] = uhd::usrp::multi_usrp::make(parameters[n].args);
     }
 

@@ -72,7 +72,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <boost/tokenizer.hpp>
 #include <chrono>
@@ -124,13 +124,13 @@ void output_reg_values(const std::string& bank,
 {
     const std::vector<std::string> attrs = {
         "CTRL", "DDR", "ATR_0X", "ATR_RX", "ATR_TX", "ATR_XX", "OUT", "READBACK"};
-    std::cout << (boost::format("%10s:") % "Bit");
+    std::cout << (std::format("%10s:") % "Bit");
     for (int i = num_bits - 1; i >= 0; i--)
-        std::cout << (boost::format(" %2d") % i);
+        std::cout << (std::format(" %2d") % i);
     std::cout << std::endl;
     for (const auto& attr : attrs) {
         const uint32_t gpio_bits = uint32_t(usrp->get_gpio_attr(bank, attr));
-        std::cout << (boost::format("%10s:%s") % attr
+        std::cout << (std::format("%10s:%s") % attr
                       % to_bit_string(gpio_bits, num_bits))
                   << std::endl;
     }
@@ -142,7 +142,7 @@ void output_reg_values(const std::string& bank,
     // GPIO Src - get_gpio_src() not supported for all devices
     try {
         const auto gpio_src = usrp->get_gpio_src(port);
-        std::cout << boost::format("%10s:") % "SRC";
+        std::cout << std::format("%10s:") % "SRC";
         for (auto src : gpio_src) {
             std::cout << " " << src;
         }

@@ -447,7 +447,7 @@ void magnesium_radio_control_impl::_init_mpm()
     if (block_args.cast<double>("master_clock_rate", _master_clock_rate)
         != _master_clock_rate) {
         throw uhd::runtime_error(str(
-            boost::format("Master clock rate mismatch. Device returns %f MHz, "
+            std::format("Master clock rate mismatch. Device returns %f MHz, "
                           "but should have been %f MHz.")
             % (_master_clock_rate / 1e6)
             % (block_args.cast<double>("master_clock_rate", _master_clock_rate) / 1e6)));

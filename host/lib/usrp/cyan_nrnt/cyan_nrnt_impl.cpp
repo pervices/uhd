@@ -73,7 +73,7 @@ static void do_samp_rate_warning_message(
     static const double max_allowed_error = 1.0; // Sps
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
         UHD_LOGGER_WARNING("MULTI_USRP")
-            << boost::format(
+            << std::format(
                 "The hardware does not support the requested %s sample rate on ch %li:\n"
                 "Target sample rate: %f MSps\n"
                 "Actual sample rate: %f MSps\n")
@@ -420,7 +420,7 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find(const device_addr_t &hint_)
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
             device_addrs_t found_devices_i = cyan_nrnt_find(hint_i);
-            if (found_devices_i.size() != 1) error_msg += str(boost::format(
+            if (found_devices_i.size() != 1) error_msg += str(std::format(
                 "Could not resolve device hint \"%s\" to a single device."
             ) % hint_i.to_string());
             else found_devices.push_back(found_devices_i[0]);

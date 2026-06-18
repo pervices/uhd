@@ -17,7 +17,7 @@
 #include <uhdlib/asio.hpp>
 #include <uhdlib/usrp/common/apply_corrections.hpp>
 #include <boost/asio/ip/address_v4.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <cmath>
 #include <functional>
 
@@ -42,7 +42,7 @@ device_addrs_t usrp2_find(const device_addr_t& hint_)
             device_addrs_t found_devices_i = usrp2_find(hint_i);
             if (found_devices_i.size() != 1)
                 error_msg +=
-                    str(boost::format(
+                    str(std::format(
                             "Could not resolve device hint \"%s\" to a single device.")
                         % hint_i.to_string());
             else
@@ -411,7 +411,7 @@ usrp2_impl::usrp2_impl(const device_addr_t& _device_addr)
         }
         if (fpga_major != expected_fpga_compat_num) {
             throw uhd::runtime_error(
-                str(boost::format(
+                str(std::format(
                         "\nPlease update the firmware and FPGA images for your device.\n"
                         "See the application notes for USRP2/N-Series for instructions.\n"
                         "Expected FPGA compatibility number %d, but got %d:\n"
@@ -421,7 +421,7 @@ usrp2_impl::usrp2_impl(const device_addr_t& _device_addr)
                     % _mbc[mb].iface->images_warn_help_message()));
         }
         _tree->create<std::string>(mb_path / "fpga_version")
-            .set(str(boost::format("%u.%u") % fpga_major % fpga_minor));
+            .set(str(std::format("%u.%u") % fpga_major % fpga_minor));
 
         // lock the device/motherboard to this process
         _mbc[mb].iface->lock_device(true);

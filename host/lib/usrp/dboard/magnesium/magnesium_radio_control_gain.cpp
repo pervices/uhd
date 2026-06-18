@@ -57,7 +57,7 @@ double magnesium_radio_control_impl::_set_all_gain(
     } else {
         RFNOC_LOG_ERROR("Unsupported gain mode: " << gp);
         throw uhd::value_error(
-            str(boost::format("[%s] Unsupported gain mode: %s") % get_unique_id() % gp));
+            str(std::format("[%s] Unsupported gain mode: %s") % get_unique_id() % gp));
     }
     const double ad9371_gain =
         ((dir == RX_DIRECTION) ? AD9371_MAX_RX_GAIN : AD9371_MAX_TX_GAIN)

@@ -135,7 +135,7 @@ static void x300_validate_image(x300_session_t& session)
 {
     if (not fs::exists(session.filepath)) {
         throw uhd::runtime_error(str(
-            boost::format("Could not find image at path \"%s\".") % session.filepath));
+            std::format("Could not find image at path \"%s\".") % session.filepath));
     }
 
     const std::string extension = fs::path(session.filepath).extension().string();
@@ -145,7 +145,7 @@ static void x300_validate_image(x300_session_t& session)
         extract_from_lvbitx(session);
         if (session.size > X300_FPGA_BIN_SIZE_BYTES) {
             throw uhd::runtime_error(
-                str(boost::format("The specified FPGA image is too large: %d vs. %d")
+                str(std::format("The specified FPGA image is too large: %d vs. %d")
                     % session.size % X300_FPGA_BIN_SIZE_BYTES));
         }
 
@@ -162,13 +162,13 @@ static void x300_validate_image(x300_session_t& session)
         session.size = fs::file_size(session.filepath);
         if (session.size > max_size) {
             throw uhd::runtime_error(
-                str(boost::format("The specified FPGA image is too large: %d vs. %d")
+                str(std::format("The specified FPGA image is too large: %d vs. %d")
                     % session.size % max_size));
             return;
         }
     } else {
         throw uhd::runtime_error(
-            str(boost::format(
+            str(std::format(
                     "Invalid extension \"%s\". Extension must be .bin, .bit, or .lvbitx.")
                 % extension));
     }
@@ -191,7 +191,7 @@ static void x300_setup_session(x300_session_t& session,
         for (const uhd::device_addr_t& dev : devs) {
             std::string identifier = dev.has_key("addr") ? "addr" : "resource";
 
-            err_msg += str(boost::format(" * %s (%s=%s)\n") % dev.get("product", "X3XX")
+            err_msg += str(std::format(" * %s (%s=%s)\n") % dev.get("product", "X3XX")
                            % identifier % dev.get(identifier));
         }
 
@@ -337,7 +337,7 @@ static void x300_ethernet_load(x300_session_t& session)
     // Each sector
     for (size_t i = 0; i < session.size; i += X300_FLASH_SECTOR_SIZE) {
         // Print progress percentage at beginning of each sector
-        std::cout << boost::format("\r-- Loading %sFPGA image: %d%% (%d/%d sectors)")
+        std::cout << std::format("\r-- Loading %sFPGA image: %d%% (%d/%d sectors)")
                          % (session.fpga_type.empty() ? "" : (session.fpga_type + " "))
                          % (int(double(i) / double(session.size) * 100.0))
                          % (i / X300_FLASH_SECTOR_SIZE) % sectors
@@ -394,7 +394,7 @@ static void x300_ethernet_load(x300_session_t& session)
         image.close();
     }
 
-    std::cout << boost::format("\r-- Loading %sFPGA image: 100%% (%d/%d sectors)")
+    std::cout << std::format("\r-- Loading %sFPGA image: 100%% (%d/%d sectors)")
                      % (session.fpga_type.empty() ? "" : (session.fpga_type + " "))
                      % sectors % sectors
               << std::endl;
@@ -508,7 +508,7 @@ static void x300_ethernet_read(x300_session_t& session)
 
     session.outpath += extension;
     std::ofstream image(session.outpath.c_str(), std::ios::binary);
-    std::cout << boost::format("-- Output FPGA file: %s\n") % session.outpath;
+    std::cout << std::format("-- Output FPGA file: %s\n") % session.outpath;
 
     // Write the first packet
     image.write((char*)pkt_in->data8, X300_PACKET_SIZE_BYTES);
@@ -517,7 +517,7 @@ static void x300_ethernet_read(x300_session_t& session)
     size_t pkt_count = X300_PACKET_SIZE_BYTES;
     for (size_t i = 0; i < image_size; i += X300_FLASH_SECTOR_SIZE) {
         // Once we determine the image size, print the progress percentage
-        std::cout << boost::format("\r-- Reading %s FPGA image: %d%% (%d/%d sectors)")
+        std::cout << std::format("\r-- Reading %s FPGA image: %d%% (%d/%d sectors)")
                          % session.fpga_type
                          % (int(double(i) / double(image_size) * 100.0))
                          % (i / X300_FLASH_SECTOR_SIZE) % sectors
@@ -566,7 +566,7 @@ static void x300_ethernet_read(x300_session_t& session)
         pkt_count = i + X300_FLASH_SECTOR_SIZE;
     }
 
-    std::cout << boost::format("\r-- Reading %s FPGA image: 100%% (%d/%d sectors)")
+    std::cout << std::format("\r-- Reading %s FPGA image: 100%% (%d/%d sectors)")
                      % session.fpga_type % sectors % sectors
               << std::endl;
 
@@ -589,7 +589,7 @@ static void x300_ethernet_read(x300_session_t& session)
 
 static void x300_pcie_load(x300_session_t& session)
 {
-    std::cout << boost::format(
+    std::cout << std::format(
                      "\r-- Loading %sFPGA image (this will take 5-10 minutes)...")
                      % (session.fpga_type.empty() ? "" : (session.fpga_type + " "))
               << std::flush;
@@ -626,7 +626,7 @@ static bool x300_image_loader(const image_loader::image_loader_args_t& image_loa
     if (!session.found)
         return false;
 
-    std::cout << boost::format("Unit: USRP %s (%s, %s)\nFPGA Image: %s\n")
+    std::cout << std::format("Unit: USRP %s (%s, %s)\nFPGA Image: %s\n")
                      % session.dev_addr["product"] % session.dev_addr["serial"]
                      % session.dev_addr[session.ethernet ? "addr" : "resource"]
                      % session.filepath;

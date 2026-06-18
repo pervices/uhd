@@ -7,7 +7,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <iostream>
@@ -18,17 +18,17 @@ namespace po = boost::program_options;
 void print_notes(void)
 {
     // Helpful notes
-    std::cout << boost::format(
+    std::cout << std::format(
         "**************************************Helpful Notes on Clock/PPS "
         "Selection**************************************\n");
-    std::cout << boost::format("As you can see, the default 10 MHz Reference and 1 PPS "
+    std::cout << std::format("As you can see, the default 10 MHz Reference and 1 PPS "
                                "signals are now from the GPSDO.\n");
-    std::cout << boost::format(
+    std::cout << std::format(
         "If you would like to use the internal reference(TCXO) in other applications, "
         "you must configure that explicitly.\n");
-    std::cout << boost::format(
+    std::cout << std::format(
         "You can no longer select the external SMAs for 10 MHz or 1 PPS signaling.\n");
-    std::cout << boost::format(
+    std::cout << std::format(
         "********************************************************************************"
         "********************************\n");
 }
@@ -51,14 +51,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("Synchronize USRP to GPS %s") % desc << std::endl;
+        std::cout << std::format("Synchronize USRP to GPS %s") % desc << std::endl;
         return EXIT_FAILURE;
     }
 
     // Create a USRP device
-    std::cout << boost::format("\nCreating the USRP device with: %s...\n") % args;
+    std::cout << std::format("\nCreating the USRP device with: %s...\n") % args;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    std::cout << boost::format("Using Device: %s\n") % usrp->get_pp_string();
+    std::cout << std::format("Using Device: %s\n") % usrp->get_pp_string();
 
     try {
         size_t num_mboards    = usrp->get_num_mboards();
@@ -97,7 +97,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                     exit(EXIT_FAILURE);
                 }
             } else {
-                std::cout << boost::format(
+                std::cout << std::format(
                     "ref_locked sensor not present on this board.\n");
             }
 
@@ -105,7 +105,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             bool gps_locked = usrp->get_mboard_sensor("gps_locked", mboard).to_bool();
             if (gps_locked) {
                 num_gps_locked++;
-                std::cout << boost::format("GPS Locked\n");
+                std::cout << std::format("GPS Locked\n");
             } else {
                 std::cerr
                     << "WARNING:  GPS not locked - time will not be accurate until locked"
@@ -128,10 +128,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 int64_t(usrp->get_mboard_sensor("gps_time", mboard).to_int()));
             uhd::time_spec_t time_last_pps = usrp->get_time_last_pps(mboard);
             std::cout << "USRP time: "
-                      << (boost::format("%0.9f") % time_last_pps.get_real_secs())
+                      << (std::format("%0.9f") % time_last_pps.get_real_secs())
                       << std::endl;
             std::cout << "GPSDO time: "
-                      << (boost::format("%0.9f") % gps_time.get_real_secs()) << std::endl;
+                      << (std::format("%0.9f") % gps_time.get_real_secs()) << std::endl;
             if (gps_time.get_real_secs() == time_last_pps.get_real_secs())
                 std::cout << std::endl
                           << "SUCCESS: USRP time synchronized to GPS time" << std::endl
@@ -161,7 +161,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 uhd::time_spec_t mboard_time = usrp->get_time_last_pps(mboard);
                 if (mboard_time != mboard0_time) {
                     all_matched = false;
-                    std::cerr << (boost::format("ERROR: Times are not aligned: USRP "
+                    std::cerr << (std::format("ERROR: Times are not aligned: USRP "
                                                 "0=%0.9f, USRP %d=%0.9f")
                                   % mboard0_time.get_real_secs() % mboard
                                   % mboard_time.get_real_secs())
@@ -176,15 +176,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             }
         }
     } catch (std::exception& e) {
-        std::cout << boost::format("\nError: %s") % e.what();
-        std::cout << boost::format(
+        std::cout << std::format("\nError: %s") % e.what();
+        std::cout << std::format(
             "This could mean that you have not installed the GPSDO correctly.\n\n");
-        std::cout << boost::format("Visit one of these pages if the problem persists:\n");
-        std::cout << boost::format(
+        std::cout << std::format("Visit one of these pages if the problem persists:\n");
+        std::cout << std::format(
             " * N2X0/E1X0: http://files.ettus.com/manual/page_gpsdo.html");
-        std::cout << boost::format(
+        std::cout << std::format(
             " * X3X0: http://files.ettus.com/manual/page_gpsdo_x3x0.html\n\n");
-        std::cout << boost::format(
+        std::cout << std::format(
             " * E3X0: http://files.ettus.com/manual/page_usrp_e3x0.html#e3x0_hw_gps\n\n");
         exit(EXIT_FAILURE);
     }

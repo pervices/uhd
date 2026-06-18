@@ -17,7 +17,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <cmath>
 #include <functional>
 #include <utility>
@@ -85,7 +85,7 @@ private:
             for (int i = 0; i < num_bytes; i++) {
                 regs_vector[1 + i] = _max2112_write_regs.get_reg(start_addr + i);
                 UHD_LOGGER_TRACE("DBSRX")
-                    << boost::format("DBSRX2: send reg 0x%02x, value 0x%04x, start_addr "
+                    << std::format("DBSRX2: send reg 0x%02x, value 0x%04x, start_addr "
                                      "= 0x%04x, num_bytes %d")
                            % int(start_addr + i) % int(regs_vector[1 + i])
                            % int(start_addr) % num_bytes;
@@ -126,7 +126,7 @@ private:
                     _max2112_read_regs.set_reg(i + start_addr, regs_vector[i]);
                 }
                 UHD_LOGGER_TRACE("DBSRX")
-                    << boost::format("DBSRX2: read reg 0x%02x, value 0x%04x, start_addr "
+                    << std::format("DBSRX2: read reg 0x%02x, value 0x%04x, start_addr "
                                      "= 0x%04x, num_bytes %d")
                            % int(start_addr + i) % int(regs_vector[i]) % int(start_addr)
                            % num_bytes;
@@ -270,14 +270,14 @@ double dbsrx2::set_lo_freq(double target_freq)
 
     // debug output of calculated variables
     UHD_LOGGER_TRACE("DBSRX")
-        << boost::format("DBSRX2 tune:\n")
-        << boost::format("    R=%d, N=%f, scaler=%d, ext_div=%d\n") % R % N % scaler
+        << std::format("DBSRX2 tune:\n")
+        << std::format("    R=%d, N=%f, scaler=%d, ext_div=%d\n") % R % N % scaler
                % ext_div
-        << boost::format("    int=%d, frac=%d, d24=%d\n") % intdiv % fracdiv
+        << std::format("    int=%d, frac=%d, d24=%d\n") % intdiv % fracdiv
                % int(_max2112_write_regs.d24)
-        << boost::format("    Ref    Freq=%fMHz\n") % (ref_freq / 1e6)
-        << boost::format("    Target Freq=%fMHz\n") % (target_freq / 1e6)
-        << boost::format("    Actual Freq=%fMHz\n") % (_lo_freq / 1e6);
+        << std::format("    Ref    Freq=%fMHz\n") % (ref_freq / 1e6)
+        << std::format("    Target Freq=%fMHz\n") % (target_freq / 1e6)
+        << std::format("    Actual Freq=%fMHz\n") % (_lo_freq / 1e6);
 
     // send the registers 0x0 through 0x7
     // writing register 0x4 (F divider LSB) starts the VCO auto seletion so it must be
@@ -306,8 +306,8 @@ static int gain_to_bbg_vga_reg(double& gain)
 
     gain = double(reg);
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX2 BBG Gain:\n")
-                              << boost::format("    %f dB, bbg: %d") % gain % reg;
+    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX2 BBG Gain:\n")
+                              << std::format("    %f dB, bbg: %d") % gain % reg;
 
     return reg;
 }
@@ -331,8 +331,8 @@ static double gain_to_gc1_rfvga_dac(double& gain)
     // calculate the voltage for the aux dac
     double dac_volts = gain * slope + min_volts;
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX2 GC1 Gain:\n")
-                              << boost::format("    %f dB, dac_volts: %f V") % gain
+    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX2 GC1 Gain:\n")
+                              << std::format("    %f dB, dac_volts: %f V") % gain
                                      % dac_volts;
 
     // the actual gain setting
@@ -372,8 +372,8 @@ double dbsrx2::set_bandwidth(double bandwidth)
     _max2112_write_regs.lp = int((bandwidth / 1e6 - 4) / 0.29 + 12);
     _bandwidth             = double(4 + (_max2112_write_regs.lp - 12) * 0.29) * 1e6;
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX2 Bandwidth:\n")
-                              << boost::format("    %f MHz, lp: %f V")
+    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX2 Bandwidth:\n")
+                              << std::format("    %f MHz, lp: %f V")
                                      % (_bandwidth / 1e6) % int(_max2112_write_regs.lp);
 
     this->send_reg(0x8, 0x8);

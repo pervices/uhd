@@ -8,7 +8,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/experts/expert_container.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/depth_first_search.hpp>
 #include <boost/graph/graph_traits.hpp>
@@ -80,7 +80,7 @@ public:
     {
         std::lock_guard<std::recursive_mutex> resolve_lock(_resolve_mutex);
         std::lock_guard<std::mutex> lock(_mutex);
-        EX_LOG(0, str(boost::format("resolve_all(%s)") % (force ? "force" : "")));
+        EX_LOG(0, str(std::format("resolve_all(%s)") % (force ? "force" : "")));
         // Do a full resolve of the graph
         _resolve_helper("", "", force);
     }
@@ -139,11 +139,11 @@ public:
             const dag_vertex_t& vertex = _get_vertex(*vi.first);
             if (vertex.get_class() != CLASS_WORKER) {
                 dot_str +=
-                    str(boost::format(" %d [label=\"%s\",shape=%s,xlabel=\"%s\"];\n")
+                    str(std::format(" %d [label=\"%s\",shape=%s,xlabel=\"%s\"];\n")
                         % uint32_t(*vi.first) % vertex.get_name() % DATA_SHAPE
                         % vertex.get_dtype());
             } else {
-                dot_str += str(boost::format(" %d [label=\"%s\",shape=%s];\n")
+                dot_str += str(std::format(" %d [label=\"%s\",shape=%s];\n")
                                % uint32_t(*vi.first) % vertex.get_name() % WORKER_SHAPE);
             }
         }
@@ -152,7 +152,7 @@ public:
         for (std::pair<edge_iter, edge_iter> ei = boost::edges(_expert_dag);
              ei.first != ei.second;
              ++ei.first) {
-            dot_str += str(boost::format(" %d -> %d;\n")
+            dot_str += str(std::format(" %d -> %d;\n")
                            % uint32_t(boost::source(*(ei.first), _expert_dag))
                            % uint32_t(boost::target(*(ei.first), _expert_dag)));
         }
@@ -287,7 +287,7 @@ protected:
         }
 
         // Sanity check the data node and ensure that it is not already in this graph
-        EX_LOG(0, str(boost::format("add_data_node(%s)") % data_node->get_name()));
+        EX_LOG(0, str(std::format("add_data_node(%s)") % data_node->get_name()));
         if (data_node->get_class() == CLASS_WORKER) {
             throw uhd::runtime_error("Supplied node " + data_node->get_name()
                                      + " is not a data/property node.");
@@ -303,20 +303,20 @@ protected:
             // Add a vertex in this graph for the data node
             expert_graph_t::vertex_descriptor gr_node =
                 boost::add_vertex(data_node, _expert_dag);
-            EX_LOG(1, str(boost::format("added vertex %s") % data_node->get_name()));
+            EX_LOG(1, str(std::format("added vertex %s") % data_node->get_name()));
             _datanode_map.insert(
                 vertex_map_t::value_type(data_node->get_name(), gr_node));
 
             // Add resolve callbacks
             if (resolve_mode == AUTO_RESOLVE_ON_WRITE
                 or resolve_mode == AUTO_RESOLVE_ON_READ_WRITE) {
-                EX_LOG(2, str(boost::format("added write callback")));
+                EX_LOG(2, str(std::format("added write callback")));
                 data_node->set_write_callback(std::bind(
                     &expert_container_impl::resolve_from, this, std::placeholders::_1));
             }
             if (resolve_mode == AUTO_RESOLVE_ON_READ
                 or resolve_mode == AUTO_RESOLVE_ON_READ_WRITE) {
-                EX_LOG(2, str(boost::format("added read callback")));
+                EX_LOG(2, str(std::format("added read callback")));
                 data_node->set_read_callback(std::bind(
                     &expert_container_impl::resolve_to, this, std::placeholders::_1));
             }
@@ -338,7 +338,7 @@ protected:
         }
 
         // Sanity check the data node and ensure that it is not already in this graph
-        EX_LOG(0, str(boost::format("add_worker(%s)") % worker->get_name()));
+        EX_LOG(0, str(std::format("add_worker(%s)") % worker->get_name()));
         if (worker->get_class() != CLASS_WORKER) {
             throw uhd::runtime_error(
                 "Supplied node " + worker->get_name() + " is not a worker node.");
@@ -352,7 +352,7 @@ protected:
             // Add a vertex in this graph for the worker node
             expert_graph_t::vertex_descriptor gr_node =
                 boost::add_vertex(worker, _expert_dag);
-            EX_LOG(1, str(boost::format("added vertex %s") % worker->get_name()));
+            EX_LOG(1, str(std::format("added vertex %s") % worker->get_name()));
             _worker_map.insert(vertex_map_t::value_type(worker->get_name(), gr_node));
 
             // For each input, add an edge from the input to this node
@@ -361,7 +361,7 @@ protected:
                 if (node != _datanode_map.end()) {
                     boost::add_edge((*node).second, gr_node, _expert_dag);
                     EX_LOG(1,
-                        str(boost::format("added edge %s->%s")
+                        str(std::format("added edge %s->%s")
                             % _expert_dag[(*node).second]->get_name()
                             % _expert_dag[gr_node]->get_name()));
                 } else {
@@ -376,7 +376,7 @@ protected:
                 if (node != _datanode_map.end()) {
                     boost::add_edge(gr_node, (*node).second, _expert_dag);
                     EX_LOG(1,
-                        str(boost::format("added edge %s->%s")
+                        str(std::format("added edge %s->%s")
                             % _expert_dag[gr_node]->get_name()
                             % _expert_dag[(*node).second]->get_name()));
                 } else {
@@ -483,11 +483,11 @@ private:
                         resolved_workers.push_back(&node);
                     }
                     EX_LOG(1,
-                        str(boost::format("resolved node %s (%s) [%s]") % node.get_name()
+                        str(std::format("resolved node %s (%s) [%s]") % node.get_name()
                             % (node.is_dirty() ? "dirty" : "clean") % node.to_string()));
                 } else {
                     EX_LOG(1,
-                        str(boost::format("skipped node %s (%s) [%s]") % node.get_name()
+                        str(std::format("skipped node %s (%s) [%s]") % node.get_name()
                             % (node.is_dirty() ? "dirty" : "clean") % node.to_string()));
                 }
             }

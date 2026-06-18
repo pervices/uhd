@@ -10,7 +10,7 @@
 #include <uhdlib/rfnoc/link_stream_manager.hpp>
 #include <uhdlib/rfnoc/topo_graph.hpp>
 #include <uhdlib/transport/links.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <map>
 #include <memory>
 #include <set>
@@ -70,7 +70,7 @@ public:
         uhd::transport::adapter_id_t adapter = uhd::transport::NULL_ADAPTER_ID) override
     {
         UHD_LOGGER_DEBUG("RFNOC::GRAPH")
-            << boost::format("Connecting the Host to Endpoint %d:%d through Adapter "
+            << std::format("Connecting the Host to Endpoint %d:%d through Adapter "
                              "%d (0 = no preference)... ")
                    % dst_addr.first % dst_addr.second % adapter;
 
@@ -81,7 +81,7 @@ public:
         sep_id_pair_t epid_pair =
             _link_mgrs.at(gateway)->connect_host_to_device(dst_addr);
         UHD_LOGGER_DEBUG("RFNOC::GRAPH")
-            << boost::format("Connection to Endpoint %d:%d completed through Device %d. "
+            << std::format("Connection to Endpoint %d:%d completed through Device %d. "
                              "Using EPIDs %d -> %d.")
                    % dst_addr.first % dst_addr.second % gateway % epid_pair.first
                    % epid_pair.second;
@@ -93,7 +93,7 @@ public:
         sep_addr_t dst_addr, sep_addr_t src_addr) override
     {
         UHD_LOGGER_DEBUG("RFNOC::GRAPH")
-            << boost::format("Connecting the Endpoint %d:%d to Endpoint %d:%d...")
+            << std::format("Connecting the Endpoint %d:%d to Endpoint %d:%d...")
                    % src_addr.first % src_addr.second % dst_addr.first % dst_addr.second;
 
         // Iterate through all link managers and check if they are capable of connecting
@@ -105,7 +105,7 @@ public:
                 sep_id_pair_t epid_pair =
                     kv.second->connect_device_to_device(dst_addr, src_addr);
                 UHD_LOGGER_DEBUG("RFNOC::GRAPH")
-                    << boost::format("Connection from Endpoint %d:%d to Endpoint %d:%d "
+                    << std::format("Connection from Endpoint %d:%d to Endpoint %d:%d "
                                      "completed through Device %d. Using "
                                      "EPIDs %d -> %d.")
                            % src_addr.first % src_addr.second % dst_addr.first
@@ -152,7 +152,7 @@ public:
         const bool reset = false) override
     {
         UHD_LOGGER_DEBUG("RFNOC::GRAPH")
-            << boost::format(
+            << std::format(
                    "Initializing data stream from Endpoint %d:%d to Endpoint %d:%d...")
                    % src_addr.first % src_addr.second % dst_addr.first % dst_addr.second;
 
@@ -165,7 +165,7 @@ public:
                 sep_id_pair_t epid_pair =
                     kv.second->connect_device_to_device(dst_addr, src_addr);
                 UHD_LOGGER_DEBUG("RFNOC::GRAPH")
-                    << boost::format("Connection from Endpoint %d:%d to Endpoint %d:%d "
+                    << std::format("Connection from Endpoint %d:%d to Endpoint %d:%d "
                                      "completed through Device %d. Using "
                                      "EPIDs %d -> %d.")
                            % src_addr.first % src_addr.second % dst_addr.first

@@ -7,7 +7,7 @@
 
 #include <uhd/exception.hpp>
 #include <uhd/types/sensors.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 using namespace uhd;
 
@@ -27,7 +27,7 @@ sensor_value_t::sensor_value_t(const std::string& name,
     signed value,
     const std::string& unit,
     const std::string& formatter)
-    : name(name), value(str(boost::format(formatter) % value)), unit(unit), type(INTEGER)
+    : name(name), value(str(std::format(formatter) % value)), unit(unit), type(INTEGER)
 {
     /* NOP */
 }
@@ -36,7 +36,7 @@ sensor_value_t::sensor_value_t(const std::string& name,
     double value,
     const std::string& unit,
     const std::string& formatter)
-    : name(name), value(str(boost::format(formatter) % value)), unit(unit), type(REALNUM)
+    : name(name), value(str(std::format(formatter) % value)), unit(unit), type(REALNUM)
 {
     /* NOP */
 }
@@ -94,11 +94,11 @@ sensor_value_t::sensor_value_t(const std::map<std::string, std::string>& sensor_
         }
     } catch (const std::invalid_argument&) {
         throw uhd::value_error(
-            str(boost::format("Could not convert sensor value `%s' to type `%s'") % value
+            str(std::format("Could not convert sensor value `%s' to type `%s'") % value
                 % sensor_dict.at("type")));
     } catch (const std::out_of_range&) {
         throw uhd::value_error(
-            str(boost::format("Could not convert sensor value `%s' to type `%s'") % value
+            str(std::format("Could not convert sensor value `%s' to type `%s'") % value
                 % sensor_dict.at("type")));
     }
 }
@@ -113,11 +113,11 @@ std::string sensor_value_t::to_pp_string(void) const
 {
     switch (type) {
         case BOOLEAN:
-            return str(boost::format("%s: %s") % name % unit);
+            return str(std::format("%s: %s") % name % unit);
         case INTEGER:
         case REALNUM:
         case STRING:
-            return str(boost::format("%s: %s %s") % name % value % unit);
+            return str(std::format("%s: %s %s") % name % value % unit);
     }
     UHD_THROW_INVALID_CODE_PATH();
 }

@@ -79,7 +79,7 @@ void b200_impl::set_auto_tick_rate(
     if (rate != 0.0
         and (fp_compare::fp_compare_delta<double>(rate, FREQ_COMPARISON_DELTA_HZ)
              > max_tick_rate)) {
-        throw uhd::value_error(str(boost::format("Requested sampling rate (%.2f Msps) "
+        throw uhd::value_error(str(std::format("Requested sampling rate (%.2f Msps) "
                                                  "exceeds maximum tick rate of %.2f MHz.")
                                    % (rate / 1e6) % (max_tick_rate / 1e6)));
     }
@@ -91,8 +91,8 @@ void b200_impl::set_auto_tick_rate(
         std::string dir = (i == 0) ? "tx" : "rx";
         // We assume all 'set' DSPs are being used.
         for (const std::string& dsp_no :
-            _tree->list(str(boost::format("/mboards/0/%s_dsps") % dir))) {
-            fs_path dsp_path = str(boost::format("/mboards/0/%s_dsps/%s") % dir % dsp_no);
+            _tree->list(str(std::format("/mboards/0/%s_dsps") % dir))) {
+            fs_path dsp_path = str(std::format("/mboards/0/%s_dsps/%s") % dir % dsp_no);
             if (dsp_path == tree_dsp_path) {
                 continue;
             }
@@ -105,7 +105,7 @@ void b200_impl::set_auto_tick_rate(
                     this_dsp_rate, FREQ_COMPARISON_DELTA_HZ)
                 > max_tick_rate) {
                 throw uhd::value_error(
-                    str(boost::format("Requested sampling rate (%.2f Msps) exceeds "
+                    str(std::format("Requested sampling rate (%.2f Msps) exceeds "
                                       "maximum tick rate of %.2f MHz.")
                         % (this_dsp_rate / 1e6) % (max_tick_rate / 1e6)));
             }
@@ -184,7 +184,7 @@ void b200_impl::update_tx_dsp_tick_rate(
             ad9361_device_t::AD9361_MAX_CLOCK_RATE,                                   \
             uhd::math::FREQ_COMPARISON_DELTA_HZ)) {                                   \
         throw uhd::value_error(                                                       \
-            str(boost::format(                                                        \
+            str(std::format(                                                        \
                     "Requested sampling rate (%.2f Msps) exceeds maximum tick rate.") \
                 % (rate / 1e6)));                                                     \
     }
@@ -197,7 +197,7 @@ double b200_impl::coerce_rx_samp_rate(
     if (_tree->access<bool>("/mboards/0/auto_tick_rate").get()) {
         CHECK_RATE_AND_THROW(rx_rate);
         const std::string dsp_path =
-            (boost::format("/mboards/0/rx_dsps/%s") % dspno).str();
+            (std::format("/mboards/0/rx_dsps/%s") % dspno).str();
         set_auto_tick_rate(rx_rate, dsp_path);
     }
     return ddc->set_host_rate(rx_rate);
@@ -224,7 +224,7 @@ double b200_impl::coerce_tx_samp_rate(
     if (_tree->access<bool>("/mboards/0/auto_tick_rate").get()) {
         CHECK_RATE_AND_THROW(tx_rate);
         const std::string dsp_path =
-            (boost::format("/mboards/0/tx_dsps/%s") % dspno).str();
+            (std::format("/mboards/0/tx_dsps/%s") % dspno).str();
         set_auto_tick_rate(tx_rate, dsp_path);
     }
     return duc->set_host_rate(tx_rate);
@@ -478,7 +478,7 @@ rx_streamer::sptr b200_impl::get_rx_stream(const uhd::stream_args_t& args_)
         this->update_tick_rate(this->get_tick_rate());
         _tree
             ->access<double>(
-                str(boost::format("/mboards/0/rx_dsps/%u/rate/value") % radio_index))
+                str(std::format("/mboards/0/rx_dsps/%u/rate/value") % radio_index))
             .update();
     }
     this->update_enables();
@@ -604,7 +604,7 @@ tx_streamer::sptr b200_impl::get_tx_stream(const uhd::stream_args_t& args_)
         this->update_tick_rate(this->get_tick_rate());
         _tree
             ->access<double>(
-                str(boost::format("/mboards/0/tx_dsps/%u/rate/value") % radio_index))
+                str(std::format("/mboards/0/tx_dsps/%u/rate/value") % radio_index))
             .update();
     }
     this->update_enables();

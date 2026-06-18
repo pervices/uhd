@@ -14,7 +14,7 @@
 #include <uhd/utils/log.hpp>
 #include <condition_variable>
 #include <boost/circular_buffer.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <functional>
 #include <list>
@@ -99,7 +99,7 @@ static void LIBUSB_CALL libusb_async_cb(libusb_transfer* lut)
 #ifdef UHD_TXRX_DEBUG_PRINTS
     long end_time = boost::get_system_time().time_of_day().total_microseconds();
     libusb1_zerocopy_dbg_print_err(
-        (boost::format("libusb_async_cb,%s,%i,%i,%i,%ld,%ld") % (r->is_recv ? "rx" : "tx")
+        (std::format("libusb_async_cb,%s,%i,%i,%i,%ld,%ld") % (r->is_recv ? "rx" : "tx")
             % r->buff_num % r->actual_length % r->status % end_time % r->start_time)
             .str());
 #endif
@@ -149,7 +149,7 @@ public:
         int ret = libusb_submit_transfer(_lut);
         if (ret != LIBUSB_SUCCESS)
             throw uhd::usb_error(ret,
-                str(boost::format("usb %s submit failed: %s") % _name
+                str(std::format("usb %s submit failed: %s") % _name
                     % libusb_error_name(ret)));
     }
 
@@ -159,7 +159,7 @@ public:
         if (wait_for_completion(timeout)) {
             if (result.status != LIBUSB_TRANSFER_COMPLETED
                 && result.status != LIBUSB_TRANSFER_CANCELLED)
-                throw uhd::io_error(str(boost::format("usb %s transfer status: %d")
+                throw uhd::io_error(str(std::format("usb %s transfer status: %d")
                                         % _name % libusb_error_name(result.status)));
             result.completed = 0;
             return make(reinterpret_cast<buffer_type*>(this),
@@ -227,7 +227,7 @@ public:
     {
         const bool is_recv = (endpoint & 0x80) != 0;
         const std::string name =
-            str(boost::format("%s%d") % ((is_recv) ? "rx" : "tx") % int(endpoint & 0x7f));
+            str(std::format("%s%d") % ((is_recv) ? "rx" : "tx") % int(endpoint & 0x7f));
         _handle->claim_interface(interface);
 
         // flush the buffers out of the recv endpoint

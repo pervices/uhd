@@ -793,11 +793,11 @@ void radio_control_impl::apply_and_update_tune_request(
     const double clipped_requested_freq =
         tune_request_action->overall_freq_range.clip(tune_request.target_freq);
 
-    RFNOC_LOG_TRACE(str(boost::format("Frequency Range %.3fMHz->%.3fMHz")
+    RFNOC_LOG_TRACE(str(std::format("Frequency Range %.3fMHz->%.3fMHz")
                         % (tune_request_action->overall_freq_range.start() / 1e6)
                         % (tune_request_action->overall_freq_range.stop() / 1e6)));
 
-    RFNOC_LOG_TRACE(str(boost::format("Clipped frequency requested: %.3fMHz")
+    RFNOC_LOG_TRACE(str(std::format("Clipped frequency requested: %.3fMHz")
                         % (clipped_requested_freq / 1e6)));
 
     //------------------------------------------------------------------
@@ -819,7 +819,7 @@ void radio_control_impl::apply_and_update_tune_request(
                  * The case to handle uses MANUAL rf_freq_policy and
                  * AUTOMATIC dsp_freq_policy */
                 RFNOC_LOG_DEBUG(
-                    str(boost::format("No DSP capabilities detected. Combining offset "
+                    str(std::format("No DSP capabilities detected. Combining offset "
                                       "into target frequency of %.3fMHz")
                         % (clipped_requested_freq / 1e6)));
 
@@ -833,7 +833,7 @@ void radio_control_impl::apply_and_update_tune_request(
             break;
     }
     RFNOC_LOG_TRACE(
-        str(boost::format("Target RF Freq: %.3fMHz") % (target_rf_freq / 1e6)));
+        str(std::format("Target RF Freq: %.3fMHz") % (target_rf_freq / 1e6)));
 
     //------------------------------------------------------------------
     //-- Tune the RF frontend
@@ -844,7 +844,7 @@ void radio_control_impl::apply_and_update_tune_request(
     const double actual_rf_freq = get_rf_freq();
 
     RFNOC_LOG_TRACE(
-        str(boost::format("RADIO Actual RF Freq: %.3fMHz") % (actual_rf_freq / 1e6)));
+        str(std::format("RADIO Actual RF Freq: %.3fMHz") % (actual_rf_freq / 1e6)));
 
     tune_request_action->tune_result.clipped_rf_freq = clipped_requested_freq;
     tune_request_action->tune_result.target_rf_freq  = target_rf_freq;
@@ -1253,13 +1253,13 @@ void radio_control_impl::async_message_handler(
 {
     if (data.empty()) {
         RFNOC_LOG_WARNING(
-            str(boost::format("Received async message with invalid length %d!")
+            str(std::format("Received async message with invalid length %d!")
                 % data.size()));
         return;
     }
     if (data.size() > 1) {
         RFNOC_LOG_WARNING(
-            str(boost::format("Received async message with extra data, length %d!")
+            str(std::format("Received async message with extra data, length %d!")
                 % data.size()));
     }
     // Reminder: The address is calculated as:
@@ -1274,7 +1274,7 @@ void radio_control_impl::async_message_handler(
     const uint32_t addr_offset = addr % regmap::SWREG_CHAN_OFFSET;
     const uint32_t code        = data[0];
     RFNOC_LOG_TRACE(
-        str(boost::format("Received async message to addr 0x%08X, data length %d words, "
+        str(std::format("Received async message to addr 0x%08X, data length %d words, "
                           "%s channel %d, addr_offset %d, has timestamp %d")
             % addr % data.size() % (addr_base == regmap::SWREG_TX_ERR ? "TX" : "RX")
             % chan % addr_offset % int(bool(timestamp))));
@@ -1355,7 +1355,7 @@ void radio_control_impl::async_message_handler(
         }
         default:
             RFNOC_LOG_WARNING(str(
-                boost::format("Received async message to invalid addr 0x%08X!") % addr));
+                std::format("Received async message to invalid addr 0x%08X!") % addr));
     }
 }
 

@@ -9,7 +9,7 @@
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/rfnoc/prop_accessor.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <iostream>
 
@@ -28,7 +28,7 @@ node_t::node_t()
 std::string node_t::get_unique_id() const
 {
     // TODO return something better
-    return str(boost::format("%08X") % this);
+    return str(std::format("%08X") % this);
 }
 
 std::vector<std::string> node_t::get_property_ids() const

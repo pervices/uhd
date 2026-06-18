@@ -8,7 +8,7 @@
 #include <uhd/rfnoc/mb_controller.hpp>
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <atomic>
 #include <chrono>
 #include <future>
@@ -100,7 +100,7 @@ bool sync_tks(
         constexpr double MAX_DEVIATION = 0.01;
         if (time_i < time_0 or (time_i - time_0) > uhd::time_spec_t(MAX_DEVIATION)) {
             const auto warn_str = str(
-                boost::format(
+                std::format(
                     "Detected time deviation between board %1%/TK %2% and board %5%.\n"
                     "Board %5%/TK %6% time is %3% seconds.\n"
                     "Board %1%/TK %2% time is %4% seconds.\n")

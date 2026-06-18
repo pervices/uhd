@@ -33,7 +33,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <cmath>
 #include <functional>
 
@@ -393,7 +393,7 @@ double rfx_xcvr::set_rx_gain(double gain, const std::string& name)
  **********************************************************************/
 double rfx_xcvr::set_lo_freq(dboard_iface::unit_t unit, double target_freq)
 {
-    UHD_LOGGER_TRACE("RFX") << boost::format("RFX tune: target frequency %f MHz")
+    UHD_LOGGER_TRACE("RFX") << std::format("RFX tune: target frequency %f MHz")
                                    % (target_freq / 1e6);
 
     // clip the input
@@ -455,7 +455,7 @@ double rfx_xcvr::set_lo_freq(dboard_iface::unit_t unit, double target_freq)
     }
 done_loop:
 
-    UHD_LOGGER_TRACE("RFX") << boost::format(
+    UHD_LOGGER_TRACE("RFX") << std::format(
                                    "RFX tune: R=%d, BS=%d, P=%d, B=%d, A=%d, DIV2=%d")
                                    % R % BS % P % B % A
                                    % int(_div2[unit] && (!is_rx_rfx400));
@@ -502,7 +502,7 @@ done_loop:
     // return the actual frequency
     if (_div2[unit])
         actual_freq /= 2;
-    UHD_LOGGER_TRACE("RFX") << boost::format("RFX tune: actual frequency %f MHz")
+    UHD_LOGGER_TRACE("RFX") << std::format("RFX tune: actual frequency %f MHz")
                                    % (actual_freq / 1e6);
     return actual_freq;
 }

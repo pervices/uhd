@@ -14,7 +14,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/log.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <cmath>
 #include <functional>
 
@@ -50,7 +50,7 @@ static int tx_pga0_gain_to_iobits(double& gain)
                  & TX_ATTN_MASK;
 
     UHD_LOGGER_TRACE("WBX")
-        << boost::format("WBX TX Attenuation: %f dB, Code: %d, IO Bits %x, Mask: %x")
+        << std::format("WBX TX Attenuation: %f dB, Code: %d, IO Bits %x, Mask: %x")
                % attn % attn_code % (iobits & TX_ATTN_MASK) % TX_ATTN_MASK;
 
     // the actual gain setting
@@ -227,7 +227,7 @@ double wbx_base::wbx_version4::set_lo_freq(dboard_iface::unit_t unit, double tar
     // clip to tuning range
     target_freq = wbx_v4_freq_range.clip(target_freq);
 
-    UHD_LOGGER_TRACE("WBX") << boost::format("WBX tune: target frequency %f MHz")
+    UHD_LOGGER_TRACE("WBX") << std::format("WBX tune: target frequency %f MHz")
                                    % (target_freq / 1e6);
 
     /*

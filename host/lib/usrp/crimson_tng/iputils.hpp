@@ -9,7 +9,7 @@
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 #include <uhd/exception.hpp>
 
@@ -39,12 +39,12 @@ public:
 
 		//ip route show to match 10.10.10.2
 
-		std::string cmd = ( boost::format( "ip route show to match %s" ) % remote_addr ).str();
+		std::string cmd = ( std::format( "ip route show to match %s" ) % remote_addr ).str();
 
 		fp = popen( cmd.c_str() , "r" );
 		if ( NULL == fp ) {
 			throw runtime_error(
-				( boost::format( "failed to run command '%s'" )
+				( std::format( "failed to run command '%s'" )
 				  % cmd
 				).str()
 			);
@@ -87,7 +87,7 @@ public:
 		he = gethostbyname( last_addr.c_str() );
 		if ( NULL == he ) {
 			throw runtime_error(
-				( boost::format( "gethostbyname( '%s' ) failed" )
+				( std::format( "gethostbyname( '%s' ) failed" )
 				  % strs[ 0 ]
 				).str()
 			);
@@ -110,7 +110,7 @@ public:
 		r = socket( AF_INET, SOCK_DGRAM, 0 );
 		if ( -1 == r ) {
 			throw runtime_error(
-				( boost::format( "socket(): %s ( %d )" )
+				( std::format( "socket(): %s ( %d )" )
 				  % strerror( errno )
 				  % errno
 				).str()
@@ -122,7 +122,7 @@ public:
 		if ( -1 == r ) {
 			close( sockfd );
 			throw runtime_error(
-				( boost::format( "ioctl( SIOCGIFMTU, '%s' ): %s ( %d )" )
+				( std::format( "ioctl( SIOCGIFMTU, '%s' ): %s ( %d )" )
 					% iface
 					% strerror( errno )
 					% errno
@@ -165,7 +165,7 @@ public:
 				es = std::string( gai_strerror( e ) );
 			}
 			throw runtime_error(
-				( boost::format( "getaddrinfo( '%s' ): %s ( %d )" )
+				( std::format( "getaddrinfo( '%s' ): %s ( %d )" )
 					% host
 					% es
 					% e
@@ -199,7 +199,7 @@ public:
 		r = socket( AF_INET, SOCK_DGRAM, 0 );
 		if ( -1 == r ) {
 			throw runtime_error(
-				( boost::format( "socket: %s ( %d )" )
+				( std::format( "socket: %s ( %d )" )
 					% strerror( errno )
 					% errno
 				).str()
@@ -212,7 +212,7 @@ public:
 			close( fd );
 			fd = -1;
 			throw runtime_error(
-				( boost::format( "connect: %s ( %d )" )
+				( std::format( "connect: %s ( %d )" )
 					% strerror( errno )
 					% errno
 				).str()

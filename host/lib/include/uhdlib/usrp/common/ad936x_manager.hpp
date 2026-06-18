@@ -13,7 +13,7 @@
 #include <uhd/utils/math.hpp>
 #include <uhdlib/usrp/common/ad9361_ctrl.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <functional>
 #include <memory>
 

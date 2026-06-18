@@ -10,7 +10,7 @@
 #include <uhd/rfnoc/noc_block_base.hpp>
 #include <uhd/utils/graph_utils.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <numeric>
 #include <utility>
 
@@ -114,7 +114,7 @@ std::vector<graph_edge_t> connect_through_blocks(rfnoc_graph::sptr graph,
         while (dst_blk.to_string() != block_chain.back().dst_blockid
                || dst_port != block_chain.back().dst_port) {
             UHD_LOG_TRACE("GRAPH_UTILS",
-                boost::format(
+                std::format(
                     "Last block (%s:%d) doesn't match dst_blk (%s:%d); removing.")
                     % block_chain.back().dst_blockid % block_chain.back().dst_port
                     % dst_blk.to_string() % dst_port);

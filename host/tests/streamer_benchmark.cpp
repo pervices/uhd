@@ -465,7 +465,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD Streamer Benchmark %s") % desc << std::endl;
+        std::cout << std::format("UHD Streamer Benchmark %s") % desc << std::endl;
         std::cout << "    Benchmark of send and receive streamer functions\n"
                      "    All benchmarks use mock transport objects. No\n"
                      "    parameters are needed to run this benchmark.\n"

@@ -22,7 +22,7 @@
 #include <uhdlib/asio.hpp>
 #include <uhdlib/utils/paths.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/thread.hpp>
 #include <filesystem>
 
@@ -46,7 +46,7 @@ device_addrs_t octoclock_find(const device_addr_t& hint)
             device_addrs_t found_devices_i = octoclock_find(hint_i);
             if (found_devices_i.size() != 1)
                 error_msg +=
-                    str(boost::format(
+                    str(std::format(
                             "Could not resolve device hint \"%s\" to a single device.")
                         % hint_i.to_string());
             else
@@ -220,7 +220,7 @@ octoclock_impl::octoclock_impl(const device_addr_t& _device_addr)
         // Can't make a device out of an OctoClock in bootloader state
         if (device_args_i["type"] == "octoclock-bootloader") {
             throw uhd::runtime_error(
-                str(boost::format("\n\nThis device is in its bootloader state and cannot "
+                str(std::format("\n\nThis device is in its bootloader state and cannot "
                                   "be used by UHD.\n"
                                   "This may mean the firmware on the device has been "
                                   "corrupted and will\n"
@@ -249,7 +249,7 @@ octoclock_impl::octoclock_impl(const device_addr_t& _device_addr)
         if (_proto_ver < OCTOCLOCK_FW_MIN_COMPAT_NUM
             or _proto_ver > OCTOCLOCK_FW_COMPAT_NUM) {
             throw uhd::runtime_error(str(
-                boost::format(
+                std::format(
                     "\n\nPlease update your OctoClock's firmware.\n"
                     "Expected firmware compatibility number %d, but got %d:\n"
                     "The firmware build is not compatible with the host code build.\n\n"
@@ -295,7 +295,7 @@ octoclock_impl::octoclock_impl(const device_addr_t& _device_addr)
             UHD_LOGGER_INFO("OCTOCLOCK") << "Checking status of " << addr;
         }
         UHD_LOGGER_INFO("OCTOCLOCK")
-            << boost::format("%sDetecting internal GPSDO...") % asterisk;
+            << std::format("%sDetecting internal GPSDO...") % asterisk;
 
         _get_state(oc);
         if (_oc_dict[oc].state.gps_detected) {
@@ -323,17 +323,17 @@ octoclock_impl::octoclock_impl(const device_addr_t& _device_addr)
         } else
             UHD_LOGGER_INFO("OCTOCLOCK") << "No GPSDO found";
         UHD_LOGGER_INFO("OCTOCLOCK")
-            << boost::format("%sDetecting external reference...%s") % asterisk
+            << std::format("%sDetecting external reference...%s") % asterisk
                    % _ext_ref_detected(oc).value;
-        UHD_LOGGER_INFO("OCTOCLOCK") << boost::format("%sDetecting switch position...%s")
+        UHD_LOGGER_INFO("OCTOCLOCK") << std::format("%sDetecting switch position...%s")
                                             % asterisk % _switch_pos(oc).value;
         std::string ref = _which_ref(oc).value;
         if (ref == "none")
             UHD_LOGGER_INFO("OCTOCLOCK")
-                << boost::format("%sDevice is not using any reference") % asterisk;
+                << std::format("%sDevice is not using any reference") % asterisk;
         else
             UHD_LOGGER_INFO("OCTOCLOCK")
-                << boost::format("%sDevice is using %s reference") % asterisk
+                << std::format("%sDevice is using %s reference") % asterisk
                        % _which_ref(oc).value;
     }
 }
@@ -480,7 +480,7 @@ std::string octoclock_impl::_get_images_help_message(const std::string& addr)
     try {
         image_location = uhd::find_image_path(image_name);
     } catch (const std::exception&) {
-        return str(boost::format("Could not find %s in your images path.\n%s")
+        return str(std::format("Could not find %s in your images path.\n%s")
                    % image_name % uhd::print_utility_error("uhd_images_downloader.py"));
     }
 
@@ -494,7 +494,7 @@ std::string octoclock_impl::_get_images_help_message(const std::string& addr)
     // Get burner command
     const std::string burner_path = uhd::find_uhd_command("uhd_image_loader");
     const std::string burner_cmd =
-        str(boost::format("%s %s--addr=\"%s\"") % burner_path % ml % addr);
-    return str(boost::format("%s\n%s")
+        str(std::format("%s %s--addr=\"%s\"") % burner_path % ml % addr);
+    return str(std::format("%s\n%s")
                % uhd::print_utility_error("uhd_images_downloader.py") % burner_cmd);
 }

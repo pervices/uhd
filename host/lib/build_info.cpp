@@ -7,7 +7,7 @@
 #include <uhd/build_info.hpp>
 #include <config.h>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/version.hpp>
 
 #ifdef ENABLE_USB
@@ -86,7 +86,7 @@ const std::string libusb_version()
     int minor_version = (LIBUSB_API_VERSION & 0xFF0000) >> 16;
     int micro_version = ((LIBUSB_API_VERSION & 0xFFFF) - 0x100) + 18;
 
-    return str(boost::format("%d.%d.%d") % major_version % minor_version % micro_version);
+    return str(std::format("%d.%d.%d") % major_version % minor_version % micro_version);
 #    elif defined(LIBUSBX_API_VERSION) /* 1.0.13 - 1.0.17 */
     switch (LIBUSBX_API_VERSION & 0xFF) {
         case 0x00:

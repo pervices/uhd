@@ -14,7 +14,7 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/algorithm/string.hpp>
 #include <stdint.h>
 #include <iostream>
@@ -76,13 +76,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        std::cout << boost::format("UHD TX Ramp Test %s") % desc << std::endl;
+        std::cout << std::format("UHD TX Ramp Test %s") % desc << std::endl;
         return ~0;
     }
 
     //create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: %s...") % args << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //detect which channels to use
@@ -100,7 +100,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //Lock mboard clocks
     usrp->set_clock_source(ref);
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
 
     //set the sample rate
     if (not vm.count("rate")){
@@ -109,11 +109,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
-        std::cout << boost::format("Setting ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl;
+        std::cout << std::format("Setting ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl;
         usrp->set_tx_rate(rate, channel_nums[ch]);
         //Adjust the requested rate to match the desired rate
         rate = usrp->get_tx_rate(channel_nums[ch]);
-        std::cout << boost::format("Actual ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl << std::endl;
     }
 
     uhd::stream_args_t stream_args("sc16", "sc16");
@@ -127,7 +127,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<std::complex<short> > buff(spb);
     std::vector<std::complex<short> *> buffs(channel_nums.size(), &buff.front());
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+    std::cout << std::format("Setting device timestamp to 0...") << std::endl;
     if (channel_nums.size() > 1)
     {
         // Sync times
@@ -164,19 +164,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     sensor_names = usrp->get_tx_sensor_names(tx_sensor_chan);
     if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
         uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
-        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
         UHD_ASSERT_THROW(lo_locked.to_bool());
     }
     const size_t mboard_sensor_idx = 0;
     sensor_names = usrp->get_mboard_sensor_names(mboard_sensor_idx);
     if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {
         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
         UHD_ASSERT_THROW(mimo_locked.to_bool());
     }
     if ((ref == "external") and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end())) {
         uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
         UHD_ASSERT_THROW(ref_locked.to_bool());
     }
 

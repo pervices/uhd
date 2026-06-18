@@ -84,7 +84,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("USRP Generate TX IQ Balance Calibration Table %s")
+        std::cout << std::format("USRP Generate TX IQ Balance Calibration Table %s")
                          % desc
                   << std::endl;
         std::cout << "This application measures leakage between RX and TX on a "
@@ -166,7 +166,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    std::cout << boost::format("Calibration frequency range: %d MHz -> %d MHz")
+    std::cout << std::format("Calibration frequency range: %d MHz -> %d MHz")
                      % (freq_start / 1e6) % (freq_stop / 1e6)
               << std::endl;
 
@@ -261,7 +261,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             result.delta     = best_suppression - initial_suppression;
             results.push_back(result);
             if (vm.count("verbose"))
-                std::cout << boost::format(
+                std::cout << std::format(
                                  "TX IQ: %f MHz: best suppression %f dB, corrected %f dB")
                                  % (tx_lo / 1e6) % result.best % result.delta
                           << std::endl;

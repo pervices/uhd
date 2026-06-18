@@ -12,7 +12,7 @@
 #include <uhd/utils/cast.hpp>
 #include <unordered_map>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -120,7 +120,7 @@ public: // Types
                 _value = uhd::cast::from_str<data_t>(str_rep);
             } catch (std::exception& ex) {
                 throw uhd::value_error(
-                    str(boost::format("Error parsing numeric parameter %s: %s.") % key()
+                    str(std::format("Error parsing numeric parameter %s: %s.") % key()
                         % ex.what()));
             }
         }
@@ -169,7 +169,7 @@ public: // Types
                             (valid_values_str.empty() ? "" : ", ") + value.first;
                     }
                     throw uhd::value_error(
-                        str(boost::format("Invalid device arg value: %s=%s (Valid: {%s})")
+                        str(std::format("Invalid device arg value: %s=%s (Valid: {%s})")
                             % key() % str_rep % valid_values_str));
                 } else {
                     return;
@@ -227,7 +227,7 @@ public: // Types
                 }
             } catch (std::exception& ex) {
                 throw uhd::value_error(
-                    str(boost::format("Error parsing boolean parameter %s: %s.") % key()
+                    str(std::format("Error parsing boolean parameter %s: %s.") % key()
                         % ex.what()));
             }
         }
@@ -273,7 +273,7 @@ protected: // Methods
     {
         if (arg.get() > max || arg.get() < min) {
             throw uhd::value_error(str(
-                boost::format("Invalid device arg value: %s (Minimum: %s, Maximum: %s)")
+                std::format("Invalid device arg value: %s (Minimum: %s, Maximum: %s)")
                 % arg.to_string() % std::to_string(min) % std::to_string(max)));
         }
     }
@@ -298,7 +298,7 @@ protected: // Methods
                 std::stringstream valid_values_ss;
                 valid_values_ss << ((i == 0) ? "" : ", ") << valid_values[i];
                 throw uhd::value_error(
-                    str(boost::format("Invalid device arg value: %s (Valid: {%s})")
+                    str(std::format("Invalid device arg value: %s (Valid: {%s})")
                         % arg.to_string() % valid_values_ss.str()));
             }
         }

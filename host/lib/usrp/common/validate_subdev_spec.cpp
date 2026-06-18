@@ -8,7 +8,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/assert_has.hpp>
 #include <uhdlib/usrp/common/validate_subdev_spec.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <sstream>
 
 using namespace uhd;
@@ -20,16 +20,16 @@ void uhd::usrp::validate_subdev_spec(property_tree::sptr tree,
     const std::string& mb)
 {
     const size_t num_dsps =
-        tree->list(str(boost::format("/mboards/%s/%s_dsps") % mb % type)).size();
+        tree->list(str(std::format("/mboards/%s/%s_dsps") % mb % type)).size();
 
     // sanity checking on the length
     if (spec.empty())
         throw uhd::value_error(
-            str(boost::format("Empty %s subdevice specification is not supported.\n")
+            str(std::format("Empty %s subdevice specification is not supported.\n")
                 % type));
     if (spec.size() > num_dsps)
         throw uhd::value_error(
-            str(boost::format("The subdevice specification \"%s\" is too long.\n"
+            str(std::format("The subdevice specification \"%s\" is too long.\n"
                               "The user specified %u channels, but there are only %u %s "
                               "dsps on mboard %s.\n")
                 % spec.to_string() % spec.size() % num_dsps % type % mb));
@@ -37,10 +37,10 @@ void uhd::usrp::validate_subdev_spec(property_tree::sptr tree,
     // make a list of all possible specs
     subdev_spec_t all_specs;
     for (const std::string& db :
-        tree->list(str(boost::format("/mboards/%s/dboards") % mb))) {
+        tree->list(str(std::format("/mboards/%s/dboards") % mb))) {
         for (const std::string& sd :
             tree->list(str(
-                boost::format("/mboards/%s/dboards/%s/%s_frontends") % mb % db % type))) {
+                std::format("/mboards/%s/dboards/%s/%s_frontends") % mb % db % type))) {
             all_specs.push_back(subdev_spec_pair_t(db, sd));
         }
     }
@@ -49,14 +49,14 @@ void uhd::usrp::validate_subdev_spec(property_tree::sptr tree,
     for (const subdev_spec_pair_t& pair : spec) {
         uhd::assert_has(all_specs,
             pair,
-            str(boost::format("%s subdevice specification on mboard %s") % type % mb));
+            str(std::format("%s subdevice specification on mboard %s") % type % mb));
     }
 
     // enable selected frontends, disable others
     for (const subdev_spec_pair_t& pair : all_specs) {
         const bool enb = uhd::has(spec, pair);
         tree->access<bool>(
-                str(boost::format("/mboards/%s/dboards/%s/%s_frontends/%s/enabled") % mb
+                str(std::format("/mboards/%s/dboards/%s/%s_frontends/%s/enabled") % mb
                     % pair.db_name % type % pair.sd_name))
             .set(enb);
     }

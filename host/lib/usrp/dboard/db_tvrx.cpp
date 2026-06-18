@@ -29,7 +29,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <tuner_4937di5_regs.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <array>
 #include <cfloat>
 #include <cmath>
@@ -208,7 +208,7 @@ private:
         for (int i = 0; i < 4; i++) {
             regs_vector[i] = _tuner_4937di5_regs.get_reg(i);
             UHD_LOGGER_TRACE("TVRX")
-                << boost::format("tvrx: send reg 0x%02x, value 0x%04x") % int(i)
+                << std::format("tvrx: send reg 0x%02x, value 0x%04x") % int(i)
                        % int(regs_vector[i]);
         }
 
@@ -380,7 +380,7 @@ static double rf_gain_to_voltage(double gain, double lo_freq)
 
     dac_volts = uhd::clip<double>(dac_volts, 0.0, 3.3);
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format("tvrx RF AGC gain: %f dB, dac_volts: %f V")
+    UHD_LOGGER_TRACE("TVRX") << std::format("tvrx RF AGC gain: %f dB, dac_volts: %f V")
                                     % gain % dac_volts;
 
     return dac_volts;
@@ -403,7 +403,7 @@ static double if_gain_to_voltage(double gain)
 
     dac_volts = uhd::clip<double>(dac_volts, 0.0, 3.3);
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format("tvrx IF AGC gain: %f dB, dac_volts: %f V")
+    UHD_LOGGER_TRACE("TVRX") << std::format("tvrx IF AGC gain: %f dB, dac_volts: %f V")
                                     % gain % dac_volts;
 
     return dac_volts;
@@ -471,7 +471,7 @@ double tvrx::set_freq(double freq)
         set_gain(_gains["RF"], "RF");
 
     UHD_LOGGER_TRACE("TVRX")
-        << boost::format("set_freq: target LO: %f f_ref: %f divisor: %i actual LO: %f")
+        << std::format("set_freq: target LO: %f f_ref: %f divisor: %i actual LO: %f")
                % target_lo_freq % f_ref % divisor % actual_lo_freq;
 
     _lo_freq = actual_lo_freq; // for rx props

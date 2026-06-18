@@ -8,7 +8,7 @@
 #include <uhd/error.h>
 #include <uhd/types/dict.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/test/unit_test.hpp>
 
 /*
@@ -69,12 +69,12 @@ static const uhd::dict<std::string, std::string> pretty_exception_names{
 
 #define UHD_TEST_CHECK_ERROR_CODE(cpp_exception_type, c_error_code)                      \
     expected_msg =                                                                       \
-        str(boost::format("This is a uhd::%s.") % BOOST_STRINGIZE(cpp_exception_type));  \
+        str(std::format("This is a uhd::%s.") % BOOST_STRINGIZE(cpp_exception_type));  \
     uhd::cpp_exception_type cpp_exception_type##_foo(expected_msg);                      \
     error_code = throw_uhd_exception<uhd::cpp_exception_type>(                           \
         &handle, &cpp_exception_type##_foo);                                             \
     BOOST_CHECK_EQUAL(error_code, c_error_code);                                         \
-    expected_msg = str(boost::format("%s: %s")                                           \
+    expected_msg = str(std::format("%s: %s")                                           \
                        % pretty_exception_names.get(BOOST_STRINGIZE(cpp_exception_type)) \
                        % expected_msg);                                                  \
     BOOST_CHECK_EQUAL(handle.last_error, expected_msg);                                  \
@@ -86,7 +86,7 @@ static const uhd::dict<std::string, std::string> pretty_exception_names{
     uhd::usb_error usb_error_foo(1, expected_msg);                                       \
     error_code = throw_uhd_exception<uhd::usb_error>(&handle, &usb_error_foo);           \
     BOOST_CHECK_EQUAL(error_code, UHD_ERROR_USB);                                        \
-    expected_msg = str(boost::format("%s: %s") % pretty_exception_names.get("usb_error") \
+    expected_msg = str(std::format("%s: %s") % pretty_exception_names.get("usb_error") \
                        % expected_msg);                                                  \
     BOOST_CHECK_EQUAL(handle.last_error, expected_msg);                                  \
     BOOST_CHECK_EQUAL(get_c_global_error_string(), expected_msg);

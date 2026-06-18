@@ -431,7 +431,7 @@ std::string topo_graph_t::to_dot() const
         auto node                = boost::get(vertex_property_t(), _graph, *vi.first);
         const std::string shape  = SHAPE_MAP.at(node.type);
         const uint32_t colorcode = uint32_t(node.device_id) % 12;
-        dot_str += str(boost::format(" %d [label=\"%s\",shape=%s,color=%d];\n") % node_id
+        dot_str += str(std::format(" %d [label=\"%s\",shape=%s,color=%d];\n") % node_id
                        % node.to_string() % shape % (colorcode));
     }
 
@@ -439,7 +439,7 @@ std::string topo_graph_t::to_dot() const
     for (auto ei = boost::edges(_graph); ei.first != ei.second; ++ei.first) {
         size_t edge_idx =
             boost::get(boost::get(&edge_property_t::edge_index, _graph), *ei.first);
-        dot_str += str(boost::format(" %d -> %d [xlabel=\"%d\"];\n")
+        dot_str += str(std::format(" %d -> %d [xlabel=\"%d\"];\n")
                        % uint32_t(boost::source(*(ei.first), _graph))
                        % uint32_t(boost::target(*(ei.first), _graph))
                        % _edge_info.at(edge_idx).get_weight());
