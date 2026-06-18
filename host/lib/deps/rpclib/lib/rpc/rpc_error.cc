@@ -16,7 +16,7 @@ RPCLIB_MSGPACK::object_handle &rpc_error::get_error() { return ob_h_; }
 
 timeout::timeout(std::string const &what_arg) : std::runtime_error(what_arg) {
     formatted =
-        str(std::format("rpc::timeout: %s") % std::runtime_error::what());
+        std::format("rpc::timeout: {}", std::runtime_error::what());
 }
 
 const char *timeout::what() const noexcept { return formatted.data(); }

@@ -48,7 +48,7 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             return response::make_result(id, std::move(result));
         } catch (rpc::detail::client_error &e) {
             return response::make_error(
-                id, str(std::format("rpclib: %s") % e.what()));
+                id, std::format("rpclib: {}", e.what()));
         } catch (std::exception &e) {
             if (!suppress_exceptions) {
                 throw;
