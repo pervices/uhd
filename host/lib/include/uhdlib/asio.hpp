@@ -18,6 +18,11 @@
 #        pragma GCC diagnostic warning "-Warray-bounds"
 #    endif
 #endif
+/**
+ * #include <utility> is needed for std::exchange within boost/asio/awaitable.hpp
+ * On Ubuntu 22 as of 18/06/2026 (but not Ubuntu 24)
+ */
+#include <utility>
 #include <boost/asio.hpp>
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_error.hpp>
