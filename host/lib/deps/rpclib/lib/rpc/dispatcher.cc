@@ -72,17 +72,17 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             }
             return response::make_error(
                 id,
-                str(std::format("rpclib: function '%s' (called with %d "
+                std::format("rpclib: function '{}' (called with {} "
                                    "arg(s)) threw an exception. The exception "
                                    "is not derived from std::exception. No "
-                              "further information available.") %
-                                   name % args.via.array.size));
+                              "further information available.",
+                                   name, args.via.array.size));
         }
     }
     return response::make_error(
-        id, str(std::format("rpclib: server could not find "
-                          "function '%s' with argument count %d.") %
-                               name % args.via.array.size));
+        id, std::format("rpclib: server could not find "
+                          "function '{}' with argument count {}.",
+                               name, args.via.array.size));
 }
 
 response dispatcher::dispatch_notification(RPCLIB_MSGPACK::object const &msg,
