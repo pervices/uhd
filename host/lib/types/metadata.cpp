@@ -8,7 +8,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/types/metadata.hpp>
 #include <uhd/types/time_spec.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <sstream>
 #include <string>
 
@@ -76,7 +76,7 @@ std::string rx_metadata_t::strerror() const
             break;
         default:
             errstr =
-                std::string(str(boost::format("Unknown error code: 0x%x") % error_code));
+                std::format("Unknown error code: 0x{:x}", error_code);
     }
 
     return errstr;
@@ -124,13 +124,12 @@ std::string async_metadata_t::strevent() const
             eventstr = "EVENT_CODE_SEQ_ERROR_IN_BURST";
             break;
         case EVENT_CODE_USER_PAYLOAD:
-            eventstr = std::string(str(
-                boost::format("EVENT_CODE_USER_PAYLOAD 0x%08x 0x%08x 0x%08x 0x%08x")
-                % user_payload[0] % user_payload[1] % user_payload[2] % user_payload[3]));
+            eventstr = std::format("EVENT_CODE_USER_PAYLOAD 0x{:08x} 0x{:08x} 0x{:08x} 0x{:08x}",
+                user_payload[0], user_payload[1], user_payload[2], user_payload[3]);
             break;
         default:
             eventstr =
-                std::string(str(boost::format("Unknown event code: 0x%x") % event_code));
+                std::format("Unknown event code: 0x{:08x}", event_code);
     }
 
     return eventstr;
