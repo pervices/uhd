@@ -217,6 +217,7 @@ public:
      * @return True if the host and device clocks are synchronized
      */
     inline bool is_synced() {
+        _mm_lfence();
         return is_converged && !resync_requested;
     }
 
@@ -262,7 +263,7 @@ public:
      * Gets the time that a packet sent now would arrive at the device
      */
     inline time_spec_t get_device_time() {
-        _mm_lfence();
+        // The fence inside is_synced is sufficient so we don't need one here
 
         // Wait for clock sync to finish
         if(!is_synced()) [[likely]] {
