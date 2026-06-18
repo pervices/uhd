@@ -72,17 +72,17 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             }
             return response::make_error(
                 id,
-                str(boost::format("rpclib: function '%s' (called with %d "
+                (boost::format("rpclib: function '%s' (called with %d "
                                    "arg(s)) threw an exception. The exception "
                                    "is not derived from std::exception. No "
                               "further information available.") %
-                                   name % args.via.array.size));
+                                   name % args.via.array.size).str());
         }
     }
     return response::make_error(
-        id, str(boost::format("rpclib: server could not find "
+        id, (boost::format("rpclib: server could not find "
                           "function '%s' with argument count %d.") %
-                               name % args.via.array.size));
+                               name % args.via.array.size).str());
 }
 
 response dispatcher::dispatch_notification(RPCLIB_MSGPACK::object const &msg,
@@ -124,10 +124,10 @@ void dispatcher::enforce_arg_count(std::string const &func, std::size_t found,
     if (found != expected) {
         throw client_error(
             client_error::code::wrong_arity,
-            str(boost::format(
+            (boost::format(
                 "Function '%s' was called with an invalid number of "
                 "arguments. Expected: %d, got: %d") %
-                func % expected % found));
+                func % expected % found).str() );
     }
 }
 
