@@ -270,6 +270,8 @@ public:
             wait_for_sync();
         }
 
+        _mm_lfence();
+
         return uhd::get_system_time() + time_diff;
     }
 
