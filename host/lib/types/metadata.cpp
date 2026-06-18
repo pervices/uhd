@@ -129,7 +129,7 @@ std::string async_metadata_t::strevent() const
             break;
         default:
             eventstr =
-                std::format("Unknown event code: 0x{:08x}", event_code);
+                std::format("Unknown event code: 0x{:08x}", static_cast<std::underlying_type_t<error_code_t>>(event_code));
     }
 
     return eventstr;
