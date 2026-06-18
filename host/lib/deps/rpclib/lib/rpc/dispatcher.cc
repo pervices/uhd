@@ -124,10 +124,10 @@ void dispatcher::enforce_arg_count(std::string const &func, std::size_t found,
     if (found != expected) {
         throw client_error(
             client_error::code::wrong_arity,
-            str(std::format(
-                "Function '%s' was called with an invalid number of "
-                "arguments. Expected: %d, got: %d") %
-                func % expected % found));
+            std::format(
+                "Function '{}' was called with an invalid number of "
+                "arguments. Expected: {}, got: {}",
+                func, expected, found));
     }
 }
 
