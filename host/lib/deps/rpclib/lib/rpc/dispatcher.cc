@@ -55,11 +55,11 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             }
             return response::make_error(
                 id,
-                str(std::format("rpclib: function '%s' (called with %d "
+                std::format("rpclib: function '{}' (called with {} "
                                    "arg(s)) "
                                    "threw an exception. The exception "
-                              "contained this information: %s.") %
-                                   name % args.via.array.size % e.what()));
+                              "contained this information: {}.",
+                                   name, args.via.array.size, e.what()));
         } catch (rpc::detail::handler_error &) {
             // doing nothing, the exception was only thrown to
             // return immediately
