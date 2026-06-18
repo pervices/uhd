@@ -1,4 +1,5 @@
 #include "rpc/rpc_error.h"
+#include <format>
 
 namespace rpc {
 
