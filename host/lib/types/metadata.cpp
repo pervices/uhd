@@ -76,7 +76,7 @@ std::string rx_metadata_t::strerror() const
             break;
         default:
             errstr =
-                std::format("Unknown error code: 0x{:x}", error_code);
+                std::format("Unknown error code: 0x{:x}", static_cast<std::underlying_type_t<ErrorCode>>(error_code));
     }
 
     return errstr;
