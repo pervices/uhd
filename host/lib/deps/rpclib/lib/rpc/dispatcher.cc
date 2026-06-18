@@ -1,5 +1,5 @@
 #include "rpc/dispatcher.h"
-#include <boost/format.hpp>
+#include <format>
 #include "rpc/detail/client_error.h"
 #include "rpc/this_handler.h"
 
@@ -55,11 +55,11 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             }
             return response::make_error(
                 id,
-                str(boost::format("rpclib: function '%s' (called with %d "
+                (boost::format("rpclib: function '%s' (called with %d "
                                    "arg(s)) "
                                    "threw an exception. The exception "
                               "contained this information: %s.") %
-                                   name % args.via.array.size % e.what()));
+                                   name % args.via.array.size % e.what()).str());
         } catch (rpc::detail::handler_error &) {
             // doing nothing, the exception was only thrown to
             // return immediately
