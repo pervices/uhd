@@ -4,6 +4,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#pragma once
+
+#include <cstdint>
+
 namespace uhd::usrp {
     /**
      * A high performance integer only timespec that supports atomic operations

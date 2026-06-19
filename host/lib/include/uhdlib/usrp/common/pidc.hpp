@@ -16,6 +16,7 @@
 #include <cmath>
 
 #include <uhd/types/time_spec.hpp>
+#include <uhdlib/types/time_spec_hp.hpp>
 #include <uhdlib/utils/sma.hpp>
 
 namespace uhd {
