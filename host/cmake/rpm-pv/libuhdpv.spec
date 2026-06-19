@@ -31,7 +31,7 @@ Provides: libuhdpv
 Conflicts: uhd, libuhd
 BuildRequires:  gcc-toolset-13
 BuildRequires:  cmake, git
-BuildRequires:  boost169-python3-devel, libusb1-devel, python%{python3_pkgversion}-cheetah, ncurses-devel
+BuildRequires:  boost1.78-python3-devel libusb1-devel, python%{python3_pkgversion}-cheetah, ncurses-devel
 BuildRequires:  python%{python3_pkgversion}-docutils, doxygen, pkgconfig, libpcap-devel
 BuildRequires:  python%{python3_pkgversion}-numpy, vim-common, octave, dpdk
 BuildRequires:  python%{python3_pkgversion}, python%{python3_pkgversion}-setuptools
