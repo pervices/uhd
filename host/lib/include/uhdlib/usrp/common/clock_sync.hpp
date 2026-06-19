@@ -23,6 +23,8 @@
 #include "pidc.hpp"
 // Data type used within UHD for storing time
 #include <uhd/types/time_spec.hpp>
+// High performance atomic variant of time_spec_t
+#include <uhdlib/types/time_spec_hp.hpp>
 // Utility forgetting host time
 #include <uhdlib/utils/system_time.hpp>
 
@@ -69,7 +71,7 @@ private:
     alignas(CACHE_LINE_SIZE) const double _tick_rate;
 
     // Tick rate of time diff packets
-    volatile double time_diff = 0;
+    time_spec_hp time_diff;
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
     volatile bool is_converged = false;
@@ -183,7 +185,7 @@ private:
      * Updates time diff. Only call this if the clocks are converged
      * @param new_time_diff The new time diff
      */
-    inline void set_time_diff(double new_time_diff) {
+    inline void set_time_diff(time_spec_hp new_time_diff) {
         time_diff = new_time_diff;
         // Fence to ensure the time diff is set before marking it is converged
         _mm_sfence();

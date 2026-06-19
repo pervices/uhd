@@ -20,6 +20,8 @@ namespace uhd {
         // The tick rate in Hz
         const double _tick_rate;
 
+
+
         /**
          * Creates a new instance of the class
          * @param seconds The seconds portion of time
