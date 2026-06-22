@@ -7,6 +7,7 @@
 #pragma once
 
 #include <cstdint>
+#include <atomic>
 
 namespace uhd {
 
@@ -18,9 +19,16 @@ class time_spec_atomic {
     int64_t _ticks;
     /**
      * The tick rate
-     * Tick rate is only used when converting between timestamps a
+     * TODO: make constant
      */
     double _tick_rate;
+
+    /**
+     * The number of times the class has been written to
+     * Store operations increment the count by 1 at the start and end.
+     * If it's odd a write is in progress
+     */
+    std::atomic<int64_t> write_count;
 
     // --- 1. LIFE-CYCLE CONSTRUCTORS ---
 
@@ -35,7 +43,12 @@ class time_spec_atomic {
 
     explicit time_spec_atomic(int64_t secs, int64_t ticks, double tick_rate) noexcept;
 
+    /**
+     * NOTE: this is thread safe against loads, not against multiple writers
+     */
     void store(int64_t secs, int64_t ticks, double tick_rate);
+
+    time_spec_atomic load();
 
     // --- 2. DELETED STRUCTURAL COPY/MOVE ---
     // Moving or copying multi-member structures results in data tearing
