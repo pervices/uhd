@@ -17,7 +17,6 @@
 
 #include <uhd/types/time_spec.hpp>
 #include <uhdlib/utils/sma.hpp>
-#include <uhdlib/utils/swmr.hpp>
 
 namespace uhd {
 
