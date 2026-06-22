@@ -17,6 +17,7 @@
 
 #include <uhd/types/time_spec.hpp>
 #include <uhdlib/utils/sma.hpp>
+#include <uhdlib/utils/swmr.hpp>
 
 namespace uhd {
 
@@ -75,7 +76,7 @@ namespace uhd {
 
 		virtual ~pidc() {}
 
-		double update_control_variable( const double sp, const double pv, const uhd::time_spec_t &now ) {
+		time_spec_t update_control_variable( const double sp, const double pv, const uhd::time_spec_t &now ) {
 			// XXX: @CF: Use "velocity algorithm" form?
 			// https://en.wikipedia.org/wiki/PID_controller#Discrete_implementation
 			// Possibly better to not use the velocity algorithm form to avoid several opportunities for numerical instability
@@ -129,7 +130,7 @@ namespace uhd {
 			last_time = t;
 		}
 
-		double get_control_variable() {
+		time_spec_t get_control_variable() {
 			return cv - offset;
 		}
 
@@ -203,10 +204,10 @@ namespace uhd {
 			error_filter.update( avg );
 		}
 
-		void set_offset( const double timeOffset ) {
+		void set_offset( const time_spec_t timeOffset ) {
 			offset =  timeOffset;
 		}
-		double get_offset(){
+		time_spec_t get_offset(){
 			return offset;
 		}
 	private:
@@ -219,7 +220,7 @@ namespace uhd {
         double previous_filtered_derivated = 0; // derivative memory
         double DERIVATE_MIN_FREQUENCY; // Cutoff frequency of the derivative gain
 
-		double offset; //time offset
+		time_spec_t offset; //time offset
 
 		uhd::time_spec_t last_time;
 		uhd::time_spec_t last_status_time;
