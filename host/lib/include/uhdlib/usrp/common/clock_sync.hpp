@@ -74,13 +74,13 @@ private:
     swmr<time_spec_t> time_diff = swmr<time_spec_t>(time_spec_t(0.0));
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
-    volatile bool is_converged = false;
+    std::atomic<bool> is_converged = false;
 
     // Stores if a resync has been requested
-    volatile bool resync_requested = true;
+    std::atomic<bool> resync_requested = true;
 
     // Stores if setting time is in progress
-    volatile bool set_time_in_progress = false;
+    std::atomic<bool> set_time_in_progress = false;
 
     /*
      * Start of member vaiables that are not used by the critical thread
@@ -103,7 +103,7 @@ private:
     std::thread sync_thread;
 
     // The seconds part of the last time the user attempted to set the time on the device
-    volatile int64_t last_time_set_seconds = INT64_MIN;
+    swmr<int64_t> last_time_set_seconds = swmr<int64_t>(INT64_MIN);
 
     // Tells the sync thread to exit
     volatile bool sync_thread_should_exit = false;
@@ -235,13 +235,17 @@ public:
      * @param planned_time_s The time the caller plans on setting the time to in seconds
      */
     inline void set_time_initiated(int64_t planned_time_s) {
-        set_time_in_progress = true;
-        resync_requested = true;
+        set_time_in_progress.store(true, std::memory_order_relaxed);
+        resync_requested.store(true, std::memory_order_relaxed);
+
+        /**
+         * Fence to ensure previous writes complete.
+         * It is required to ensure they are set before last_time_set_seconds is updated
+         */
+        std::atomic_thread_fence(std::memory_order_release);
 
         // This could be set during set_time_finished, but it is set here to avoid additional fences to set it before clearing set_time_in_progress
-        last_time_set_seconds = planned_time_s;
-
-        _mm_sfence();
+        last_time_set_seconds.store(planned_time_s);
     }
 
     /**
@@ -249,9 +253,9 @@ public:
      * Clock sync can be resumed
      */
     inline void set_time_finished() {
-        set_time_in_progress = false;
-        resync_requested = true;
-        _mm_sfence();
+
+        set_time_in_progress.store(false, std::memory_order_release);
+
     }
 
     /**
@@ -274,10 +278,7 @@ public:
 
         _mm_lfence();
 
-        time_spec_t current_time_diff;
-        time_diff.load(&current_time_diff);
-
-        return uhd::get_system_time() + current_time_diff;
+        return uhd::get_system_time() + time_diff.load();
     }
 
     /**

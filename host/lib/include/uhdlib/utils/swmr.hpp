@@ -76,7 +76,6 @@ namespace uhd {
 
         inline void load(T* dst) {
             int64_t intial_write_count = 0;
-            T loaded_data;
             int64_t end_write_count = 0;
 
             do {
@@ -99,6 +98,12 @@ namespace uhd {
                 // Repeat load if the class is mid update (write_count is odd)
                 (intial_write_count & 0x1) );
 
+        }
+
+        inline T load() {
+            T r;
+            load(&r);
+            return r;
         }
 
         /**

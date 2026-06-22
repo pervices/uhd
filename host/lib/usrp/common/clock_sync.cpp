@@ -236,7 +236,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
              * Therefore the time between last_time_set_seconds and last_time_set_seconds + 1 will be less than 1 second.
              * To avoid the clock jump do not sync until after last_time_set_seconds + 1
              */
-            if(-tdr.tv_sec < self->last_time_set_seconds + 1 || !current_time_received) {
+            if(-tdr.tv_sec < self->last_time_set_seconds.load() + 1 || !current_time_received) {
                 continue;
             }
 
