@@ -13,8 +13,6 @@
 #include <stdint.h>
 // Smart pointers
 #include <memory>
-// Fences
-#include <immintrin.h>
 // Socket for sending/receiving time diff packets
 #include <uhd/transport/udp_simple.hpp>
 // Standard library for thread
@@ -25,6 +23,8 @@
 #include <uhd/types/time_spec.hpp>
 // Utility forgetting host time
 #include <uhdlib/utils/system_time.hpp>
+// Class for managing single writer multiple readers
+#include <uhdlib/utils/swmr.hpp>
 
 namespace uhd { namespace usrp {
 
@@ -69,16 +69,19 @@ private:
     alignas(CACHE_LINE_SIZE) const double _tick_rate;
 
     // Tick rate of time diff packets
-    volatile double time_diff = 0;
+    swmr<time_spec_t> time_diff = swmr<time_spec_t>(time_spec_t(0.0));
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
-    volatile bool is_converged = false;
+    std::atomic<bool> is_converged = false;
 
     // Stores if a resync has been requested
-    volatile bool resync_requested = true;
+    std::atomic<bool> resync_requested = true;
 
     // Stores if setting time is in progress
-    volatile bool set_time_in_progress = false;
+    std::atomic<bool> set_time_in_progress = false;
+
+    // How many times sync has been completed
+    std::atomic<int64_t> sync_count = 0;
 
     /*
      * Start of member vaiables that are not used by the critical thread
@@ -101,13 +104,13 @@ private:
     std::thread sync_thread;
 
     // The seconds part of the last time the user attempted to set the time on the device
-    volatile int64_t last_time_set_seconds = INT64_MIN;
+    swmr<int64_t> last_time_set_seconds = swmr<int64_t>(INT64_MIN);
 
     // Tells the sync thread to exit
-    volatile bool sync_thread_should_exit = false;
+    std::atomic<bool> sync_thread_should_exit = false;
 
     // Indicates that clock sync matters
-    volatile bool clock_sync_desired = false;
+    std::atomic<bool> clock_sync_desired = false;
 
     /*
      * Start of variables set during the constructor.
@@ -183,19 +186,15 @@ private:
      * Updates time diff. Only call this if the clocks are converged
      * @param new_time_diff The new time diff
      */
-    inline void set_time_diff(double new_time_diff) {
-        time_diff = new_time_diff;
-        // Fence to ensure the time diff is set before marking it is converged
-        _mm_sfence();
-        is_converged = true;
-        _mm_sfence();
+    inline void set_time_diff(time_spec_t new_time_diff) {
+        time_diff.store(new_time_diff);
     }
 
     /**
      * Gets the flag to indicate that a resync has been requested
      */
     inline bool is_resync_requested() {
-        return resync_requested;
+        return resync_requested.load(std::memory_order_acquire);
     }
 
     /**
@@ -203,12 +202,10 @@ private:
      */
     inline void resync_acknowledge() {
         // Set convergence flag to false to indicate the process has been restarted
-        is_converged = false;
-        _mm_sfence();
+        is_converged.store(false, std::memory_order_relaxed);
 
         // Fence to ensure the is_converged flag is set before marking that the resync request has been processed
-        resync_requested = false;
-        _mm_sfence();
+        resync_requested.store(false, std::memory_order_release);;
     }
 
 public:
@@ -217,8 +214,7 @@ public:
      * @return True if the host and device clocks are synchronized
      */
     inline bool is_synced() {
-        _mm_lfence();
-        return is_converged && !resync_requested;
+        return is_converged.load(std::memory_order_relaxed) && !resync_requested.load(std::memory_order_relaxed);
     }
 
     /**
@@ -233,13 +229,17 @@ public:
      * @param planned_time_s The time the caller plans on setting the time to in seconds
      */
     inline void set_time_initiated(int64_t planned_time_s) {
-        set_time_in_progress = true;
-        resync_requested = true;
+        set_time_in_progress.store(true, std::memory_order_relaxed);
+        resync_requested.store(true, std::memory_order_relaxed);
+
+        /**
+         * Fence to ensure previous writes complete.
+         * It is required to ensure they are set before last_time_set_seconds is updated
+         */
+        std::atomic_thread_fence(std::memory_order_release);
 
         // This could be set during set_time_finished, but it is set here to avoid additional fences to set it before clearing set_time_in_progress
-        last_time_set_seconds = planned_time_s;
-
-        _mm_sfence();
+        last_time_set_seconds.store(planned_time_s);
     }
 
     /**
@@ -247,9 +247,9 @@ public:
      * Clock sync can be resumed
      */
     inline void set_time_finished() {
-        set_time_in_progress = false;
-        resync_requested = true;
-        _mm_sfence();
+
+        set_time_in_progress.store(false, std::memory_order_release);
+
     }
 
     /**
@@ -263,16 +263,37 @@ public:
      * Gets the time that a packet sent now would arrive at the device
      */
     inline time_spec_t get_device_time() {
-        // The fence inside is_synced is sufficient so we don't need one here
 
-        // Wait for clock sync to finish
-        if(!is_synced()) [[likely]] {
-            wait_for_sync();
-        }
+        time_spec_t difference;
+        int64_t initial_sync_count;
+        int64_t end_sync_count;
 
-        _mm_lfence();
 
-        return uhd::get_system_time() + time_diff;
+        do {
+            // Waits for clock sync
+            if(!is_synced()) [[likely]] {
+                wait_for_sync();
+            }
+
+            // Synchronization from load mean we don't need to sync here
+            initial_sync_count = sync_count.load(std::memory_order_relaxed);
+
+            // Load time difference. .load contains fences to ensure correct memory order of operations before and after it
+            time_diff.load(&difference);
+
+            end_sync_count = sync_count.load(std::memory_order_relaxed);
+
+        } while(
+            /**
+             * Repeat if a new sync was compelted while this one was running
+             * This for the unlikely event that clock sync is lost but regained while loading
+             */
+            initial_sync_count != end_sync_count ||
+            // Repeat if sync was lost while loading
+            !is_synced()
+        );
+
+        return uhd::get_system_time() + difference;
     }
 
     /**

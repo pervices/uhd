@@ -46,8 +46,7 @@ clock_sync::clock_sync(std::string ip, uint16_t port, double tick_rate)
 }
 
 clock_sync::~clock_sync() {
-    sync_thread_should_exit = true;
-    _mm_sfence();
+    sync_thread_should_exit.store(true, std::memory_order_relaxed);
     sync_thread.join();
 }
 
@@ -89,7 +88,8 @@ bool clock_sync::time_diff_recv(time_diff_resp & reply) {
 }
 
 void clock_sync::reset_time_diff_pid() {
-    _mm_mfence();
+    // Fence to ensure nothing before getting the time and after sending the packet gets reordered that may impact timing
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     uhd::time_spec_t reset_now = uhd::get_system_time();
 
@@ -97,15 +97,13 @@ void clock_sync::reset_time_diff_pid() {
 
     time_diff_send( reset_now );
 
-    _mm_mfence();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     time_diff_recv( reset_tdr );
 
     double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick /  _tick_rate);
 
     time_diff_pidc.reset(reset_now, new_offset);
-
-    _mm_sfence();
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
@@ -115,7 +113,7 @@ void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_
 
     double pv = (double) tdr.tv_sec + (tdr.tv_tick / _tick_rate);
 
-    double cv = time_diff_pidc.update_control_variable( sp, pv, now );
+    time_spec_t cv = time_diff_pidc.update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
@@ -127,11 +125,9 @@ void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_
      * TODO: handle the case where clock sync is lost between when someone calls wait_for_sync and get_device_time
      * Currently we rely on clock sync only being lost when time is adjusted
      */
-    if(!time_diff_converged && is_converged) [[unlikely]] {
-        is_converged = false;
+    if(!time_diff_converged && is_converged.load(std::memory_order_relaxed)) [[unlikely]] {
+        is_converged.store(false, std::memory_order_release);
     }
-
-    _mm_sfence();
 
     // For SoB, record the instantaneous time difference + compensation
     if (time_diff_converged ) {
@@ -141,14 +137,12 @@ void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_
     // We only update is_converged when it changes to avoid unnecessarily invalidating it and requiring the other core to fetch the new identical value
     // Record that convergance was gained
     if(time_diff_converged && !is_converged) [[unlikely]] {
-        // Ensure time diff is updated before setting convergance to true
-        _mm_sfence();
+        // Increment sync count so we know that this is a new sync
+        sync_count.fetch_add(1, std::memory_order_relaxed);
 
-        is_converged = true;
+        // Esnure the updated store is applied
+        is_converged.store(true, std::memory_order_release);
     }
-
-    // Ensure is_converged gets updated quickly
-    _mm_sfence();
 
     if(reset_advised) {
         reset_time_diff_pid();
@@ -166,8 +160,7 @@ std::shared_ptr<clock_sync> clock_sync::make(std::string ip, uint16_t port, doub
 }
 
 void clock_sync::set_clock_sync_desired(bool desired) {
-    clock_sync_desired = desired;
-    _mm_sfence();
+    clock_sync_desired.store(desired, std::memory_order_release);
 }
 
 void clock_sync::loop_thread_fn( clock_sync *self ) {
@@ -191,13 +184,12 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
     //Get initial offset
     self->reset_time_diff_pid();
 
-    _mm_lfence();
     for(
         host_control_time = uhd::get_system_time(),
         then = host_control_time + UPDATE_PERIOD
         ;
 
-        ! self->sync_thread_should_exit
+        ! self->sync_thread_should_exit.load(std::memory_order_relaxed)
         ;
 
         then += UPDATE_PERIOD,
@@ -216,7 +208,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
 
         if(
             // Skip this round if a previous one failed and clock sync is not needed
-            (reply_failed && !self->clock_sync_desired)
+            (reply_failed && !self->clock_sync_desired.load(std::memory_order_relaxed))
             ||
             // Skip this round if the time is currently being set since we are about to need to reset anyway
             self->set_time_in_progress
@@ -236,7 +228,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
              * Therefore the time between last_time_set_seconds and last_time_set_seconds + 1 will be less than 1 second.
              * To avoid the clock jump do not sync until after last_time_set_seconds + 1
              */
-            if(-tdr.tv_sec < self->last_time_set_seconds + 1 || !current_time_received) {
+            if(-tdr.tv_sec < self->last_time_set_seconds.load() + 1 || !current_time_received) {
                 continue;
             }
 
@@ -247,10 +239,10 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
             self->reset_time_diff_pid();
         }
 
-        double time_diff = self->time_diff_pidc.get_control_variable();
+        time_spec_t time_diff = self->time_diff_pidc.get_control_variable();
 
         // Start of fence to ensure that nothing get's reordered between getting the system time and sending the prediction
-        _mm_mfence();
+        std::atomic_thread_fence(std::memory_order_seq_cst);
 
         // The time of the host when the time on device was predicted
         uhd::time_spec_t host_prediction_time = uhd::get_system_time();
@@ -262,7 +254,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         self->time_diff_send( device_predicted_time );
 
         // End of fenced area to prevent reordering
-        _mm_mfence();
+        std::atomic_thread_fence(std::memory_order_seq_cst);
 
         // Get the predicted time minus the actual time
         bool reply_good =  self->time_diff_recv( tdr );
