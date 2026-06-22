@@ -127,11 +127,9 @@ void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_
      * TODO: handle the case where clock sync is lost between when someone calls wait_for_sync and get_device_time
      * Currently we rely on clock sync only being lost when time is adjusted
      */
-    if(!time_diff_converged && is_converged) [[unlikely]] {
-        is_converged = false;
+    if(!time_diff_converged && is_converged.load(std::memory_order_relaxed)) [[unlikely]] {
+        is_converged.store(false, std::memory_order_release);
     }
-
-    _mm_sfence();
 
     // For SoB, record the instantaneous time difference + compensation
     if (time_diff_converged ) {

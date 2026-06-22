@@ -187,17 +187,13 @@ private:
      */
     inline void set_time_diff(time_spec_t new_time_diff) {
         time_diff.store(new_time_diff);
-        // Fence to ensure the time diff is set before marking it is converged
-        _mm_sfence();
-        is_converged = true;
-        _mm_sfence();
     }
 
     /**
      * Gets the flag to indicate that a resync has been requested
      */
     inline bool is_resync_requested() {
-        return resync_requested;
+        return resync_requested.load(std::memory_order_acquire);
     }
 
     /**
@@ -205,12 +201,10 @@ private:
      */
     inline void resync_acknowledge() {
         // Set convergence flag to false to indicate the process has been restarted
-        is_converged = false;
-        _mm_sfence();
+        is_converged.store(false, std::memory_order_relaxed);
 
         // Fence to ensure the is_converged flag is set before marking that the resync request has been processed
-        resync_requested = false;
-        _mm_sfence();
+        resync_requested.store(false, std::memory_order_release);;
     }
 
 public:
@@ -219,8 +213,7 @@ public:
      * @return True if the host and device clocks are synchronized
      */
     inline bool is_synced() {
-        _mm_lfence();
-        return is_converged && !resync_requested;
+        return is_converged.load(std::memory_order_relaxed) && !resync_requested.load(std::memory_order_relaxed);
     }
 
     /**
