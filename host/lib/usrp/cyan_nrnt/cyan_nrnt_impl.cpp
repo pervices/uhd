@@ -171,7 +171,7 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
 
     int pps_detected;
 
-    _mm_lfence();
+    _mm_mfence();
     while (! dev->_pps_thread_should_exit) {
         dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").set(1);
         pps_detected = dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").get();
@@ -188,7 +188,7 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
         for (size_t i = 0; i < 200; i++) {
             usleep(10000);
             // lfence to update _pps_thread_should_exit (needed for for the following line and the while loop check)
-            _mm_lfence();
+            _mm_mfence();
             if (dev->_pps_thread_should_exit) {
                 break;
             }
@@ -490,7 +490,7 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find(const device_addr_t &hint_)
 
 void cyan_nrnt_impl::start_pps_dtc() {
     // Esnure _pps_thread_needed and _pps_thread_running are loaded
-    _mm_lfence();
+    _mm_mfence();
 
     if ( ! _pps_thread_needed ) {
         return;
@@ -505,7 +505,7 @@ void cyan_nrnt_impl::start_pps_dtc() {
 
 void cyan_nrnt_impl::stop_pps_dtc() {
     // Esnure _pps_thread_needed is loaded
-    _mm_lfence();
+    _mm_mfence();
 
     if ( ! _pps_thread_needed ) {
         return;
@@ -1314,7 +1314,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
     // Ensure _pps_thread_needed is loaded if changed in another thread
-    _mm_lfence();
+    _mm_mfence();
     if ( _pps_thread_needed ) {
         start_pps_dtc();
     }

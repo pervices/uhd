@@ -191,7 +191,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
     //Get initial offset
     self->reset_time_diff_pid();
 
-    _mm_lfence();
+    _mm_mfence();
     for(
         host_control_time = uhd::get_system_time(),
         then = host_control_time + UPDATE_PERIOD

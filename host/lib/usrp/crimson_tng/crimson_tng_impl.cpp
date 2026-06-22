@@ -162,7 +162,7 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
 
     int pps_detected;
 
-    _mm_lfence();
+    _mm_mfence();
     while (! dev->_pps_thread_should_exit) {
         dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").set(1);
         pps_detected = dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").get();
@@ -179,7 +179,7 @@ void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
         for (size_t i = 0; i < 200; i++) {
             usleep(10000);
             // lfence to update _pps_thread_should_exit (needed for for the following line and the while loop check)
-            _mm_lfence();
+            _mm_mfence();
             if (dev->_pps_thread_should_exit) {
                 break;
             }
@@ -489,7 +489,7 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
 
 void crimson_tng_impl::start_pps_dtc() {
     // Esnure _pps_thread_needed and _pps_thread_running are loaded
-    _mm_lfence();
+    _mm_mfence();
 
     if ( ! _pps_thread_needed ) {
         return;
@@ -504,7 +504,7 @@ void crimson_tng_impl::start_pps_dtc() {
 
 void crimson_tng_impl::stop_pps_dtc() {
     // Esnure _pps_thread_needed is loaded
-    _mm_lfence();
+    _mm_mfence();
 
     if ( ! _pps_thread_needed ) {
         return;
@@ -1309,7 +1309,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
     // Ensure _pps_thread_needed is loaded if changed in another thread
-    _mm_lfence();
+    _mm_mfence();
     if ( _pps_thread_needed ) {
         start_pps_dtc();
     }

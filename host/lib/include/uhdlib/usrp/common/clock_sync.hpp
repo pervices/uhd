@@ -217,7 +217,7 @@ public:
      * @return True if the host and device clocks are synchronized
      */
     inline bool is_synced() {
-        _mm_lfence();
+        _mm_mfence();
         return is_converged && !resync_requested;
     }
 
@@ -270,7 +270,7 @@ public:
             wait_for_sync();
         }
 
-        _mm_lfence();
+        _mm_mfence();
 
         return uhd::get_system_time() + time_diff;
     }

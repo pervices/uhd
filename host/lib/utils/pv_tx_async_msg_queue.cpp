@@ -68,7 +68,7 @@ namespace uhd {
         // Wait until the next message is ready
         time_spec_t timeout_time = uhd::get_system_time() + timeout;
         // Fence to ensure this thread is updating message_writes_completed
-        _mm_lfence();
+        _mm_mfence();
         while(messages[message_location].message_writes_completed <= messages_read) {
             if(timeout_time > uhd::get_system_time()) {
                 // Return an error indicating the timeout expired (asme as recvmmsg)
@@ -76,7 +76,7 @@ namespace uhd {
             }
             // Delay to reduce resource usage
             ::usleep(1000);
-            _mm_lfence();
+            _mm_mfence();
         }
 
         size_t writes_started;
@@ -88,13 +88,13 @@ namespace uhd {
             writes_started = messages[message_location].message_writes_started;
 
             // Ensures that write started counter is read before the message is copied
-            _mm_lfence();
+            _mm_mfence();
 
             // Copy the message from the shared buffer to memory only used by this thread
             next_msg = messages[message_location].msg;
 
             // Ensures that write completed counter is read before the message is copied
-            _mm_lfence();
+            _mm_mfence();
 
             writes_completed = messages[message_location].message_writes_completed;
 

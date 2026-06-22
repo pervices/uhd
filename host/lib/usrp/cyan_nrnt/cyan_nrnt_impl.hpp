@@ -168,7 +168,7 @@ private:
 private:
 
     std::thread _pps_thread;
-    // Control variables for _pps_thread. Always use _mm_sfence/_mm_lfence after writing/before reading
+    // Control variables for _pps_thread. Always use _mm_sfence/_mm_mfence after writing/before reading
     bool _pps_thread_needed;
     // TODO: replace _pps_thread_running with checks to the thread object
     bool _pps_thread_running;

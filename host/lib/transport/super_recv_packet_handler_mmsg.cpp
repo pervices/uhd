@@ -264,7 +264,7 @@ void recv_packet_handler_mmsg::send_overflow_messages_loop(recv_packet_handler_m
 
     while(!(self->stop_overflow_loop)) {
         // Load fence to ensure getting oflows_printed from other threads doesn't get optimized out
-        _mm_lfence();
+        _mm_mfence();
 
         uint64_t oflows_to_print = self->oflows_to_print - oflows_printed;
         // Print a D for every recv command that's had an overflow since the last iteration of this loop

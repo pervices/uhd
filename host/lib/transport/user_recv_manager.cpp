@@ -149,7 +149,7 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
             uint64_t b = *call_buffer_head & (NUM_CALL_BUFFERS - 1);
 
             // Load fence to make sure getting the call buffer head and stop flags don't get optimized out
-            _mm_lfence();
+            _mm_mfence();
 
             // Check if the next call buffer in the ring buffer of call buffers is free
             if(*call_buffer_head >= *self->access_call_buffer_tail(ch, ch_offset) + NUM_CALL_BUFFERS) [[unlikely]] {
