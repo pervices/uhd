@@ -234,6 +234,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/prefs.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/serial_number.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/static.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/swmr.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/system_time.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tasks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/thread.cpp
