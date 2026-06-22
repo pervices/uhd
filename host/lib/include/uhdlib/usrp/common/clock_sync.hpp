@@ -25,6 +25,8 @@
 #include <uhd/types/time_spec.hpp>
 // Utility forgetting host time
 #include <uhdlib/utils/system_time.hpp>
+// Class for managing single writer multiple readers
+#include <uhdlib/utils/swmr.hpp>
 
 namespace uhd { namespace usrp {
 
@@ -69,7 +71,7 @@ private:
     alignas(CACHE_LINE_SIZE) const double _tick_rate;
 
     // Tick rate of time diff packets
-    volatile double time_diff = 0;
+    swmr<time_spec_t> time_diff = swmr<time_spec_t>(time_spec_t(0.0));
 
     // Stores if the predicted time and actual time have convered (clock sync completed)
     volatile bool is_converged = false;
@@ -183,8 +185,8 @@ private:
      * Updates time diff. Only call this if the clocks are converged
      * @param new_time_diff The new time diff
      */
-    inline void set_time_diff(double new_time_diff) {
-        time_diff = new_time_diff;
+    inline void set_time_diff(time_spec_t new_time_diff) {
+        time_diff.store(new_time_diff);
         // Fence to ensure the time diff is set before marking it is converged
         _mm_sfence();
         is_converged = true;
@@ -272,7 +274,10 @@ public:
 
         _mm_lfence();
 
-        return uhd::get_system_time() + time_diff;
+        time_spec_t current_time_diff;
+        time_diff.load(&current_time_diff);
+
+        return uhd::get_system_time() + current_time_diff;
     }
 
     /**

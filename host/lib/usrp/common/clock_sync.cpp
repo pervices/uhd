@@ -115,7 +115,7 @@ void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_
 
     double pv = (double) tdr.tv_sec + (tdr.tv_tick / _tick_rate);
 
-    double cv = time_diff_pidc.update_control_variable( sp, pv, now );
+    time_spec_t cv = time_diff_pidc.update_control_variable( sp, pv, now );
 
     bool reset_advised = false;
 
@@ -247,7 +247,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
             self->reset_time_diff_pid();
         }
 
-        double time_diff = self->time_diff_pidc.get_control_variable();
+        time_spec_t time_diff = self->time_diff_pidc.get_control_variable();
 
         // Start of fence to ensure that nothing get's reordered between getting the system time and sending the prediction
         _mm_mfence();
