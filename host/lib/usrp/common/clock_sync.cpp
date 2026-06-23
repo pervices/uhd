@@ -243,7 +243,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         time_spec_t time_diff = self->time_diff_pidc.get_control_variable();
 
         // Start of fence to ensure that nothing get's reordered between getting the system time and sending the prediction
-        _mm_mfence();
+        std::atomic_thread_fence(std::memory_order_seq_cst);
 
         // The time of the host when the time on device was predicted
         uhd::time_spec_t host_prediction_time = uhd::get_system_time();
