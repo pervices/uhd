@@ -139,14 +139,12 @@ void clock_sync::time_diff_process( const time_diff_resp & tdr, const uhd::time_
     // We only update is_converged when it changes to avoid unnecessarily invalidating it and requiring the other core to fetch the new identical value
     // Record that convergance was gained
     if(time_diff_converged && !is_converged) [[unlikely]] {
-        // Ensure time diff is updated before setting convergance to true
-        _mm_sfence();
+        // Increment sync count so we know that this is a new sync
+        sync_count.fetch_add(1, std::memory_order_relaxed);
 
-        is_converged = true;
+        // Esnure the updated store is applied
+        is_converged.store(true, std::memory_order_release);
     }
-
-    // Ensure is_converged gets updated quickly
-    _mm_sfence();
 
     if(reset_advised) {
         reset_time_diff_pid();

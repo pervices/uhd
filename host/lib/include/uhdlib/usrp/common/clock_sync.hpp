@@ -82,6 +82,9 @@ private:
     // Stores if setting time is in progress
     std::atomic<bool> set_time_in_progress = false;
 
+    // How many times sync has been completed
+    std::atomic<int64_t> sync_count = 0;
+
     /*
      * Start of member vaiables that are not used by the critical thread
      * They must be on a separate cache line from variables used by the critical thread but otherwise don't matter
@@ -262,16 +265,37 @@ public:
      * Gets the time that a packet sent now would arrive at the device
      */
     inline time_spec_t get_device_time() {
-        // The fence inside is_synced is sufficient so we don't need one here
 
-        // Wait for clock sync to finish
-        if(!is_synced()) [[likely]] {
-            wait_for_sync();
-        }
+        time_spec_t difference;
+        int64_t initial_sync_count;
+        int64_t end_sync_count;
 
-        _mm_lfence();
 
-        return uhd::get_system_time() + time_diff.load();
+        do {
+            // Waits for clock sync
+            if(!is_synced()) [[likely]] {
+                wait_for_sync();
+            }
+
+            // Synchronization from load mean we don't need to sync here
+            initial_sync_count = sync_count.load(std::memory_order_relaxed);
+
+            // Load time difference. .load contains fences to ensure correct memory order of operations before and after it
+            time_diff.load(&difference);
+
+            end_sync_count = sync_count.load(std::memory_order_relaxed);
+
+        } while(
+            /**
+             * Repeat if a new sync was compelted while this one was running
+             * This for the unlikely event that clock sync is lost but regained while loading
+             */
+            initial_sync_count != end_sync_count ||
+            // Repeat if sync was lost while loading
+            !is_synced()
+        );
+
+        return uhd::get_system_time() + difference;
     }
 
     /**
