@@ -414,6 +414,13 @@ public:
     void set_time_next_pps(const time_spec_t& time_spec, size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
+
+            if(PyGILState_Check()) {
+                fprintf(stderr, "T1 Has GIL\n");
+            } else {
+                fprintf(stderr, "T1 Do not have GIL\n");
+            }
+
             this->get_device()->set_time_initiated(time_spec.get_full_secs());
             _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").set(time_spec);
             this->get_device()->set_time_finished();
