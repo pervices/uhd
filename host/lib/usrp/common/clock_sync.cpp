@@ -46,8 +46,7 @@ clock_sync::clock_sync(std::string ip, uint16_t port, double tick_rate)
 }
 
 clock_sync::~clock_sync() {
-    sync_thread_should_exit = true;
-    _mm_sfence();
+    sync_thread_should_exit.store(true, std::memory_order_relaxed);
     sync_thread.join();
 }
 
@@ -162,8 +161,7 @@ std::shared_ptr<clock_sync> clock_sync::make(std::string ip, uint16_t port, doub
 }
 
 void clock_sync::set_clock_sync_desired(bool desired) {
-    clock_sync_desired = desired;
-    _mm_sfence();
+    clock_sync_desired.store(desired, std::memory_order_release);
 }
 
 void clock_sync::loop_thread_fn( clock_sync *self ) {
@@ -187,13 +185,12 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
     //Get initial offset
     self->reset_time_diff_pid();
 
-    _mm_lfence();
     for(
         host_control_time = uhd::get_system_time(),
         then = host_control_time + UPDATE_PERIOD
         ;
 
-        ! self->sync_thread_should_exit
+        ! self->sync_thread_should_exit.load(std::memory_order_relaxed)
         ;
 
         then += UPDATE_PERIOD,
@@ -212,7 +209,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
 
         if(
             // Skip this round if a previous one failed and clock sync is not needed
-            (reply_failed && !self->clock_sync_desired)
+            (reply_failed && !self->clock_sync_desired.load(std::memory_order_relaxed))
             ||
             // Skip this round if the time is currently being set since we are about to need to reset anyway
             self->set_time_in_progress

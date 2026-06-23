@@ -109,10 +109,10 @@ private:
     swmr<int64_t> last_time_set_seconds = swmr<int64_t>(INT64_MIN);
 
     // Tells the sync thread to exit
-    volatile bool sync_thread_should_exit = false;
+    std::atomic<bool> sync_thread_should_exit = false;
 
     // Indicates that clock sync matters
-    volatile bool clock_sync_desired = false;
+    std::atomic<bool> clock_sync_desired = false;
 
     /*
      * Start of variables set during the constructor.
