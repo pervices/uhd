@@ -574,6 +574,13 @@ private:
         ssize_t samples_sent = 0;
 
         do {
+            // Debug test to see if the problem occurs when initializing other parts
+
+            if(_clock_sync->get_device_time() > time_spec_t::from_ticks(packet_header_infos[0].tsf, _TICK_RATE) + 0.5) {
+                // Skip send if more than 0.5 seconds until the packet is needed
+                continue;
+            }
+
             // The number of packets to send in the next sendmmsg commmand on all channels
             int packets_to_send_now = num_packets - packets_sent;
 
