@@ -35,6 +35,8 @@
 
 #include <iostream>
 
+#include <Python.h>
+
 namespace uhd { namespace rfnoc {
 
 //! Factory function for RFNoC devices specifically
