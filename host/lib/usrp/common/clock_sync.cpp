@@ -229,6 +229,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
              * To avoid the clock jump do not sync until after last_time_set_seconds + 1
              */
             if(-tdr.tv_sec < self->last_time_set_seconds.load() + 1 || !current_time_received) {
+                fprintf(stderr, "A1\n");
                 continue;
             }
 
