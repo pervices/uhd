@@ -88,7 +88,8 @@ bool clock_sync::time_diff_recv(time_diff_resp & reply) {
 }
 
 void clock_sync::reset_time_diff_pid() {
-    _mm_mfence();
+    // Fence to ensure nothing before getting the time and after sending the packet gets reordered that may impact timing
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     uhd::time_spec_t reset_now = uhd::get_system_time();
 
@@ -96,15 +97,13 @@ void clock_sync::reset_time_diff_pid() {
 
     time_diff_send( reset_now );
 
-    _mm_mfence();
+    std::atomic_thread_fence(std::memory_order_seq_cst);
 
     time_diff_recv( reset_tdr );
 
     double new_offset = (double) reset_tdr.tv_sec + (reset_tdr.tv_tick /  _tick_rate);
 
     time_diff_pidc.reset(reset_now, new_offset);
-
-    _mm_sfence();
 }
 
 /// SoB Time Diff: feed the time diff error back into out control system
@@ -255,7 +254,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
         self->time_diff_send( device_predicted_time );
 
         // End of fenced area to prevent reordering
-        _mm_mfence();
+        std::atomic_thread_fence(std::memory_order_seq_cst);
 
         // Get the predicted time minus the actual time
         bool reply_good =  self->time_diff_recv( tdr );

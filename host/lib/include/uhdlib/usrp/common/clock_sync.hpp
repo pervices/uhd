@@ -13,8 +13,6 @@
 #include <stdint.h>
 // Smart pointers
 #include <memory>
-// Fences
-#include <immintrin.h>
 // Socket for sending/receiving time diff packets
 #include <uhd/transport/udp_simple.hpp>
 // Standard library for thread
