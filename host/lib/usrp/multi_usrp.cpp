@@ -403,6 +403,12 @@ public:
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
+            if(PyGILState_Check()) {
+                fprintf(stderr, "T1 Has GIL\n");
+            } else {
+                fprintf(stderr, "T1 Do not have GIL\n");
+            }
+
             this->get_device()->set_time_initiated(time_spec.get_full_secs());
             this->get_device()->set_time_now(time_spec, mboard);
             this->get_device()->set_time_finished();
@@ -418,9 +424,9 @@ public:
         if (mboard != ALL_MBOARDS) {
 
             if(PyGILState_Check()) {
-                fprintf(stderr, "T1 Has GIL\n");
+                fprintf(stderr, "T2 Has GIL\n");
             } else {
-                fprintf(stderr, "T1 Do not have GIL\n");
+                fprintf(stderr, "T2 Do not have GIL\n");
             }
 
             this->get_device()->set_time_initiated(time_spec.get_full_secs());
