@@ -423,6 +423,7 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
             try {
                 get_fifo_level( level, uflow, oflow, then );
             } catch( ... ) {
+                fprintf("T1\n");
                 continue;
             }
 
