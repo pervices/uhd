@@ -118,7 +118,8 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     uhd::stream_cmd_t clear_stream_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
     clear_stream_cmd.num_samps  = 0;
     clear_stream_cmd.stream_now = stream_cmd.stream_now;
-    clear_stream_cmd.time_spec  = stream_cmd.time_spec;
+    // DEBUG: make sure the time on stop command is before the actual command
+    clear_stream_cmd.time_spec  = stream_cmd.time_spec - 1;
     uhd::usrp::rx_stream_cmd clear_rx_stream_cmd_packet;
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( clear_stream_cmd, clear_rx_stream_cmd_packet );
 
