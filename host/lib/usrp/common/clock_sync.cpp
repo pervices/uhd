@@ -213,7 +213,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
             // Skip this round if the time is currently being set since we are about to need to reset anyway
             self->set_time_in_progress
         ) {
-            fprintf("A1\n"):
+            fprintf(stderr, "A1\n");
             continue;
         }
 
@@ -224,7 +224,7 @@ void clock_sync::loop_thread_fn( clock_sync *self ) {
 
             bool current_time_received =  self->time_diff_recv( tdr );
             if(!current_time_received) {
-                fprintf("A2\n");
+                fprintf(stderr, "A2\n");
             }
 
             /**

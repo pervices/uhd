@@ -123,9 +123,9 @@ _iface(iface)
 }
 
 crimson_tng_recv_packet_streamer::~crimson_tng_recv_packet_streamer() {
-    fprintf("B1\n");
+    fprintf(stderr, "B1\n");
     teardown();
-    fprintf("B100\n");
+    fprintf(stderr, "B100\n");
 }
 
 void crimson_tng_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
@@ -425,7 +425,7 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
             try {
                 get_fifo_level( level, uflow, oflow, then );
             } catch( ... ) {
-                fprintf("T1\n");
+                fprintf(stderr, "T1\n");
                 continue;
             }
 
