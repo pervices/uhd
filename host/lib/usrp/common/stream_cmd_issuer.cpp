@@ -48,6 +48,11 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
     uhd::time_spec_t ts = cmd.stream_now ? 0.0 : cmd.time_spec;
 
     pkt.tv_sec = ts.get_full_secs();
+    /**
+     * TODO: confirm if this is correct
+     * On a surface level the FPGA code looks like it is in ticks
+     * Using picoseconds here and only here would be bizarre
+     */
     pkt.tv_psec = ts.get_frac_secs() * 1e12;
 
     pkt.nsamples = inst_samps ? cmd.num_samps : 0;
