@@ -123,7 +123,9 @@ _iface(iface)
 }
 
 crimson_tng_recv_packet_streamer::~crimson_tng_recv_packet_streamer() {
+    fprintf("B1\n");
     teardown();
+    fprintf("B100\n");
 }
 
 void crimson_tng_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
