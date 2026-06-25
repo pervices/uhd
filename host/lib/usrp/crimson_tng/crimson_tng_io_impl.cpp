@@ -198,8 +198,10 @@ _iface(iface)
 }
 
 crimson_tng_send_packet_streamer::~crimson_tng_send_packet_streamer() {
+    fprintf(stderr, "D1\n");
     // TODO: see if having teardown seperate from the destructor is still required
     teardown();
+    fprintf(stderr, "D100\n");
 }
 
 void crimson_tng_send_packet_streamer::teardown() {
