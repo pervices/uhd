@@ -171,8 +171,8 @@ private:
     // Control variables for _pps_thread. Always use _mm_sfence/_mm_lfence after writing/before reading
     bool _pps_thread_needed;
     // TODO: replace _pps_thread_running with checks to the thread object
-    bool _pps_thread_running;
-    bool _pps_thread_should_exit;
+    std::atomic<bool> _pps_thread_running;
+    std::atomic<bool> _pps_thread_should_exit;
 
     time_spec_t _command_time;
 
