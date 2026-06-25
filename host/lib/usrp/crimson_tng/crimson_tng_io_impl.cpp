@@ -315,7 +315,7 @@ size_t crimson_tng_send_packet_streamer::send(
 
     _first_call_to_send = false;
 
-    if( ! _buffer_monitor_running && !use_blocking_fc ) {
+    if( ! _buffer_monitor_running.load(std::memory_order_relaxed) && !use_blocking_fc ) {
         start_buffer_monitor_thread();
     }
 
@@ -340,11 +340,11 @@ void crimson_tng_send_packet_streamer::resize(const size_t size){
 }
 
 void crimson_tng_send_packet_streamer::stop_buffer_monitor_thread() {
-    if ( _buffer_monitor_running ) {
-        _stop_buffer_monitor = true;
+    if ( _buffer_monitor_running.load(std::memory_order_relaxed) ) {
+        _stop_buffer_monitor.store(true, std::memory_order_relaxed);
         if ( _buffer_monitor_thread.joinable() ) {
             _buffer_monitor_thread.join();
-            _buffer_monitor_running = false;
+            _buffer_monitor_running.store(false, std::memory_order_relaxed);
         }
     }
 }
@@ -388,13 +388,13 @@ void crimson_tng_send_packet_streamer::buffer_monitor_loop( crimson_tng_send_pac
     // This is not time sensitive, remove thread priority
     uhd::set_thread_priority_safe(0, false);
 
-    for( ; ! self->_stop_buffer_monitor; ) {
+    for( ; ! self->_stop_buffer_monitor.load(std::memory_order_relaxed); ) {
 
         const auto t0 = std::chrono::high_resolution_clock::now();
 
         for( size_t i = 0; i < self->_eprops.size(); i++ ) {
             // Check if the monitoring loop has been told to exit
-            if ( self->_stop_buffer_monitor ) {
+            if ( self->_stop_buffer_monitor.load(std::memory_order_relaxed) ) {
                 return;
             }
 
