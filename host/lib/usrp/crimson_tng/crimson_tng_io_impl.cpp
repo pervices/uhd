@@ -892,6 +892,7 @@ static void get_fifo_lvl_udp_abs( const size_t channel, const int64_t bl_multipl
 
         r = xport->recv( boost::asio::mutable_buffer( & rsp, sizeof( rsp ) ) );
         if ( sizeof( rsp ) != r ) {
+            fprintf(stderr, "D30\n");
             continue;
         }
 
