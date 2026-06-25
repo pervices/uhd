@@ -227,7 +227,11 @@ void crimson_tng_send_packet_streamer::teardown() {
         usleep(10);
     }
 
+    fprintf(stderr, "D45\n");
+
     stop_buffer_monitor_thread();
+
+    fprintf(stderr, "D50\n");
     _eprops.clear();
 
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -240,6 +244,8 @@ void crimson_tng_send_packet_streamer::teardown() {
         std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow");
         std::cout << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
+
+    fprintf(stderr, "D75\n");
 
     // Check for SFP FIFO buffer overflows if tracking was enabled for this streamer
     if (_sfp_oflow_start != uint16_t(-1)) {
