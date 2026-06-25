@@ -26,6 +26,8 @@
 #include <net/if.h>
 #include <sys/file.h>
 
+#include <netinet/udp.h>
+
 namespace uhd {
 namespace transport {
 namespace sph {
@@ -73,6 +75,20 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
             } else {
                 fprintf(stderr, "Connect failed with error: %s\n", strerror(errno));
             }
+        }
+
+        int optval;
+        socklen_t optlen = sizeof(optval);
+
+        // Query the IPPROTO_UDP layer for the state of UDP_CORK
+        if (getsockopt(send_socket_fd, IPPROTO_UDP, UDP_CORK, &optval, &optlen) < 0) {
+            printf("Failed to execute getsockopt for UDP_CORK");
+        }
+
+        if (optval != 0) {
+            printf("UDP_CORK is ENABLED (%d). The kernel is accumulating datagrams.\n", optval);
+        } else {
+            printf("UDP_CORK is DISABLED (%d). The kernel transmits payloads instantly.\n", optval);
         }
 
         // Sets the send buffer size
