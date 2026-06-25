@@ -622,7 +622,8 @@ private:
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                     // Send packets
-                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
+                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM | MSG_DONTROUTE
+);
 
                     // Record if an error occured
                     // The performance impact of proper error handling is to large
