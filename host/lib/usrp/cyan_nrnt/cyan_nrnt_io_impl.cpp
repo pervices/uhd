@@ -191,6 +191,9 @@ cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() {
 }
 
 void cyan_nrnt_send_packet_streamer::teardown() {
+    // Stop buffer monitor thread before polling for the buffer to be empty because they use the same socket
+    stop_buffer_monitor_thread();
+
     // Waits for all samples sent to be consumed before destructing, times out after 30s
     uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
     while(timeout_time > uhd::get_system_time()) {
@@ -213,7 +216,6 @@ void cyan_nrnt_send_packet_streamer::teardown() {
         usleep(10);
     }
 
-    stop_buffer_monitor_thread();
     _eprops.clear();
 
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
