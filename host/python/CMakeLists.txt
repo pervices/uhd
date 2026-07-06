@@ -40,6 +40,12 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/uhd_build.py" DESTINATION "${CMAKE_CURREN
 file(COPY "${CMAKE_SOURCE_DIR}/README.md" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 file(COPY "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 
+# This sets the UHD_INSTALL_PATH variable in the __init__.py file so that the UHD python module can find the UHD library.
+set(UHD_INSTALL_PATH ${CMAKE_INSTALL_PREFIX})
+set(UHD_INIT_IN "${CMAKE_CURRENT_SOURCE_DIR}/uhd/__init__.py.in")
+set(UHD_INIT "${CMAKE_CURRENT_BINARY_DIR}/uhd/__init__.py")
+configure_file(${UHD_INIT_IN} ${UHD_INIT} @ONLY)
+
 # If we're not in a virtual environment, then we need to figure out where to
 # install the Python module. Do this here so we can use the value for UHD_PYTHON_DIR
 # in the simulator.
@@ -67,6 +73,7 @@ if(NOT ENABLE_PYTHON_API AND ENABLE_PYMOD_UTILS)
     # Note: When adding Python files into uhd/, they don't get added to the
     # dependency list until CMake is re-run.
     file(GLOB_RECURSE PYUHD_FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/uhd/__init__.py
         ${CMAKE_CURRENT_SOURCE_DIR}/uhd/dsp/*.py
         ${CMAKE_CURRENT_SOURCE_DIR}/uhd/rfnoc_utils/*.py
         ${CMAKE_CURRENT_SOURCE_DIR}/uhd/rfnoc_utils/*.mako
@@ -142,14 +149,16 @@ target_include_directories(pyuhd PUBLIC
     ${PYTHON_NUMPY_INCLUDE_DIR}
     ${UHD_SOURCE_DIR}/lib
     ${pybind11_INCLUDE_DIR}
+    # Directory will exist as the Python API build depends on LibUHD being enabled
+    ${UHD_BINARY_DIR}/lib/ic_reg_maps
 )
 
 if(WIN32)
-    target_link_libraries(pyuhd ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} uhd)
+    target_link_libraries(pyuhd ${PYTHON_LIBRARIES} uhd)
 else()
     # for extension module, proper to NOT link against python library and instead
     # add dynamic lookup link option on OSX
-    target_link_libraries(pyuhd ${Boost_LIBRARIES} uhd)
+    target_link_libraries(pyuhd uhd)
     if(APPLE)
         target_link_options(pyuhd PRIVATE "LINKER:-undefined,dynamic_lookup")
     endif(APPLE)
@@ -228,12 +237,6 @@ if(ENABLE_SIM)
                    ${CMAKE_CURRENT_BINARY_DIR}/usrp_mpm/usrp_hwd.py COPYONLY)
     set(PYUHD_FILES ${PYUHD_FILES} copy_mpm_packages)
 endif(ENABLE_SIM)
-
-# This sets the UHD_INSTALL_PATH variable in the __init__.py file so that the UHD python module can find the UHD library.
-set(UHD_INSTALL_PATH ${CMAKE_INSTALL_PREFIX})
-set(UHD_INIT_IN "${CMAKE_CURRENT_SOURCE_DIR}/uhd/__init__.py.in")
-set(UHD_INIT "${CMAKE_CURRENT_BINARY_DIR}/uhd/__init__.py")
-configure_file(${UHD_INIT_IN} ${UHD_INIT} @ONLY)
 
 # This copies the *.py and *.mako files of host/python/uhd into the build directory. 
 # We will use that as a staging ground for installing the final module to the system.

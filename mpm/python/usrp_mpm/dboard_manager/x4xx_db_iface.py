@@ -7,10 +7,11 @@
 X4xx Daughterboard interface. See X4xxDboardIface documentation.
 """
 
-from usrp_mpm.sys_utils.db_flash import DBFlash
-from usrp_mpm.sys_utils.gpio import Gpio
 from usrp_mpm.dboard_manager import DboardIface
 from usrp_mpm.mpmutils import get_dboard_class_from_pid
+from usrp_mpm.sys_utils.db_flash import DBFlash
+from usrp_mpm.sys_utils.gpio import Gpio
+
 
 class X4xxDboardIface(DboardIface):
     """
@@ -21,14 +22,15 @@ class X4xxDboardIface(DboardIface):
     motherboard - The instance of the motherboard class which implements
                   these controls
     """
+
     # The device tree label for the bus to the DB's Management EEPROM
     MGMT_EEPROM_DEVICE_LABEL = "e0004000.i2c"
 
     def __init__(self, slot_idx, motherboard, dboard_info):
         super().__init__(slot_idx, motherboard)
         self.db_cpld_iface = motherboard.ctrlport_regs.get_db_cpld_iface(self.slot_idx)
-        self._power_enable = Gpio(f'DB{slot_idx}_PWR_EN', Gpio.OUTPUT)
-        self._power_status = Gpio(f'DB{slot_idx}_PWR_STATUS', Gpio.INPUT)
+        self._power_enable = Gpio(f"DB{slot_idx}_PWR_EN", Gpio.OUTPUT)
+        self._power_status = Gpio(f"DB{slot_idx}_PWR_STATUS", Gpio.INPUT)
         self.db_flash = None
         self._init_db_flash(slot_idx, dboard_info)
 
@@ -37,8 +39,8 @@ class X4xxDboardIface(DboardIface):
         Identify if this daughterboard has a flash memory, and initialize it if
         necessary.
         """
-        db_class = get_dboard_class_from_pid(dboard_info['pid'])
-        if getattr(db_class, 'has_db_flash', False):
+        db_class = get_dboard_class_from_pid(dboard_info["pid"])
+        if getattr(db_class, "has_db_flash", False):
             self.db_flash = DBFlash(slot_idx, log=self.log)
 
     def tear_down(self):
@@ -60,7 +62,11 @@ class X4xxDboardIface(DboardIface):
         """
         if self.db_flash and not enable:
             self.db_flash.deinit()
-        self._power_enable.set(enable)
+        # Writing the GPIO when already being enabled will lead to a falling edge
+        # followed by a rising edge, which is not what we want.
+        # So we only write the GPIO if we are changing the state.
+        if self._power_status.get() != enable:
+            self._power_enable.set(enable)
         self.mboard.cpld_control.enable_daughterboard(self.slot_idx, enable)
         if self.db_flash and enable:
             self.db_flash.init()
@@ -89,7 +95,7 @@ class X4xxDboardIface(DboardIface):
         """
         Enable or disable swap of I and Q samples from the RFDCs.
         """
-        self.mboard.rfdc.enable_iq_swap(enable, self.slot_idx, channel, direction == 'tx')
+        self.mboard.rfdc.enable_iq_swap(enable, self.slot_idx, channel, direction == "tx")
 
     def get_sample_rate(self):
         """
@@ -104,3 +110,9 @@ class X4xxDboardIface(DboardIface):
         Note: The PRC rate will change if the sample clock frequency is modified.
         """
         return self.mboard.clk_mgr.get_prc_rate()
+
+    def set_data_path(self, mode, direction):
+        """
+        Set the data path to be used by the channels of a daughterboard.
+        """
+        return self.mboard.rfdc.set_data_path(self.slot_idx, mode, direction == "tx")

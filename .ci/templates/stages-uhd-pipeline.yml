@@ -26,6 +26,10 @@ parameters:
 - name: testLength
   type: string
   default: 'smoke'
+- name: create_sbom
+  type: boolean
+  displayName: Create SBOMs
+  default: true
 - name: build_sdk
   type: boolean
   default: false
@@ -47,6 +51,13 @@ parameters:
 - name: build_x4xx
   type: boolean
   default: true
+- name: ext_fpga
+  type: boolean
+  displayName: Use pipeline FPGA build
+  default: true
+- name: cmake_args
+  type: string
+  default: " "
 - name: fpga_imgs_source
   type: string
   displayName: FPGA Images Source
@@ -91,31 +102,72 @@ parameters:
     X410_X4_400:
       image_core: x410_X4_400_rfnoc_image_core.yml
       image_core_name: usrp_x410_fpga_X4_400
+      target_name: X410
       artifact_name: X410_X4_400
       timeout: 720
+      attempt_timeout: 360
       max_attempts: 2
     X410_UC_200:
       image_core: x410_UC_200_rfnoc_image_core.yml
       image_core_name: usrp_x410_fpga_UC_200
+      target_name: X410
       artifact_name: X410_UC_200
       timeout: 720
+      attempt_timeout: 360
+      max_attempts: 2
+    X410_X4_100:
+      image_core: x410_X4_100_rfnoc_image_core.yml
+      image_core_name: usrp_x410_fpga_X4_100
+      target_name: X410
+      artifact_name: X410_X4_100
+      timeout: 720
+      attempt_timeout: 360
       max_attempts: 2
     X410_X4_200:
       image_core: x410_X4_200_rfnoc_image_core.yml
       image_core_name: usrp_x410_fpga_X4_200
+      target_name: X410
       artifact_name: X410_X4_200
       timeout: 720
+      attempt_timeout: 360
       max_attempts: 2
     X410_CG_400:
       image_core: x410_CG_400_rfnoc_image_core.yml
       image_core_name: usrp_x410_fpga_CG_400
+      target_name: X410
       artifact_name: X410_CG_400
       timeout: 720
+      attempt_timeout: 360
       max_attempts: 2
     X410_FFT_BLOCK_TEST:
       image_core: ../../../../host/tests/rfnoc_block_tests_on_target/x410_fft_block_test.yml
       image_core_name: usrp_x410_fpga_fft_block_test
+      target_name: X410
       artifact_name: X410_FFT_BLOCK_TEST
+      timeout: 720
+      attempt_timeout: 360
+      max_attempts: 2
+# Requested X420 targets
+- name: x420_targets_matrix
+  type: object
+  displayName: X420 Targets
+  default:
+    X420_CG_1000:
+      image_core: x420_CG_1000_rfnoc_image_core.yml
+      image_core_name: usrp_x420_fpga_CG_1000
+      artifact_name: X420_CG_1000
+      timeout: 720
+      max_attempts: 2
+    X420_X4_1000:
+      image_core: x420_X4_1000_rfnoc_image_core.yml
+      image_core_name: usrp_x420_fpga_X4_1000
+      artifact_name: X420_X4_1000
+      timeout: 720
+      max_attempts: 2
+    X420_X4_200:
+      image_core: x420_X4_200_rfnoc_image_core.yml
+      image_core_name: usrp_x420_fpga_X4_200
+      artifact_name: X420_X4_200
       timeout: 720
       max_attempts: 2
 # Requested X440 targets
@@ -125,32 +177,42 @@ parameters:
     X440_CG_1600:
       image_core: x440_CG_1600_rfnoc_image_core.yml
       image_core_name: usrp_x440_fpga_CG_1600
+      target_name: X440
       artifact_name: X440_CG_1600
       timeout: 720
+      attempt_timeout: 360
       max_attempts: 2
     X440_CG_400:
       image_core: x440_CG_400_rfnoc_image_core.yml
       image_core_name: usrp_x440_fpga_CG_400
+      target_name: X440
       artifact_name: X440_CG_400
-      timeout: 720
+      timeout: 1080
+      attempt_timeout: 540 # successfull runs can take longer than default 6h
       max_attempts: 2
     X440_X4_1600:
       image_core: x440_X4_1600_rfnoc_image_core.yml
       image_core_name: usrp_x440_fpga_X4_1600
+      target_name: X440
       artifact_name: X440_X4_1600
       timeout: 720
+      attempt_timeout: 360
       max_attempts: 2
     X440_X4_400:
       image_core: x440_X4_400_rfnoc_image_core.yml
       image_core_name: usrp_x440_fpga_X4_400
+      target_name: X440
       artifact_name: X440_X4_400
-      timeout: 720
+      timeout: 1080
+      attempt_timeout: 540 # successfull runs can take longer than default 6h
       max_attempts: 2
     X440_X4_200:
       image_core: x440_X4_200_rfnoc_image_core.yml
       image_core_name: usrp_x440_fpga_X4_200
+      target_name: X440
       artifact_name: X440_X4_200
       timeout: 720
+      attempt_timeout: 360
       max_attempts: 2
 
 variables:
@@ -190,14 +252,8 @@ resources:
     type: github
     name: gnuradio/volk
     endpoint: EttusResearch
-    # 3.1.2 is the latest release at the moment. The maint branch hasn't been
-    # updated in years and directly using main would be risky.
-    ref: refs/tags/v3.1.2
-  - repository: gnuradio-3-8
-    type: github
-    name: gnuradio/gnuradio
-    endpoint: EttusResearch
-    ref: maint-3.8
+    # 3.2.0 is the latest release as of Feb. 2025
+    ref: refs/tags/v3.2.0
   - repository: gr-ettus
     type: github
     name: EttusResearch/gr-ettusdev
@@ -212,6 +268,20 @@ resources:
     type: git
     ref: refs/tags/pip/hwsetup/0.1/0.1.3
     name: DevCentral/hwtools
+  - repository: labview-usrp-examples
+    type: github
+    endpoint: EttusResearch
+    name: ni/labview-usrp-examples
+    ref: main
+  - repository: rfnoc-oot-blocks
+    type: github
+    endpoint: EttusResearch
+    name: EttusResearch/rfnoc-oot-blocks-dev
+    ref: main
+  - repository: usrp4-hw
+    type: git
+    ref: master
+    name: DevCentral/usrp4-hw
 
 stages:
 ###############################################################################
@@ -261,17 +331,21 @@ stages:
   - template: job-uhd-build-src.yml
     parameters:
       toolset: make
+      cmake_args: ${{ parameters.cmake_args }}
   - template: job-uhd-build-src.yml
     parameters:
       toolset: make_trace
+      cmake_args: ${{ parameters.cmake_args }}
   - template: job-uhd-build-src.yml
     parameters:
       toolset: ninja
+      cmake_args: ${{ parameters.cmake_args }}
   - ${{ if parameters.custom_boost_version }}:
     - template: job-uhd-build-src.yml
       parameters:
         toolset: make_custom_boost_version
         custom_boost_version_url: ${{ parameters.custom_boost_version_url }}
+        cmake_args: ${{ parameters.cmake_args }}
 
 - stage: build_rfnoc_modtool_stage_linux
   displayName: Build and Test RFNoC Modtool
@@ -304,6 +378,8 @@ stages:
   - template: job-uhd-build-src.yml
     parameters:
       toolset: make_homebrew_macos
+      custom_boost_version: ${{ parameters.custom_boost_version }}
+      custom_boost_version_url: ${{ parameters.custom_boost_version_url }}
 
 - stage: build_uhd_embedded_system_images
   displayName: Build UHD Embedded System Images
@@ -337,6 +413,7 @@ stages:
   jobs:
     - template: .ci/templates/job_build_filesystem.yml@meta-ettus
       parameters:
+        create_sbom: ${{ parameters.create_sbom }}
         build_sdk: ${{ parameters.build_sdk }}
         cache_sstate: ${{ parameters.cache_sstate }}
         cache_downloads: False
@@ -367,6 +444,22 @@ stages:
                 path: host
               - package: mpmd
                 path: mpm
+        - ${{ if parameters.ext_fpga }}:
+            - template: .ci/templates/oe_localconf_externalsrc_pipeline.yml@meta-ettus
+              parameters:
+                conf_file: $AUTO_CONF
+                pipeline: uhd_mono_pipeline
+                patterns: |
+                  usrp_e310_*_fpga.*
+                  usrp_e320_fpga_*.*
+                  usrp_n3??_fpga_*.*
+                  usrp_x4??_fpga_*.*
+                packages:
+                - uhd-fpga-images
+                flatten: true
+            - script: |
+                ls -l $(Agent.BuildDirectory)/uhd_mono_pipeline
+              displayName: list fpga images
         # If requested, we set a variable "UHD_BASE_URL", which is consumed by
         # the uhd-fpga-images recipe to an internal file server which is closer
         # to the build machines. It is simply appended to auto.conf, where
@@ -390,6 +483,29 @@ stages:
   jobs:
   - template: job-get-latest-uhd-docker.yml
   - template: job-uhd-package-src.yml
+    parameters:
+      uhdSrcDir: $(Build.SourcesDirectory)
+      uhdBuildDir: $(Build.BinariesDirectory)/uhddev/build
+      release_binaries: ${{ parameters.release_binaries }}
+
+- stage: build_uhd_manual
+  displayName: Build UHD Manual (the ReadTheDocs way)
+  dependsOn: analyze_changeset
+  # This stage is executed if any of these are true:
+  # - uhd.build* is set to Force-yes or auto
+  # - uhd.docs is set to Force-yes or auto
+  # - fpga.usrp3* is set to Force-yes or auto
+  condition: >
+    and(succeeded(),
+      or(
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'uhd.build'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'uhd.docs'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'fpga.usrp3')
+      )
+    )
+  jobs:
+  - template: job-get-latest-uhd-docker.yml
+  - template: job-uhd-build-manual.yml
     parameters:
       uhdSrcDir: $(Build.SourcesDirectory)
       uhdBuildDir: $(Build.BinariesDirectory)/uhddev/build
@@ -423,6 +539,9 @@ stages:
       parameters:
         toolset: ubuntu_deb
         installer: deb
+        cmake_args: ${{ parameters.cmake_args }}
+        releaseBinaries: ${{ parameters.release_binaries }}
+        create_sbom: ${{ parameters.create_sbom }}
 
 - stage: build_uhd_installer_stage_fedora
   displayName: Build UHD Installers Fedora
@@ -433,7 +552,9 @@ stages:
       parameters:
         toolset: fedora_rpm
         installer: rpm
+        cmake_args: ${{ parameters.cmake_args }}
         releaseBinaries: ${{ parameters.release_binaries }}
+        create_sbom: ${{ parameters.create_sbom }}
 
 - stage: build_uhd_installer_stage_win
   displayName: Build UHD Installers Windows
@@ -451,11 +572,13 @@ stages:
       parameters:
         toolset: msbuild
         installer: nsis
+        cmake_args: ${{ parameters.cmake_args }}
         releaseBinaries: ${{ parameters.release_binaries }}
         ${{ if contains(parameters.fpga_imgs_source, 'files.ettus.com') }}:
           fpga_imgs_source: 'files.ettus.com'
         ${{ else }}:
           fpga_imgs_source: 'Internal'
+        create_sbom: ${{ parameters.create_sbom }}
     - ${{ if parameters.release_binaries }}:
       - template: job-uhd-build-installer-signing.yml
         parameters:
@@ -477,8 +600,76 @@ stages:
     )
   jobs:
   - template: ../fpga/templates/job-run-testbenches.yml
+    parameters:
+      simulator: modelsim
+  - template: ../fpga/templates/job-run-testbenches.yml
+    parameters:
+      simulator: xsim
 
 ### END: Testbenches stage
+
+### START: CPLD Build Stage
+
+- stage: build_cpld_stage
+  displayName: x4xx CPLD Build Stage
+  dependsOn: analyze_changeset
+  variables:
+  - group: sdr-pipeline-vars
+  condition: >
+    and(succeeded(),
+      contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'fpga.usrp3.cpld.x4xx')
+    )
+  jobs:
+  - template: ../fpga/templates/job-build-cpld.yml
+    parameters:
+      publish_int_files: true
+      cpldBuilds:
+        - displayName: 'HBX CPLD Build'
+          workingDirectory: './top/x400/dboards/hbx/cpld'
+          artifactName: 'CPLD_HBX'
+          ref: $(hbx-branch-name)
+        - displayName: 'HBX CPLD Master Merge'
+          workingDirectory: './top/x400/dboards/hbx/cpld'
+          artifactName: 'CPLD_HBX (Master Merge)'
+          includeAdditionalSources: true
+        - displayName: 'MB CPLD Build'
+          workingDirectory: './top/x400/cpld'
+          artifactName: 'CPLD_MB'
+        - displayName: 'ZBX CPLD Build'
+          workingDirectory: './top/x400/dboards/zbx/cpld'
+          artifactName: 'CPLD_ZBX'
+
+- stage: build_x3xx_cpld_stage
+  displayName: x3xx CPLD Build Stage
+  dependsOn: analyze_changeset
+  condition: >
+    and(succeeded(),
+      contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'fpga.usrp3.cpld.x3xx')
+    )
+  jobs:
+  - template: ../fpga/templates/job-build-cpld.yml
+    parameters:
+      publish_int_files: false
+      cpldBuilds:
+        - displayName: 'OBX CPLD Build'
+          workingDirectory: './top/x300/dboards/obx/cpld'
+          artifactName: 'CPLD_OBX'
+
+### END: CPLD Build Stage
+
+### START: Regmap stage
+
+- stage: regmap
+  dependsOn: analyze_changeset
+  condition: >
+    and(succeeded(),
+      contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'fpga.usrp3.regmaps')
+    )
+  displayName: 'Check Regmaps'
+  jobs:
+  - template: ../fpga/templates/job-regmap.yml
+
+### END: Regmap stage
 
 - template: ../fpga/templates/job-build-fpga-all.yml
   parameters:
@@ -488,7 +679,29 @@ stages:
     package_access: ${{ parameters.package_access }}
     fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
     x410_targets_matrix: ${{ parameters.x410_targets_matrix }}
+    x420_targets_matrix: ${{ parameters.x420_targets_matrix }}
     x440_targets_matrix: ${{ parameters.x440_targets_matrix }}
+    additional_setup_steps:
+      - checkout: rfnoc-oot-blocks
+        clean: true
+    rfnoc_include_dir: $(Build.SourcesDirectory)/rfnoc-oot-blocks-dev/rfnoc
+
+- stage: usrp4_tests
+  displayName: Simulate + Build usrp4-hw
+  dependsOn: analyze_changeset
+  condition: >
+    and(succeeded(),
+      or(
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'fpga.usrp3.x4xx'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'fpga.usrp3.all'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'fpga.usrp4-hw')
+      )
+    )
+  jobs:
+  - template: pipelines/templates/build_and_simulate.yml@usrp4-hw
+    parameters:
+      runSimulation: true
+      publish: "false"
 
 ###############################################################################
 # Hardware Test Stages. These require having valid software and FPGA images.
@@ -512,7 +725,11 @@ stages:
   jobs:
   - template: job-uhd-devtest-rhombus.yml
     parameters:
-      testOS: ubuntu2004
+      uhdSrcDir: $(Build.SourcesDirectory)
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+      testDevices: 'x3xx,b2xx'
+  - template: job-uhd-devtest-s175.yml
+    parameters:
       uhdSrcDir: $(Build.SourcesDirectory)
       fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
       testDevices: 'x3xx,b2xx'
@@ -539,7 +756,6 @@ stages:
   jobs:
   - template: job-uhd-devtest-rhombus.yml
     parameters:
-      testOS: ubuntu2004
       uhdSrcDir: $(Build.SourcesDirectory)
       fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
       testDevices: 'n3xx,e320'
@@ -603,10 +819,7 @@ stages:
         contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.all'),
         contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x4xx'),
         contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x410'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x440'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.all'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.x410'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.x440')
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x440')
     ))
   jobs:
   - template: tests/job-uhd-x410-hardware-tests-pebbles.yml
@@ -624,6 +837,37 @@ stages:
         fpga_imgs_source: 'Filesystem'
       testLength: ${{ parameters.testLength }}
 
+- stage: test_uhd_x4xx_s156_stage
+  displayName: RF Test UHD x4xx s156
+  dependsOn:
+  - analyze_changeset
+  - build_uhd_stage_linux
+  - build_uhd_embedded_system_images
+  - build_gnuradio_stage_linux
+  - provide_x420_fpga_images_stage
+  # This will make $(UhdTestList) available to jobs/steps/tasks, but not for the
+  # condition.
+  variables:
+    UhdTestList: $[stageDependencies.analyze_changeset.analyze.outputs['gen_testlist.UhdTestList']]
+  condition: >
+    and(
+      succeeded(),
+      or(
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.all'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x4xx'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x420'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.all'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.x420')
+    ))
+  jobs:
+  - template: tests/job-uhd-x420-hardware-tests-s156.yml
+    parameters:
+      ${{ if contains(parameters.fpga_imgs_source, 'Pipeline') }}:
+        fpga_imgs_source: 'Pipeline'
+      ${{ else }}:
+        fpga_imgs_source: 'Filesystem'
+      testLength: ${{ parameters.testLength }}
+
 - stage: test_uhd_x4xx_saison_stage
   displayName: RF Test UHD x4xx saison
   dependsOn:
@@ -631,7 +875,6 @@ stages:
   - build_uhd_embedded_system_images
   - build_gnuradio_stage_linux
   - analyze_changeset
-  - provide_x410_fpga_images_stage
   - provide_x440_fpga_images_stage
   # This will make $(UhdTestList) available to jobs/steps/tasks, but not for the
   # condition.
@@ -643,11 +886,7 @@ stages:
       or(
         contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.all'),
         contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x4xx'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x410'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x440'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.all'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.x410'),
-        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.x440')
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x440')
       )
     )
   jobs:
@@ -685,8 +924,35 @@ stages:
     parameters:
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
-      testOS: ubuntu1804
       testDevices: 'n3xx'
+
+- stage: test_uhd_obx_stage
+  displayName: Test UHD X310 + OBX
+  dependsOn:
+  - analyze_changeset
+  - build_uhd_stage_linux
+  - build_gnuradio_stage_linux
+  - provide_x300_fpga_images_stage
+  - provide_x310_fpga_images_stage
+  condition: >
+    and(
+      succeeded(),
+      or(
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.all'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'hw.rf.x3xx'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.all'),
+        contains(dependencies.analyze_changeset.outputs['analyze.gen_testlist.UhdTestList'], 'devtest.x3xx')
+      )
+    )
+  jobs:
+  - template: job-uhd-devtest-x310-obx.yml
+    parameters:
+      uhdSrcDir: $(Build.SourcesDirectory)
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
+  - template: job-uhd-rf-tests-x310-obx.yml
+    parameters:
+      uhdSrcDir: $(Build.SourcesDirectory)/uhddev
+      fpga_imgs_source: ${{ parameters.fpga_imgs_source }}
 
 - stage: test_streaming_beauty_stage
   displayName: Test UHD Streaming beauty
@@ -705,7 +971,10 @@ stages:
   jobs:
   - template: job-uhd-streaming-tests-beauty.yml
     parameters:
-      testOS: ubuntu2004
+      uhdSrcDir: $(Build.SourcesDirectory)/uhddev
+      testLength: ${{ parameters.testLength }}
+  - template: job-uhd-streaming-tests-s175.yml
+    parameters:
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       testLength: ${{ parameters.testLength }}
 
@@ -724,6 +993,15 @@ stages:
   jobs:
   - template: job-uhd-streaming-tests-x440.yml
     parameters:
-      testOS: ubuntu2204
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       testLength: ${{ parameters.testLength }}
+
+- stage: test_labview_usrp_examples
+  displayName: Test LabVIEW USRP Examples
+  dependsOn:
+  - analyze_changeset
+  - build_uhd_embedded_system_images
+  - build_uhd_installer_stage_win
+  - provide_x410_fpga_images_stage
+  jobs:
+  - template: job-uhd-usrp-tests-uhdlvtest.yml

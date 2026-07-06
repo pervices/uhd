@@ -5,7 +5,7 @@
 //
 
 #include <uhd/rfnoc/defaults.hpp>
-#include <uhdlib/rfnoc/node_accessor.hpp>
+#include <uhd/rfnoc/node_accessor.hpp>
 #include <uhdlib/rfnoc/rfnoc_tx_streamer.hpp>
 #include <atomic>
 #include <numeric>
@@ -150,7 +150,7 @@ void rfnoc_tx_streamer::connect_channel(
     UHD_ASSERT_THROW(channel < _mtu_out.size());
 
     // Stash away the MTU before we lose access to xports
-    const size_t mtu = xport->get_mtu();
+    const size_t xport_mtu = xport->get_mtu();
 
     xport->set_enqueue_async_msg_fn(
         [this, channel](
@@ -163,8 +163,20 @@ void rfnoc_tx_streamer::connect_channel(
             if (has_tsf) {
                 md.time_spec = time_spec_t::from_ticks(tsf, get_tick_rate());
             }
-
             this->_async_msg_queue->enqueue(md);
+            if (_stream_args.args.cast<std::string>("transmit_policy", "default")
+                == "stop_on_seq_error") {
+                if ((event_code == async_metadata_t::EVENT_CODE_SEQ_ERROR)
+                    && !this->_sequence_error.load()) {
+                    RFNOC_LOG_DEBUG("Set sequence error on channel " << channel);
+                    this->_sequence_error = true;
+                }
+                if ((event_code == async_metadata_t::EVENT_CODE_OK)
+                    && this->_sequence_error.load()) {
+                    RFNOC_LOG_DEBUG("Clear sequence error.");
+                    this->_sequence_error = false;
+                }
+            }
         });
 
     tx_streamer_impl<chdr_tx_data_xport>::connect_channel(channel, std::move(xport));
@@ -187,10 +199,22 @@ void rfnoc_tx_streamer::connect_channel(
         }
     }
 
-    // Update MTU property based on xport limits. We need to do this after
-    // connect_channel(), because that's where the chdr_tx_data_xport object
-    // learns its header size.
-    set_property<size_t>(PROP_KEY_MTU, mtu, {res_source_info::OUTPUT_EDGE, channel});
+    // Update MTU property. We need to do this after connect_channel(), because
+    // that's where the chdr_tx_data_xport object learns its header size.
+    // Note that tx_streamer_impl has the option to override the MTU value based
+    // on stream args. We therefore see what the tx_streamer_impl is using as
+    // an MTU value, and compare it with the xport MTU so we can log a warning.
+    // Logging a warning in tx_streamer_impl is less useful, because we can't
+    // use a Noc-ID there.
+    if (xport_mtu < tx_streamer_impl::get_mtu()) {
+        RFNOC_LOG_WARNING("Using MTU value "
+                          << tx_streamer_impl::get_mtu()
+                          << " bytes, but transport reports an MTU of " << xport_mtu
+                          << " bytes. This may cause packet fragmentation!");
+    }
+    set_property<size_t>(PROP_KEY_MTU,
+        tx_streamer_impl::get_mtu(),
+        {res_source_info::OUTPUT_EDGE, channel});
 }
 
 bool rfnoc_tx_streamer::recv_async_msg(

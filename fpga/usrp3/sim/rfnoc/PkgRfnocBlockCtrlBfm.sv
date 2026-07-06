@@ -180,225 +180,8 @@ package PkgRfnocBlockCtrlBfm;
       repeat (rst_cyc) @(posedge backend.ctrl_clk);
     endtask : reset_ctrl
 
-    // Send a read request packet on the AXIS-Ctrl interface and get the
-    // response.
-    //
-    //   addr:   Address for the read request
-    //   word:   Data word that was returned in response to the read
-    //
-    task reg_read(
-      input  ctrl_address_t addr,
-      output ctrl_word_t    word
-    );
-      assert (running) else begin
-        $fatal(1, "Cannot call reg_read until RfnocBlockCtrlBfm is running");
-      end
 
-      ctrl.reg_read(addr, word);
-    endtask : reg_read
-
-
-    // Send a a write request packet on the AXIS-Ctrl interface and get the
-    // response.
-    //
-    //   addr:   Address for the write request
-    //   word:   Data word to write
-    //
-    task reg_write(
-      ctrl_address_t addr,
-      ctrl_word_t    word
-    );
-      assert (running) else begin
-        $fatal(1, "Cannot call reg_write until RfnocBlockCtrlBfm is running");
-      end
-
-      ctrl.reg_write(addr, word);
-    endtask : reg_write
-
-  endclass : RfnocBlockCtrlBfmCtrlOnly
-
-  // Control functionality plus streaming (the normal/default case)
-  class RfnocBlockCtrlBfm #(CHDR_W = 64, ITEM_W = 32) extends RfnocBlockCtrlBfmCtrlOnly;
-
-    local ChdrIfaceBfm #(CHDR_W, ITEM_W) m_data[$];
-    local ChdrIfaceBfm #(CHDR_W, ITEM_W) s_data[$];
-
-    typedef ChdrData #(CHDR_W, ITEM_W)::chdr_word_t chdr_word_t;
-    typedef ChdrData #(CHDR_W, ITEM_W)::item_t      item_t;
-
-    // Class constructor to create a new BFM instance.
-    //
-    //   backend:   Interface for the backend signals of a block
-    //   m_ctrl:    Interface for the CTRL master connection (EP's AXIS-Ctrl output)
-    //   s_ctrl:    Interface for the CTRL slave connection (EP's AXIS-Ctrl input)
-    //   dst_port:  Destination port to use in generated control packets
-    //   src_port:  Source port to use in generated control packets
-    //
-    function new(
-      virtual RfnocBackendIf.master    backend,
-      virtual AxiStreamIf #(32).master m_ctrl,
-      virtual AxiStreamIf #(32).slave  s_ctrl,
-      input   ctrl_port_t              dst_port = 10'd2,
-      input   ctrl_port_t              src_port = 10'd1
-    );
-      super.new(backend, m_ctrl, s_ctrl, dst_port, src_port);
-    endfunction : new
-
-    // Add a master data port. This should connect to a DUT slave input.
-    // 
-    //   m_chdr:             Virtual master interface to connect new port to.
-    //   max_payload_length: Maximum payload length (in bytes) to create when
-    //                       building packets from data.
-    //   ticks_per_word:     Number of timebase clock ticks to increment per
-    //                       CHDR word.
-    //
-    function int add_master_data_port(
-      virtual AxiStreamIf #(CHDR_W).master m_chdr,
-      int max_payload_length = 2**$bits(chdr_length_t),
-      int ticks_per_word     = CHDR_W/ITEM_W
-    );
-      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm = 
-        new(m_chdr, null, max_payload_length, ticks_per_word);
-      m_data.push_back(bfm);
-      return m_data.size() - 1;
-    endfunction : add_master_data_port
-
-    // Add a slave data port. This should connect to a DUT master output.
-    // 
-    //   s_chdr: Virtual slave interface to connect new port to
-    //
-    function int add_slave_data_port(
-      virtual AxiStreamIf #(CHDR_W).slave s_chdr
-    );
-      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm = new(null, s_chdr);
-      s_data.push_back(bfm);
-      return s_data.size() - 1;
-    endfunction : add_slave_data_port
-
-    // Add a master data port. This is equivalent to add_master_data_port() 
-    // except it accepts a port number and it waits until the preceding ports 
-    // are connected to ensure that ports are connected in the correct order.
-    //
-    //   port_num:           The port number to which m_chdr should be connected
-    //   m_chdr:             Master CHDR interface to connect to the port
-    //   max_payload_length: Maximum payload length (in bytes) to create when
-    //                       building packets from data.
-    //   ticks_per_word:     Number of timebase clock ticks to increment per
-    //                       CHDR word.
-    //
-    task connect_master_data_port(
-      int port_num,
-      virtual AxiStreamIf #(CHDR_W).master m_chdr,
-      int max_payload_length = 2**$bits(chdr_length_t),
-      int ticks_per_word     = CHDR_W/ITEM_W
-    );
-      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm = 
-        new(m_chdr, null, max_payload_length, ticks_per_word);
-      wait (m_data.size() == port_num);
-      m_data.push_back(bfm);
-    endtask : connect_master_data_port
-
-    // Add a slave data port. This is equivalent to add_slave_data_port() 
-    // except it accepts a port number and it waits until the preceding ports 
-    // are connected to ensure that ports are connected in the correct order.
-    //
-    //   port_num:  The port number to which m_chdr should be connected
-    //   s_chdr:    Master CHDR interface to connect to the port
-    //
-    task connect_slave_data_port(
-      int port_num,
-      virtual AxiStreamIf #(CHDR_W).slave s_chdr
-    );
-      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm = new(null, s_chdr);
-      wait (s_data.size() == port_num);
-      s_data.push_back(bfm);
-    endtask : connect_slave_data_port
-
-    // Start the data and control BFM's processes running.
-    task run();
-      assert (super.backend.sts.v1.proto_ver == 1) else begin
-        $fatal(1, "The connected block has an incompatible backend interface");
-      end
-      if (!running) begin
-        ctrl.run();
-        foreach (m_data[i]) 
-          m_data[i].run();
-        foreach (s_data[i]) 
-          s_data[i].run();
-        running = 1;
-      end
-    endtask : run
-
-    // Return a handle to the control BFM
-    function CtrlIfaceBfm get_ctrl_bfm();
-      return ctrl;
-    endfunction : get_ctrl_bfm
-
-    // Return a handle to the indicated master port BFM
-    function ChdrIfaceBfm #(CHDR_W, ITEM_W) get_master_data_bfm(int port);
-      assert (port >= 0 && port < m_data.size()) else begin
-        $fatal(1, "Invalid master port number");
-      end
-      return m_data[port];
-    endfunction : get_master_data_bfm
-
-    // Return a handle to the indicated slave port BFM
-    function ChdrIfaceBfm #(CHDR_W, ITEM_W) get_slave_data_bfm(int port);
-      assert (port >= 0 && port < s_data.size()) else begin
-        $fatal(1, "Invalid slave port number");
-      end
-      return s_data[port];
-    endfunction : get_slave_data_bfm
-
-    // Set the maximum payload size for packets. This value is used to split 
-    // large send requests across multiple packets.
-    //
-    //   port:        Master port whose maximum length you want to set
-    //   max_length:  Maximum payload length in bytes for each packet
-    //
-    function void set_max_payload_length(int port, int max_length);
-      assert (port >= 0 && port < m_data.size()) else begin
-        $fatal(1, "Invalid master port number");
-      end
-      m_data[port].set_max_payload_length(max_length);
-    endfunction
-
-    // Return the maximum payload size for packets. This value is used to split 
-    // large send requests across multiple packets.
-    //
-    //   port: Master port whose maximum length you want to get
-    //
-    function int get_max_payload_length(int port);
-      assert (port >= 0 && port < m_data.size()) else begin
-        $fatal(1, "Invalid master port number");
-      end
-      return m_data[port].get_max_payload_length();
-    endfunction
-
-    // Set the timestamp ticks per CHDR_W sized word.
-    //
-    //   port:            Master port whose timestamp increment you want to set
-    //   ticks_per_word:  Amount to increment the timestamp per CHDR_W sized word
-    //
-    function void set_ticks_per_word(int port, int ticks_per_word);
-      assert (port >= 0 && port < m_data.size()) else begin
-        $fatal(1, "Invalid master port number");
-      end
-      m_data[port].set_ticks_per_word(ticks_per_word);
-    endfunction
-
-    // Return the timestamp ticks per CHDR_W sized word.
-    //
-    //   port:  Master port whose timestamp increment you want to get
-    //
-    function int get_ticks_per_word(int port);
-      assert (port >= 0 && port < m_data.size()) else begin
-        $fatal(1, "Invalid master port number");
-      end
-      return m_data[port].get_ticks_per_word();
-    endfunction
-
-    // Soft-Reset the CHDR path 
+    // Soft-Reset the CHDR path
     //
     //   rst_cyc: Number of cycles to wait for reset completion
     //
@@ -416,6 +199,7 @@ package PkgRfnocBlockCtrlBfm;
       @(posedge backend.ctrl_clk);
       repeat (rst_cyc) @(posedge backend.ctrl_clk);
     endtask : reset_chdr
+
 
     // Flush the data ports of the block
     //
@@ -441,6 +225,7 @@ package PkgRfnocBlockCtrlBfm;
       repeat (CMD_PROP_CYC) @(posedge backend.ctrl_clk);
       repeat (CMD_PROP_CYC) @(posedge backend.chdr_clk);
     endtask : flush
+
 
     // Flush the data ports of the block then reset the CHDR
     // path, wait then reset the ctrl path
@@ -477,6 +262,230 @@ package PkgRfnocBlockCtrlBfm;
       repeat (CMD_PROP_CYC) @(posedge backend.ctrl_clk);
       repeat (CMD_PROP_CYC) @(posedge backend.chdr_clk);
     endtask : flush_and_reset
+
+
+    // Send a read request packet on the AXIS-Ctrl interface and get the
+    // response.
+    //
+    //   addr:       Address for the read request
+    //   word:       Data word that was returned in response to the read
+    //   timestamp:  Timestamp for the read request (Optional)
+    //
+    task reg_read(
+      input  ctrl_address_t addr,
+      output ctrl_word_t    word,
+      input  chdr_timestamp_t timestamp = RESERVED_TS
+    );
+      assert (running) else begin
+        $fatal(1, "Cannot call reg_read until RfnocBlockCtrlBfm is running");
+      end
+
+      ctrl.reg_read(addr, word, timestamp);
+    endtask : reg_read
+
+
+    // Send a a write request packet on the AXIS-Ctrl interface and get the
+    // response.
+    //
+    //   addr:       Address for the write request
+    //   word:       Data word to write
+    //   timestamp:  Timestamp for the write request (Optional)
+    //
+    task reg_write(
+      ctrl_address_t addr,
+      ctrl_word_t    word,
+      chdr_timestamp_t timestamp = RESERVED_TS
+    );
+      assert (running) else begin
+        $fatal(1, "Cannot call reg_write until RfnocBlockCtrlBfm is running");
+      end
+
+      ctrl.reg_write(addr, word, timestamp);
+    endtask : reg_write
+
+  endclass : RfnocBlockCtrlBfmCtrlOnly
+
+
+  // Control functionality plus streaming (the normal/default case)
+  class RfnocBlockCtrlBfm #(CHDR_W = 64, ITEM_W = 32) extends RfnocBlockCtrlBfmCtrlOnly;
+
+    ChdrIfaceBfm #(CHDR_W, ITEM_W) m_data[$];
+    ChdrIfaceBfm #(CHDR_W, ITEM_W) s_data[$];
+
+    typedef ChdrData #(CHDR_W, ITEM_W)::chdr_word_t chdr_word_t;
+    typedef ChdrData #(CHDR_W, ITEM_W)::item_t      item_t;
+
+    // Class constructor to create a new BFM instance.
+    //
+    //   backend:   Interface for the backend signals of a block
+    //   m_ctrl:    Interface for the CTRL master connection (EP's AXIS-Ctrl output)
+    //   s_ctrl:    Interface for the CTRL slave connection (EP's AXIS-Ctrl input)
+    //   dst_port:  Destination port to use in generated control packets
+    //   src_port:  Source port to use in generated control packets
+    //
+    function new(
+      virtual RfnocBackendIf.master    backend,
+      virtual AxiStreamIf #(32).master m_ctrl,
+      virtual AxiStreamIf #(32).slave  s_ctrl,
+      input   ctrl_port_t              dst_port = 10'd2,
+      input   ctrl_port_t              src_port = 10'd1
+    );
+      super.new(backend, m_ctrl, s_ctrl, dst_port, src_port);
+    endfunction : new
+
+    // Add a master data port. This should connect to a DUT slave input.
+    //
+    //   m_chdr:             Virtual master interface to connect new port to.
+    //   max_payload_length: Maximum payload length (in bytes) to create when
+    //                       building packets from data.
+    //   ticks_per_word:     Number of timebase clock ticks to increment per
+    //                       CHDR word.
+    //
+    function int add_master_data_port(
+      virtual AxiStreamIf #(CHDR_W).master m_chdr,
+      int max_payload_length = 2**$bits(chdr_length_t),
+      int ticks_per_word     = CHDR_W/ITEM_W
+    );
+      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm =
+        new(m_chdr, null, max_payload_length, ticks_per_word);
+      m_data.push_back(bfm);
+      return m_data.size() - 1;
+    endfunction : add_master_data_port
+
+    // Add a slave data port. This should connect to a DUT master output.
+    //
+    //   s_chdr: Virtual slave interface to connect new port to
+    //
+    function int add_slave_data_port(
+      virtual AxiStreamIf #(CHDR_W).slave s_chdr
+    );
+      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm = new(null, s_chdr);
+      s_data.push_back(bfm);
+      return s_data.size() - 1;
+    endfunction : add_slave_data_port
+
+    // Add a master data port. This is equivalent to add_master_data_port()
+    // except it accepts a port number and it waits until the preceding ports
+    // are connected to ensure that ports are connected in the correct order.
+    //
+    //   port_num:           The port number to which m_chdr should be connected
+    //   m_chdr:             Master CHDR interface to connect to the port
+    //   max_payload_length: Maximum payload length (in bytes) to create when
+    //                       building packets from data.
+    //   ticks_per_word:     Number of timebase clock ticks to increment per
+    //                       CHDR word.
+    //
+    task connect_master_data_port(
+      int port_num,
+      virtual AxiStreamIf #(CHDR_W).master m_chdr,
+      int max_payload_length = 2**$bits(chdr_length_t),
+      int ticks_per_word     = CHDR_W/ITEM_W
+    );
+      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm =
+        new(m_chdr, null, max_payload_length, ticks_per_word);
+      wait (m_data.size() == port_num);
+      m_data.push_back(bfm);
+    endtask : connect_master_data_port
+
+    // Add a slave data port. This is equivalent to add_slave_data_port()
+    // except it accepts a port number and it waits until the preceding ports
+    // are connected to ensure that ports are connected in the correct order.
+    //
+    //   port_num:  The port number to which m_chdr should be connected
+    //   s_chdr:    Master CHDR interface to connect to the port
+    //
+    task connect_slave_data_port(
+      int port_num,
+      virtual AxiStreamIf #(CHDR_W).slave s_chdr
+    );
+      ChdrIfaceBfm #(CHDR_W, ITEM_W) bfm = new(null, s_chdr);
+      wait (s_data.size() == port_num);
+      s_data.push_back(bfm);
+    endtask : connect_slave_data_port
+
+    // Start the data and control BFM's processes running.
+    task run();
+      assert (super.backend.sts.v1.proto_ver == 1) else begin
+        $fatal(1, "The connected block has an incompatible backend interface");
+      end
+      if (!running) begin
+        ctrl.run();
+        foreach (m_data[i])
+          m_data[i].run();
+        foreach (s_data[i])
+          s_data[i].run();
+        running = 1;
+      end
+    endtask : run
+
+    // Return a handle to the control BFM
+    function CtrlIfaceBfm get_ctrl_bfm();
+      return ctrl;
+    endfunction : get_ctrl_bfm
+
+    // Return a handle to the indicated master port BFM
+    function ChdrIfaceBfm #(CHDR_W, ITEM_W) get_master_data_bfm(int port);
+      assert (port >= 0 && port < m_data.size()) else begin
+        $fatal(1, "Invalid master port number");
+      end
+      return m_data[port];
+    endfunction : get_master_data_bfm
+
+    // Return a handle to the indicated slave port BFM
+    function ChdrIfaceBfm #(CHDR_W, ITEM_W) get_slave_data_bfm(int port);
+      assert (port >= 0 && port < s_data.size()) else begin
+        $fatal(1, "Invalid slave port number");
+      end
+      return s_data[port];
+    endfunction : get_slave_data_bfm
+
+    // Set the maximum payload size for packets. This value is used to split
+    // large send requests across multiple packets.
+    //
+    //   port:        Master port whose maximum length you want to set
+    //   max_length:  Maximum payload length in bytes for each packet
+    //
+    function void set_max_payload_length(int port, int max_length);
+      assert (port >= 0 && port < m_data.size()) else begin
+        $fatal(1, "Invalid master port number");
+      end
+      m_data[port].set_max_payload_length(max_length);
+    endfunction
+
+    // Return the maximum payload size for packets. This value is used to split
+    // large send requests across multiple packets.
+    //
+    //   port: Master port whose maximum length you want to get
+    //
+    function int get_max_payload_length(int port);
+      assert (port >= 0 && port < m_data.size()) else begin
+        $fatal(1, "Invalid master port number");
+      end
+      return m_data[port].get_max_payload_length();
+    endfunction
+
+    // Set the timestamp ticks per CHDR_W sized word.
+    //
+    //   port:            Master port whose timestamp increment you want to set
+    //   ticks_per_word:  Amount to increment the timestamp per CHDR_W sized word
+    //
+    function void set_ticks_per_word(int port, int ticks_per_word);
+      assert (port >= 0 && port < m_data.size()) else begin
+        $fatal(1, "Invalid master port number");
+      end
+      m_data[port].set_ticks_per_word(ticks_per_word);
+    endfunction
+
+    // Return the timestamp ticks per CHDR_W sized word.
+    //
+    //   port:  Master port whose timestamp increment you want to get
+    //
+    function int get_ticks_per_word(int port);
+      assert (port >= 0 && port < m_data.size()) else begin
+        $fatal(1, "Invalid master port number");
+      end
+      return m_data[port].get_ticks_per_word();
+    endfunction
 
 
     // Send a CHDR data packet out the CHDR data interface.
@@ -543,8 +552,8 @@ package PkgRfnocBlockCtrlBfm;
     //   data:       Data words to insert into the CHDR packets.
     //   data_bytes: Size of data in bytes. If omitted or -1, data_bytes will
     //               be calculated based on the number of words in data.
-    //   metadata:   Metadata words to insert into the CHDR packet(s). Omit 
-    //               this argument (or set to an empty array) to not include 
+    //   metadata:   Metadata words to insert into the CHDR packet(s). Omit
+    //               this argument (or set to an empty array) to not include
     //               metadata.
     //   pkt_info:   Data structure containing packet header information.
     //
@@ -574,8 +583,8 @@ package PkgRfnocBlockCtrlBfm;
     //
     //   port:       Port to send the CHDR packet(s) on.
     //   items:      Data items to insert into the payload of the CHDR packets.
-    //   metadata:   Metadata words to insert into the CHDR packet(s). Omit 
-    //               this argument (or set to an empty array) to not include 
+    //   metadata:   Metadata words to insert into the CHDR packet(s). Omit
+    //               this argument (or set to an empty array) to not include
     //               metadata.
     //   pkt_info:   Data structure containing packet header information.
     //
@@ -794,10 +803,10 @@ package PkgRfnocBlockCtrlBfm;
     endtask : put_chdr
 
 
-    // Receive a raw CHDR packet.
+    // Receive a raw CHDR packet. This task blocks until a packet is received.
     //
     //   port:    Port number on which to receive the packet
-    //   packet:  Data structure to store received packet
+    //   packet:  Object handle for the received packet
     //
     task get_chdr(
       input  int                  port,
@@ -814,10 +823,31 @@ package PkgRfnocBlockCtrlBfm;
     endtask : get_chdr
 
 
+    // Get the next packet if there's one available and return 1. Return 0 if
+    // there's no packet available.
+    //
+    //   port:    Port number on which to get the packet
+    //   packet:  Object handle for the received packet
+    //
+    function bit try_get_chdr(
+      input  int                  port,
+      output ChdrPacket #(CHDR_W) packet
+    );
+      assert (running) else begin
+        $fatal(1, "Cannot call try_get_chdr until RfnocBlockCtrlBfm is running");
+      end
+      assert (port >= 0 && port < s_data.size()) else begin
+        $fatal(1, "Invalid slave port number");
+      end
+
+      return s_data[port].try_get_chdr(packet);
+    endfunction : try_get_chdr
+
+
     // Receive a raw CHDR packet, but don't remove it from the receive queue.
     //
     //   port:    Port number on which to peek
-    //   packet:  Data structure to store received packet
+    //   packet:  Object handle for the received packet
     //
     task peek_chdr(
       input  int                  port,
@@ -834,7 +864,29 @@ package PkgRfnocBlockCtrlBfm;
     endtask : peek_chdr
 
 
-    // Return the number of packets available in the receive queue for the 
+    // Get the next packet if there's one available and return 1, but don't
+    // remove it from the receive queue. Return 0 if there's no packet
+    // available.
+    //
+    //   port:    Port number on which to peek
+    //   packet:  Object handle for the received packet
+    //
+    function bit try_peek_chdr(
+      input  int                  port,
+      output ChdrPacket #(CHDR_W) packet
+    );
+      assert (running) else begin
+        $fatal(1, "Cannot call try_peek_chdr until RfnocBlockCtrlBfm is running");
+      end
+      assert (port >= 0 && port < s_data.size()) else begin
+        $fatal(1, "Invalid slave port number");
+      end
+
+      return s_data[port].try_peek_chdr(packet);
+    endfunction : try_peek_chdr
+
+
+    // Return the number of packets available in the receive queue for the
     // given port.
     //
     //   port:  Port for which to get the number of received packets
@@ -851,8 +903,8 @@ package PkgRfnocBlockCtrlBfm;
     // Wait until packets have completed transmission.
     //
     //   port:  Port for which to wait
-    //   num:   Number of packets to wait for. Set to -1 or omit the argument 
-    //          to wait for all currently queued packets to complete 
+    //   num:   Number of packets to wait for. Set to -1 or omit the argument
+    //          to wait for all currently queued packets to complete
     //          transmission.
     //
     task wait_complete(int port, int num = -1);

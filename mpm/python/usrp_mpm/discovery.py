@@ -3,19 +3,20 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-"""Code to run the discovery port.
-"""
+"""Code to run the discovery port."""
 
 import socket
 from multiprocessing import Process, current_process
 
 from usrp_mpm.mpmlog import get_main_logger
 from usrp_mpm.mpmtypes import MPM_DISCOVERY_PORT
-from usrp_mpm.mpmutils import to_binary_str, set_proc_title
+from usrp_mpm.mpmutils import set_proc_title, to_binary_str
 
 RESPONSE_PREAMBLE = b"USRP-MPM"
 RESPONSE_SEP = b";"
 RESPONSE_CLAIMED_KEY = b"claimed"
+# 1: mprpc
+RPC_VERSION = b"1"
 # A buffer size large enough to capture any UDP packet we receive on the
 # discovery socket
 MAX_SOCK_BUFSIZ = 9000
@@ -58,6 +59,7 @@ def _discovery_process(state, discovery_addr):
             + [b"serial=" + state.dev_serial.value]
             + [b"name=" + state.dev_name.value]
             + [b"fpga=" + state.dev_fpga_type.value]
+            + [b"rpc_version=" + RPC_VERSION]
             + [RESPONSE_CLAIMED_KEY + to_binary_str("={}".format(state.claim_status.value))]
         )
 

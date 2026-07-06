@@ -1,8 +1,4 @@
 parameters:
-- name: testOS
-  type: string
-  values:
-    - ubuntu2004
 - name: uhdSrcDir
   type: string
 - name: uhdArtifactSource
@@ -23,13 +19,11 @@ jobs:
 - template: job-uhd-streaming-tests.yml
   parameters:
     suiteName: 'beauty'
-    testOS: '${{ parameters.testOS }}'
     testLength: '${{ parameters.testLength }}'
     toolset: 'make'
     uhdSrcDir: '${{ parameters.uhdSrcDir }}'
     uhdArtifactSource: ${{ parameters.uhdArtifactSource }}
     uhdFpgaArtifactSource: '${{ parameters.uhdFpgaArtifactSource }}'
-    xilinxLocation: /opt/Xilinx/Vivado_Lab/2019.1
     dpdkDirs: '${{ parameters.dpdkDirs }}'
     dutMatrix:
       # beauty-N320-0 XG:
@@ -125,14 +119,15 @@ jobs:
       #   dutNumSendFrames: ''
       #   sfpInt0: 'ens4f0'
       #   sfpInt1: 'ens4f1'
-      beauty-B210-0:
-        dutName: 'beauty-B210-0'
-        dutType: 'B210'
-        dutAddr: ''
-        dutSecondAddr: ''
-        dutFPGA: ''
-        dutNameId: 'MyB210'
-        dutNumRecvFrames: '256'
-        dutNumSendFrames: '256'
-        dutGetFpgaImagesMethod: 'uhd_images_downloader'
+      # beauty-B210-0:
+      #   dutName: 'beauty-B210-0'
+      #   dutFamily: 'b200'
+      #   dutType: 'B210'
+      #   dutAddr: ''
+      #   dutSecondAddr: ''
+      #   dutFPGA: ''
+      #   dutNameId: 'MyB210'
+      #   dutNumRecvFrames: '256'
+      #   dutNumSendFrames: '256'
+      #   dutGetFpgaImagesMethod: 'uhd_images_downloader'
 

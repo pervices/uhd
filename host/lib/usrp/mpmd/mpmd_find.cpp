@@ -12,11 +12,14 @@
 #include <uhd/transport/if_addrs.hpp>
 #include <uhd/transport/udp_simple.hpp>
 #include <uhd/types/device_addr.hpp>
+#include <uhd/utils/cast.hpp>
+#include <uhdlib/asio.hpp>
 #include <uhdlib/utils/prefs.hpp>
 #include <uhdlib/utils/serial_number.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/asio.hpp>
+#include <algorithm>
 #include <future>
+#include <iterator>
 #ifdef HAVE_DPDK
 #    include <uhdlib/transport/dpdk/common.hpp>
 #endif
@@ -112,21 +115,8 @@ device_addrs_t mpmd_find_with_addr(
                 new_addr[value[0]] = value[1];
             }
         }
-        // filter the discovered device below by matching optional keys
-        if ((not hint_.has_key("name") or hint_["name"] == new_addr["name"])
-            and (not hint_.has_key("serial")
-                 or utils::serial_numbers_match(hint_["serial"], new_addr["serial"]))
-            and (not hint_.has_key("type") or hint_["type"] == new_addr["type"]
-                 or hint_["type"] == MPM_CATCHALL_DEVICE_TYPE)
-            and (not hint_.has_key("product")
-                 or hint_["product"] == new_addr["product"])) {
-            UHD_LOG_TRACE(
-                "MPMD FIND", "Found device that matches hints: " << new_addr.to_string());
-            addrs.push_back(new_addr);
-        } else {
-            UHD_LOG_DEBUG(
-                "MPMD FIND", "Found device, but does not match hint: " << recv_addr);
-        }
+        new_addr[RPC_VERSION_KEY] = new_addr.get(RPC_VERSION_KEY, DEFAULT_RPC_VERSION);
+        addrs.push_back(new_addr);
     }
     return addrs;
 };
@@ -258,13 +248,49 @@ device_addrs_t mpmd_find(const device_addr_t& hint_)
     }
     // Filter found devices for those that we can actually talk to via CHDR
     device_addrs_t filtered_mpm_devs;
-    for (const auto& mpm_dev : bcast_mpm_devs) {
-        const auto reachable_device_addr = mpmd_mboard_impl::is_device_reachable(mpm_dev);
-        if (bool(reachable_device_addr)) {
-            filtered_mpm_devs.push_back(reachable_device_addr.get());
-        } else if (find_all) {
-            filtered_mpm_devs.emplace_back(flag_dev_as_unreachable(mpm_dev));
+
+    const bool check_reachability =
+        hint_.has_key("mpm_check_reachability") ? uhd::cast::from_str<bool>(
+            hint_.cast<std::string>("mpm_check_reachability", "Yes"))
+                                                : uhd::prefs::mpm_check_reachability();
+
+    UHD_LOG_DEBUG("MPMD FIND",
+        "Will " << (check_reachability ? "" : "not ")
+                << "check devices for reachability");
+
+    if (check_reachability) {
+        std::vector<std::future<boost::optional<device_addr_t>>> reachability_tasks;
+        for (const auto& mpm_dev : bcast_mpm_devs) {
+            if (mpm_dev.get(RPC_VERSION_KEY, DEFAULT_RPC_VERSION) == RPC_VERSION) {
+                reachability_tasks.emplace_back(
+                    std::async(std::launch::async, [mpm_dev]() {
+                        return mpmd_mboard_impl::is_device_reachable(mpm_dev);
+                    }));
+            } else {
+                reachability_tasks.emplace_back(std::async(std::launch::async,
+                    []() { return boost::optional<device_addr_t>{}; }));
+            }
         }
+        // Variable i is used to index reachability_tasks as well as bcast_mpm_devs (both
+        // of same size by construction), therefore using iterators here is less elegant.
+        for (size_t i = 0; i < reachability_tasks.size(); ++i) {
+            const auto reachable_device_addr = reachability_tasks[i].get();
+            if (bool(reachable_device_addr)) {
+                filtered_mpm_devs.push_back(reachable_device_addr.get());
+            } else if (find_all) {
+                filtered_mpm_devs.emplace_back(
+                    flag_dev_as_unreachable(bcast_mpm_devs[i]));
+            }
+        }
+    } else if (find_all) {
+        filtered_mpm_devs = bcast_mpm_devs;
+    } else {
+        std::copy_if(bcast_mpm_devs.cbegin(),
+            bcast_mpm_devs.cend(),
+            std::back_inserter(filtered_mpm_devs),
+            [](const device_addr_t& dev) {
+                return dev.get(RPC_VERSION_KEY, DEFAULT_RPC_VERSION) == RPC_VERSION;
+            });
     }
 
     if (filtered_mpm_devs.empty() and not bcast_mpm_devs.empty()) {

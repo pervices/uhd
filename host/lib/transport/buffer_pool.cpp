@@ -7,7 +7,7 @@
 
 #include <uhd/transport/buffer_pool.hpp>
 #include <uhd/transport/zero_copy.hpp>
-#include <boost/shared_array.hpp>
+#include <memory>
 #include <vector>
 #include <iostream>
 
@@ -19,40 +19,8 @@ static size_t pad_to_boundary(const size_t bytes, const size_t alignment)
     return bytes + (alignment - bytes) % alignment;
 }
 
-buffer_pool::~buffer_pool(void)
-{
-    /* NOP */
-}
-
 /***********************************************************************
- * Buffer pool implementation
- **********************************************************************/
-class buffer_pool_impl : public buffer_pool
-{
-public:
-    buffer_pool_impl(const std::vector<ptr_type>& ptrs, boost::shared_array<char> mem)
-        : _ptrs(ptrs), _mem(mem)
-    {
-        /* NOP */
-    }
-
-    ptr_type at(const size_t index) const override
-    {
-        return _ptrs.at(index);
-    }
-
-    size_t size(void) const override
-    {
-        return _ptrs.size();
-    }
-
-private:
-    std::vector<ptr_type> _ptrs;
-    boost::shared_array<char> _mem;
-};
-
-/***********************************************************************
- * Buffer pool factor function
+ * Buffer pool factory function
  **********************************************************************/
 buffer_pool::sptr buffer_pool::make(
     const size_t num_buffs, const size_t buff_size, const size_t alignment)
@@ -61,7 +29,7 @@ buffer_pool::sptr buffer_pool::make(
     // 2) pad the overall memory size for room after alignment
     // 3) allocate the memory in one block of sufficient size
     const size_t padded_buff_size = pad_to_boundary(buff_size, alignment);
-    boost::shared_array<char> mem(new char[padded_buff_size * num_buffs + alignment - 1]);
+    std::unique_ptr<char[]> mem(new char[padded_buff_size * num_buffs + alignment - 1]);
 
     // Fill a vector with boundary-aligned points in the memory
     const size_t mem_start = pad_to_boundary(size_t(mem.get()), alignment);
@@ -70,8 +38,8 @@ buffer_pool::sptr buffer_pool::make(
         ptrs[i] = ptr_type(mem_start + padded_buff_size * i);
     }
 
-    // Create a new buffer pool implementation with:
+    // Create a new buffer pool with:
     // - the pre-computed pointers, and
     // - the reference to allocated memory.
-    return sptr(new buffer_pool_impl(ptrs, mem));
+    return sptr(new buffer_pool(std::move(ptrs), std::move(mem)));
 }

@@ -9,6 +9,7 @@
 
 #include <uhd/config.hpp>
 #include <uhd/property_tree.hpp>
+#include <uhd/types/iq_dc_cal_coeffs.hpp>
 #include <string>
 
 namespace uhd { namespace usrp {
@@ -73,5 +74,28 @@ void apply_rx_fe_corrections(property_tree::sptr sub_tree, // starts at mboards/
     const double rx_lo_freq // actual lo freq
 );
 
+/*! Get wideband TX IQ imbalance and DC offset corrections
+ *
+ * \param db_serial Daughterboard serial
+ * \param sample_rate The current sample rate. Used to construct the cal key.
+ * \param chan The channel index.
+ * \param tx_freq The current TX frequency.
+ */
+uhd::iq_dc_cal_coeffs_t get_wideband_tx_iq_dc_corrections(const std::string& db_serial,
+    const double sample_rate,
+    const size_t chan,
+    const double tx_freq);
+
+/*! Get wideband RX IQ imbalance and DC offset corrections
+ *
+ * \param db_serial Daughterboard serial
+ * \param sample_rate The current sample rate. Used to construct the cal key.
+ * \param chan The channel index.
+ * \param rx_freq The current RX frequency.
+ */
+uhd::iq_dc_cal_coeffs_t get_wideband_rx_iq_dc_corrections(const std::string& db_serial,
+    const double sample_rate,
+    const size_t chan,
+    const double rx_freq);
 
 }} // namespace uhd::usrp

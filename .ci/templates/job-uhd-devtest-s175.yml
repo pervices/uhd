@@ -1,0 +1,70 @@
+parameters:
+- name: uhdSrcDir
+  type: string
+- name: uhdArtifactSource
+  type: string
+  default: current
+- name: uhdFpgaArtifactSource
+  type: string
+  default: current
+- name: fpga_imgs_source
+  type: string
+- name: testDevices
+  type: string
+  default: 'b2xx,x3xx'
+
+jobs:
+- template: job-uhd-devtest.yml
+  parameters:
+    suiteName: 'sdr_s175_tests_b2xx'
+    knownHost: ''
+    toolset: 'make'
+    uhdSrcDir: '${{ parameters.uhdSrcDir }}'
+    uhdArtifactSource: '${{ parameters.uhdArtifactSource }}'
+    uhdFpgaArtifactSource: '${{ parameters.uhdFpgaArtifactSource }}'
+    fpga_imgs_source: '${{ parameters.fpga_imgs_source }}'
+    redisHost: 'dre-s175'
+    vivado_dir: $(xilinx_location)
+    dutMatrix:
+      ${{ if contains(parameters.testDevices, 'b2xx') }}:
+        sdr-s175-dev-tests-b206-0:
+          devType: 'b200'
+          devModel: 'b206mini'
+          devName: sdr_s175_tests-b2xx
+          devSerial: $(b206_devSerial)
+          devBus: 'usb'
+          devFpga: 'defaultFPGA'
+          devtestPattern: 'b2xx'
+      ${{ if contains(parameters.testDevices, 'b2xx') }}:
+        sdr-s175-dev-tests-b210-0:
+          devType: 'b200'
+          devModel: 'b210'
+          devName: sdr_s175_tests-b2xx
+          devSerial: $(b210_devSerial)
+          devBus: 'usb'
+          devFpga: 'defaultFPGA'
+          devtestPattern: 'b2xx'
+- template: job-uhd-devtest.yml
+  parameters:
+    suiteName: 'sdr_s175_tests_x310'
+    knownHost: ''
+    toolset: 'make'
+    uhdSrcDir: '${{ parameters.uhdSrcDir }}'
+    uhdArtifactSource: '${{ parameters.uhdArtifactSource }}'
+    uhdFpgaArtifactSource: '${{ parameters.uhdFpgaArtifactSource }}'
+    fpga_imgs_source: '${{ parameters.fpga_imgs_source }}'
+    redisHost: 'dre-s175'
+    vivado_dir: $(xilinx_location)
+    dutMatrix:
+      ${{ if contains(parameters.testDevices, 'x3xx') }}:
+        sdr-s175-dev-tests-x310-4:
+          devType: 'x300'
+          devModel: 'x310'
+          devName: sdr_s175_x310_4
+          devSerial: $(x310_4_devSerial)
+          devBus: 'ip'
+          devAddr: $(x310_4_devAddr)
+          devFpga: 'HG,XG'
+          devtestPattern: 'x3x0'
+          jtagSerial: $(x310_4_jtagSerial)
+          jtagServer: 'nitest@dre-s175'

@@ -1,11 +1,6 @@
 parameters:
 - name: suiteName
   type: string
-- name: testOS
-  type: string
-  values:
-    - ubuntu2004
-    - ubuntu2204
 - name: toolset
   type: string
   values:
@@ -29,8 +24,6 @@ parameters:
 - name: uhdFpgaArtifactSource
   type: string
   default: current
-- name: xilinxLocation
-  type: string
 - name: dpdkDirs
   type: object
   default:
@@ -75,7 +68,7 @@ jobs:
 
   - script: |
       rm -rf $(uhd_artifact_directory)/$(dutEmbeddedImagesArtifact)
-      rm -rf $(uhd_artifact_directory)/uhddev-${{ parameters.testOS }}-${{ parameters.toolset }}
+      rm -rf $(uhd_artifact_directory)/uhddev-$(testOS)-${{ parameters.toolset }}
     displayName: Cleanup from prior run
     condition: and(succeeded(), eq(variables.dutFamily, 'x4xx'))
 
@@ -125,20 +118,20 @@ jobs:
     condition: and(succeeded(), eq(variables.dutFamily, 'x4xx'))
 
   - download: ${{ parameters.uhdArtifactSource }}
-    artifact: uhddev-${{ parameters.testOS }}-${{ parameters.toolset }}
-    displayName: Download uhddev-${{ parameters.testOS }}-${{ parameters.toolset }} artifact
+    artifact: uhddev-$(testOS)-${{ parameters.toolset }}
+    displayName: Download uhddev-$(testOS)-${{ parameters.toolset }} artifact
 
   - task: ExtractFiles@1
     inputs:
-      archiveFilePatterns: $(uhd_artifact_directory)/uhddev-${{ parameters.testOS }}-${{ parameters.toolset }}/uhddev-${{ parameters.testOS }}-${{ parameters.toolset }}.tar.gz
+      archiveFilePatterns: $(uhd_artifact_directory)/uhddev-$(testOS)-${{ parameters.toolset }}/uhddev-$(testOS)-${{ parameters.toolset }}.tar.gz
       destinationFolder: $(Build.BinariesDirectory)
       cleanDestinationFolder: true
-    displayName: Extract uhddev-${{ parameters.testOS }}-${{ parameters.toolset }} artifact
+    displayName: Extract uhddev-$(testOS)-${{ parameters.toolset }} artifact
 
   - script: |
       DUTTYPE=$(dutType)
       # in the following, "${DUTTYPE,,}" is used as lower case version of "$(dutType)"
-      if [ "${DUTTYPE,,}" = "b210" ]; then
+      if [ "$(dutFamily)" = "b200" ]; then
         $(Build.BinariesDirectory)/uhddev/build-installed/bin/uhd_images_downloader -t b2xx -t fw
       fi
       $(Build.BinariesDirectory)/uhddev/build-installed/bin/uhd_images_downloader -t ${DUTTYPE,,} -t fpga
@@ -161,7 +154,6 @@ jobs:
     condition: and(succeeded(), eq(variables.dutFamily, 'x4xx'))
 
   - script: |
-      source ${{ parameters.xilinxLocation }}/settings64.sh
       source $USRP_EMB_VENV/bin/activate
       usrp_emb_x4xx_mender_update
     displayName: Update device using Mender
@@ -255,6 +247,11 @@ jobs:
     timeoutInMinutes: 5
 
   - script: |
+      rm -fv TEST-*
+    workingDirectory: $(Common.TestResultsDirectory)
+    displayName: remove old test results no dpdk
+
+  - script: |
       echo "##[group]Printing Environment"
       printenv
       echo "##[endgroup]"
@@ -268,11 +265,12 @@ jobs:
       fi
       # Disable creation of __pycache__ files using -B to avoid errors on clean up during next run
       # as using sudo below creates them with root priveleges.
-      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_streaming.py -m "not dpdk" \
+      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_streaming.py -v -m "not dpdk" \
         --capture=tee-sys -o junit_logging=all \
         --dut_type $(dutType) --test_length ${{ parameters.testLength }} \
-        --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName).xml \
+        --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName)-no_DPDK.xml \
         --addr $(dutAddr) --second_addr $(dutSecondAddr) --mgmt_addr $USRP_EMB_TARGET_IP --name $(dutNameId) \
+        --result_csv $(Common.TestResultsDirectory)/TEST-$(dutName)-no_DPDK.csv \
         --num_recv_frames $(dutNumRecvFrames) --num_send_frames $(dutNumSendFrames)
     env:
       UHD_CONFIG_FILE: $(config_file)
@@ -280,7 +278,7 @@ jobs:
       LD_LIBRARY_PATH: $(Build.BinariesDirectory)/uhddev/build-installed/lib
       UHD_IMAGES_DIR: $(UHD_IMAGES_DIR)
     continueOnError: true
-    displayName: Run streaming tests on $(dutName)
+    displayName: Run no-dpdk streaming tests on $(dutName)
     condition: and(succeeded(), not(eq(variables.dutFamily, 'x4xx')))
 
   - script: |
@@ -293,6 +291,11 @@ jobs:
       sleep 5
     displayName: setup interfaces for use raw udp streaming
     timeoutInMinutes: 5
+
+  - script: |
+      rm -fv TEST-*
+    workingDirectory: $(Common.TestResultsDirectory)
+    displayName: remove old test results raw udp
 
   - script: |
       export PYTHON_VERSION=$(python3 -c "import sys; print('python'+str(sys.version_info.major) + '.' + str(sys.version_info.minor))")
@@ -310,11 +313,12 @@ jobs:
       fi
       # Disable creation of __pycache__ files using -B to avoid errors on clean up during next run
       # as using sudo below creates them with root priveleges.
-      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_raw_udp_streaming.py \
+      sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_raw_udp_streaming.py -v \
         --capture=tee-sys -o junit_logging=all \
         --dut_type $(dutType) --dut_fpga $(dutFPGA) --test_length ${{ parameters.testLength }} \
-        --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build-installed/lib/uhd --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName).xml \
+        --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build-installed/lib/uhd --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName)-raw_udp.xml \
         --addr $(dutAddr) --second_addr $(dutSecondAddr) --mgmt_addr $USRP_EMB_TARGET_IP --name $(dutNameId) \
+        --result_csv $(Common.TestResultsDirectory)/TEST-$(dutName)-raw_udp.csv \
         --num_recv_frames $(dutNumRecvFrames) --num_send_frames $(dutNumSendFrames) --sfp_int0 $(sfpInt0) --sfp_int1 $(sfpInt1)
     env:
       UHD_CONFIG_FILE: $(config_file)
@@ -325,8 +329,8 @@ jobs:
     condition: and(succeeded(), or(eq(variables.dutFamily, 'x4xx'), eq(variables.dutType, 'X310')))
 
   - publish: $(Common.TestResultsDirectory)
-    artifact: test-logs-streamingtest-$(dutName)-$(dutFpga)-raw-udp-run$(System.JobAttempt)
-    displayName: Upload Test Logs with raw upd
+    artifact: test-logs-streamingtest-$(dutName)-$(dutFpga)-run$(System.JobAttempt)
+    displayName: Upload Test Logs with no dpdk
     condition: succeededOrFailed()
 
   - task: PublishTestResults@2
@@ -337,7 +341,7 @@ jobs:
       buildConfiguration: 'Release'
       mergeTestResults: true
       failTaskOnFailedTests: false
-    displayName: Upload streaming test results
+    displayName: Upload streaming test results with no dpdk
 
   - script: |
       cd ${{ parameters.uhdSrcDir }}/host/tests/streaming_performance
@@ -350,12 +354,12 @@ jobs:
       sleep 5
       exit $EXITCODE
     displayName: setup interfaces for use with DPDK
-    condition: and(succeeded(), not(eq(variables.dutType, 'B210')))
+    condition: and(succeeded(), not(eq(variables.dutFamily, 'b200')))
     timeoutInMinutes: 5
 
   - ${{ each dpdkDir in parameters.dpdkDirs }}:
     - script: |
-        rm -fv TEST-*.xml
+        rm -fv TEST-*
       workingDirectory: $(Common.TestResultsDirectory)
       displayName: remove old test results (${{ dpdkDir }})
 
@@ -384,7 +388,7 @@ jobs:
         DPDK_VERSION_STRING=$(utils/uhd_config_info --dpdk-version | awk '{print $3;}')
         echo "##vso[task.setvariable variable=DPDK_VERSION_STRING]$DPDK_VERSION_STRING"
       displayName: build UHD for DPDK (${{ dpdkDir }})
-      condition: and(succeeded(), not(eq(variables.dutType, 'B210')))
+      condition: and(succeeded(), not(eq(variables.dutFamily, 'b200')))
 
     - script: |
         if [ "$(dutType)" = "x440" ]; then
@@ -407,7 +411,7 @@ jobs:
           sed -i "s|^dpdk_driver.*|dpdk_driver = $dpdk_driver|" $config_file
         fi
       displayName: select UHD config file for DPDK ${{ dpdkDir }}
-      condition: and(succeeded(), not(eq(variables.dutType, 'B210')))
+      condition: and(succeeded(), not(eq(variables.dutFamily, 'b200')))
 
     - script: |
         echo "##[group]Printing Environment"
@@ -417,11 +421,12 @@ jobs:
         cd ${{ parameters.uhdSrcDir }}/host/tests/pytests
         # Disable creation of __pycache__ files using -B to avoid errors on clean up during next run
         # as using sudo below creates them with root priveleges.
-        sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_streaming.py -m "dpdk" \
+        sudo -E LD_LIBRARY_PATH=$LD_LIBRARY_PATH PYTHONPATH=$PYTHONPATH python3 -B -m pytest test_streaming.py -v -m "dpdk" \
           --capture=tee-sys -o junit_logging=all \
           --dut_type $(dutType) --dut_fpga $(dutFPGA) --test_length ${{ parameters.testLength }} \
           --uhd_build_dir $(Build.BinariesDirectory)/uhddev/build \
           --junitxml $(Common.TestResultsDirectory)/TEST-$(dutName)-dpdk-$(DPDK_VERSION_STRING).xml \
+          --result_csv $(Common.TestResultsDirectory)/TEST-$(dutName)-dpdk-$(DPDK_VERSION_STRING).csv \
           --addr $(dutAddr) --second_addr $(dutSecondAddr) --mgmt_addr $USRP_EMB_TARGET_IP --name $(dutNameId)
       env:
         UHD_CONFIG_FILE: $(config_file)
@@ -430,12 +435,12 @@ jobs:
         UHD_IMAGES_DIR: $(UHD_IMAGES_DIR)
       continueOnError: true
       displayName: Run streaming tests with DPDK ${{ dpdkDir }} on $(dutName)
-      condition: and(succeeded(), not(eq(variables.dutType, 'B210')))
+      condition: and(succeeded(), not(eq(variables.dutFamily, 'b200')))
 
     - publish: $(Common.TestResultsDirectory)
       artifact: test-logs-streamingtest-$(dutName)-$(dutFpga)-dpdk$(DPDK_VERSION_STRING)-run$(System.JobAttempt)
       displayName: Upload Test Logs with DPDK ${{ dpdkDir }}
-      condition: succeededOrFailed()
+      condition: and(succeededOrFailed(), not(eq(variables.dutFamily, 'b200')))
 
     - task: PublishTestResults@2
       inputs:
@@ -446,6 +451,7 @@ jobs:
         mergeTestResults: true
         failTaskOnFailedTests: false
       displayName: Upload streaming test results with DPDK ${{ dpdkDir }}
+      condition: not(eq(variables.dutFamily, 'b200'))
 
   - script: |
       echo "A previous step failed. See steps with warnings."

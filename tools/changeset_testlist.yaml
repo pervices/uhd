@@ -53,12 +53,42 @@
     - hw.rf.x410
     - hw.streaming.x410
     - devtest.x410
+- re: host/lib/usrp/dboard/hbx/
+  add:
+    - uhd.build.all
+    - hw.rf.x420
+    - hw.streaming.x420
+    - devtest.x420
+- re: host/lib/usrp/dboard/fbx/
+  add:
+    - uhd.build.all
+    - hw.rf.x440
+    - hw.streaming.x440
+    - devtest.x440
 - re: host/lib/usrp/dboard/e3xx
   add:
     - uhd.build.all
     - hw.rf.e3xx
     - hw.streaming.e3xx
     - devtest.e3xx
+- re: mpm/include/mpm/ad9361
+  add:
+    - uhd.build.all
+    - hw.rf.e3xx
+    - devtest.e3xx
+    - mpm.build.e3xx
+- re: e3xx_ad9361_iface..pp
+  add:
+    - uhd.build.all
+    - hw.rf.e3xx
+    - devtest.e3xx
+- re: ad936
+  add:
+    - uhd.build.all
+    - hw.rf.e3xx
+    - hw.rf.b2xx
+    - devtest.e3xx
+    - devtest.b2xx
 - re: host/lib/usrp/dboard/magnesium
   add:
     - uhd.build.all
@@ -75,6 +105,12 @@
     - uhd.build.all
     - hw.rf.x310.twinrx
     - hw.rf.x300.twinrx
+- re: host/lib/usrp/dboard/obx|host/lib/include/uhdlib/usrp/dboard/obx
+  add:
+    - uhd.build.all
+    - hw.rf.x3xx
+    - devtest.x3xx
+    - hw.streaming.x3xx
 - re: host/lib/usrp/dboard/.*CMakeLists.txt
   add:
     - uhd.build.all
@@ -143,6 +179,7 @@
     - hw.streaming.all
     - hw.rf.all
     - devtest.all
+  stop: False
 
 ###############################################################################
 # MPM CHANGES
@@ -184,16 +221,21 @@
     - mpm.build.x4xx
     - hw.rf.x4xx
     - devtest.x4xx
+- re: zbx.py$
+  add:
+    - mpm.build.x4xx
+    - hw.rf.x410
+    - devtest.x410
+- re: hbx.py$
+  add:
+    - mpm.build.x4xx
+    - hw.rf.x420
+    - devtest.x420
 - re: fbx.py$
   add:
     - mpm.build.x4xx
     - hw.rf.x440
     - devtest.x440
-- re: zbx.py
-  add:
-    - mpm.build.x4xx
-    - hw.rf.x410
-    - devtest.x410
 - re: e31x_db_manager..pp$|^mpm/.+/periph_manager/e31x|e31x_db.py$
   add:
     - mpm.build.e310
@@ -222,6 +264,7 @@
 - re: fpga/usrp3/
   add:
     - fpga.usrp3.testbenches
+    - fpga.usrp3.regmaps
   stop: False
 
 # library changes
@@ -229,6 +272,8 @@
   add:
     - fpga.usrp3.all
     - uhd.rfnoc_modtool.all
+    - fpga.usrp3.cpld.x4xx
+    - fpga.usrp3.cpld.x3xx
 
 # image builder changes
 - re: host/utils/rfnoc_image_builder.py
@@ -255,7 +300,22 @@
   add:
     - fpga.usrp3.x4xx
 
+# CPLD related changes
+- re: fpga/usrp3/top/x400/cpld
+  add:
+    - fpga.usrp3.cpld.x4xx
+- re: fpga/usrp3/top/x400/dboards/.bx/cpld
+  add:
+    - fpga.usrp3.cpld.x4xx
+- re: fpga/usrp3/top/x400/constraints/timing/shared_constants.sdc
+  add:
+    - fpga.usrp3.cpld.x4xx
+  stop: False
+
 # Device-specific changes.
+# exclude documentation from triggering FPGA builds
+- re: fpga/usrp3/top/x400/doc
+  stop: True
 - re: fpga/usrp3/top/x400
   add:
     - fpga.usrp3.x4xx
@@ -286,6 +346,20 @@
 - re: host/include/uhd/rfnoc/core/n3.._bsp.yml
   add:
     - fpga.usrp3.n3xx
+
+# CPLD related changes
+- re: fpga/usrp3/top/x400/cpld
+  add:
+    - fpga.usrp3.cpld.x4xx
+- re: fpga/usrp3/top/x400/dboards
+  add:
+    - fpga.usrp3.cpld.x4xx
+- re: fpga/usrp3/top/x400/constraints/timing/shared_constants.sdc
+  add:
+    - fpga.usrp3.cpld.x4xx
+- re: fpga/usrp3/top/x300/dboards
+  add:
+    - fpga.usrp3.cpld.x3xx
 
 ###############################################################################
 # CI CHANGES
@@ -329,38 +403,60 @@
     - uhd.rfnoc_modtool.all
 
 
-- re: fpga/.ci/templates*
+- re: .ci/fpga/templates
   add:
     - fpga.usrp3.all
+    - fpga.usrp3.cpld.x4xx
+    - fpga.usrp3.cpld.x3xx
+    - fpga.usrp3.testbenches
+    - fpga.usrp3.regmaps
+- re: .ci/fpga/scripts
+  add:
+    - fpga.usrp3.all
+    - fpga.usrp3.cpld.x4xx
+    - fpga.usrp3.cpld.x3xx
+    - fpga.usrp3.testbenches
+    - fpga.usrp3.regmaps
+- re: .ci/hwtools/root.py
+  add:
+    - fpga.usrp3.all
+    - fpga.usrp3.cpld.x4xx
+    - fpga.usrp3.cpld.x3xx
+    - fpga.usrp3.testbenches
+    - fpga.usrp3.regmaps
+- re: .ci/hwtools
+  add:
+    - fpga.usrp3.regmaps
 # Device-specific pipeline changes.
-- re: .ci/fpga/devices/job-build-x400.yml
+- re: .ci/fpga/devices/job-build-fpga-x400.yml
   add:
     - fpga.usrp3.x4xx
-- re: .ci/fpga/devices/job-build-x300.yml
+- re: .ci/fpga/devices/job-build-fpga-x300.yml
   add:
     - fpga.usrp3.x3xx
-- re: .ci/fpga/devices/job-build-e31x.yml
+- re: .ci/fpga/devices/job-build-fpga-e31x.yml
   add:
     - fpga.usrp3.e31x
-- re: .ci/fpga/devices/job-build-e320.yml
+- re: .ci/fpga/devices/job-build-fpga-e320.yml
   add:
     - fpga.usrp3.e320
-- re: .ci/fpga/devices/job-build-n3xx.yml
+- re: .ci/fpga/devices/job-build-fpga-n3xx.yml
   add:
     - fpga.usrp3.n3xx
 
 ###############################################################################
 # LABEL-BASED RULES
 ###############################################################################
-- label: ci:skip_hw_tests
-  remove_re:
-    - "^hw"
-    - "^devtest"
-
 - label: ci:skip_devtests
   remove_re:
     - "^devtest"
-
+# Need to escape the dot for the regex by using a backslash: \.
+# Have to use double backslashes in order to make the yaml parser happy
 - label: ci:skip_rf_tests
   remove_re:
-    - "^hw.rf"
+    - "^hw\\.rf"
+
+- label: ci:skip_streaming_tests
+  remove_re:
+    - "^hw\\.streaming"
+

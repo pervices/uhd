@@ -101,10 +101,10 @@ $(SIMPLE_GEMAC_SRCS) $(TIMING_SRCS) $(COREGEN_DSP_SRCS) \
 $(UDP_SRCS) $(EXTRAM_SRCS) \
 $(ZPU_CORE_SRCS) $(WISHBONE_SRCS) \
 $(IOPORT2_SRCS) \
-$(PACKET_PROC_SRCS) $(DSP_SRCS) \
+$(RFNOC_FRAMEWORK_SRCS) $(PACKET_PROC_SRCS) $(DSP_SRCS) \
 $(AXI_SRCS) $(AXI4S_SV_SRCS) $(CAP_GEN_GENERIC_SRCS) $(IP_XCI_SRCS) $(BD_SRCS) \
 $(LIB_IP_XCI_SRCS) \
-$(RFNOC_FRAMEWORK_SRCS) $(RFNOC_SRCS) $(RFNOC_OOT_SRCS) \
+$(RFNOC_SRCS) \
 $(RFNOC_XPORT_SV_SRCS) \
 $(RFNOC_IMAGE_CORE_SRCS) \
 $(TOP_SRCS) $(SFP_SERDES_SRCS) $(DRAM_SRCS) \
@@ -121,20 +121,23 @@ IMAGE_CORE_HEADER_DEF="RFNOC_IMAGE_CORE_HDR=$(BUILD_DIR)/rfnoc_image_core.vh"
 
 VERILOG_DEFS=$(EXTRA_DEFS) $(CUSTOM_DEFS) $(GIT_HASH_VERILOG_DEF) $(IMAGE_CORE_HEADER_DEF) $(RFNOC_IMAGE_CORE_DEFS)
 
+$(OOT_SRCS_FILE):
+	@printf "%s\n" $(RFNOC_OOT_SRCS) > $@
+
 # DESIGN_SRCS and VERILOG_DEFS must be defined
-bin: .prereqs
+bin: .prereqs $(OOT_SRCS_FILE)
 	@echo "Build directory:: $(BUILD_DIR)"
 	@echo "Printing MB_XDC:: $(MB_XDC)"
 	@echo "Printing VERILOG_DEFS:: $(VERILOG_DEFS)"
 	$(call BUILD_VIVADO_DESIGN,$(abspath ./build_x300.tcl),$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-synth: .prereqs
+synth: .prereqs $(OOT_SRCS_FILE)
 	$(call BUILD_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_synth.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
-rtl: .prereqs
+rtl: .prereqs $(OOT_SRCS_FILE)
 	$(call CHECK_VIVADO_DESIGN,$(TOOLS_DIR)/scripts/viv_check_syntax.tcl,$(TOP_MODULE),$(ARCH),$(PART_ID))
 
 viv_ip: .prereqs $$(DESIGN_SRCS) ip
 	@echo "IP build for $(NAME) DONE . . ."
 
-.PHONY: bin synth rtl viv_ip
+.PHONY: bin synth rtl viv_ip $(OOT_SRCS_FILE)

@@ -69,6 +69,21 @@ public:
 
 void export_rfnoc(py::module& m)
 {
+#define RIS_FIELD(name) .def_readwrite(#name, &register_iface_stats::name)
+
+    py::class_<register_iface_stats>(m, "register_iface_stats")
+        // clang-format off
+        RIS_FIELD(ctrl_packets_sent)
+        RIS_FIELD(ack_packets_received)
+        RIS_FIELD(async_packets_received)
+        RIS_FIELD(ack_packets_sent)
+        RIS_FIELD(ctrl_dropped)
+        RIS_FIELD(ctrl_out_of_sequence)
+        RIS_FIELD(buffer_fullness)
+                        // clang-format on
+
+                        .def("__repr__", &register_iface_stats::to_string);
+
     py::class_<block_id_t>(m, "block_id")
         // Constructors
         .def(py::init<>())
@@ -198,7 +213,7 @@ void export_rfnoc(py::module& m)
             py::arg("streamer"),
             py::arg("strm_port"),
             py::arg("dst_blk"),
-            py::arg("dst_blk"),
+            py::arg("dst_port"),
             py::arg("adapter_id") = uhd::transport::NULL_ADAPTER_ID)
         .def("connect",
             py::overload_cast<const block_id_t&,
@@ -207,7 +222,7 @@ void export_rfnoc(py::module& m)
                 size_t,
                 uhd::transport::adapter_id_t>(&rfnoc_graph::connect),
             py::arg("src_blk"),
-            py::arg("src_blk"),
+            py::arg("src_port"),
             py::arg("streamer"),
             py::arg("strm_port"),
             py::arg("adapter_id") = uhd::transport::NULL_ADAPTER_ID)
@@ -234,7 +249,22 @@ void export_rfnoc(py::module& m)
         .def(
             "get_tree",
             [](rfnoc_graph& self) { return self.get_tree().get(); },
-            py::return_value_policy::reference_internal);
+            py::return_value_policy::reference_internal)
+        .def("get_chdr_width",
+            [](rfnoc_graph& self) { return chdr_w_to_bits(self.get_chdr_width()); })
+        .def(
+            "get_chdr_xport_adapters",
+            [](rfnoc_graph& self, size_t mb_index) {
+                // convert return value to
+                // std::map<std::string, std::map<std::string, std::string>>
+                std::map<std::string, std::map<std::string, std::string>> retval;
+                for (auto const& [iface, addrs] :
+                    self.get_chdr_xport_adapters(mb_index)) {
+                    retval[iface] = std::map<std::string, std::string>(addrs);
+                }
+                return retval;
+            },
+            py::arg("mb_index") = 0);
 
     py::class_<uhd::features::gpio_power_iface>(m, "gpio_power")
         .def("get_supported_voltages",
@@ -327,12 +357,14 @@ void export_rfnoc(py::module& m)
         .def("get_block_args", &noc_block_base::get_block_args)
         .def("set_command_time", &noc_block_base::set_command_time)
         .def("clear_command_time", &noc_block_base::clear_command_time)
-        .def("get_tree",
+        .def(
+            "get_tree",
             [](noc_block_base::sptr& self) {
                 // Force the non-const `get_tree`
-                uhd::property_tree::sptr tree = self->get_tree();
+                auto tree = self->get_tree().get();
                 return tree;
-            })
+            },
+            py::return_value_policy::reference_internal)
         .def(
             "poke32",
             [](noc_block_base& self, uint32_t addr, uint32_t data) {
@@ -481,6 +513,7 @@ void export_rfnoc(py::module& m)
             [](noc_block_base& self) { return self.regs().get_src_epid(); })
         .def("get_port_num",
             [](noc_block_base& self) { return self.regs().get_port_num(); })
+        .def("get_stats", [](noc_block_base& self) { return self.regs().get_stats(); })
         .def("__repr__",
             [](noc_block_base& self) {
                 return "<NocBlock for block ID '" + self.get_unique_id() + "'>";

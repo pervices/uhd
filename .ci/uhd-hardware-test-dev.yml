@@ -27,6 +27,14 @@ parameters:
   type: boolean
   displayName: Run N310 RF tests
   default: false
+- name: run_obx_rf_tests
+  type: boolean
+  displayName: Run X310 + OBX RF tests
+  default: false
+- name: run_obx_devtests
+  type: boolean
+  displayName: Run X310 + OBX devtests
+  default: false
 - name: run_x410_rf_tests
   type: boolean
   displayName: Run X410 RF tests
@@ -35,9 +43,25 @@ parameters:
   type: boolean
   displayName: Run X440 RF tests
   default: false
+- name: run_x410_rf_tests_dre_ats
+  type: boolean
+  displayName: Run X410 RF tests on Dresden ATS
+  default: false
+- name: run_x440_rf_tests_dre_ats
+  type: boolean
+  displayName: Run X440 RF tests on Dresden ATS
+  default: false
+- name: run_x420_rf_tests_dre_ats
+  type: boolean
+  displayName: Run X420 RF tests on Dresden ATS
+  default: false
 - name: run_x440_phase_tests
   type: boolean
   displayName: Run X440 Phase tests
+  default: false
+- name: run_lv_test
+  type: boolean
+  displayName: Run LabVIEW test
   default: false
 - name: fpga_imgs_source
   type: string
@@ -113,26 +137,23 @@ parameters:
       run: true
 
 variables:
-  - name: uhdFpgaArtifactSource
-    ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline') }}:
-      value: uhd_fpga_pipeline
-    ${{ elseif eq(parameters.fpga_imgs_source,  'Mono Pipeline PR') }}:
-      value: uhd_mono_pipeline_pr
-    ${{ else }}:
-      value: uhd_mono_pipeline
-  - name: fpga_imgs_source
-    ${{ if contains(parameters.fpga_imgs_source, 'Pipeline') }}:
-      value: 'Pipeline'
-    ${{ else }}:
-      value: 'Filesystem'
+- name: uhdFpgaArtifactSource
+  ${{ if eq(parameters.fpga_imgs_source,  'FPGA Pipeline') }}:
+    value: uhd_fpga_pipeline
+  ${{ elseif eq(parameters.fpga_imgs_source,  'Mono Pipeline PR') }}:
+    value: uhd_mono_pipeline_pr
+  ${{ else }}:
+    value: uhd_mono_pipeline
+- name: fpga_imgs_source
+  ${{ if contains(parameters.fpga_imgs_source, 'Pipeline') }}:
+    value: 'Pipeline'
+  ${{ else }}:
+    value: 'Filesystem'
 
 resources:
   pipelines:
   - pipeline: uhd_mono_pipeline
     source: 'uhddev mono pipeline'
-    branch: master
-  - pipeline: uhd_mono_pipeline_pr
-    source: 'uhddev mono pipeline PR'
     branch: master
   - pipeline: usrp-kas-pipeline
     source: 'usrp-kas'
@@ -141,6 +162,9 @@ resources:
   # fully populated.
   - pipeline: uhd_fpga_pipeline
     source: 'uhddev fpga pipeline'
+    branch: master
+  - pipeline: uhd_fpga_pr_pipeline
+    source: 'uhddev fpga pipeline PR'
     branch: master
   repositories:
   - repository: meta-ettus
@@ -162,6 +186,11 @@ resources:
     type: git
     ref: refs/tags/pip/hwsetup/0.1/0.1.3
     name: DevCentral/hwtools
+  - repository: labview-usrp-examples
+    type: github
+    endpoint: EttusResearch
+    name: ni/labview-usrp-examples
+    ref: main
 
 stages:
 - stage: test_uhd_x410_embedded_stage
@@ -193,7 +222,13 @@ stages:
   jobs:
   - template: templates/job-uhd-streaming-tests-beauty.yml
     parameters:
-      testOS: ubuntu2004
+      uhdSrcDir: $(Build.SourcesDirectory)/uhddev
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      testLength: ${{ parameters.testLength }}
+      dpdkDirs: '${{ parameters.dpdkDirs }}'
+  - template: templates/job-uhd-streaming-tests-s175.yml
+    parameters:
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
       uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
@@ -207,7 +242,6 @@ stages:
   jobs:
   - template: templates/job-uhd-streaming-tests-x440.yml
     parameters:
-      testOS: ubuntu2204
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
       uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
@@ -221,7 +255,12 @@ stages:
   jobs:
   - template: templates/job-uhd-devtest-rhombus.yml
     parameters:
-      testOS: ubuntu2004
+      uhdSrcDir: $(Build.SourcesDirectory)
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
+  - template: templates/job-uhd-devtest-s175.yml
+    parameters:
       uhdSrcDir: $(Build.SourcesDirectory)
       uhdArtifactSource: uhd_mono_pipeline
       uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
@@ -234,12 +273,36 @@ stages:
   jobs:
   - template: templates/job-uhd-rf-tests-pebbles.yml
     parameters:
-      testOS: ubuntu1804
       uhdSrcDir: $(Build.SourcesDirectory)/uhddev
       uhdArtifactSource: uhd_mono_pipeline
       uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
       fpga_imgs_source: ${{ variables.fpga_imgs_source }}
       extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+
+- stage: test_obx_rf_tests
+  displayName: Run X310 + OBX RF tests
+  dependsOn: []
+  condition: ${{ parameters.run_obx_rf_tests }}
+  jobs:
+  - template: templates/job-uhd-rf-tests-x310-obx.yml
+    parameters:
+      uhdSrcDir: $(Build.SourcesDirectory)/uhddev
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
+      extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+
+- stage: test_obx_devtest
+  displayName: Test X310 + OBX Devtest
+  dependsOn: []
+  condition: ${{ parameters.run_obx_devtests }}
+  jobs:
+  - template: templates/job-uhd-devtest-x310-obx.yml
+    parameters:
+      uhdSrcDir: $(Build.SourcesDirectory)
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
 
 - stage: test_x410_rf_tests
   displayName: Run X410 RF tests
@@ -254,13 +317,51 @@ stages:
       extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
       testLength: ${{ parameters.testLength }}
 
-
 - stage: test_x440_rf_tests
   displayName: Run X440 RF tests
   dependsOn: []
   condition: ${{ parameters.run_x440_rf_tests }}
   jobs:
   - template: templates/tests/job-uhd-x440-hardware-tests-pebbles.yml
+    parameters:
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
+      extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+      testLength: ${{ parameters.testLength }}
+
+- stage: test_x410_rf_tests_dre_ats
+  displayName: Run X410 RF tests on Dresden ATS
+  dependsOn: []
+  condition: ${{ parameters.run_x410_rf_tests_dre_ats }}
+  jobs:
+  - template: templates/tests/job-uhd-x410-hardware-tests-s156.yml
+    parameters:
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
+      extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+      testLength: ${{ parameters.testLength }}
+
+- stage: test_x440_rf_tests_dre_ats
+  displayName: Run X440 RF tests on Dresden ATS
+  dependsOn: []
+  condition: ${{ parameters.run_x440_rf_tests_dre_ats }}
+  jobs:
+  - template: templates/tests/job-uhd-x440-hardware-tests-s156.yml
+    parameters:
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
+      fpga_imgs_source: ${{ variables.fpga_imgs_source }}
+      extra_rf_test_args: ${{ parameters.extra_rf_test_args }}
+      testLength: ${{ parameters.testLength }}
+
+- stage: test_x420_rf_tests_dre_ats
+  displayName: Run X420 RF tests on Dresden ATS
+  dependsOn: []
+  condition: ${{ parameters.run_x420_rf_tests_dre_ats }}
+  jobs:
+  - template: templates/tests/job-uhd-x420-hardware-tests-s156.yml
     parameters:
       uhdArtifactSource: uhd_mono_pipeline
       uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}
@@ -283,3 +384,13 @@ stages:
       ${{ else }}:
         extra_rf_test_args: ${{ parameters.extra_rf_test_args }} --test_selector test_rx_phase_coherence.py test_tx_phase_coherence.py
       testLength: ${{ parameters.testLength }}
+
+- stage: test_labview_usrp_examples
+  displayName: Test LabVIEW USRP Examples
+  dependsOn: []
+  condition: ${{ parameters.run_lv_test }}
+  jobs:
+  - template: templates/job-uhd-usrp-tests-uhdlvtest.yml
+    parameters:
+      uhdArtifactSource: uhd_mono_pipeline
+      uhdFpgaArtifactSource: ${{ variables.uhdFpgaArtifactSource }}

@@ -13,14 +13,10 @@ set(CONFIG_PATH "${CMAKE_INSTALL_PREFIX}/${PKG_DATA_DIR}")
 ########################################################################
 if(ENABLE_PYMOD_UTILS)
     ### RFNoC Image Builder
-    configure_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/rfnoc_image_builder.py"
-        "${CMAKE_CURRENT_BINARY_DIR}/rfnoc_image_builder"
-    )
     UHD_INSTALL(PROGRAMS
-        ${CMAKE_CURRENT_BINARY_DIR}/rfnoc_image_builder
+        ${CMAKE_CURRENT_SOURCE_DIR}/rfnoc_image_builder.py
         RENAME rfnoc_image_builder
-        DESTINATION ${RUNTIME_DIR}
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT utilities
     )
 
@@ -28,7 +24,7 @@ if(ENABLE_PYMOD_UTILS)
     UHD_INSTALL(PROGRAMS
         ${CMAKE_CURRENT_SOURCE_DIR}/rfnoc_modtool.py
         RENAME rfnoc_modtool
-        DESTINATION ${RUNTIME_DIR}
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT utilities
     )
 
@@ -100,7 +96,7 @@ if(ENABLE_PYMOD_UTILS OR ENABLE_UTILS)
         UHD_INSTALL(PROGRAMS
             ${CMAKE_CURRENT_BINARY_DIR}/uhd_images_downloader.py
             RENAME uhd_images_downloader
-            DESTINATION ${RUNTIME_DIR}
+            DESTINATION ${CMAKE_INSTALL_BINDIR}
             COMPONENT utilities
         )
     endif()
@@ -134,7 +130,7 @@ if(ENABLE_PYMOD_UTILS OR ENABLE_UTILS)
             UHD_INSTALL(PROGRAMS
                 usrp2_card_burner.py
                 RENAME usrp2_card_burner
-                DESTINATION ${RUNTIME_DIR}
+                DESTINATION ${CMAKE_INSTALL_BINDIR}
                 COMPONENT utilities
             )
         endif()
@@ -174,8 +170,8 @@ set(util_runtime_sources
 foreach(util_source ${util_runtime_sources})
     get_filename_component(util_name ${util_source} NAME_WE)
     add_executable(${util_name} ${util_source})
-    target_link_libraries(${util_name} uhd ${Boost_LIBRARIES})
-    UHD_INSTALL(TARGETS ${util_name} RUNTIME DESTINATION ${RUNTIME_DIR} COMPONENT utilities)
+    target_link_libraries(${util_name} PUBLIC uhd Boost::program_options)
+    UHD_INSTALL(TARGETS ${util_name} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT utilities)
 endforeach(util_source)
 
 if(ENABLE_PYTHON_API)
@@ -186,7 +182,7 @@ if(ENABLE_PYTHON_API)
     UHD_INSTALL(PROGRAMS
         ${CMAKE_CURRENT_BINARY_DIR}/usrpctl
         RENAME usrpctl
-        DESTINATION ${RUNTIME_DIR}
+        DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT utilities
     )
 endif()
@@ -240,7 +236,7 @@ endif(LINUX AND ENABLE_USB)
 foreach(util_source ${util_share_sources})
     get_filename_component(util_name ${util_source} NAME_WE)
     add_executable(${util_name} ${util_source})
-    target_link_libraries(${util_name} uhd ${Boost_LIBRARIES})
+    target_link_libraries(${util_name} PUBLIC uhd Boost::program_options Boost::filesystem)
     UHD_INSTALL(TARGETS ${util_name} RUNTIME DESTINATION ${PKG_LIB_DIR}/utils COMPONENT utilities)
 endforeach(util_source)
 foreach(util_source ${util_share_sources_py})

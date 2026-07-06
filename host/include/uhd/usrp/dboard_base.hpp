@@ -14,7 +14,6 @@
 #include <uhd/usrp/dboard_id.hpp>
 #include <uhd/usrp/dboard_iface.hpp>
 #include <uhd/utils/noncopyable.hpp>
-#include <uhd/utils/pimpl.hpp>
 #include <memory>
 
 namespace uhd { namespace usrp {
@@ -36,7 +35,7 @@ public:
 
     // structors
     dboard_base(ctor_args_t);
-    virtual ~dboard_base() {}
+    virtual ~dboard_base();
 
     // post-construction initializer
     virtual void initialize() {}
@@ -52,7 +51,8 @@ protected:
     property_tree::sptr get_tx_subtree(void);
 
 private:
-    UHD_PIMPL_DECL(impl) _impl;
+    struct impl;
+    std::unique_ptr<impl> _impl;
 };
 
 /*!

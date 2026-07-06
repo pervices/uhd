@@ -20,7 +20,7 @@ UHD_INSTALL(FILES
     usb_device_handle.hpp
     vrt_if_packet.hpp
     zero_copy.hpp
-    DESTINATION ${INCLUDE_DIR}/uhd/transport
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/uhd/transport
     COMPONENT headers
 )
 

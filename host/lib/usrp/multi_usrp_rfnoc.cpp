@@ -603,6 +603,19 @@ public:
             usrp_info["tx_extension"] = tx_chain.extension->get_name();
         }
 
+        if (tx_chain.radio->get_tree()->exists("dboard/tx_frontends"
+                                               / tx_chain.radio->get_dboard_fe_from_chan(
+                                                   tx_chain.block_chan, uhd::TX_DIRECTION)
+                                               / "default_cal_gain")) {
+            usrp_info["tx_default_cal_gain"] = std::to_string(
+                tx_chain.radio->get_tree()
+                    ->access<double>("dboard/tx_frontends"
+                                     / tx_chain.radio->get_dboard_fe_from_chan(
+                                         tx_chain.block_chan, uhd::TX_DIRECTION)
+                                     / "default_cal_gain")
+                    .get());
+        }
+
         return usrp_info;
     }
 
@@ -1287,6 +1300,11 @@ public:
         return _rx_chans.size();
     }
 
+    size_t get_rx_radio_channel(size_t chan = 0) override
+    {
+        return _get_rx_chan(chan).block_chan;
+    }
+
     std::string get_rx_subdev_name(size_t chan = 0) override
     {
         auto rx_chain = _get_rx_chan(chan);
@@ -1967,6 +1985,11 @@ public:
         return _tx_chans.size();
     }
 
+    size_t get_tx_radio_channel(size_t chan = 0) override
+    {
+        return _get_tx_chan(chan).block_chan;
+    }
+
     std::string get_tx_subdev_name(size_t chan = 0) override
     {
         auto tx_chain = _get_tx_chan(chan);
@@ -2305,10 +2328,10 @@ public:
                                      + " to a radio block controller.");
         }();
 
-        const std::string normalized_bank = [radio, bank]() {
+        const std::string normalized_bank = [radio, bank, slot_name]() {
             auto radio_banks = radio->get_gpio_banks();
             for (auto& radio_bank : radio_banks) {
-                if (bank.find(radio_bank) == 0) {
+                if (radio_bank + slot_name == bank) {
                     return radio_bank;
                 }
             }
@@ -2939,10 +2962,9 @@ multi_usrp::sptr make_rfnoc_device(
 
     // Check if a multi_usrp was already created for this device
     std::lock_guard<std::mutex> lock(_map_mutex);
-    if (graph_to_musrp.count(graph) and not graph_to_musrp[graph].expired()) {
-        musrp = graph_to_musrp[graph].lock();
-        if (musrp) {
-            return musrp;
+    if (graph_to_musrp.count(graph)) {
+        if (multi_usrp::sptr p = graph_to_musrp[graph].lock()) {
+            return p;
         }
     }
 

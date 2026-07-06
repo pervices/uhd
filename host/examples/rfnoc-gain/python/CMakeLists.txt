@@ -32,11 +32,20 @@ target_include_directories(${PYMODULE_NAME}_python
   ${Python3_INCLUDE_DIRS}
   ${Python3_NumPy_INCLUDE_DIRS}
 )
+# If PYBIND11_INCLUDE_DIR is set (e.g., to UHD's bundled pybind11 headers),
+# prepend it so the OOT Python module uses the same pybind11 version as UHD.
+# This ensures pybind11's type registry is shared between DLLs on Windows.
+if(PYBIND11_INCLUDE_DIR)
+  target_include_directories(${PYMODULE_NAME}_python BEFORE
+    PRIVATE ${PYBIND11_INCLUDE_DIR}
+  )
+endif()
 target_link_libraries(
   ${PYMODULE_NAME}_python
   PRIVATE
   pybind11::pybind11
-  ${UHD_LIBRARIES}
+  UHD::uhd
+  rfnoc-gain
 )
 
 # Copy pybind bindings library to the staging directory (it will get copied to

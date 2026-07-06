@@ -9,8 +9,11 @@
 #include "../../lib/usrp/x400/x400_radio_control.hpp"
 #include "x4xx_zbx_mpm_mock.hpp"
 #include <uhd/rfnoc/mock_block.hpp>
+#include <uhd/rfnoc/node_accessor.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhdlib/rfnoc/node_accessor.hpp>
+#include <uhdlib/rfnoc/clock_iface.hpp>
+#include <uhdlib/rfnoc/noc_block_make_args.hpp>
+#include <chrono>
 #include <iostream>
 
 using namespace uhd;
@@ -18,9 +21,6 @@ using namespace uhd::rfnoc;
 using namespace std::chrono_literals;
 using namespace uhd::usrp::zbx;
 using namespace uhd::experts;
-
-// Redeclare this here, since it's only defined outside of UHD_API
-noc_block_base::make_args_t::~make_args_t() = default;
 
 namespace {
 /* This class extends mock_reg_iface_t by adding a constructor that initializes
@@ -39,6 +39,12 @@ class x4xx_radio_mock_reg_iface_t : public mock_reg_iface_t
     static constexpr uint32_t gpio_offset =
         radio_control_impl::regmap::PERIPH_BASE
         + 0xC000 /*DIO Window*/ + 0x1000 /*GPIO Regmap*/;
+    static constexpr uint32_t tx_cgain_offset =
+        radio_control_impl::regmap::RADIO_BASE_ADDR
+        + radio_control_impl::regmap::REG_TX_CGAIN_BASE;
+    static constexpr uint32_t rx_cgain_offset =
+        radio_control_impl::regmap::RADIO_BASE_ADDR
+        + radio_control_impl::regmap::REG_RX_CGAIN_BASE;
 
 public:
     x4xx_radio_mock_reg_iface_t(size_t num_channels)
@@ -49,6 +55,12 @@ public:
                 + chan * radio_control_impl::regmap::REG_CHAN_OFFSET;
             read_memory[reg_compat] = (radio_control_impl::MINOR_COMPAT
                                        | (radio_control_impl::MAJOR_COMPAT << 16));
+            read_memory[tx_cgain_offset
+                        + chan * radio_control_impl::regmap::REG_CHAN_OFFSET] =
+                0x00010000; // unity gain
+            read_memory[rx_cgain_offset
+                        + chan * radio_control_impl::regmap::REG_CHAN_OFFSET] =
+                0x00010000; // unity gain
         }
         read_memory[radio_control_impl::regmap::REG_RADIO_WIDTH] =
             (32 /* bits per sample */ << 16) | 1 /* sample per clock */;
@@ -57,6 +69,12 @@ public:
 
         // Setup the GPIO addresses
         read_memory[gpio_offset + 0x4] = 0;
+
+        // Enable the complex gain feature
+        read_memory[radio_control_impl::regmap::RADIO_BASE_ADDR
+                    + radio_control_impl::regmap::REG_FEATURES_PRESENT] =
+            radio_control_impl::regmap::FEATURE_TX_CGAIN
+            | radio_control_impl::regmap::FEATURE_RX_CGAIN;
     }
 
     void _poke_cb(uint32_t addr, uint32_t data, uhd::time_spec_t, bool) override
@@ -77,6 +95,15 @@ public:
         // Are we poking the RFDC controls?
         if (addr >= rfdc_offset) {
             _poke_rfdc_cb(addr, data);
+            return;
+        }
+
+        // Are we poking the complex gain register?
+        if ((addr >= tx_cgain_offset || addr >= rx_cgain_offset)
+            && (addr < rx_cgain_offset
+                           + uhd::usrp::zbx::ZBX_NUM_CHANS
+                                 * radio_control_impl::regmap::REG_CHAN_OFFSET)) {
+            write_memory[addr] = data;
             return;
         }
     }
@@ -199,6 +226,17 @@ public:
         return;
     }
 
+    void _peek_cb(uint32_t addr, uhd::time_spec_t /*time*/) override
+    {
+        if ((addr >= tx_cgain_offset || addr >= rx_cgain_offset)
+            && (addr < rx_cgain_offset
+                           + uhd::usrp::zbx::ZBX_NUM_CHANS
+                                 * radio_control_impl::regmap::REG_CHAN_OFFSET)) {
+            read_memory[addr] = write_memory.at(addr);
+            return;
+        }
+    }
+
     bool _muxout_to_lock = false;
 }; // class x4xx_radio_mock_reg_iface_t
 
@@ -256,8 +294,14 @@ struct x400_radio_fixture
               X400,
               reg_iface,
               mbc))
-        , test_radio(block_container.get_block<x400_radio_control_impl>())
     {
+        // Override the timebase clock interface with the mcr frequency
+        // This fixes the issue where get_tick_rate() returns 0.0 in tests
+        auto tb_clock = std::make_shared<uhd::rfnoc::clock_iface>(
+            "radio_clk", rpcs->get_master_clock_rate());
+        block_container.make_args->tb_clk_iface = tb_clock;
+
+        test_radio = block_container.get_block<x400_radio_control_impl>();
         node_accessor.init_props(test_radio.get());
     }
 

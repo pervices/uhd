@@ -10,8 +10,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhdlib/utils/prefs.hpp>
-#include <boost/algorithm/string.hpp>
-#include <boost/thread.hpp>
+#include <boost/format.hpp>
 #include <chrono>
 #include <future>
 #include <memory>
@@ -31,7 +30,7 @@ namespace {
 //! Most pessimistic time for a CHDR query to go to device and back
 const double MPMD_CHDR_MAX_RTT = 0.02;
 //! MPM Compatibility number {MAJOR, MINOR}
-const std::vector<size_t> MPM_COMPAT_NUM = {5, 3};
+const std::vector<size_t> MPM_COMPAT_NUM = {6, 1};
 
 /*************************************************************************
  * Helper functions
@@ -154,6 +153,16 @@ mpmd_impl::mpmd_impl(const device_addr_t& device_args)
     device_addrs_t mb_args;
     for (size_t i = 0; i < mb_args_without_prefs.size(); ++i) {
         mb_args.push_back(prefs::get_usrp_args(mb_args_without_prefs[i]));
+        UHD_ASSERT_THROW(mb_args.back().has_key(RPC_VERSION_KEY));
+        if (mb_args.back().get(RPC_VERSION_KEY) != RPC_VERSION) {
+            UHD_LOG_THROW(uhd::runtime_error,
+                "MPMD",
+                "RPC version mismatch on device "
+                    << mb_args.back().to_string() << ". Expected: " << RPC_VERSION
+                    << " Actual: " << device_args.get(RPC_VERSION_KEY)
+                    << ". Please align the version of MPM on your USRP device to the "
+                       "host driver version.");
+        }
     }
     const size_t num_mboards = mb_args.size();
     _mb.reserve(num_mboards);

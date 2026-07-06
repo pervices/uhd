@@ -11,10 +11,10 @@
 #include <uhd/rfnoc/property.hpp>
 #include <uhd/rfnoc/registry.hpp>
 #include <uhd/types/ranges.hpp>
+#include <uhd/utils/compat_check.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
 #include <uhdlib/usrp/cores/dsp_core_utils.hpp>
-#include <uhdlib/utils/compat_check.hpp>
 #include <uhdlib/utils/math.hpp>
 #include <cmath>
 #include <set>
@@ -80,7 +80,7 @@ public:
 
         // Load list of valid decimation values
         std::set<size_t> decims{1}; // 1 is always a valid decimation
-        for (size_t hb = 0; hb < _num_halfbands; hb++) {
+        for (size_t hb = 0; hb <= _num_halfbands; hb++) {
             for (size_t cic_decim = 1; cic_decim <= _cic_max_decim; cic_decim++) {
                 decims.insert((1 << hb) * cic_decim);
             }
@@ -448,11 +448,9 @@ private:
             }
             RFNOC_LOG_TRACE("Forwarding num_samps stream command, new value is "
                             << new_action->stream_cmd.num_samps);
-        } else {
-            RFNOC_LOG_TRACE("Forwarding continuous stream command...")
         }
 
-        post_action(dst_edge, new_action);
+        post_action(dst_edge, new_action, action_mode_t::ASYNC);
     }
 
     void register_issue_tune_request()
@@ -492,7 +490,7 @@ private:
                                     double freq) { set_freq(freq, chan, boost::none); };
 
             double clipped_requested_freq = tune_range.clip(tune_request.target_freq);
-            tune_request_action->tune_result.target_dsp_freq = abs(
+            tune_request_action->tune_result.target_dsp_freq = std::abs(
                 tune_request_action->tune_result.actual_rf_freq - clipped_requested_freq);
 
             //------------------------------------------------------------------
@@ -553,14 +551,14 @@ private:
             new_action->tune_result        = tune_request_action->tune_result;
             new_action->dsp_range          = tune_request_action->dsp_range;
             new_action->overall_freq_range = tune_request_action->overall_freq_range;
-            post_action(dst_edge, new_action);
+            post_action(dst_edge, new_action, action_mode_t::ASYNC);
         } else {
             auto new_action                = tune_request_action_info::make(tune_request);
             new_action->tune_request       = tune_request_action->tune_request;
             new_action->tune_result        = tune_request_action->tune_result;
             new_action->dsp_range          = tune_request_action->dsp_range;
             new_action->overall_freq_range = tune_request_action->overall_freq_range;
-            post_action(dst_edge, new_action);
+            post_action(dst_edge, new_action, action_mode_t::ASYNC);
         }
     }
 

@@ -15,22 +15,22 @@
 #include <uhd/types/dict.hpp>
 #include <uhd/usrp_clock/octoclock_eeprom.hpp>
 #include <uhd/utils/byteswap.hpp>
+#include <uhd/utils/cast.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/static.hpp>
+#include <uhdlib/asio.hpp>
 #include <uhdlib/utils/paths.hpp>
 #include <stdint.h>
-#include <boost/asio.hpp>
-#include <boost/assign.hpp>
-#include <boost/filesystem.hpp>
 #include <boost/format.hpp>
 #include <boost/thread.hpp>
+#include <filesystem>
 
 using namespace uhd;
 using namespace uhd::usrp_clock;
 using namespace uhd::transport;
 namespace asio = boost::asio;
-namespace fs   = boost::filesystem;
+namespace fs   = std::filesystem;
 
 /***********************************************************************
  * Discovery
@@ -413,11 +413,11 @@ void octoclock_impl::_get_state(const std::string& oc)
         throw uhd::runtime_error("Failed to retrieve state information from OctoClock.");
 }
 
-uhd::dict<ref_t, std::string> _ref_strings = boost::assign::map_list_of(NO_REF, "none")(
-    INTERNAL, "internal")(EXTERNAL, "external");
+uhd::dict<ref_t, std::string> _ref_strings{
+    {NO_REF, "none"}, {INTERNAL, "internal"}, {EXTERNAL, "external"}};
 
-uhd::dict<switch_pos_t, std::string> _switch_pos_strings = boost::assign::map_list_of(
-    PREFER_INTERNAL, "Prefer internal")(PREFER_EXTERNAL, "Prefer external");
+uhd::dict<switch_pos_t, std::string> _switch_pos_strings{
+    {PREFER_INTERNAL, "Prefer internal"}, {PREFER_EXTERNAL, "Prefer external"}};
 
 sensor_value_t octoclock_impl::_ext_ref_detected(const std::string& oc)
 {
@@ -466,7 +466,7 @@ uint32_t octoclock_impl::_get_time(const std::string& oc)
 {
     if (_oc_dict[oc].state.gps_detected) {
         std::string time_str = _oc_dict[oc].gps->get_sensor("gps_time").value;
-        return boost::lexical_cast<uint32_t>(time_str);
+        return uhd::cast::from_str<uint32_t>(time_str);
     } else
         throw uhd::runtime_error("This device cannot return a time.");
 }

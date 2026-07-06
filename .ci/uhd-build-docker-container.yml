@@ -43,13 +43,13 @@ variables:
 - ${{ if parameters.build_linux }}:
   - name: linuxDockerImages
     value:
-      "{'Fedora-39-builder':{'buildOSName':'fedora39','dockerImageName':'uhd-builder-fedora39'},
-      'Fedora-40-builder':{'buildOSName':'fedora40','dockerImageName':'uhd-builder-fedora40'},
-      'Fedora-41-builder':{'buildOSName':'fedora41','dockerImageName':'uhd-builder-fedora41'},
-      'Ubuntu-1804-builder':{'buildOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804'},
+      "{'Fedora-41-builder':{'buildOSName':'fedora41','dockerImageName':'uhd-builder-fedora41'},
+      'Fedora-42-builder':{'buildOSName':'fedora42','dockerImageName':'uhd-builder-fedora42'},
+      'Fedora-43-builder':{'buildOSName':'fedora43','dockerImageName':'uhd-builder-fedora43'},
       'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004'},
       'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204'},
-      'Ubuntu-2404-builder':{'buildOSName':'ubuntu2404','dockerImageName':'uhd-builder-ubuntu2404'}}"
+      'Ubuntu-2404-builder':{'buildOSName':'ubuntu2404','dockerImageName':'uhd-builder-ubuntu2404'},
+      'Ubuntu-2510-builder':{'buildOSName':'ubuntu2510','dockerImageName':'uhd-builder-ubuntu2510'}}"
 - ${{ else }}:
   - name: linuxDockerImages
     value:
@@ -59,7 +59,16 @@ variables:
       "{'VS2019-x64-py310-builder':{'buildOSName':'win-vs19-v142-x64-py310','dockerImageName':'uhd-builder-vs2019-v142-x64-py310','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019','pythonVersion':'python310'},
       'VS2019-x64-py312-builder':{'buildOSName':'win-vs19-v142-x64-py312','dockerImageName':'uhd-builder-vs2019-v142-x64-py312','cmakeCompiler':'Visual Studio 16 2019','cmakeArch':'x64','vsArch':'x64','vsYear':'2019','pythonVersion':'python312'},
       'VS2022-x64-py310-builder':{'buildOSName':'win-vs22-v143-x64-py310','dockerImageName':'uhd-builder-vs2022-v143-x64-py310','cmakeCompiler':'Visual Studio 17 2022','cmakeArch':'x64','vsArch':'x64','vsYear':'2022','pythonVersion':'python310'},
-      'VS2022-x64-py312-builder':{'buildOSName':'win-vs22-v143-x64-py312','dockerImageName':'uhd-builder-vs2022-v143-x64-py312','cmakeCompiler':'Visual Studio 17 2022','cmakeArch':'x64','vsArch':'x64','vsYear':'2022','pythonVersion':'python312'}}"
+      'VS2022-x64-py312-builder':{'buildOSName':'win-vs22-v143-x64-py312','dockerImageName':'uhd-builder-vs2022-v143-x64-py312','cmakeCompiler':'Visual Studio 17 2022','cmakeArch':'x64','vsArch':'x64','vsYear':'2022','pythonVersion':'python312'},
+      'VS2026-x64-py310-builder':{'buildOSName':'win-vs26-v145-x64-py310','dockerImageName':'uhd-builder-vs2026-v145-x64-py310','cmakeCompiler':'Visual Studio 18 2026','cmakeArch':'x64','vsArch':'x64','vsYear':'2026','pythonVersion':'python310'},
+      'VS2026-x64-py312-builder':{'buildOSName':'win-vs26-v145-x64-py312','dockerImageName':'uhd-builder-vs2026-v145-x64-py312','cmakeCompiler':'Visual Studio 18 2026','cmakeArch':'x64','vsArch':'x64','vsYear':'2026','pythonVersion':'python312'},
+      'VS2026-x64-py313-builder':{'buildOSName':'win-vs26-v145-x64-py313','dockerImageName':'uhd-builder-vs2026-v145-x64-py313','cmakeCompiler':'Visual Studio 18 2026','cmakeArch':'x64','vsArch':'x64','vsYear':'2026','pythonVersion':'python313'}}"
+  - name: python310_version
+    value: '3.10.11'
+  - name: python312_version
+    value: '3.12.10'
+  - name: python313_version
+    value: '3.13.11'
 - ${{ else }}:
   - name: winDockerImages
     value:
@@ -67,10 +76,10 @@ variables:
 - name: ubuntuDebDockerImages
   # Match with Ubuntu images in linuxDockerImages
   value:
-    "{'Ubuntu-1804-builder':{'buildOSName':'ubuntu1804','dockerImageName':'uhd-builder-ubuntu1804','ubuntuReleaseName':'bionic'},
-    'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004','ubuntuReleaseName':'focal'},
+    "{'Ubuntu-2004-builder':{'buildOSName':'ubuntu2004','dockerImageName':'uhd-builder-ubuntu2004','ubuntuReleaseName':'focal'},
     'Ubuntu-2204-builder':{'buildOSName':'ubuntu2204','dockerImageName':'uhd-builder-ubuntu2204','ubuntuReleaseName':'jammy'},
-    'Ubuntu-2404-builder':{'buildOSName':'ubuntu2404','dockerImageName':'uhd-builder-ubuntu2404','ubuntuReleaseName':'noble'}}"
+    'Ubuntu-2404-builder':{'buildOSName':'ubuntu2404','dockerImageName':'uhd-builder-ubuntu2404','ubuntuReleaseName':'noble'},
+    'Ubuntu-2510-builder':{'buildOSName':'ubuntu2510','dockerImageName':'uhd-builder-ubuntu2510','ubuntuReleaseName':'questing'}}"
 
 - name: macOSBuilders
   value:
@@ -84,9 +93,9 @@ variables:
 - name: fedoraRpmDockerImages
   # Match with Fedora images in linuxDockerImages
   value:
-    "{'Fedora-39-builder':{'buildOSName':'fedora39','dockerImageName':'uhd-builder-fedora39','fedoraReleaseName':'39'},
-    'Fedora-40-builder':{'buildOSName':'fedora40','dockerImageName':'uhd-builder-fedora40','fedoraReleaseName':'40'},
-    'Fedora-41-builder':{'buildOSName':'fedora41','dockerImageName':'uhd-builder-fedora41','fedoraReleaseName':'41'}}"
+    "{'Fedora-41-builder':{'buildOSName':'fedora41','dockerImageName':'uhd-builder-fedora41','fedoraReleaseName':'41'},
+    'Fedora-42-builder':{'buildOSName':'fedora42','dockerImageName':'uhd-builder-fedora42','fedoraReleaseName':'42'},
+    'Fedora-43-builder':{'buildOSName':'fedora43','dockerImageName':'uhd-builder-fedora43','fedoraReleaseName':'43'}}"
 
 - name: winDockerImagesPythonBuild
   # Match with one of the images in winDockerImages
@@ -225,17 +234,46 @@ jobs:
     demands:
       - agent.os -equals Windows_NT
       - docker
+      - large_disk -equals 1
+      - high_disk_io -equals 1
+      - high_cpu_per_thread -equals 1
+      - cpu_host_type -equals Intel_x86-64-v4
   condition: and(succeeded(), ${{ parameters.build_windows }})
   strategy:
     matrix: $[ variables.winDockerImages ]
   steps:
   - checkout: self
     clean: true
+  - script: |
+      REM Set DOCKER_CONFIG based on vsYear
+      if "$(vsYear)"=="2026" (
+        echo ##vso[task.setvariable variable=DOCKER_CONFIG]uhd-builder-vs2026-v145-x64
+      ) else (
+        echo ##vso[task.setvariable variable=DOCKER_CONFIG]$(dockerImageName)
+      )
+      
+      REM Set PYTHON_VERSION_ARG based on pythonVersion
+      if "$(pythonVersion)"=="python310" (
+        echo ##vso[task.setvariable variable=PYTHON_VERSION_ARG]--build-arg PYTHON_VERSION=$(python310_version)
+      ) else if "$(pythonVersion)"=="python312" (
+        echo ##vso[task.setvariable variable=PYTHON_VERSION_ARG]--build-arg PYTHON_VERSION=$(python312_version)
+      ) else if "$(pythonVersion)"=="python313" (
+        echo ##vso[task.setvariable variable=PYTHON_VERSION_ARG]--build-arg PYTHON_VERSION=$(python313_version)
+      ) else (
+        echo ##vso[task.setvariable variable=PYTHON_VERSION_ARG]
+      )
+    displayName: Set dynamic build variables
+  - script: |
+      call $(Build.SourcesDirectory)\.ci\utils\extract-vs-version.bat "$(cmakeCompiler)"
+    displayName: Extract VS version info
+  - powershell: |
+      $(Build.SourcesDirectory)\.ci\docker\scripts\check-url.ps1 -Url "$(vsToolsUrl)"
+    displayName: Verify expected VS Tools Installer URL
   - task: Docker@2
     displayName: Build Image
     inputs:
       command: 'build'
-      Dockerfile: '$(Build.SourcesDirectory)/.ci/docker/$(dockerImageName).Dockerfile'
+      Dockerfile: '$(Build.SourcesDirectory)/.ci/docker/$(DOCKER_CONFIG).Dockerfile'
       ${{ if or(eq(variables['Build.SourceBranch'], 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/UHD-')) }}:
         containerRegistry: rnd-docker-niartifacts-sdr-ci-publish
       ${{ else }}:
@@ -243,7 +281,13 @@ jobs:
       repository: '$(dockerImagePrefix)$(dockerImageName)'
       tags: $(uhdDockerImageVersion)
       buildContext: $(Build.SourcesDirectory)
-      arguments: --no-cache --pull --build-arg PIP_INDEX_HOST=$(pip_index_host) --build-arg PIP_INDEX_URL=$(pip_index_url)
+      arguments: >
+        --no-cache --pull
+        --build-arg VS_BUILD_TOOLS_URL=$(vsToolsUrl)
+        --build-arg PIP_INDEX_HOST=$(pip_index_host)
+        --build-arg PIP_INDEX_URL=$(pip_index_url)
+        --build-arg VCPKG_MANIFEST_FILE=$(vcpkgManifestFile)
+        $(PYTHON_VERSION_ARG)
   - task: Docker@2
     displayName: Push Image
     inputs:
@@ -268,6 +312,10 @@ jobs:
     demands:
       - agent.os -equals Windows_NT
       - docker
+      - large_disk -equals 1
+      - high_disk_io -equals 1
+      - high_cpu_per_thread -equals 1
+      - cpu_host_type -equals Intel_x86-64-v4
   strategy:
     matrix: $[ variables.winDockerImages ]
   container:
@@ -292,9 +340,10 @@ jobs:
           -DVCPKG_MANIFEST_DIR=c:\uhd-vcpkg ^
           -G "$(cmakeCompiler)" -A $(cmakeArch)
     displayName: Test image with cmake uhd
-  - script: |
+  - script: | 
+        call $(Build.SourcesDirectory)\.ci\utils\extract-vs-version.bat "$(cmakeCompiler)"
         cd c:\uhddev\build
-        "C:\Program Files (x86)\Microsoft Visual Studio\$(vsYear)\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" $(vsArch)
+        "%vsToolsInstallDir%\VC\Auxiliary\Build\vcvarsall.bat" $(vsArch)
     displayName: Load Visual C++ Env
 
 - job: export_build_number

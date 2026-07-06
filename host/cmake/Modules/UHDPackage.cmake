@@ -83,6 +83,8 @@ if(${CPACK_GENERATOR} STREQUAL NSIS)
             set(MSVC_VERSION "VS2019")
         elseif(MSVC_TOOLSET_VERSION EQUAL 143) # Visual Studio 2022 (14.3)
             set(MSVC_VERSION "VS2022")
+        elseif(MSVC_TOOLSET_VERSION EQUAL 145) # Visual Studio 2026 (14.5)
+            set(MSVC_VERSION "VS2026")
         endif()
         set(CPACK_PACKAGE_FILE_NAME "uhd_${UHD_VERSION}_Win${BIT_WIDTH}_${MSVC_VERSION}" CACHE INTERNAL "")
     else()
@@ -90,6 +92,19 @@ if(${CPACK_GENERATOR} STREQUAL NSIS)
     endif(SPECIFY_MSVC_VERSION)
 
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "${CMAKE_PROJECT_NAME}")
+    # alternative to using CPACK_INNOSETUP_ARCHITECTURE
+    #set(CPACK_PACKAGE_PLATFORM_BITNESS "${CMAKE_GENERATOR_PLATFORM}")
+
+    # consider moving these definitions outside NSIS in General section
+    set(CPACK_PACKAGE_VERSION_MAJOR "${UHD_VERSION_MAJOR}") # defaults to '0'
+    set(CPACK_PACKAGE_VERSION_MINOR "${UHD_VERSION_API}")   # defaults to '1'
+    # note CPACK_PACKAGE_VERSION_PATCH may have another meaning for NSIS based installers
+    # has been defaulting to '1'
+    if(UHD_RELEASE_MODE)
+        set(CPACK_PACKAGE_VERSION2_PATCH "${UHD_VERSION_ABI}.${UHD_VERSION_PATCH_ORIG}")
+    else()
+        set(CPACK_PACKAGE_VERSION2_PATCH "${UHD_VERSION_ABI}.9999")
+    endif(UHD_RELEASE_MODE)
 
 endif()
 
@@ -99,7 +114,9 @@ endif()
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Ettus Research - USRP Hardware Driver")
 set(CPACK_PACKAGE_VENDOR              "Ettus Research (NI, now part of Emerson)")
 set(CPACK_PACKAGE_CONTACT             "Ettus Research <uhd.maintainer@emerson.com>")
-set(CPACK_PACKAGE_VERSION "${UHD_VERSION}")
+set(CPACK_PACKAGE_VERSION             "${UHD_VERSION}")
+string(TIMESTAMP CURRENT_YEAR "%Y")
+set(CPACK_PACKAGE_COPYRIGHT           "Copyright © 2010-${CURRENT_YEAR} Ettus Research, a National Instruments Company")
 set(CPACK_RESOURCE_FILE_WELCOME ${UHD_SOURCE_DIR}/README.md)
 set(CPACK_RESOURCE_FILE_LICENSE ${UHD_SOURCE_DIR}/LICENSE)
 
@@ -174,6 +191,9 @@ endforeach(filename)
 # Setup CPack NSIS
 ########################################################################
 set(CPACK_NSIS_MODIFY_PATH ON)
+set(CPACK_NSIS_INSTALLED_ICON_NAME Uninstall.exe)
+set(CPACK_NSIS_MUI_ICON "${UHD_SOURCE_DIR}/cmake/Modules/ettus_256x256.ico")
+set(CPACK_NSIS_MUI_UNIICON "${UHD_SOURCE_DIR}/cmake/Modules/ettus_256x256.ico")
 
 set(HLKM_ENV "\\\"SYSTEM\\\\CurrentControlSet\\\\Control\\\\Session Manager\\\\Environment\\\"")
 

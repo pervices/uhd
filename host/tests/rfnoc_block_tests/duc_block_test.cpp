@@ -4,21 +4,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "../rfnoc_graph_mock_nodes.hpp"
 #include <uhd/rfnoc/actions.hpp>
 #include <uhd/rfnoc/defaults.hpp>
+#include <uhd/rfnoc/detail/graph.hpp>
 #include <uhd/rfnoc/duc_block_control.hpp>
 #include <uhd/rfnoc/mock_block.hpp>
-#include <uhdlib/rfnoc/graph.hpp>
-#include <uhdlib/rfnoc/node_accessor.hpp>
+#include <uhd/rfnoc/mock_nodes.hpp>
+#include <uhd/rfnoc/node_accessor.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <boost/test/unit_test.hpp>
+#include <cmath>
 #include <iostream>
 
 using namespace uhd::rfnoc;
-
-// Redeclare this here, since it's only defined outside of UHD_API
-noc_block_base::make_args_t::~make_args_t() = default;
+using namespace uhd::rfnoc::test;
 
 namespace {
 
@@ -134,6 +133,11 @@ BOOST_AUTO_TEST_CASE(test_duc_block)
         "scaling", {res_source_info::OUTPUT_EDGE, 0});
     BOOST_CHECK_EQUAL(doubled_input_scaling, 2 * initial_input_scaling);
 
+    BOOST_CHECK_CLOSE(test_duc->get_input_rates(0).start(),
+        DEFAULT_RATE / ((1 << num_hb) * max_cic),
+        1e-6);
+    BOOST_CHECK_CLOSE(test_duc->get_input_rates(0).stop(), DEFAULT_RATE, 1e-6);
+
     BOOST_CHECK_CLOSE(test_duc->get_frequency_range(0).start(), -DEFAULT_RATE / 2, 1e-6);
     BOOST_CHECK_CLOSE(test_duc->get_frequency_range(0).stop(), DEFAULT_RATE / 2, 1e-6);
     UHD_LOG_INFO("TEST",
@@ -200,7 +204,7 @@ BOOST_AUTO_TEST_CASE(test_duc_block)
         mock_source_term.received_actions.back());
     BOOST_CHECK(tune_req_received);
     BOOST_CHECK_EQUAL(
-        abs(tune_req_received->tune_request.target_freq), tune_request.target_freq);
+        std::abs(tune_req_received->tune_request.target_freq), tune_request.target_freq);
     BOOST_CHECK_CLOSE(tune_req_received->tune_result.target_dsp_freq,
         tune_req_received->tune_result.actual_dsp_freq,
         1e-5);

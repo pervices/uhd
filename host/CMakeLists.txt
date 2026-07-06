@@ -129,7 +129,7 @@ elseif(MSVC)
     endif(${MSVC_VERSION} VERSION_LESS ${UHD_MSVC_MIN_VERSION})
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" AND ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
     set(CMAKE_EXE_LINKER_FLAGS "-lthr ${CMAKE_EXE_LINKER_FLAGS}")
@@ -165,26 +165,18 @@ endif(CI_PV_ENABLE MATCHES ON)
 ########################################################################
 # Install Dirs
 ########################################################################
-# Whether the library suffix should be 64 (applies to redhat linux family)
-if(NOT DEFINED LIB_SUFFIX AND REDHAT AND CMAKE_SYSTEM_PROCESSOR MATCHES "64$")
-    set(LIB_SUFFIX 64)
-endif()
-if(CMAKE_INSTALL_LIBDIR MATCHES lib64)
-    set(LIB_SUFFIX 64)
-endif()
+include(GNUInstallDirs)
 
-set(LIB_SUFFIX ${LIB_SUFFIX} CACHE STRING "lib directory suffix")
-set(RUNTIME_DIR bin)
-set(LIBRARY_DIR lib${LIB_SUFFIX})
-set(INCLUDE_DIR include)
-set(PKG_DATA_DIR share/uhd)
+set(PKG_DATA_DIR ${CMAKE_INSTALL_DATAROOTDIR}/uhd)
 if(NOT DEFINED PKG_LIB_DIR)
-    set(PKG_LIB_DIR ${LIBRARY_DIR}/uhd)
+    set(PKG_LIB_DIR ${CMAKE_INSTALL_LIBDIR}/uhd)
 endif()
 if(NOT DEFINED PKG_DOC_DIR)
-    set(PKG_DOC_DIR share/doc/uhd)
+    # Note: CMAKE_INSTALL_DOCDIR would go to share/doc/UHD (capitalized) because
+    # that's what the project name is, but we want to keep it lowercase.
+    string(TOLOWER "${CMAKE_INSTALL_DOCDIR}" PKG_DOC_DIR)
 endif()
-set(PKG_MAN_DIR share/man/man1)
+set(PKG_MAN_DIR ${CMAKE_INSTALL_MANDIR}/man1)
 
 
 ########################################################################
@@ -252,13 +244,11 @@ endif(ENABLE_STATIC_LIBS)
 ########################################################################
 if(APPLE)
     if(NOT CMAKE_INSTALL_NAME_DIR)
-        set(CMAKE_INSTALL_NAME_DIR
-            ${CMAKE_INSTALL_PREFIX}/${LIBRARY_DIR} CACHE
+        set(CMAKE_INSTALL_NAME_DIR ${CMAKE_INSTALL_FULL_LIBDIR} CACHE
             PATH "Library Install Name Destination Directory" FORCE)
     endif(NOT CMAKE_INSTALL_NAME_DIR)
     if(NOT CMAKE_INSTALL_RPATH)
-        set(CMAKE_INSTALL_RPATH
-            ${CMAKE_INSTALL_PREFIX}/${LIBRARY_DIR} CACHE
+        set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_FULL_LIBDIR} CACHE
             PATH "Library Install RPath" FORCE)
     endif(NOT CMAKE_INSTALL_RPATH)
     if(NOT CMAKE_BUILD_WITH_INSTALL_RPATH)
@@ -309,7 +299,6 @@ if(${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" OR
 endif()
 
 if(MSVC)
-    include_directories(${UHD_SOURCE_DIR}/cmake/msvc)
     # Stop all kinds of compatibility warnings
     add_definitions(
         -DWIN32_LEAN_AND_MEAN
@@ -349,15 +338,24 @@ set(UHD_BOOST_REQUIRED_COMPONENTS
     filesystem
     program_options
     serialization
+    #system Boost.System is used, but explicitly listing it causes errors on some systems.
     thread
-    unit_test_framework
+    #unit_test_framework Boost.Test is used, but listing it here causes problems when 
+    #                    using static linking (the  Windows default).
+    #                    Package detection for 'Boost::unit_test_framework' is handled
+    #                    separately in UHDBoost.cmake to work around this issue.
 )
+if(MSVC)
+    # Appending Boost::regex, required on Windows.
+    # (variablee also used in lib/CMakeLists.txt)
+    set(UHD_BOOST_REQUIRED_ADDITIONAL_WINDOWS_COMPONENTS regex)
+endif(MSVC)
+list(APPEND UHD_BOOST_REQUIRED_COMPONENTS ${UHD_BOOST_REQUIRED_ADDITIONAL_WINDOWS_COMPONENTS})
 
 include(UHDBoost)
 
 # Include boost headers as system headers to avoid compiler warnings from them.
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-link_directories(${Boost_LIBRARY_DIRS})
 
 
 ########################################################################
@@ -540,15 +538,16 @@ LIBUHD_REGISTER_COMPONENT(
     OFF OFF)
 if(WIN32)
     LIBUHD_REGISTER_COMPONENT(
-        "UHD Extended Packaging for Windows" 
-        ENABLE_EXTEND_WIN_PACKAGING 
-        OFF 
+        "UHD Extended Packaging for Windows"
+        ENABLE_EXTEND_WIN_PACKAGING
+        OFF
         "ENABLE_LIBUHD"
         OFF
         OFF)
 else()
     unset(ENABLE_EXTEND_WIN_PACKAGING CACHE)
 endif(WIN32)
+LIBUHD_REGISTER_COMPONENT("RFNoC/FPGA Development Files" ENABLE_RFNOC_DEV OFF "ENABLE_LIBUHD" OFF OFF)
 
 
 ########################################################################
@@ -601,6 +600,18 @@ if(CMAKE_CROSSCOMPILING)
     set(UHD_PC_LIBS)
 endif(CMAKE_CROSSCOMPILING)
 
+# Support absolute paths for LIBDIR and INCLUDEDIR
+if(IS_ABSOLUTE "${CMAKE_INSTALL_LIBDIR}")
+    set(UHD_PC_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
+else()
+    set(UHD_PC_LIBDIR "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+endif()
+if(IS_ABSOLUTE "${CMAKE_INSTALL_INCLUDEDIR}")
+    set(UHD_PC_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
+else()
+    set(UHD_PC_INCLUDEDIR "\${prefix}/${CMAKE_INSTALL_INCLUDEDIR}")
+endif()
+
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/uhd.pc.in
     ${CMAKE_CURRENT_BINARY_DIR}/uhd.pc
@@ -608,7 +619,7 @@ configure_file(
 
 UHD_INSTALL(
     FILES ${CMAKE_CURRENT_BINARY_DIR}/uhd.pc
-    DESTINATION ${LIBRARY_DIR}/pkgconfig
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
     COMPONENT "devel"
 )
 
@@ -616,7 +627,7 @@ UHD_INSTALL(
 # Create and Install UHD cmake files
 ########################################################################
 if(NOT CMAKE_MODULES_DIR)
-   set(CMAKE_MODULES_DIR lib${LIB_SUFFIX}/cmake)
+    set(CMAKE_MODULES_DIR ${CMAKE_INSTALL_LIBDIR}/cmake)
 endif(NOT CMAKE_MODULES_DIR)
 
 # UHDConfig.cmake needs UHD_LINK_LIST_STATIC set:
@@ -630,7 +641,6 @@ endforeach(Boost_Comp)
 if(ENABLE_USB)
     list(APPEND UHD_LINK_LIST_STATIC "usb-1.0")
 endif(ENABLE_USB)
-set(UHD_RFNOC_FOUND "TRUE")
 
 configure_file(
     ${UHD_SOURCE_DIR}/cmake/Modules/UHDConfigVersion.cmake.in
@@ -643,12 +653,22 @@ configure_file(
     @ONLY
 )
 
+include(CMakePackageConfigHelpers)
+if(TARGET uhd)
+    export(
+        EXPORT uhdTargets
+        FILE ${UHD_BINARY_DIR}/cmake/Modules/UHDTargets.cmake
+        NAMESPACE UHD::
+    )
+endif()
+
 set(uhd_cmake_scripts
     ${UHD_BINARY_DIR}/cmake/Modules/UHDConfig.cmake
     ${UHD_BINARY_DIR}/cmake/Modules/UHDConfigVersion.cmake
     ${UHD_SOURCE_DIR}/cmake/Modules/UHDBoost.cmake
     ${UHD_SOURCE_DIR}/cmake/Modules/UHDPython.cmake
     ${UHD_SOURCE_DIR}/cmake/Modules/UHDMinDepVersions.cmake
+    ${UHD_SOURCE_DIR}/cmake/Modules/UHDUnitTest.cmake
 )
 
 UHD_INSTALL(
@@ -656,6 +676,15 @@ UHD_INSTALL(
     DESTINATION ${CMAKE_MODULES_DIR}/uhd
     COMPONENT "devel"
 )
+if(TARGET uhd)
+    install(
+        EXPORT uhdTargets
+        FILE UHDTargets.cmake
+        NAMESPACE UHD::
+        DESTINATION ${CMAKE_MODULES_DIR}/uhd
+        COMPONENT "devel"
+    )
+endif()
 
 
 ########################################################################
@@ -671,6 +700,39 @@ if(DEFINED UHD_IMAGES_SRC_DIR AND EXISTS "${UHD_IMAGES_SRC_DIR}")
     UHD_INSTALL(FILES ${_image_files} DESTINATION ${PKG_DATA_DIR}/images COMPONENT images)
 endif(DEFINED UHD_IMAGES_SRC_DIR AND EXISTS "${UHD_IMAGES_SRC_DIR}")
 
+########################################################################
+# Install RFNoC/HDL sources for installation
+########################################################################
+if(ENABLE_RFNOC_DEV)
+  # Note: This only depends on stage_rfnoc_dev_sources.py, because we want to
+  # avoid staging the sources every time we build UHD. However, that means if
+  # we modify HDL sources and expect `make install` to install the new sources,
+  # we need to force this target to be rebuilt by CMake, e.g., by removing the
+  # timestamp file.
+  if(CMAKE_VERSION VERSION_LESS "3.17")
+    set(_rm_dir_cmd "remove_directory")
+    set(_rm_dir_args "")
+  else()
+    set(_rm_dir_cmd "rm")
+    set(_rm_dir_args "-rf")
+  endif()
+  add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/fpga/usrp3.stamp
+    DEPENDS ${UHD_SOURCE_DIR}/cmake/Modules/stage_rfnoc_dev_sources.py
+    COMMAND ${CMAKE_COMMAND} -E ${_rm_dir_cmd} ${_rm_dir_args} ${CMAKE_BINARY_DIR}/fpga
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/fpga
+    COMMAND
+    ${PYTHON_EXECUTABLE} ${UHD_SOURCE_DIR}/cmake/Modules/stage_rfnoc_dev_sources.py --src ${UHD_SOURCE_DIR}/../fpga/usrp3 --dest ${CMAKE_BINARY_DIR}/fpga/usrp3
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/fpga/usrp3.stamp
+    COMMENT "Copying RFNoC sources to build directory"
+  )
+  add_custom_target(rfnoc_dev_sources ALL DEPENDS ${CMAKE_BINARY_DIR}/fpga/usrp3.stamp)
+  UHD_INSTALL(
+    DIRECTORY ${CMAKE_BINARY_DIR}/fpga/usrp3
+    DESTINATION ${PKG_DATA_DIR}/rfnoc/fpga/
+    COMPONENT rfnoc
+  )
+endif()
 
 ########################################################################
 # Handle pre-built UHD functional dependencies specific to Windows for
