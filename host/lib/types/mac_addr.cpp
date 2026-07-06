@@ -61,7 +61,7 @@ std::string mac_addr_t::to_string(void) const
 {
     std::string addr = "";
     for (uint8_t byte : this->to_bytes()) {
-        addr += str(boost::format("%s%02x") % ((addr.empty()) ? "" : ":") % int(byte));
+        addr += std::format("{}{:02x}", (addr.empty() ? "" : ":"), int(byte));
     }
     return addr;
 }

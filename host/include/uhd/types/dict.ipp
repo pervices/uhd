@@ -10,7 +10,7 @@
 
 #include <uhd/exception.hpp>
 #include <uhd/utils/cast.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <iterator>
 #include <typeinfo>
 
@@ -21,9 +21,12 @@ template <typename Key, typename Val>
 struct key_not_found : uhd::key_error
 {
     key_not_found(const Key& key)
-        : uhd::key_error(boost::str(boost::format("key \"%s\" not found in dict(%s, %s)")
-                                    % uhd::cast::to_str(key) % typeid(Key).name()
-                                    % typeid(Val).name()))
+        : uhd::key_error(std::format(
+                "key \"{}\" not found in dict({}, {})",
+                uhd::cast::to_str(key),
+                typeid(Key).name(),
+                typeid(Val).name()
+        ))
     {
         /* NOP */
     }
@@ -172,8 +175,14 @@ void dict<Key, Val>::update(const dict<Key, Val>& new_dict, bool fail_on_conflic
     for (const Key& key : new_dict.keys()) {
         if (fail_on_conflict and has_key(key) and get(key) != new_dict[key]) {
             throw uhd::value_error(
-                str(boost::format("Option merge conflict: %s:%s != %s:%s") % key
-                    % get(key) % key % new_dict[key]));
+                std::format(
+                    "Option merge conflict: {}:{} != {}:{}",
+                    key,
+                    get(key),
+                    key,
+                    new_dict[key]
+                )
+            );
         }
         set(key, new_dict[key]);
     }
