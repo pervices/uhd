@@ -12,7 +12,7 @@
 #include <uhdlib/rfnoc/chdr_packet_writer.hpp>
 #include <uhdlib/rfnoc/mgmt_portal.hpp>
 #include <uhdlib/utils/narrow.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cmath>
 #include <map>
@@ -190,12 +190,12 @@ public:
         // Add/update the EPID entry in the topo graph
         _tgraph->access_node(topo_node_t(addr)).epid = epid;
         UHD_LOG_DEBUG(LOG_ID,
-            (boost::format("Bound stream endpoint with Addr=(%d,%d) to EPID=%d")
-                % addr.first % addr.second % epid));
+            std::format("Bound stream endpoint with Addr=({},{}) to EPID={}",
+                addr.first, addr.second, epid));
         UHD_LOG_TRACE(LOG_ID,
-            (boost::format(
-                 "Stream endpoint with EPID=%d can be reached by taking the path: %s")
-                % epid % to_string(_tgraph->get_route(_my_node_id, lookup_node))));
+            std::format(
+                "Stream endpoint with EPID={} can be reached by taking the path: {}",
+                epid, to_string(_tgraph->get_route(_my_node_id, lookup_node))));
     }
 
     bool is_endpoint_registered(const sep_id_t& epid) const override
@@ -329,12 +329,12 @@ public:
         }
 
         UHD_LOG_DEBUG(LOG_ID,
-            (boost::format("Established a route from EPID=%d (SW) to EPID=%d")
-                % xport.get_epid() % dst_epid));
+            std::format("Established a route from EPID={} (SW) to EPID={}",
+                xport.get_epid(), dst_epid));
         UHD_LOG_TRACE(LOG_ID,
-            (boost::format("The destination for EPID=%d has been added to all routers in "
-                           "the path: %s")
-                % dst_epid % to_string(route)));
+            std::format("The destination for EPID={} has been added to all routers in "
+                           "the path: {}",
+                dst_epid, to_string(route)));
     }
 
     bool can_remote_route(
@@ -408,8 +408,8 @@ public:
         }
 
         UHD_LOG_DEBUG(LOG_ID,
-            (boost::format("Programmed a route from EPID=%d to EPID=%s") % src_epid
-                % dst_epid));
+            std::format("Programmed a route from EPID={} to EPID={}", src_epid
+                dst_epid));
     }
 
     void config_local_rx_stream_start(chdr_ctrl_xport& xport,
@@ -462,7 +462,7 @@ public:
         _send_recv_mgmt_transaction(xport, cfg_xact);
 
         UHD_LOG_DEBUG(
-            LOG_ID, (boost::format("Initiated RX stream setup for EPID=%d") % epid));
+            LOG_ID, (std::format("Initiated RX stream setup for EPID={}", epid)));
     }
 
     stream_buff_params_t config_local_rx_stream_commit(chdr_ctrl_xport& xport,
@@ -478,7 +478,7 @@ public:
         _validate_stream_setup(xport, dst_node, timeout, fc_enabled);
 
         UHD_LOG_DEBUG(
-            LOG_ID, (boost::format("Finished RX stream setup for EPID=%d") % epid));
+            LOG_ID, (std::format("Finished RX stream setup for EPID={}", epid)));
 
         // Return discovered buffer parameters
         return std::get<1>(_get_ostrm_status(xport, dst_node));

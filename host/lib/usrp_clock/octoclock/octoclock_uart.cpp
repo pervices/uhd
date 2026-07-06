@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
 #include <boost/thread/thread.hpp>
 #include <chrono>
 #include <string>
