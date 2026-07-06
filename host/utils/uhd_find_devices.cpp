@@ -7,7 +7,7 @@
 
 #include <uhd/device.hpp>
 #include <uhd/utils/safe_main.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <cstdlib>
 #include <iostream>
@@ -43,7 +43,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD Find Devices %s") % desc << std::endl;
+        std::cout << std::format("UHD Find Devices {}", desc) << std::endl;
         return EXIT_SUCCESS;
     }
 
@@ -101,10 +101,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << "--------------------------------------------------" << std::endl;
         std::stringstream ss;
         ss << "Device Address:" << std::endl;
-        ss << boost::format("    serial: %s") % dit->first << std::endl;
+        ss << std::format("    serial: {}\n", dit->first);
         for (auto mit = dit->second.begin(); mit != dit->second.end(); ++mit) {
             for (auto vit = mit->second.begin(); vit != mit->second.end(); ++vit) {
-                ss << boost::format("    %s: %s") % mit->first % *vit << std::endl;
+                ss << std::format("    {}: {}\n", mit->first, *vit);
             }
         }
         std::cout << ss.str() << std::endl << std::endl;

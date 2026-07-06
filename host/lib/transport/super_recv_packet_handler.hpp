@@ -19,7 +19,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <boost/dynamic_bitset.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -616,9 +616,9 @@ private:
             // handle the case where a bad header exists
             catch (const uhd::value_error& e) {
                 UHD_LOGGER_ERROR("STREAMER")
-                    << boost::format(
-                           "The receive packet handler caught a value exception.\n%s")
-                           % e.what();
+                    << std::format(
+                           "The receive packet handler caught a value exception.\n{}",
+                           e.what());
                 std::swap(curr_info, next_info); // save progress from curr -> next
                 curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_BAD_PACKET;
                 return;
@@ -712,12 +712,11 @@ private:
             // too many iterations: detect alignment failure
             if (iterations++ > _alignment_failure_threshold) {
                 UHD_LOGGER_ERROR("STREAMER")
-                    << boost::format(
+                    << std::format(
                            "The receive packet handler failed to time-align packets.\n"
-                           "%u received packets were processed by the handler.\n"
-                           "However, a timestamp match could not be determined.\n")
-                           % iterations
-                    << std::endl;
+                           "{} received packets were processed by the handler.\n"
+                           "However, a timestamp match could not be determined.\n\n",
+                           iterations);
                 std::swap(curr_info, next_info); // save progress from curr -> next
                 curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
                 _props[index].handle_overflow();

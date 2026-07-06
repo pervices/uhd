@@ -13,7 +13,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <iostream>
 
@@ -70,8 +70,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("USRP Burn Daughterboard EEPROM %s") % desc
-                  << std::endl;
+        std::cout << std::format("USRP Burn Daughterboard EEPROM {}\n", desc);
+
         std::cout << "Omit the ID argument to perform readback,\n"
                      "Or specify a new ID to burn into the EEPROM.\n"
                   << std::endl;
@@ -96,24 +96,21 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         db_eeprom.id = dboard_id_t::from_string(vm["id"].as<std::string>());
         tree->access<dboard_eeprom_t>(db_path).set(db_eeprom);
     }
-    std::cout << boost::format("  Current ID: %s") % db_eeprom.id.to_pp_string()
-              << std::endl;
+    std::cout << std::format("  Current ID: {}\n", db_eeprom.id.to_pp_string())
 
     //------------- handle the dboard serial--------------------------//
     if (vm.count("ser")) {
         db_eeprom.serial = vm["ser"].as<std::string>();
         tree->access<dboard_eeprom_t>(db_path).set(db_eeprom);
     }
-    std::cout << boost::format("  Current serial: \"%s\"") % db_eeprom.serial
-              << std::endl;
+    std::cout << std::format("  Current serial: \"{}\"\n", db_eeprom.serial);
 
     //------------- handle the dboard revision------------------------//
     if (vm.count("rev")) {
         db_eeprom.revision = vm["rev"].as<std::string>();
         tree->access<dboard_eeprom_t>(db_path).set(db_eeprom);
     }
-    std::cout << boost::format("  Current revision: \"%s\"") % db_eeprom.revision
-              << std::endl;
+    std::cout << std::format("  Current revision: \"{}\"\n", db_eeprom.revision);
 
     std::cout << "  Done" << std::endl << std::endl;
     return EXIT_SUCCESS;

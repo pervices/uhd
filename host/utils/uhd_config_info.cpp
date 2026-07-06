@@ -8,7 +8,7 @@
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/version.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
@@ -46,7 +46,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Print the help message
     if (vm.count("help") > 0 or vm.empty()) {
-        std::cout << boost::format("UHD Config Info - %s") % desc << std::endl;
+        std::cout << std::format("UHD Config Info - {}\n", desc);
         return EXIT_FAILURE;
     }
 

@@ -12,7 +12,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <fstream>
 #include <iostream>
@@ -50,7 +50,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("USRP EEPROM initialization %s") % desc << std::endl;
+        std::cout << std::format("USRP EEPROM initialization {}\n", desc);
         return EXIT_FAILURE;
     }
 
@@ -64,12 +64,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         module_found = boost::starts_with(module_line, module);
     }
     if (module_found) {
-        std::cout << boost::format("Found the '%s' module. Unloading it.\n") % module;
+        std::cout << std::format("Found the '{}' module. Unloading it.\n", module);
         int fail = syscall(__NR_delete_module, module.c_str(), O_NONBLOCK);
         if (fail)
-            std::cerr << (boost::format(
-                              "Removing the '%s' module failed with error '%s'.\n")
-                          % module % std::strerror(errno));
+            std::cerr << (std::format(
+                    "Removing the '{}' module failed with error '{}'.\n",
+                    module, std::strerror(errno)
+            );
     }
 #endif // UHD_PLATFORM_LINUX
 
@@ -99,12 +100,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         unsigned const char* image_data;
 
         if (!vm.count("type")) {
-            std::cerr << boost::format("ERROR: Image file not specified and type of "
-                                       "device not given. Cannot use built-in images.\n");
+            std::cerr << "ERROR: Image file not specified and type of "
+                    "device not given. Cannot use built-in images.\n";
             return EXIT_FAILURE;
         }
 
-        std::cout << boost::format("Using built-in image for \"%s\".\n") % type;
+        std::cout << std::format("Using built-in image for \"{}\".\n", type);
 
         if (vm["type"].as<std::string>() == "usrp1") {
             image_len  = usrp1_eeprom_bin_len;
@@ -113,9 +114,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             image_len  = b100_eeprom_bin_len;
             image_data = b100_eeprom_bin;
         } else {
-            std::cerr << boost::format("ERROR: Unsupported device type \"%s\" specified "
-                                       "and no EEPROM image file given.\n")
-                             % type;
+            std::cerr << std::format("ERROR: Unsupported device type \"{}\" specified "
+                    "and no EEPROM image file given.\n",
+                    type);
             return EXIT_FAILURE;
         }
 

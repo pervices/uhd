@@ -12,7 +12,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <stdint.h>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <algorithm>
 #include <chrono>
@@ -160,7 +160,7 @@ void init_buffers(std::vector<std::vector<char>>& buf,
                 init_random_vector_real_int<uint32_t>(buf[i], n_items);
             } else {
                 throw uhd::runtime_error(
-                    str(boost::format("Cannot handle data type: %s") % type));
+                    std::format("Cannot handle data type: {}", type);
             }
         }
 
@@ -191,7 +191,7 @@ void init_buffers(std::vector<std::vector<char>>& buf,
             init_random_vector_real_int<uint32_t>(buf[i], n_items);
         } else {
             throw uhd::runtime_error(
-                str(boost::format("Cannot handle data type: %s") % type));
+                std::format("Cannot handle data type: {}", type));
         }
     }
 }
@@ -216,7 +216,7 @@ template <typename T>
 std::string void_ptr_to_hexstring(const void* v_ptr, size_t index)
 {
     const T* ptr = reinterpret_cast<const T*>(v_ptr);
-    return str(boost::format("%X") % ptr[index]);
+    return std::format("{:X}", ptr[index]);
 }
 
 std::string item_to_hexstring(const void* v_ptr, size_t index, const std::string& type)
@@ -230,7 +230,7 @@ std::string item_to_hexstring(const void* v_ptr, size_t index, const std::string
     } else if (type == "u8") {
         return void_ptr_to_hexstring<uint8_t>(v_ptr, index);
     } else {
-        return str(boost::format("<unhandled data type: %s>") % type);
+        return std::format("<unhandled data type: {}>", type);
     }
 }
 
@@ -260,7 +260,7 @@ std::string item_to_string(
         const int16_t* ptr = reinterpret_cast<const int16_t*>(v_ptr);
         return uhd::cast::to_str(ptr[index]);
     } else {
-        return str(boost::format("<unhandled data type: %s>") % type);
+        return std::format("<unhandled data type: {}>", type);
     }
 }
 
@@ -540,8 +540,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD Converter Benchmark Tool %s") % desc << std::endl
-                  << std::endl;
+        std::cout << std::format("UHD Converter Benchmark Tool {}\n", desc);
         std::cout
             << "  Use this to benchmark or debug converters." << std::endl
             << "  When using as a benchmark tool, it will output the execution time\n"
@@ -813,9 +812,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                 output_buf_refs,
                 n_samples,
                 iterations);
-            std::cout << boost::format("%i,%d,%d,%d,%d") % prio_i % (duration * 1000)
-                             % (duration * 1000.0 / iterations) % n_samples % iterations
-                      << std::endl;
+            std::cout << std::format("{},{},{},{},{}\n",
+                    prio_i, static_cast<int>(duration * 1000),
+                    static_cast<int>(duration * 1000.0 / iterations),
+                    n_samples, iterations);
         }
     }
 

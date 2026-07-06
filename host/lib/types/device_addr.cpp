@@ -9,7 +9,7 @@
 #include <uhd/types/device_addr.hpp>
 #include <uhd/utils/cast.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/tokenizer.hpp>
 #include <regex>
 #include <sstream>
@@ -66,7 +66,7 @@ std::string device_addr_t::to_pp_string(void) const
     std::stringstream ss;
     ss << "Device Address:" << std::endl;
     for (std::string key : this->keys()) {
-        ss << boost::format("    %s: %s") % key % this->get(key) << std::endl;
+        ss << std::format("    {}: {}\n", key, this->get(key));
     }
     return ss.str();
 }
@@ -93,7 +93,7 @@ device_addrs_t uhd::separate_device_addr(const device_addr_t& dev_addr)
             device_addr_t fixed_dev_addr = dev_addr;
             fixed_dev_addr.pop("addr");
             for (size_t i = 0; i < addrs.size(); i++) {
-                fixed_dev_addr[str(boost::format("addr%d") % i)] = addrs[i];
+                fixed_dev_addr[std::format("addr{}", i)] = addrs[i];
             }
             UHD_LOGGER_WARNING("UHD")
                 << "addr = <space separated list of ip addresses> is deprecated.\n"
@@ -143,7 +143,7 @@ device_addr_t uhd::combine_device_addrs(const device_addrs_t& dev_addrs)
     device_addr_t dev_addr;
     for (size_t i = 0; i < dev_addrs.size(); i++) {
         for (const std::string& key : dev_addrs[i].keys()) {
-            dev_addr[str(boost::format("%s%d") % key % i)] = dev_addrs[i][key];
+            dev_addr[std::format("{}{}", key, i)] = dev_addrs[i][key];
         }
     }
     return dev_addr;

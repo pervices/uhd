@@ -8,7 +8,7 @@
 #include <uhdlib/transport/nirio/rpc/rpc_client.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <boost/asio/error.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/version.hpp>
 
 
@@ -81,9 +81,9 @@ rpc_client::rpc_client(const std::string& server,
                     boost::asio::error::get_system_category());
             }
             UHD_LOGGER_TRACE("NIRIO")
-                << boost::format("rpc_client archive = %d, rpc_server archive = %d\n.")
-                       % _hshake_args_client.boost_archive_version
-                       % _hshake_args_server.boost_archive_version;
+                << std::format("rpc_client archive = {}, rpc_server archive = {}\n.",
+                       _hshake_args_client.boost_archive_version,
+                       _hshake_args_server.boost_archive_version);
         } catch (boost::exception&) {
             UHD_LOGGER_DEBUG("NIRIO") << "rpc_client handshake aborted.";
             _exec_err.assign(boost::asio::error::connection_refused,

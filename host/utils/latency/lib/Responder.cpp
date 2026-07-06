@@ -9,7 +9,7 @@
 #include <uhd/property_tree.hpp>
 #include <uhd/utils/thread.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/thread/condition_variable.hpp>
 #include <cmath>
 #include <complex>
@@ -181,31 +181,38 @@ int Responder::calculate_dependent_values()
                 //_simulate_duration = (uint64_t)((double)sample_rate /
                 //_simulate_frequency);
             } else {
-                cerr << boost::format(
-                            "Highest delay and response duration will exceed the pulse "
-                            "simulation rate (%ld + %ld > %ld samples)")
-                            % highest_delay_samples % _response_length
-                            % _simulate_duration
-                     << endl;
+                std::cerr << std::format(
+                    "Highest delay and response duration will exceed the pulse "
+                    "simulation rate ({} + {} > {} samples)",
+                    highest_delay_samples,
+                    _response_length,
+                    _simulate_duration)
+                    << std::endl;
+
                 int max_possible_rate = (int)get_max_possible_frequency(
                     highest_delay_samples, _response_length);
                 double max_possible_delay =
                     (double)(_simulate_duration - (_response_length + _opt.flush_count))
                     / (double)_opt.sample_rate;
-                cerr << boost::format("Simulation rate must be less than %i Hz, or "
-                                      "maximum delay must be less than %f s")
-                            % max_possible_rate % max_possible_delay
-                     << endl;
+
+                std::cerr << std::format(
+                    "Simulation rate must be less than {} Hz, or "
+                    "maximum delay must be less than {:f} s",
+                    max_possible_rate,
+                    max_possible_delay)
+                    << std::endl;
 
                 if (_opt.ignore_simulation_check == 0)
                     return RETCODE_BAD_ARGS;
             }
         }
     } else {
-        boost::format fmt(
-            "Simulation frequency too high (%f Hz with sample_rate %f Msps)");
-        fmt % _simulate_frequency % (_opt.sample_rate / 1e6);
-        cerr << fmt << endl;
+        std::cerr << std::format(
+            "Simulation frequency too high ({:f} Hz with sample_rate {:f} Msps)",
+            _simulate_frequency,
+            (_opt.sample_rate / 1e6))
+            << std::endl;
+
         return RETCODE_BAD_ARGS;
     }
 
@@ -231,13 +238,11 @@ void Responder::print_test_title()
 void Responder::print_usrp_status()
 {
     std::string msg;
-    msg += (boost::format("Using device:\n%s\n") % _usrp->get_pp_string()).str();
-    msg += (boost::format("Setting RX rate: %f Msps\n") % (_opt.sample_rate / 1e6)).str();
-    msg += (boost::format("Actual RX rate:  %f Msps\n") % (_usrp->get_rx_rate() / 1e6))
-               .str();
-    msg += (boost::format("Setting TX rate: %f Msps\n") % (_opt.sample_rate / 1e6)).str();
-    msg +=
-        (boost::format("Actual TX rate:  %f Msps") % (_usrp->get_tx_rate() / 1e6)).str();
+    msg += std::format("Using device:\n{}\n", _usrp->get_pp_string());
+    msg += std::format("Setting RX rate: {:f} Msps\n", (_opt.sample_rate / 1e6));
+    msg += std::format("Actual RX rate:  {:f} Msps\n", (_usrp->get_rx_rate() / 1e6));
+    msg += std::format("Setting TX rate: {:f} Msps\n", (_opt.sample_rate / 1e6));
+    msg += std::format("Actual TX rate:  {:f} Msps", (_usrp->get_tx_rate() / 1e6));
     print_msg(msg);
     print_tx_stream_status();
     print_rx_stream_status();
@@ -250,28 +255,27 @@ void Responder::print_test_parameters()
     size_t tx_max_num_samps = _tx_stream->get_max_num_samps();
     std::string msg;
 
-    msg += (boost::format("Samples per buffer: %d\n") % _opt.samps_per_buff).str();
-    msg += (boost::format("Maximum number of samples: RX = %d, TX = %d\n")
-            % rx_max_num_samps % tx_max_num_samps)
-               .str();
-    msg += (boost::format("Response length: %ld samples (%f us)") % _response_length
-            % (_opt.response_duration * 1e6))
-               .str();
+    msg += std::format("Samples per buffer: {}\n", _opt.samps_per_buff);
 
-    if (_simulate_duration > 0)
-        msg += (boost::format("\nSimulating pulses at %f Hz (every %ld samples)")
-                % _simulate_frequency % _simulate_duration)
-                   .str();
+    msg += std::format("Maximum number of samples: RX = {}, TX = {}\n",
+            rx_max_num_samps, tx_max_num_samps);
+
+    msg += std::format("Response length: {} samples ({:f} us)",
+            _response_length, (_opt.response_duration * 1e6));
+
+    if (_simulate_duration > 0) {
+        msg += std::format("\nSimulating pulses at {:f} Hz (every {} samples)",
+                _simulate_frequency, _simulate_duration);
+    }
 
     if (_opt.test_iterations > 0) {
-        msg += (boost::format("\nTest coverage: %f -> %f (%f steps)") % _opt.delay_min
-                % _opt.delay_max % _opt.delay_step)
-                   .str();
+        msg += std::format("\nTest coverage: {:f} -> {:f} ({:f} steps)",
+                _opt.delay_min, _opt.delay_max, _opt.delay_step);
 
-        if (_opt.end_test_after_success_count > 0)
-            msg += (boost::format("\nTesting will end after %d successful delays")
-                    % _opt.end_test_after_success_count)
-                       .str();
+        if (_opt.end_test_after_success_count > 0) {
+            msg += std::format("\nTesting will end after {} successful delays",
+                    _opt.end_test_after_success_count);
+        }
     }
 
     if ((_dc_offset_countdown == 0) && (_simulate_frequency == 0.0)) {
@@ -297,7 +301,7 @@ void Responder::print_create_usrp_msg()
 {
     std::string msg("Creating the USRP device");
     if (_opt.device_args.empty() == false)
-        msg.append((boost::format(" with args \"%s\"") % _opt.device_args).str());
+        msg.append(std::format(" with args \"{}\"", _opt.device_args));
     msg.append("...");
     print_msg(msg);
 }
@@ -318,7 +322,7 @@ uhd::rx_streamer::sptr Responder::create_rx_streamer(uhd::usrp::multi_usrp::sptr
 {
     uhd::stream_args_t stream_args("fc32"); // complex floats
     if (_samps_per_packet > 0) {
-        stream_args.args["spp"] = str(boost::format("%d") % _samps_per_packet);
+        stream_args.args["spp"] = std::format("{}", _samps_per_packet);
     }
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
     _samps_per_packet                = rx_stream->get_max_num_samps();
@@ -329,8 +333,8 @@ uhd::rx_streamer::sptr Responder::create_rx_streamer(uhd::usrp::multi_usrp::sptr
 void Responder::print_rx_stream_status()
 {
     std::string msg;
-    msg += (boost::format("Samples per packet set to: %d\n") % _samps_per_packet).str();
-    msg += (boost::format("Flushing burst with %d samples") % _opt.flush_count).str();
+    msg += std::format("Samples per packet set to: {}\n", _samps_per_packet);
+    msg += std::format("Flushing burst with {} samples", _opt.flush_count);
     if (_opt.skip_eob)
         msg += "\nSkipping End-Of-Burst";
     print_msg(msg);
@@ -373,9 +377,9 @@ void Responder::handle_tx_timeout(int burst, int eob)
 void Responder::print_timeout_msg()
 {
     move(_y_delay_pos + 3, _x_delay_pos);
-    print_msg((boost::format("Send timeout, burst_count = %ld\teob_count = %ld\n")
-               % _timeout_burst_count % _timeout_eob_count)
-                  .str());
+    print_msg(std::format("Send timeout, burst_count = {}\teob_count = {}\n",
+            _timeout_burst_count,
+            _timeout_eob_count));
 }
 
 uhd::tx_metadata_t Responder::get_tx_metadata(uhd::time_spec_t rx_time, size_t n)
@@ -435,12 +439,17 @@ bool Responder::set_stats_filename(string test_id)
     if (_stats_filename.empty()) {
         string file_friendly_test_id(test_id);
         boost::replace_all(file_friendly_test_id, " ", "_");
-        boost::format fmt = boost::format("%slatency-stats.id_%s-rate_%i-spb_%i-spp_%i%s")
-                            % _opt.stats_filename_prefix % file_friendly_test_id
-                            % (int)_opt.sample_rate % _opt.samps_per_buff
-                            % _samps_per_packet % _opt.stats_filename_suffix;
-        _stats_filename     = str(fmt) + ".txt";
-        _stats_log_filename = str(fmt) + ".log";
+
+        std::string fmt_base = std::format("{}latency-stats.id_{}-rate_{}-spb_{}-spp_{}{}",
+                _opt.stats_filename_prefix,
+                file_friendly_test_id,
+                static_cast<int>(_opt.sample_rate),
+                _opt.samps_per_buff,
+                _samps_per_packet,
+                _opt.stats_filename_suffix
+        );
+        _stats_filename     = fmt_base + ".txt";
+        _stats_log_filename = fmt_base + ".log";
     }
     return check_for_existing_results();
 }
@@ -450,9 +459,8 @@ bool Responder::check_for_existing_results()
 {
     bool ex = false;
     if ((_opt.skip_if_results_exist) && (std::filesystem::exists(_stats_filename))) {
-        print_msg((boost::format("Skipping invocation as results file already exists: %s")
-                   % _stats_filename)
-                      .str());
+        print_msg(std::format("Skipping invocation as results file already exists: {}",
+                _stats_filename));
         ex = true;
     }
     return ex;
@@ -488,14 +496,18 @@ void Responder::print_formatted_delay_line(const uint64_t simulate_duration,
         score = 100.0 * (double)(statsPrev.detected - statsPrev.missed)
                 / (double)statsPrev.detected;
     std::string form;
-    boost::format fmt0("Delay now: %.6f (previous delay %.6f scored %.1f%% [%ld / %ld])");
-    fmt0 % delay % statsPrev.delay % score % (statsPrev.detected - statsPrev.missed)
-        % statsPrev.detected;
-    form += fmt0.str();
+
+    form += std::format("Delay now: {:.6f} (previous delay {:.6f} scored {:.1f}% [{} / {}])",
+            delay,
+            statsPrev.delay,
+            score,
+            (statsPrev.detected - statsPrev.missed),
+            statsPrev.detected);
+
     if (old_simulate_duration != simulate_duration) {
-        boost::format fmt1(" [Simulation rate now: %.1f Hz (%ld samples)]");
-        fmt1 % simulate_frequency % simulate_duration;
-        form = form + fmt1.str();
+        form += std::format(" [Simulation rate now: {:.1f} Hz ({} samples)]",
+                simulate_frequency,
+                simulate_duration);
     }
     move(_y_delay_pos, _x_delay_pos);
     print_msg(form);
@@ -524,15 +536,12 @@ bool Responder::handle_rx_errors(
 {
     // handle errors
     if (err == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-        std::string msg = (boost::format("Timeout while streaming (received %ld samples)")
-                           % _num_total_samps)
-                              .str();
+        std::string msg = std::format("Timeout while streaming (received {} samples)", _num_total_samps);
         print_error_msg(msg);
         _return_code = RETCODE_RECEIVE_TIMEOUT;
         return true;
     } else if (err == uhd::rx_metadata_t::ERROR_CODE_BAD_PACKET) {
-        std::string msg =
-            (boost::format("Bad packet (received %ld samples)") % _num_total_samps).str();
+        std::string msg = std::format("Bad packet (received {} samples)", _num_total_samps);
         print_error_msg(msg);
         _return_code = RETCODE_BAD_PACKET;
         return true;
@@ -544,7 +553,7 @@ bool Responder::handle_rx_errors(
         ++_overruns;
         print_overrun_msg(); // update overrun info on console.
     } else if (err != uhd::rx_metadata_t::ERROR_CODE_NONE) {
-        throw std::runtime_error(str(boost::format("Unexpected error code 0x%x") % err));
+        throw std::runtime_error(std::format("Unexpected error code {:#x}", err));
     }
     return false;
 }
@@ -557,7 +566,7 @@ void Responder::print_overrun_msg()
         getyx(_window, y, x);
         getmaxyx(_window, y_max, x_max);
         move(y_max - 1, 0);
-        print_msg((boost::format("Overruns: %d") % _overruns).str());
+        print_msg(std::format("Overruns: {}", _overruns));
         move(y, x);
         _last_overrun_count = _num_total_samps;
     }
@@ -603,8 +612,7 @@ double Responder::get_max_possible_frequency(uint64_t highest_delay_samples,
 bool Responder::test_finished(size_t success_count)
 {
     if (success_count == _opt.end_test_after_success_count) {
-        print_msg(
-            (boost::format("\nTest complete after %d successes.") % success_count).str());
+        print_msg(std::format("\nTest complete after {} successes.", success_count));
         return true;
     }
     if (((_opt.delay_min <= _opt.delay_max) && (_delay >= _opt.delay_max))
@@ -627,14 +635,14 @@ bool Responder::handle_interactive_control()
             int iMag    = (int)floor(dMag);
             iMag += ((c == KEY_UP) ? 1 : -1);
             _delay_step = pow(10.0, iMag);
-            msg += (boost::format("Step: %f") % _delay_step).str();
+            msg += std::format("Step: {:f}", _delay_step);
         }
         // LEFT/RIGHT Keys control absolute delay length
         if ((c == KEY_LEFT) || (c == KEY_RIGHT)) {
             double step = _delay_step * ((c == KEY_RIGHT) ? 1 : -1);
             if ((_delay + step) >= 0.0)
                 _delay += step;
-            msg += (boost::format("Delay: %f") % _delay).str();
+            msg += std::format("Delay: {:f}", _delay);
         }
         // Enable/disable fixed delay <--> best effort mode
         if (c == 'd') {
@@ -643,7 +651,7 @@ bool Responder::handle_interactive_control()
             if (_no_delay)
                 msg += "Delay disabled (best effort)";
             else
-                msg += (boost::format("Delay: %f") % _delay).str();
+                msg += std::format("Delay: {:f}", _delay);
         } else if (c == 'q') // exit test
         {
             return true; // signal test to stop
@@ -806,11 +814,12 @@ float Responder::calibrate_usrp_for_test_run()
                     level_calibration_stage_2    = true;
                     _level_calibration_countdown = _opt.level_calibration_count();
                     threshold                    = ave_low + ((ave_high - ave_low) / 2.0);
-                    print_msg((boost::format("Phase #1: Ave low: %.3f (#%d), ave high: "
-                                             "%.3f (#%d), threshold: %.3f")
-                               % ave_low % ave_low_count % ave_high % ave_high_count
-                               % threshold)
-                                  .str());
+                    print_msg(std::format("Phase #1: Ave low: {:.3f} (#{}), ave high: {:.3f} (#{}), threshold: {:.3f}",
+                            ave_low,
+                            ave_low_count,
+                            ave_high,
+                            ave_high_count,
+                            threshold));
                     ave_low_count = ave_high_count = 0;
                     ave_low = ave_high = 0.0f;
                     continue;
@@ -818,11 +827,12 @@ float Responder::calibrate_usrp_for_test_run()
                     ave_low /= (double)ave_low_count;
                     ave_high /= (double)ave_high_count;
                     threshold = ave_low + ((ave_high - ave_low) * _opt.trigger_level);
-                    print_msg((boost::format("Phase #2: Ave low: %.3f (#%d), ave high: "
-                                             "%.3f (#%d), threshold: %.3f\n")
-                               % ave_low % ave_low_count % ave_high % ave_high_count
-                               % threshold)
-                                  .str());
+                    print_msg(std::format("Phase #2: Ave low: {:.3f} (#{}), ave high: {:.3f} (#{}), threshold: {:.3f}\n",
+                            ave_low,
+                            ave_low_count,
+                            ave_high,
+                            ave_high_count,
+                            threshold));
 
                     _stream_cmd.stream_mode =
                         uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
@@ -832,11 +842,9 @@ float Responder::calibrate_usrp_for_test_run()
                     double diff = std::abs(ave_high - ave_low);
                     if (diff < _opt.pulse_detection_threshold) {
                         _return_code = RETCODE_BAD_ARGS;
-                        print_error_msg(
-                            (boost::format("Did not detect any pulses (difference %.6f < "
-                                           "detection threshold %.6f)")
-                                % diff % _opt.pulse_detection_threshold)
-                                .str());
+                        print_error_msg(std::format("Did not detect any pulses (difference {:.6f} < detection threshold {:.6f})",
+                                diff,
+                                _opt.pulse_detection_threshold));
                         break;
                     }
 
@@ -1089,10 +1097,11 @@ int Responder::run()
 // This method should print statistics after ncurses endwin.
 void Responder::print_final_statistics()
 {
-    cout << boost::format("Received %ld samples during test run") % _num_total_samps;
-    if (_overruns > 0)
-        cout << boost::format(" (%d overruns)") % _overruns;
-    cout << endl;
+    std::cout << std::format("Received {} samples during test run", _num_total_samps);
+    if (_overruns > 0) {
+        std::cout << std::format(" ({} overruns)", _overruns);
+    }
+    std::cout << std::endl;
 }
 
 // safe test results to a log file if enabled
@@ -1103,66 +1112,52 @@ void Responder::write_log_file()
             std::map<std::string, std::string> hw_info = get_hw_info();
             ofstream logs(_stats_log_filename.c_str());
 
-            logs << boost::format("title=%s") % _opt.test_title << endl;
-            logs << boost::format("device=%s") % _usrp->get_mboard_name() << endl;
-            logs << boost::format("device_args=%s") % _opt.device_args << endl;
-            logs << boost::format("type=%s") % hw_info["type"] << endl;
+            logs << std::format("title={}\n", _opt.test_title);
+            logs << std::format("device={}\n", _usrp->get_mboard_name());
+            logs << std::format("device_args={}\n", _opt.device_args);
+            logs << std::format("type={}\n", hw_info["type"]);
+
             if (!hw_info.empty()) {
-                logs << boost::format("usrp_addr=%s") % hw_info["usrp_addr"] << endl;
-                logs << boost::format("usrp_name=%s") % hw_info["name"] << endl;
-                logs << boost::format("serial=%s") % hw_info["serial"] << endl;
-                logs << boost::format("host_interface=%s") % hw_info["interface"] << endl;
-                logs << boost::format("host_addr=%s") % hw_info["host_addr"] << endl;
-                logs << boost::format("host_mac=%s") % hw_info["mac"] << endl;
-                logs << boost::format("host_vendor=%s (id=%s)") % hw_info["vendor"]
-                            % hw_info["vendor_id"]
-                     << endl;
-                logs << boost::format("host_device=%s (id=%s)") % hw_info["device"]
-                            % hw_info["device_id"]
-                     << endl;
+                logs << std::format("usrp_addr={}\n", hw_info["usrp_addr"]);
+                logs << std::format("usrp_name={}\n", hw_info["name"]);
+                logs << std::format("serial={}\n", hw_info["serial"]);
+                logs << std::format("host_interface={}\n", hw_info["interface"]);
+                logs << std::format("host_addr={}\n", hw_info["host_addr"]);
+                logs << std::format("host_mac={}\n", hw_info["mac"]);
+                logs << std::format("host_vendor={} (id={})\n", hw_info["vendor"], hw_info["vendor_id"]);
+                logs << std::format("host_device={} (id={})\n", hw_info["device"], hw_info["device_id"]);
             }
-            logs << boost::format("sample_rate=%f") % _opt.sample_rate << endl;
-            logs << boost::format("samps_per_buff=%i") % _opt.samps_per_buff << endl;
-            logs << boost::format("samps_per_packet=%i") % _samps_per_packet << endl;
-            logs << boost::format("delay_min=%f") % _opt.delay_min << endl;
-            logs << boost::format("delay_max=%f") % _opt.delay_max << endl;
-            logs << boost::format("delay_step=%f") % _delay_step << endl;
-            logs << boost::format("delay=%f") % _delay << endl;
-            logs << boost::format("init_delay=%f") % _opt.init_delay << endl;
-            logs << boost::format("response_duration=%f") % _opt.response_duration
-                 << endl;
-            logs << boost::format("response_length=%ld") % _response_length << endl;
-            logs << boost::format("timeout=%f") % _opt.timeout << endl;
-            logs << boost::format("timeout_burst_count=%ld") % _timeout_burst_count
-                 << endl;
-            logs << boost::format("timeout_eob_count=%f") % _timeout_eob_count << endl;
-            logs << boost::format("allow_late_bursts=%s")
-                        % (_allow_late_bursts ? "yes" : "no")
-                 << endl;
-            logs << boost::format("skip_eob=%s") % (_opt.skip_eob ? "yes" : "no") << endl;
-            logs << boost::format("combine_eob=%s") % (_opt.combine_eob ? "yes" : "no")
-                 << endl;
-            logs << boost::format("skip_send=%s") % (_opt.skip_send ? "yes" : "no")
-                 << endl;
-            logs << boost::format("no_delay=%s") % (_no_delay ? "yes" : "no") << endl;
-            logs << boost::format("simulate_frequency=%f") % _simulate_frequency << endl;
-            logs << boost::format("simulate_duration=%ld") % _simulate_duration << endl;
-            logs << boost::format("original_simulate_duration=%ld")
-                        % _original_simulate_duration
-                 << endl;
-            logs << boost::format("realtime=%s") % (_opt.realtime ? "yes" : "no") << endl;
-            logs << boost::format("rt_priority=%f") % _opt.rt_priority << endl;
-            logs << boost::format("test_iterations=%ld") % _opt.test_iterations << endl;
-            logs << boost::format("end_test_after_success_count=%i")
-                        % _opt.end_test_after_success_count
-                 << endl;
-            logs << boost::format("skip_iterations=%i") % _opt.skip_iterations << endl;
-            logs << boost::format("overruns=%i") % _overruns << endl;
-            logs << boost::format("num_total_samps=%ld") % _num_total_samps << endl;
-            logs << boost::format("return_code=%i\t(%s)") % _return_code
-                        % enum2str(_return_code)
-                 << endl;
-            logs << endl;
+
+            logs << std::format("sample_rate={:f}\n", _opt.sample_rate);
+            logs << std::format("samps_per_buff={}\n", _opt.samps_per_buff);
+            logs << std::format("samps_per_packet={}\n", _samps_per_packet);
+            logs << std::format("delay_min={:f}\n", _opt.delay_min);
+            logs << std::format("delay_max={:f}\n", _opt.delay_max);
+            logs << std::format("delay_step={:f}\n", _delay_step);
+            logs << std::format("delay={:f}\n", _delay);
+            logs << std::format("init_delay={:f}\n", _opt.init_delay);
+            logs << std::format("response_duration={:f}\n", _opt.response_duration);
+            logs << std::format("response_length={}\n", _response_length);
+            logs << std::format("timeout={:f}\n", _opt.timeout);
+            logs << std::format("timeout_burst_count={}\n", _timeout_burst_count);
+            logs << std::format("timeout_eob_count={:f}\n", _timeout_eob_count);
+            logs << std::format("allow_late_bursts={}\n", _allow_late_bursts ? "yes" : "no");
+            logs << std::format("skip_eob={}\n", _opt.skip_eob ? "yes" : "no");
+            logs << std::format("combine_eob={}\n", _opt.combine_eob ? "yes" : "no");
+            logs << std::format("skip_send={}\n", _opt.skip_send ? "yes" : "no");
+            logs << std::format("no_delay={}\n", _no_delay ? "yes" : "no");
+            logs << std::format("simulate_frequency={:f}\n", _simulate_frequency);
+            logs << std::format("simulate_duration={}\n", _simulate_duration);
+            logs << std::format("original_simulate_duration={}\n", _original_simulate_duration);
+            logs << std::format("realtime={}\n", _opt.realtime ? "yes" : "no");
+            logs << std::format("rt_priority={:f}\n", _opt.rt_priority);
+            logs << std::format("test_iterations={}\n", _opt.test_iterations);
+            logs << std::format("end_test_after_success_count={}\n", _opt.end_test_after_success_count);
+            logs << std::format("skip_iterations={}\n", _opt.skip_iterations);
+            logs << std::format("overruns={}\n", _overruns);
+            logs << std::format("num_total_samps={}\n", _num_total_samps);
+            logs << std::format("return_code={}\t({})\n", _return_code, enum2str(_return_code));
+            logs << "\n";
 
             write_debug_info(logs);
         }
@@ -1176,25 +1171,13 @@ void Responder::write_debug_info(ofstream& logs)
 {
     logs << endl << "%% DEBUG INFO %%" << endl;
 
-    logs << boost::format("dbg_time_start=%s") % get_gmtime_string(_dbginfo.start_time)
-         << endl;
-    logs << boost::format("dbg_time_end=%s") % get_gmtime_string(_dbginfo.end_time)
-         << endl;
-    logs << boost::format("dbg_time_duration=%d")
-                % difftime(_dbginfo.end_time, _dbginfo.start_time)
-         << endl;
-    logs << boost::format("dbg_time_start_test=%s")
-                % get_gmtime_string(_dbginfo.start_time_test)
-         << endl;
-    logs << boost::format("dbg_time_end_test=%s")
-                % get_gmtime_string(_dbginfo.end_time_test)
-         << endl;
-    logs << boost::format("dbg_time_duration_test=%d")
-                % difftime(_dbginfo.end_time_test, _dbginfo.start_time_test)
-         << endl;
-    logs << boost::format("dbg_time_first_send_timeout=%s")
-                % get_gmtime_string(_dbginfo.first_send_timeout)
-         << endl;
+    logs << std::format("dbg_time_start={}\n", get_gmtime_string(_dbginfo.start_time));
+    logs << std::format("dbg_time_end={}\n", get_gmtime_string(_dbginfo.end_time));
+    logs << std::format("dbg_time_duration={:.0f}\n", difftime(_dbginfo.end_time, _dbginfo.start_time));
+    logs << std::format("dbg_time_start_test={}\n", get_gmtime_string(_dbginfo.start_time_test));
+    logs << std::format("dbg_time_end_test={}\n", get_gmtime_string(_dbginfo.end_time_test));
+    logs << std::format("dbg_time_duration_test={:.0f}\n", difftime(_dbginfo.end_time_test, _dbginfo.start_time_test));
+    logs << std::format("dbg_time_first_send_timeout={}\n", get_gmtime_string(_dbginfo.first_send_timeout));
 }
 
 // convert a time string to desired format
@@ -1202,13 +1185,13 @@ std::string Responder::get_gmtime_string(time_t time)
 {
     tm* ftm;
     ftm = gmtime(&time);
-    std::string strtime;
-    strtime.append((boost::format("%i") % (ftm->tm_year + 1900)).str());
-    strtime.append((boost::format("-%02i") % ftm->tm_mon).str());
-    strtime.append((boost::format("-%02i") % ftm->tm_mday).str());
-    strtime.append((boost::format("-%02i") % ((ftm->tm_hour))).str());
-    strtime.append((boost::format(":%02i") % ftm->tm_min).str());
-    strtime.append((boost::format(":%02i") % ftm->tm_sec).str());
+    std::string strtime = std::format("{}-{:02d}-{:02d}-{:02d}:{:02d}:{:02d}",
+            ftm->tm_year + 1900,
+            ftm->tm_mon,
+            ftm->tm_mday,
+            ftm->tm_hour,
+            ftm->tm_min,
+            ftm->tm_sec);
 
     return strtime;
 }

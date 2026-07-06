@@ -7,7 +7,7 @@
 
 #include <uhd/rfnoc/blockdef.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/test/unit_test.hpp>
 #include <iostream>
 #include <map>
@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_CASE(test_lookup)
 
     for (const auto& block : blocknames) {
         std::cout << "Testing " << block.second << " => "
-                  << str(boost::format("%016X") % block.first) << std::endl;
+                  << std::format("{:016X}", block.first) << std::endl;
         auto block_definition = blockdef::make_from_noc_id(block.first);
         // If the previous function fails, it'll return a NULL pointer
         BOOST_REQUIRE(block_definition);
