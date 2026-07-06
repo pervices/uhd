@@ -10,7 +10,7 @@
 #include <netinet/udp.h>
 #include <rte_ip.h>
 #include <rte_udp.h>
-#include <boost/format.hpp>
+#include <format>
 
 namespace uhd { namespace transport { namespace dpdk {
 
@@ -112,11 +112,14 @@ inline std::string ipv4_num_to_str(const uint32_t ip_addr)
 
 inline std::string eth_addr_to_string(const struct rte_ether_addr mac_addr)
 {
-    auto mac_stream = boost::format("%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx");
-    mac_stream % (uint32_t)mac_addr.addr_bytes[0] % (uint32_t)mac_addr.addr_bytes[1]
-        % (uint32_t)mac_addr.addr_bytes[2] % (uint32_t)mac_addr.addr_bytes[3]
-        % (uint32_t)mac_addr.addr_bytes[4] % (uint32_t)mac_addr.addr_bytes[5];
-    return mac_stream.str();
+    return std::format("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+                       mac_addr.addr_bytes[0],
+                       mac_addr.addr_bytes[1],
+                       mac_addr.addr_bytes[2],
+                       mac_addr.addr_bytes[3],
+                       mac_addr.addr_bytes[4],
+                       mac_addr.addr_bytes[5]
+    );
 }
 
 }}} /* namespace uhd::transport::dpdk */
