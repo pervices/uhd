@@ -7,7 +7,7 @@
 #include <uhd/rfnoc/dmafifo_block_control.hpp>
 #include <uhd/rfnoc/registry.hpp>
 #include <uhdlib/usrp/cores/dma_fifo_core_3000.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <mutex>
 
 using namespace uhd;
@@ -49,8 +49,8 @@ public:
                 const double throughput =
                     _fifo_cores.back()->run_bist(BYTES_PER_BIST, BIST_TIMEOUT);
                 RFNOC_LOG_INFO(
-                    boost::format("BIST passed (Estimated Minimum Throughput: %.0f MB/s)")
-                    % (throughput / 1e6));
+                    std::format("BIST passed (Estimated Minimum Throughput: {:.0f} MB/s)",
+                    throughput / 1e6));
             } else {
                 RFNOC_LOG_DEBUG("Channel " << i << " does not support BIST, skipping.");
             }

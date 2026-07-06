@@ -8,7 +8,7 @@
 #include <uhd/rfnoc/mb_controller.hpp>
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <atomic>
 #include <chrono>
 #include <future>
@@ -99,13 +99,18 @@ bool sync_tks(
         // 10 ms: greater than RTT but not too big
         constexpr double MAX_DEVIATION = 0.01;
         if (time_i < time_0 or (time_i - time_0) > uhd::time_spec_t(MAX_DEVIATION)) {
-            const auto warn_str = str(
-                boost::format(
-                    "Detected time deviation between board %1%/TK %2% and board %5%.\n"
-                    "Board %5%/TK %6% time is %3% seconds.\n"
-                    "Board %1%/TK %2% time is %4% seconds.\n")
-                % mb_idx % tk_idx % time_0.get_real_secs() % time_i.get_real_secs()
-                % std::get<0>(timekeepers.front()) % std::get<1>(timekeepers.front()));
+            const std::string warn_str =
+                std::format(
+                    "Detected time deviation between board {0}/TK {1} and board {4}.\n"
+                    "Board {4}/TK {5} time is {2} seconds.\n"
+                    "Board {0}/TK {1} time is {3} seconds.\n",
+                    mb_idx,                               // {0}
+                    tk_idx,                               // {1}
+                    time_0.get_real_secs(),               // {2}
+                    time_i.get_real_secs(),               // {3}
+                    std::get<0>(timekeepers.front()),    // {4}
+                    std::get<1>(timekeepers.front())     // {5}
+            );
 
             if (!quiet) {
                 UHD_LOG_WARNING("MB_CTRL", warn_str);

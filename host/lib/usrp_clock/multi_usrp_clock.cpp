@@ -10,7 +10,7 @@
 #include <uhd/usrp_clock/multi_usrp_clock.hpp>
 #include <uhd/usrp_clock/octoclock_eeprom.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 using namespace uhd;
 using namespace uhd::usrp_clock;
@@ -34,12 +34,12 @@ public:
 
     std::string get_pp_string(void) override
     {
-        std::string buff = str(boost::format("%s USRP Clock Device\n")
-                               % ((get_num_boards() > 1) ? "Multi" : "Single"));
+        std::string buff = std::format("{} USRP Clock Device\n",
+                               ((get_num_boards() > 1) ? "Multi" : "Single"));
         for (size_t i = 0; i < get_num_boards(); i++) {
-            buff += str(boost::format("  Board %s\n") % i);
-            buff += str(boost::format("    Reference: %s\n")
-                        % (get_sensor("using_ref", i).value));
+            buff += std::format("  Board {}\n", i);
+            buff += std::format("    Reference: {}\n",
+                        (get_sensor("using_ref", i).value));
         }
 
         return buff;
@@ -52,21 +52,21 @@ public:
 
     uint32_t get_time(size_t board) override
     {
-        std::string board_str = str(boost::format("/mboards/%d") % board);
+        std::string board_str = std::format("/mboards/{}", board);
 
         return _tree->access<uint32_t>(board_str / "time").get();
     }
 
     sensor_value_t get_sensor(const std::string& name, size_t board) override
     {
-        std::string board_str = str(boost::format("/mboards/%d") % board);
+        std::string board_str = std::format("/mboards/{}", board);
 
         return _tree->access<sensor_value_t>(board_str / "sensors" / name).get();
     }
 
     std::vector<std::string> get_sensor_names(size_t board) override
     {
-        std::string board_str = str(boost::format("/mboards/%d") % board);
+        std::string board_str = std::format("/mboards/{}", board);
 
         return _tree->list(board_str / "sensors");
     }
