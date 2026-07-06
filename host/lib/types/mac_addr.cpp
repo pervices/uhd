@@ -8,7 +8,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/types/mac_addr.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/tokenizer.hpp>
 #include <sstream>
 
@@ -44,8 +44,9 @@ mac_addr_t mac_addr_t::from_string(const std::string& mac_addr_str)
         }
 
     } catch (std::exception const& e) {
-        throw uhd::value_error(str(
-            boost::format("Invalid mac address: %s\n\t%s") % mac_addr_str % e.what()));
+        throw uhd::value_error(
+            std::format("Invalid mac address: {}\n\t{}", mac_addr_str, e.what())
+        );
     }
 
     return mac_addr_t::from_bytes(bytes);
