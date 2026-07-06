@@ -7,7 +7,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/compat_check.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 void uhd::assert_fpga_compat(const size_t uhd_major,
     const size_t uhd_minor,
@@ -35,10 +35,10 @@ void uhd::assert_fpga_compat(const size_t uhd_major,
                 << uhd_major << ", got " << fpga_major << ".";
         }
         throw uhd::runtime_error(
-            str(boost::format("FPGA component `%s' is revision %d and UHD supports"
-                              " revision %d. Please either upgrade the FPGA"
-                              " image (recommended) or downgrade UHD.")
-                % fpga_component % fpga_major % uhd_major));
+            std::format("FPGA component `{}' is revision {} and UHD supports"
+            " revision {}. Please either upgrade the FPGA"
+            " image (recommended) or downgrade UHD.",
+                        fpga_component, fpga_major, uhd_major));
     }
     if (uhd_major < fpga_major) {
         if (!log_component.empty()) {
@@ -49,38 +49,38 @@ void uhd::assert_fpga_compat(const size_t uhd_major,
                 << uhd_major << ", got " << fpga_major << ".";
         }
         throw uhd::runtime_error(
-            str(boost::format("FPGA component `%s' is revision %d and UHD supports"
-                              " revision %d. Please either upgrade UHD "
-                              " (recommended) or downgrade the FPGA image.")
-                % fpga_component % fpga_major % uhd_major));
+            std::format("FPGA component `{}' is revision {} and UHD supports"
+            " revision {}. Please either upgrade UHD "
+            " (recommended) or downgrade the FPGA image.",
+                        fpga_component, fpga_major, uhd_major));
     }
     if (uhd_minor > fpga_minor) {
         if (fail_on_minor_behind) {
             if (!log_component.empty()) {
-                UHD_LOGGER_ERROR(log_component) << str(
-                    boost::format("Minor compat number mismatch for `%s':"
-                                  " Expecting %d.%d, got %d.%d.")
-                    % fpga_component % uhd_major % uhd_minor % fpga_major % fpga_minor);
+                UHD_LOGGER_ERROR(log_component) << std::format(
+                    "Minor compat number mismatch for `{}`:"
+                    " Expecting {}.{}, got {}.{}.",
+                    fpga_component, uhd_major, uhd_minor, fpga_major, fpga_minor);
             }
             throw uhd::runtime_error(
-                str(boost::format("FPGA component `%s' is revision %d.%d and UHD supports"
-                                  " revision %d.%d. Please either upgrade UHD "
-                                  " (recommended) or downgrade the FPGA image.")
-                    % fpga_component % fpga_major % fpga_minor % uhd_major % uhd_minor));
+                std::format("FPGA component `{}` is revision {}.{} and UHD supports"
+                " revision {}.{}. Please either upgrade UHD "
+                " (recommended) or downgrade the FPGA image.",
+                            fpga_component, fpga_major, fpga_minor, uhd_major, uhd_minor));
         } else {
             if (!log_component.empty()) {
-                UHD_LOGGER_DEBUG(log_component) << str(
-                    boost::format("Non-critical minor compat number mismatch "
-                                  "for `%s': Expecting %d.%d, got %d.%d.")
-                    % fpga_component % uhd_major % uhd_minor % fpga_major % fpga_minor);
+                UHD_LOGGER_DEBUG(log_component) << std::format(
+                    "Non-critical minor compat number mismatch "
+                    "for `{}`: Expecting {}.{}, got {}.{}.",
+                    fpga_component, uhd_major, uhd_minor, fpga_major, fpga_minor);
             }
         }
     } else if (uhd_minor < fpga_minor) {
         if (!log_component.empty()) {
-            UHD_LOGGER_DEBUG(log_component) << str(
-                boost::format("Non-critical minor compat number mismatch "
-                              "for `%s': Expecting %d.%d, got %d.%d.")
-                % fpga_component % uhd_major % uhd_minor % fpga_major % fpga_minor);
+            UHD_LOGGER_DEBUG(log_component) << std::format(
+                "Non-critical minor compat number mismatch "
+                "for `{}`: Expecting {}.{}, got {}.{}.",
+                fpga_component, uhd_major, uhd_minor, fpga_major, fpga_minor);
         }
     }
     // We got here? Then all is good.
@@ -97,9 +97,9 @@ void uhd::assert_fpga_compat(const size_t uhd_major,
     const size_t fpga_minor    = fpga_compat & 0xFFFF;
     const uint64_t fpga_scaled = uint64_t(fpga_major) << 32 | fpga_minor;
     uhd::assert_fpga_compat(uhd_major,
-        uhd_minor,
-        fpga_scaled,
-        fpga_component,
-        log_component,
-        fail_on_minor_behind);
+                            uhd_minor,
+                            fpga_scaled,
+                            fpga_component,
+                            log_component,
+                            fail_on_minor_behind);
 }

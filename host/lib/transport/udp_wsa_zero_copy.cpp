@@ -10,7 +10,7 @@
 #include <uhd/transport/udp_zero_copy.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/transport/udp_common.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <vector>
 #include <iostream>
 
@@ -46,11 +46,11 @@ static void check_registry_for_fast_send_threshold(const size_t mtu)
                != ERROR_SUCCESS
         or threshold < mtu) {
         UHD_LOGGER_WARNING("UDP")
-            << boost::format(
-                   "The MTU (%d) is larger than the FastSendDatagramThreshold (%d)!\n"
+            << std::format(
+                   "The MTU ({}) is larger than the FastSendDatagramThreshold ({})!\n"
                    "This will negatively affect the transmit performance.\n"
-                   "See the transport application notes for more detail.\n")
-                   % mtu % threshold;
+                   "See the transport application notes for more detail.\n",
+                   mtu, threshold);
         warned = true;
     }
     reg_key.Close();
@@ -211,7 +211,7 @@ public:
 #endif /*CHECK_REG_SEND_THRESH*/
 
         UHD_LOGGER_TRACE("UDP")
-            << boost::format("Creating WSA UDP transport to %s:%s") % addr % port;
+            << std::format("Creating WSA UDP transport to {}:{}", addr, port);
 
         static uhd_wsa_control uhd_wsa; // makes wsa start happen via lazy initialization
 
@@ -229,7 +229,7 @@ public:
         if (_sock_fd == INVALID_SOCKET) {
             const DWORD error = WSAGetLastError();
             throw uhd::os_error(
-                str(boost::format("WSASocket() failed with error %d") % error));
+                std::format("WSASocket() failed with error {}", error));
         }
 
         // set the socket non-blocking for recv
@@ -265,11 +265,11 @@ public:
             const DWORD error = WSAGetLastError();
             closesocket(_sock_fd);
             throw uhd::os_error(
-                str(boost::format("WSAConnect() failed with error %d") % error));
+                std::format("WSAConnect() failed with error {}", error));
         }
 
-        UHD_LOGGER_TRACE("UDP") << boost::format("Local WSA UDP socket endpoint: %s:%s")
-                                       % get_local_addr() % get_local_port();
+        UHD_LOGGER_TRACE("UDP") << std::format("Local WSA UDP socket endpoint: {}:{}",
+                                       get_local_addr(), get_local_port());
 
         // allocate re-usable managed receive buffers
         for (size_t i = 0; i < get_num_recv_frames(); i++) {
@@ -400,16 +400,16 @@ void check_usr_buff_size(size_t actual_buff_size,
     size_t user_buff_size, // Set this to zero for no user-defined preference
     const std::string tx_rx)
 {
-    UHD_LOGGER_DEBUG("UDP") << boost::format(
-                                   "Target/actual %s sock buff size: %d/%d bytes")
-                                   % tx_rx % user_buff_size % actual_buff_size;
+    UHD_LOGGER_DEBUG("UDP") << std::format(
+                                   "Target/actual {} sock buff size: {}/{} bytes",
+                                   tx_rx, user_buff_size, actual_buff_size);
     if ((user_buff_size != 0.0) and (actual_buff_size < user_buff_size))
         UHD_LOGGER_WARNING("UDP")
-            << boost::format("The %s buffer could not be resized sufficiently.\n"
-                             "Target sock buff size: %d bytes.\n"
-                             "Actual sock buff size: %d bytes.\n"
-                             "See the transport application notes on buffer resizing.\n")
-                   % tx_rx % user_buff_size % actual_buff_size;
+            << std::format("The {} buffer could not be resized sufficiently.\n"
+                             "Target sock buff size: {} bytes.\n"
+                             "Actual sock buff size: {} bytes.\n"
+                             "See the transport application notes on buffer resizing.\n",
+                   tx_rx, user_buff_size, actual_buff_size);
 }
 
 
@@ -478,22 +478,22 @@ udp_zero_copy::sptr udp_zero_copy::make(const std::string& addr,
         if (usr_recv_buff_size
             < xport_params.recv_frame_size * xport_params.num_recv_frames) {
             throw uhd::value_error(
-                (boost::format(
-                     "recv_buff_size must be equal to or greater than (num_recv_frames * "
-                     "recv_frame_size) where num_recv_frames=%d, recv_frame_size=%d")
-                    % xport_params.num_recv_frames % xport_params.recv_frame_size)
-                    .str());
+                std::format(
+                    "recv_buff_size must be equal to or greater than (num_recv_frames * "
+                    "recv_frame_size) where num_recv_frames={}, recv_frame_size={}",
+                    xport_params.num_recv_frames, xport_params.recv_frame_size)
+                    );
         }
     }
     if (hints.has_key("send_buff_size")) {
         if (usr_send_buff_size
             < xport_params.send_frame_size * xport_params.num_send_frames) {
             throw uhd::value_error(
-                (boost::format(
-                     "send_buff_size must be equal to or greater than (num_send_frames * "
-                     "send_frame_size) where num_send_frames=%d, send_frame_size=%d")
-                    % xport_params.num_send_frames % xport_params.send_frame_size)
-                    .str());
+                std::format(
+                    "send_buff_size must be equal to or greater than (num_send_frames * "
+                    "send_frame_size) where num_send_frames={}, send_frame_size={}",
+                    xport_params.num_send_frames, xport_params.send_frame_size)
+                    );
         }
     }
 

@@ -3,7 +3,7 @@
 
 #include <mutex>
 
-#include <boost/format.hpp>
+#include <format>
 
 #include <uhd/exception.hpp>
 #include "flow_control.hpp"
@@ -170,20 +170,19 @@ public:
 		if ( BOOST_UNLIKELY( buffer_level < 0 ) ) {
 			std::string msg =
 				(
-					boost::format( "Underflow occurred %u / %u" )
-					% buffer_level
-					% buffer_size
-				).str();
+					std::format( "Underflow occurred {} / {}",
+						buffer_level,
+						buffer_size));
 			throw uhd::value_error( msg );
 		}
 		// overflow
 		if ( BOOST_UNLIKELY( buffer_level > (ssize_t)buffer_size - 1 ) ) {
 			std::string msg =
 				(
-					boost::format( "Overflow occurred %u / %u" )
-					% buffer_level
-					% buffer_size
-				).str();
+					std::format( "Overflow occurred {} / {}",
+					buffer_level,
+					buffer_size)
+				);
 			throw uhd::value_error( msg );
 		}
 #endif
@@ -213,18 +212,12 @@ protected:
 			|| nominal_buffer_level_pcnt > 1
 		) {
 			throw uhd::value_error(
-				(
-					boost::format( "Invalid buffer level %f" )
-					% nominal_buffer_level_pcnt
-				).str()
+				std::format( "Invalid buffer level {}", nominal_buffer_level_pcnt );
 			);
 		}
 		if ( nominal_sample_rate <= 0 ) {
 			throw uhd::value_error(
-				(
-					boost::format( "Invalid sample_rate %f" )
-					% nominal_sample_rate
-				).str()
+				std::format( "Invalid sample_rate {}", nominal_sample_rate )
 			);
 		}
 	}
@@ -261,11 +254,9 @@ protected:
 
 // 		if ( BOOST_UNLIKELY( level >= buffer_size ) ) {
 // 			std::string msg =
-// 				(
-// 					boost::format( "Invalid buffer level %u / %u" )
-// 					% level
-// 					% buffer_size
-// 				).str();
+// 					std::format( "Invalid buffer level {} / {}",
+// 					level,
+// 					buffer_size);
 // 			throw uhd::value_error( msg );
 // 		}
 

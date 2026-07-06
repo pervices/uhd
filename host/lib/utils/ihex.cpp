@@ -7,7 +7,7 @@
 
 #include <uhd/exception.hpp>
 #include <uhdlib/utils/ihex.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -173,9 +173,7 @@ void ihex_reader::read(ihex_reader::record_handle_type record_handler)
 
         /* If we receive an unknown record type, error out. */
         else {
-            throw uhd::io_error(
-                str(boost::format("ihex_reader::read(): unsupported record type: %X.")
-                    % type));
+            throw uhd::io_error(std::format("ihex_reader::read(): unsupported record type: {:X}.", type));
         }
     }
 
