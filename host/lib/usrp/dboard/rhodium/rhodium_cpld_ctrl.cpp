@@ -8,7 +8,7 @@
 #include "rhodium_constants.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 
 using namespace uhd;
@@ -91,24 +91,24 @@ rhodium_cpld_ctrl::rhodium_cpld_ctrl(write_spi_t write_fn, read_spi_t read_fn)
 {
     _write_reg_fn = [write_fn](const uint8_t addr, const uint32_t data) {
         UHD_LOG_TRACE("RH_CPLD",
-            str(boost::format("Writing to CPLD: 0x%02X -> 0x%04X") % uint32_t(addr)
-                % data));
+            std::format("Writing to CPLD: {:#04X} -> {:#06X}", static_cast<uint32_t>(addr),
+                data));
         const uint32_t spi_transaction = 0 | ((addr & 0x7F) << 17) | data;
         UHD_LOG_TRACE(
-            "RH_CPLD", str(boost::format("SPI Transaction: 0x%04X") % spi_transaction));
+            "RH_CPLD", std::format("SPI Transaction: {:#06X}", spi_transaction));
         write_fn(spi_transaction);
     };
     _write_raw_fn = [write_fn](const uint32_t data) {
-        UHD_LOG_TRACE("RH_CPLD", str(boost::format("Writing to CPLD: 0x%06X") % data));
-        UHD_LOG_TRACE("RH_CPLD", str(boost::format("SPI Transaction: 0x%06X") % data));
+        UHD_LOG_TRACE("RH_CPLD", std::format("Writing to CPLD: {:#08X}", data));
+        UHD_LOG_TRACE("RH_CPLD", std::format("SPI Transaction: {:#08X}", data));
         write_fn(data);
     };
     _read_reg_fn = [read_fn](const uint8_t addr) {
         UHD_LOG_TRACE("RH_CPLD",
-            str(boost::format("Reading from CPLD address 0x%02X") % uint32_t(addr)));
+            std::format("Reading from CPLD address {:#04X}", static_cast<uint32_t>(addr)));
         const uint32_t spi_transaction = (1 << 16) | ((addr & 0x7F) << 17);
         UHD_LOG_TRACE(
-            "RH_CPLD", str(boost::format("SPI Transaction: 0x%04X") % spi_transaction));
+            "RH_CPLD", std::format("SPI Transaction: {:#06}", % spi_transaction));
         return read_fn(spi_transaction);
     };
 
@@ -396,7 +396,7 @@ void rhodium_cpld_ctrl::_loopback_test()
     if (actual != random_number) {
         UHD_LOGGER_ERROR("RH_CPLD")
             << "CPLD scratch loopback failed! "
-            << boost::format("Expected: 0x%04X Got: 0x%04X") % random_number % actual;
+            << std::format("Expected: {:#04X} Got: {:#04X}", random_number, actual);
         throw uhd::runtime_error("CPLD scratch loopback failed!");
     }
     UHD_LOG_TRACE("RH_CPLD", "CPLD scratch loopback test passed!");

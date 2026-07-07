@@ -16,7 +16,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <cmath>
 #include <cstdlib>
 #include <memory>
@@ -224,8 +224,8 @@ void magnesium_radio_control_impl::set_tx_antenna(
 {
     if (ant != get_tx_antenna(chan)) {
         throw uhd::value_error(
-            str(boost::format("[%s] Requesting invalid TX antenna value: %s")
-                % get_unique_id() % ant));
+            std::format("[{}] Requesting invalid TX antenna value: {}",
+                get_unique_id(), ant));
     }
     // We can't actually set the TX antenna, so let's stop here.
 }
@@ -237,8 +237,8 @@ void magnesium_radio_control_impl::set_rx_antenna(
     if (std::find(MAGNESIUM_RX_ANTENNAS.begin(), MAGNESIUM_RX_ANTENNAS.end(), ant)
         == MAGNESIUM_RX_ANTENNAS.end()) {
         throw uhd::value_error(
-            str(boost::format("[%s] Requesting invalid RX antenna value: %s")
-                % get_unique_id() % ant));
+            std::format("[{}] Requesting invalid RX antenna value: {}",
+                get_unique_id(), ant));
     }
     RFNOC_LOG_TRACE("Setting RX antenna to " << ant << " for chan " << chan);
     magnesium_cpld_ctrl::chan_sel_t chan_sel = chan == 0 ? magnesium_cpld_ctrl::CHAN1
@@ -1056,10 +1056,9 @@ void magnesium_radio_control_impl::_remap_band_limits(
     boost::split(band_map_split, band_map, boost::is_any_of(";"));
     if (band_map_split.size() != dflt_band_size) {
         throw uhd::runtime_error((
-            boost::format(
-                "size %s of given frequency band map doesn't match the required size: %s")
-            % band_map_split.size() % dflt_band_size)
-                                     .str());
+            std::format(
+                "size {} of given frequency band map doesn't match the required size: {}",
+            band_map_split.size(), dflt_band_size));
     }
     RFNOC_LOG_DEBUG("newly used band limits: ");
     for (size_t i = 0; i < band_map_split.size(); i++) {
@@ -1067,10 +1066,9 @@ void magnesium_radio_control_impl::_remap_band_limits(
             band_lim = std::stod(band_map_split.at(i));
         } catch (...) {
             throw uhd::value_error(
-                (boost::format("error while converting given frequency string %s "
-                               "to a double value")
-                    % band_map_split.at(i))
-                    .str());
+                std::format("error while converting given frequency string {} "
+                               "to a double value",
+                    band_map_split.at(i)));
         }
         RFNOC_LOG_DEBUG("band " << i << " limit: " << band_lim << "Hz");
         if (dir == RX_DIRECTION)

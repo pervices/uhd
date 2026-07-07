@@ -54,7 +54,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhdlib/utils/narrow.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -825,7 +825,7 @@ private:
         bool irq = _tda18272hnm_regs.irq_status == tda18272hnm_regs_t::IRQ_STATUS_SET;
 
         UHD_LOGGER_TRACE("TVRX")
-            << boost::format("TVRX2 (%s): IRQ %d") % (get_subdev_name()) % irq;
+            << std::format("TVRX2 ({}): IRQ {}", get_subdev_name(), irq);
 
         return irq;
     }
@@ -842,9 +842,9 @@ private:
         // return POR state
         bool por = _tda18272hnm_regs.por == tda18272hnm_regs_t::POR_RESET;
 
-        UHD_LOGGER_TRACE("TVRX") << boost::format("TVRX2 (%s): POR %d")
-                                        % (get_subdev_name())
-                                        % int(_tda18272hnm_regs.por);
+        UHD_LOGGER_TRACE("TVRX") << std::format("TVRX2 ({}): POR {}",
+                                        get_subdev_name(),
+                                        static_cast<int>(_tda18272hnm_regs.por));
 
         return por;
     }
@@ -861,7 +861,7 @@ private:
         bool locked = _tda18272hnm_regs.lo_lock == tda18272hnm_regs_t::LO_LOCK_LOCKED;
 
         UHD_LOGGER_TRACE("TVRX")
-            << boost::format("TVRX2 (%s): locked %d") % (get_subdev_name()) % locked;
+            << std::format("TVRX2 ({}): locked {}", get_subdev_name(), locked);
 
         return sensor_value_t("LO", locked, "locked", "unlocked");
     }
@@ -908,9 +908,9 @@ private:
         // read temp in degC
         read_reg(0x3, 0x3);
 
-        UHD_LOGGER_TRACE("TVRX") << boost::format("TVRX2 (%s): Temperature %f C")
-                                        % (get_subdev_name())
-                                        % (double(_tda18272hnm_regs.tm_d));
+        UHD_LOGGER_TRACE("TVRX") << std::format("TVRX2 ({}): Temperature {} C",
+                                        get_subdev_name(),
+                                        static_cast<double>(_tda18272hnm_regs.tm_d));
 
         // Disable Temperature reading
         _tda18272hnm_regs.tm_on = tda18272hnm_regs_t::TM_ON_SENSOR_OFF;
@@ -1042,7 +1042,7 @@ tvrx2::tvrx2(ctor_args_t args) : rx_dboard_base(args)
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV4);
 
         UHD_LOGGER_TRACE("TVRX")
-            << boost::format("TVRX2 (%s): Dividing Refclock by 4") % (get_subdev_name());
+            << std::format("TVRX2 ({}): Dividing Refclock by 4", get_subdev_name());
 
         _freq_scalar =
             (4 * 16.0e6) / (this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX));
@@ -1050,38 +1050,37 @@ tvrx2::tvrx2(ctor_args_t args) : rx_dboard_base(args)
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV6);
 
         UHD_LOGGER_TRACE("TVRX")
-            << boost::format("TVRX2 (%s): Dividing Refclock by 6") % (get_subdev_name());
+            << std::format("TVRX2 ({}): Dividing Refclock by 6", get_subdev_name());
 
         _freq_scalar =
             (6 * 16.0e6) / this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX);
     } else if (ref_clock == 200e6) {
         UHD_LOGGER_WARNING("TVRX")
-            << boost::format("ref_clock was 200e6, setting ref_clock divider for 100e6.");
+            << ("ref_clock was 200e6, setting ref_clock divider for 100e6.");
         this->get_iface()->set_clock_rate(dboard_iface::UNIT_RX, 100e6);
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV6);
 
         UHD_LOGGER_TRACE("TVRX")
-            << boost::format("TVRX2 (%s): Dividing Refclock by 6") % (get_subdev_name());
+            << std::format("TVRX2 ({}): Dividing Refclock by 6", (get_subdev_name()));
 
         _freq_scalar =
             (6 * 16.0e6) / this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX);
     } else {
         this->get_iface()->set_gpio_out(dboard_iface::UNIT_RX, REFCLOCK_DIV6);
         UHD_LOGGER_WARNING("TVRX")
-            << boost::format(
-                   "Unsupported ref_clock %0.2f, valid options 64e6, 100e6, 200e6")
-                   % ref_clock;
+            << std::format(
+                    "Unsupported ref_clock {:.2f}, valid options 64e6, 100e6, 200e6", ref_clock);
         _freq_scalar = 1.0;
     }
 
     // enable only the clocks we need
     this->get_iface()->set_clock_enabled(dboard_iface::UNIT_RX, true);
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format("TVRX2 (%s): Refclock %f Hz, scalar = %f")
-                                    % (get_subdev_name())
-                                    % (this->get_iface()->get_clock_rate(
-                                        dboard_iface::UNIT_RX))
-                                    % _freq_scalar;
+    UHD_LOGGER_TRACE("TVRX") << std::format("TVRX2 ({}): Refclock {} Hz, scalar = {}",
+                                    (get_subdev_name()),
+                                    (this->get_iface()->get_clock_rate(
+                                        dboard_iface::UNIT_RX)),
+                                    _freq_scalar);
 
     _tda18272hnm_regs.irq_polarity = tda18272hnm_regs_t::IRQ_POLARITY_RAISED_VCC;
     _tda18272hnm_regs.irq_clear    = tda18272hnm_regs_t::IRQ_CLEAR_TRUE;
@@ -1145,8 +1144,8 @@ bool tvrx2::set_enabled(bool enable)
 
 tvrx2::~tvrx2(void)
 {
-    UHD_LOGGER_TRACE("TVRX") << boost::format("TVRX2 (%s): Called Destructor")
-                                    % (get_subdev_name());
+    UHD_LOGGER_TRACE("TVRX") << std::format("TVRX2 ({}): Called Destructor",
+                                    (get_subdev_name()));
     UHD_SAFE_CALL(if (_enabled) set_enabled(false);)
 }
 
@@ -1195,12 +1194,14 @@ void tvrx2::send_reg(uint8_t start_reg, uint8_t stop_reg)
         for (int i = 0; i < num_bytes; i++) {
             regs_vector[1 + i] = _tda18272hnm_regs.get_reg(start_addr + i);
             UHD_LOGGER_TRACE("TVRX")
-                << boost::format("TVRX2 (%s, 0x%02x): send reg 0x%02x, value 0x%04x, "
-                                 "start_addr = 0x%04x, num_bytes %d")
-                       % (get_subdev_name())
-                       % int(tvrx2_sd_name_to_i2c_addr[get_subdev_name()])
-                       % int(start_addr + i) % int(regs_vector[1 + i]) % int(start_addr)
-                       % num_bytes;
+                    << std::format("TVRX2 ({}, 0x{:02x}): send reg 0x{:02x}, value 0x{:04x}, start_addr = 0x{:04x}, num_bytes {}",
+                            get_subdev_name(),
+                            static_cast<int>(tvrx2_sd_name_to_i2c_addr[get_subdev_name()]),
+                            static_cast<int>(start_addr + i),
+                            static_cast<int>(regs_vector[1 + i]),
+                            static_cast<int>(start_addr),
+                            num_bytes
+                       );
         }
 
         // send the data
@@ -1243,12 +1244,14 @@ void tvrx2::read_reg(uint8_t start_reg, uint8_t stop_reg)
                 _tda18272hnm_regs.set_reg(i + start_addr, regs_vector[i]);
             }
             UHD_LOGGER_TRACE("TVRX")
-                << boost::format("TVRX2 (%s, 0x%02x): read reg 0x%02x, value 0x%04x, "
-                                 "start_addr = 0x%04x, num_bytes %d")
-                       % (get_subdev_name())
-                       % int(tvrx2_sd_name_to_i2c_addr[get_subdev_name()])
-                       % int(start_addr + i) % int(regs_vector[i]) % int(start_addr)
-                       % num_bytes;
+                    << std::format("TVRX2 ({}, 0x{:02x}): read reg 0x{:02x}, value 0x{:04x}, start_addr = 0x{:04x}, num_bytes {}",
+                            get_subdev_name(),
+                            static_cast<int>(tvrx2_sd_name_to_i2c_addr[get_subdev_name()]),
+                            static_cast<int>(start_addr + i),
+                            static_cast<int>(regs_vector[i]),
+                            static_cast<int>(start_addr),
+                            num_bytes
+                    );
         }
     }
 }
@@ -1473,25 +1476,25 @@ void tvrx2::tvrx2_tda18272_tune_rf_filter(uint32_t uRF)
     _tda18272hnm_regs.gain_taper       = gain_taper;
     _tda18272hnm_regs.rf_filter_band   = RFBand;
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format("\nTVRX2 (%s): Software Calibration:\n"
-                                              "\tRF Filter Bypass = %d\n"
-                                              "\tRF Filter Cap    = %d\n"
-                                              "\tRF Filter Band   = %d\n"
-                                              "\tGain Taper       = %d\n")
-                                    % (get_subdev_name())
-                                    % int(_tda18272hnm_regs.rf_filter_bypass)
-                                    % int(_tda18272hnm_regs.rf_filter_cap)
-                                    % int(_tda18272hnm_regs.rf_filter_band)
-                                    % int(_tda18272hnm_regs.gain_taper);
+    UHD_LOGGER_TRACE("TVRX") << std::format("\nTVRX2 ({}): Software Calibration:\n"
+                                              "\tRF Filter Bypass = {}\n"
+                                              "\tRF Filter Cap    = {}\n"
+                                              "\tRF Filter Band   = {}\n"
+                                              "\tGain Taper       = {}\n",
+                                    (get_subdev_name())
+                                    static_cast<int>(_tda18272hnm_regs.rf_filter_bypass),
+                                    static_cast<int>(_tda18272hnm_regs.rf_filter_cap),
+                                    static_cast<int>(_tda18272hnm_regs.rf_filter_band),
+                                    static_cast<int>(_tda18272hnm_regs.gain_taper));
 
     send_reg(0x2c, 0x2f);
 }
 
 void tvrx2::soft_calibration(void)
 {
-    UHD_LOGGER_TRACE("TVRX") << boost::format("\nTVRX2 (%s): Software Calibration: "
-                                              "Initialize Tuner, Calibrate and Standby\n")
-                                    % (get_subdev_name());
+    UHD_LOGGER_TRACE("TVRX") << std::format("\nTVRX2 ({}): Software Calibration: "
+                                              "Initialize Tuner, Calibrate and Standby\n",
+                                    (get_subdev_name()));
 
     _tda18272hnm_regs.sm     = tda18272hnm_regs_t::SM_NORMAL;
     _tda18272hnm_regs.sm_lna = tda18272hnm_regs_t::SM_LNA_ON;
@@ -1678,12 +1681,14 @@ void tvrx2::test_rf_filter_robustness(void)
     }
 
     std::stringstream robustness_message;
-    robustness_message << boost::format("TVRX2 (%s): RF Filter Robustness Results:")
-                              % (get_subdev_name());
+    robustness_message << std::format("TVRX2 ({}): RF Filter Robustness Results:",
+                              (get_subdev_name()));
     for (const std::string& name : uhd::sorted(_filter_ratings.keys())) {
-        robustness_message << boost::format("\t%s:\tMargin = %0.2f,\tRobustness = %c")
-                                  % name % (_filter_margins[name])
-                                  % (_filter_ratings[name]);
+        robustness_message << std::format("\t{}:\tMargin = {:.2f},\tRobustness = {}",
+                name,
+                _filter_margins[name],
+                _filter_ratings[name]
+        );
     }
 
     UHD_LOGGER_DEBUG("TVRX") << robustness_message.str();
@@ -1696,9 +1701,9 @@ void tvrx2::transition_0(void)
 {
     // Transition 0: Initialize Tuner and place in standby
     UHD_LOGGER_TRACE("TVRX")
-        << boost::format(
-               "\nTVRX2 (%s): Transition 0: Initialize Tuner, Calibrate and Standby\n")
-               % (get_subdev_name());
+        << std::format(
+               "\nTVRX2 ({}): Transition 0: Initialize Tuner, Calibrate and Standby\n",
+               get_subdev_name());
 
     // Check for Power-On Reset, if reset, initialze tuner
     if (get_power_reset()) {
@@ -1753,9 +1758,9 @@ void tvrx2::transition_0(void)
 void tvrx2::transition_1(void)
 {
     // Transition 1: Select TV Standard
-    UHD_LOGGER_TRACE("TVRX") << boost::format(
-                                    "\nTVRX2 (%s): Transition 1: Select TV Standard\n")
-                                    % (get_subdev_name());
+    UHD_LOGGER_TRACE("TVRX") << std::format(
+                                    "\nTVRX2 ({}): Transition 1: Select TV Standard\n",
+                                    get_subdev_name());
 
     // send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1786,9 +1791,9 @@ void tvrx2::transition_1(void)
 void tvrx2::transition_2(int rf_freq)
 {
     // Transition 2: Select RF Frequency after changing TV Standard
-    UHD_LOGGER_TRACE("TVRX") << boost::format("\nTVRX2 (%s): Transition 2: Select RF "
-                                              "Frequency after changing TV Standard\n")
-                                    % (get_subdev_name());
+    UHD_LOGGER_TRACE("TVRX") << std::format("\nTVRX2 ({}): Transition 2: Select RF "
+                                              "Frequency after changing TV Standard\n",
+                                    get_subdev_name());
 
     // send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1826,9 +1831,9 @@ void tvrx2::transition_2(int rf_freq)
 void tvrx2::transition_3(void)
 {
     // Transition 3: Standby Mode
-    UHD_LOGGER_TRACE("TVRX") << boost::format(
-                                    "\nTVRX2 (%s): Transition 3: Standby Mode\n")
-                                    % (get_subdev_name());
+    UHD_LOGGER_TRACE("TVRX") << std::format(
+                                    "\nTVRX2 ({}): Transition 3: Standby Mode\n",
+                                    get_subdev_name());
 
     // send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1847,9 +1852,9 @@ void tvrx2::transition_3(void)
 void tvrx2::transition_4(int rf_freq)
 {
     // Transition 4: Change RF Frequency without changing TV Standard
-    UHD_LOGGER_TRACE("TVRX") << boost::format("\nTVRX2 (%s): Transition 4: Change RF "
-                                              "Frequency without changing TV Standard\n")
-                                    % (get_subdev_name());
+    UHD_LOGGER_TRACE("TVRX") << std::format("\nTVRX2 ({}): Transition 4: Change RF "
+                                              "Frequency without changing TV Standard\n",
+                                    get_subdev_name());
 
     // send magic xtal_cal_dac setting
     send_reg(0x65, 0x65);
@@ -1880,10 +1885,12 @@ void tvrx2::wait_irq(void)
     // int(tvrx2_sd_name_to_irq_io[get_subdev_name()]));
     bool irq = get_irq();
     UHD_LOGGER_TRACE("TVRX")
-        << boost::format(
-               "\nTVRX2 (%s): Waiting on IRQ, subdev = %d, mask = 0x%x, Status: 0x%x\n")
-               % (get_subdev_name()) % get_subdev_name()
-               % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq;
+            << std::format("\nTVRX2 ({}): Waiting on IRQ, subdev = {}, mask = 0x{:x}, Status: 0x{:x}\n",
+                    get_subdev_name(),
+                    get_subdev_name(),
+                    static_cast<int>(tvrx2_sd_name_to_irq_io[get_subdev_name()]),
+                    irq
+            );
 
     while (not irq and timeout > 0) {
         // irq = (this->get_iface()->read_gpio(dboard_iface::UNIT_RX) &
@@ -1893,18 +1900,21 @@ void tvrx2::wait_irq(void)
         timeout -= 1;
     }
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format("\nTVRX2 (%s): IRQ Raised, subdev = %d, "
-                                              "mask = 0x%x, Status: 0x%x, Timeout: %d\n")
-                                    % (get_subdev_name()) % get_subdev_name()
-                                    % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()]))
-                                    % irq % timeout;
+    UHD_LOGGER_TRACE("TVRX") <<
+            std::format("\nTVRX2 ({}): IRQ Raised, subdev = {}, mask = 0x{:x}, Status: 0x{:x}, Timeout: {}\n",
+                    get_subdev_name(),
+                    get_subdev_name(),
+                    static_cast<int>(tvrx2_sd_name_to_irq_io[get_subdev_name()]),
+                    irq,
+                    timeout
+            );
 
     read_reg(0xA, 0xB);
     // UHD_ASSERT_THROW(timeout > 0);
     if (timeout <= 0)
         UHD_LOGGER_WARNING("TVRX")
-            << boost::format("\nTVRX2 (%s): Timeout waiting on IRQ\n")
-                   % (get_subdev_name());
+            << std::format("\nTVRX2 ({}): Timeout waiting on IRQ\n",
+                   get_subdev_name());
 
     _tda18272hnm_regs.irq_clear = tda18272hnm_regs_t::IRQ_CLEAR_TRUE;
     send_reg(0xA, 0xA);
@@ -1915,10 +1925,10 @@ void tvrx2::wait_irq(void)
           > 0;
 
     UHD_LOGGER_TRACE("TVRX")
-        << boost::format(
-               "\nTVRX2 (%s): Cleared IRQ, subdev = %d, mask = 0x%x, Status: 0x%x\n")
-               % (get_subdev_name()) % get_subdev_name()
-               % (int(tvrx2_sd_name_to_irq_io[get_subdev_name()])) % irq;
+        << std::format(
+               "\nTVRX2 ({}): Cleared IRQ, subdev = {}, mask = {:#x}, Status: {:#x}\n",
+               get_subdev_name(), get_subdev_name(),
+               static_cast<int>(tvrx2_sd_name_to_irq_io[get_subdev_name()]), irq);
 }
 
 
@@ -1942,21 +1952,21 @@ double tvrx2::set_lo_freq(double target_freq)
     _lo_freq = get_scaled_rf_freq() + get_scaled_if_freq(); // - _bandwidth/2;
 
     // debug output of calculated variables
-    UHD_LOGGER_TRACE("TVRX") << boost::format("\nTVRX2 (%s): LO Frequency\n"
-                                              "\tRequested: \t%f\n"
-                                              "\tComputed: \t%f\n"
-                                              "\tReadback: \t%f\n"
-                                              "\tIF Frequency: \t%f\n")
-                                    % (get_subdev_name()) % target_freq
-                                    % double(int(target_freq / 1e3) * 1e3)
-                                    % get_scaled_rf_freq() % get_scaled_if_freq();
+    UHD_LOGGER_TRACE("TVRX") << std::format("\nTVRX2 ({}): LO Frequency\n"
+                                              "\tRequested: \t{}\n"
+                                              "\tComputed: \t{}\n"
+                                              "\tReadback: \t{}\n"
+                                              "\tIF Frequency: \t{}\n",
+                                    (get_subdev_name()), target_freq,
+                                    double(int(target_freq / 1e3) * 1e3),
+                                    get_scaled_rf_freq(), get_scaled_if_freq());
 
     get_locked();
 
     test_rf_filter_robustness();
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format("\nTVRX2 (%s): RSSI = %f dBm\n")
-                                    % (get_subdev_name()) % (get_rssi().to_real());
+    UHD_LOGGER_TRACE("TVRX") << std::format("\nTVRX2 ({}): RSSI = {} dBm\n",
+                                    (get_subdev_name()), (get_rssi().to_real()));
 
     return _lo_freq;
 }
@@ -1979,8 +1989,8 @@ static double gain_to_if_gain_dac(double& gain)
     // calculate the voltage for the aux dac
     double dac_volts = gain * slope + min_volts;
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format("TVRX2 IF Gain: %f dB, dac_volts: %f V")
-                                    % gain % dac_volts;
+    UHD_LOGGER_TRACE("TVRX") << std::format("TVRX2 IF Gain: {} dB, dac_volts: {} V",
+                                    gain, dac_volts);
 
     // the actual gain setting
     gain = (dac_volts - min_volts) / slope;
@@ -2048,10 +2058,10 @@ double tvrx2::set_bandwidth(double bandwidth)
     // update register
     send_reg(0x13, 0x13);
 
-    UHD_LOGGER_TRACE("TVRX") << boost::format(
-                                    "TVRX2 (%s) Bandwidth (lp_fc): %f Hz, reg: %d")
-                                    % (get_subdev_name()) % _bandwidth
-                                    % (int(_tda18272hnm_regs.lp_fc));
+    UHD_LOGGER_TRACE("TVRX") << std::format(
+                                    "TVRX2 ({}) Bandwidth (lp_fc): {} Hz, reg: {}",
+                                    (get_subdev_name()), _bandwidth,
+                                    static_cast<int>(_tda18272hnm_regs.lp_fc));
 
     return _bandwidth;
 }
