@@ -19,7 +19,7 @@
 #include <uhd/utils/static.hpp>
 #include <boost/algorithm/string/erase.hpp>
 #include <boost/asio/ip/address_v4.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -154,25 +154,25 @@ static void print_usrp2_error(const image_loader::image_loader_args_t& image_loa
     usrp2_card_burner_gui += "\"";
 
     if (image_loader_args.load_firmware) {
-        usrp2_card_burner_gui += str(boost::format("%s--fw=\"%s\"") % nl
-                                     % ((image_loader_args.firmware_path.empty())
+        usrp2_card_burner_gui += std::format("{}--fw=\"{}\"", nl
+                                     ((image_loader_args.firmware_path.empty())
                                              ? find_image_path("usrp2_fw.bin")
                                              : image_loader_args.firmware_path));
     }
     if (image_loader_args.load_fpga) {
-        usrp2_card_burner_gui += str(
-            boost::format("%s--fpga=\"%s\"") % nl
-            % ((image_loader_args.fpga_path.empty()) ? find_image_path("usrp2_fpga.bin")
+        usrp2_card_burner_gui +=
+            std::format("{}--fpga=\"{}\"", nl
+            ((image_loader_args.fpga_path.empty()) ? find_image_path("usrp2_fpga.bin")
                                                      : image_loader_args.fpga_path));
     }
 
-    throw uhd::runtime_error(str(
-        boost::format(
+    throw uhd::runtime_error(
+        std::format(
             "The specified device is a USRP2, which is not supported by this utility.\n"
             "Instead, plug the device's SD card into your machine and run this "
             "command:\n\n"
-            "%s")
-        % usrp2_card_burner_gui));
+            "{}",
+        usrp2_card_burner_gui));
 }
 
 /*
@@ -234,8 +234,8 @@ static uhd::device_addr_t n200_find(
             } else if (len > offsetof(n200_fw_update_data_t, data)
                        and ntohl(pkt_in->id) != GET_HW_REV_ACK) {
                 throw uhd::runtime_error(
-                    str(boost::format("Received invalid reply %d from device.")
-                        % ntohl(pkt_in->id)));
+                    std::format("Received invalid reply {} from device.",
+                        ntohl(pkt_in->id)));
             } else if (user_specified) {
                 // At this point, we haven't received any response, so assume it's a USRP2
                 print_usrp2_error(image_loader_args);
@@ -251,8 +251,8 @@ static uhd::device_addr_t n200_find(
                 "Applicable devices:\n";
 
             for (const uhd::device_addr_t& dev : n200_found) {
-                err_msg += str(boost::format("* %s (addr=%s)\n") % dev.get("hw_rev")
-                               % dev.get("addr"));
+                err_msg += std::format("* {} (addr={})\n", dev.get("hw_rev"),
+                               dev.get("addr"));
             }
 
             err_msg += "\nSpecify one of these devices with the given args to load an "
@@ -271,8 +271,8 @@ static uhd::device_addr_t n200_find(
 static void n200_validate_firmware_image(n200_session_t& session)
 {
     if (not fs::exists(session.filepath)) {
-        throw uhd::runtime_error(str(
-            boost::format("Could not find image at path \"%s\".") % session.filepath));
+        throw uhd::runtime_error(
+            std::format("Could not find image at path \"{}\".", session.filepath));
     }
 
     session.size     = fs::file_size(session.filepath);
@@ -280,8 +280,8 @@ static void n200_validate_firmware_image(n200_session_t& session)
 
     if (session.size > session.max_size) {
         throw uhd::runtime_error(
-            str(boost::format("The specified firmware image is too large: %d vs. %d")
-                % session.size % session.max_size));
+            std::format("The specified firmware image is too large: {} vs. {}",
+                session.size, session.max_size));
     }
 
     // File must have proper header
@@ -292,9 +292,9 @@ static void n200_validate_firmware_image(n200_session_t& session)
     image_file.close();
     for (int i = 0; i < 4; i++)
         if (test_bytes[i] != 11) {
-            throw uhd::runtime_error(str(
-                boost::format("The file at path \"%s\" is not a valid firmware image.")
-                % session.filepath));
+            throw uhd::runtime_error(
+                std::format("The file at path \"{}\" is not a valid firmware image.",
+                session.filepath));
         }
 }
 
@@ -304,8 +304,8 @@ static void n200_validate_firmware_image(n200_session_t& session)
 static void n200_validate_fpga_image(n200_session_t& session)
 {
     if (not fs::exists(session.filepath)) {
-        throw uhd::runtime_error(str(
-            boost::format("Could not find image at path \"%s\".") % session.filepath));
+        throw uhd::runtime_error(
+            std::format("Could not find image at path \"%s\".", session.filepath));
     }
 
     session.size     = fs::file_size(session.filepath);
@@ -313,8 +313,8 @@ static void n200_validate_fpga_image(n200_session_t& session)
 
     if (session.size > session.max_size) {
         throw uhd::runtime_error(
-            str(boost::format("The specified FPGA image is too large: %d vs. %d")
-                % session.size % session.max_size));
+            std::format("The specified FPGA image is too large: {} vs. {}",
+                session.size, session.max_size));
     }
 
     // File must have proper header
@@ -334,8 +334,8 @@ static void n200_validate_fpga_image(n200_session_t& session)
     image_file.close();
     if (not is_good) {
         throw uhd::runtime_error(
-            str(boost::format("The file at path \"%s\" is not a valid FPGA image.")
-                % session.filepath));
+            std::format("The file at path \"{}\" is not a valid FPGA image.",
+                session.filepath));
     }
 }
 
@@ -363,11 +363,11 @@ static void n200_setup_session(n200_session_t& session,
                                      "You must manually specify a filepath.");
         } else {
             session.filepath = session.fw
-                                   ? find_image_path(str(
-                                       boost::format("usrp_%s_fw.bin")
-                                       % erase_tail_copy(session.dev_addr["hw_rev"], 3)))
-                                   : find_image_path(str(boost::format("usrp_%s_fpga.bin")
-                                                         % session.dev_addr["hw_rev"]));
+                                   ? find_image_path(
+                                       std::format("usrp_{}_fw.bin",
+                                       erase_tail_copy(session.dev_addr["hw_rev"], 3)))
+                                   : find_image_path(std::format("usrp_{}_fpga.bin",
+                                                         session.dev_addr["hw_rev"]));
         }
     } else {
         session.filepath = session.fw ? image_loader_args.firmware_path
@@ -408,7 +408,7 @@ static void n200_erase_image(n200_session_t& session)
     size_t len =
         n200_send_and_recv(session.xport, ERASE_FLASH_CMD, &pkt_out, session.data_in);
     if (n200_response_matches(pkt_in, ERASE_FLASH_ACK, len)) {
-        std::cout << boost::format("-- Erasing %s image...") % session.burn_type
+        std::cout << std::format("-- Erasing {} image...", session.burn_type)
                   << std::flush;
     } else if (len < offsetof(n200_fw_update_data_t, data)) {
         std::cout << "failed." << std::endl;
@@ -416,8 +416,8 @@ static void n200_erase_image(n200_session_t& session)
     } else if (ntohl(pkt_in->id) != ERASE_FLASH_ACK) {
         std::cout << "failed." << std::endl;
         throw uhd::runtime_error(
-            str(boost::format("Received invalid reply %d from device.\n")
-                % ntohl(pkt_in->id)));
+            std::format("Received invalid reply {} from device.\n",
+                ntohl(pkt_in->id)));
     } else {
         std::cout << "failed." << std::endl;
         throw uhd::runtime_error("Did not receive response from device.");
@@ -436,8 +436,8 @@ static void n200_erase_image(n200_session_t& session)
         } else if (ntohl(pkt_in->id) != NOT_DONE_ERASING_ACK) {
             std::cout << "failed." << std::endl;
             throw uhd::runtime_error(
-                str(boost::format("Received invalid reply %d from device.\n")
-                    % ntohl(pkt_in->id)));
+                std::format("Received invalid reply {} from device.\n",
+                    ntohl(pkt_in->id)));
         }
     }
 }
@@ -462,36 +462,36 @@ static void n200_write_image(n200_session_t& session)
         len =
             n200_send_and_recv(session.xport, WRITE_FLASH_CMD, &pkt_out, session.data_in);
         if (n200_response_matches(pkt_in, WRITE_FLASH_ACK, len)) {
-            std::cout << boost::format("\r-- Writing %s image (%d%%)") % session.burn_type
-                             % int((double(current_addr - session.flash_addr)
+            std::cout << std::format("\r-- Writing {} image ({}%)", session.burn_type,
+                             int((double(current_addr - session.flash_addr)
                                        / double(session.size))
-                                   * 100)
+                                   * 100))
                       << std::flush;
         } else if (len < offsetof(n200_fw_update_data_t, data)) {
             image.close();
-            std::cout << boost::format("\r--Writing %s image..failed at %d%%.")
-                             % session.burn_type
-                             % int((double(current_addr - session.flash_addr)
+            std::cout << std::format("\r--Writing {} image..failed at {}%.",
+                             session.burn_type,
+                             int((double(current_addr - session.flash_addr)
                                        / double(session.size))
-                                   * 100)
+                                   * 100))
                       << std::endl;
             throw uhd::runtime_error("Timed out waiting for reply from device.");
         } else if (ntohl(pkt_in->id) != WRITE_FLASH_ACK) {
             image.close();
-            std::cout << boost::format("\r--Writing %s image..failed at %d%%.")
-                             % session.burn_type
-                             % int((double(current_addr - session.flash_addr)
+            std::cout << std::format("\r--Writing {} image..failed at {}%.",
+                             session.burn_type,
+                             int((double(current_addr - session.flash_addr)
                                        / double(session.size))
-                                   * 100)
+                                   * 100))
                       << std::endl;
             throw uhd::runtime_error(
-                str(boost::format("Received invalid reply %d from device.\n")
-                    % ntohl(pkt_in->id)));
+                std::format("Received invalid reply {} from device.\n",
+                    ntohl(pkt_in->id)));
         }
 
         current_addr += N200_FLASH_DATA_PACKET_SIZE;
     }
-    std::cout << boost::format("\r-- Writing %s image...successful.") % session.burn_type
+    std::cout << std::format("\r-- Writing {} image...successful.", session.burn_type)
               << std::endl;
 
     image.close();
@@ -522,49 +522,49 @@ static void n200_verify_image(n200_session_t& session)
         len =
             n200_send_and_recv(session.xport, READ_FLASH_CMD, &pkt_out, session.data_in);
         if (n200_response_matches(pkt_in, READ_FLASH_ACK, len)) {
-            std::cout << boost::format("\r-- Verifying %s image (%d%%)")
-                             % session.burn_type
-                             % int((double(current_addr - session.flash_addr)
+            std::cout << std::format("\r-- Verifying {} image ({}%)",
+                             session.burn_type,
+                             int((double(current_addr - session.flash_addr)
                                        / double(session.size))
-                                   * 100)
+                                   * 100))
                       << std::flush;
 
             if (memcmp(image_part, pkt_in->data.flash_args.data, cmp_len)) {
-                std::cout << boost::format("\r-- Verifying %s image...failed at %d%%.")
-                                 % session.burn_type
-                                 % int((double(current_addr - session.flash_addr)
+                std::cout << std::format("\r-- Verifying {} image...failed at {}%.",
+                                 session.burn_type,
+                                 int((double(current_addr - session.flash_addr)
                                            / double(session.size))
-                                       * 100)
+                                       * 100))
                           << std::endl;
                 throw uhd::runtime_error(
-                    str(boost::format("Failed to verify %s image.") % session.burn_type));
+                    std::format("Failed to verify {} image.", session.burn_type));
             }
         } else if (len < offsetof(n200_fw_update_data_t, data)) {
             image.close();
-            std::cout << boost::format("\r-- Verifying %s image...failed at %d%%.")
-                             % session.burn_type
-                             % int((double(current_addr - session.flash_addr)
+            std::cout << std::format("\r-- Verifying {} image...failed at {}%.",
+                             session.burn_type,
+                             int((double(current_addr - session.flash_addr)
                                        / double(session.size))
-                                   * 100)
+                                   * 100))
                       << std::endl;
             throw uhd::runtime_error("Timed out waiting for reply from device.");
         } else if (ntohl(pkt_in->id) != READ_FLASH_ACK) {
             image.close();
-            std::cout << boost::format("\r-- Verifying %s image...failed at %d%%.")
-                             % session.burn_type
-                             % int((double(current_addr - session.flash_addr)
+            std::cout << std::format("\r-- Verifying {} image...failed at {}%.",
+                             session.burn_type,
+                             int((double(current_addr - session.flash_addr)
                                        / double(session.size))
-                                   * 100)
+                                   * 100))
                       << std::endl;
             throw uhd::runtime_error(
-                str(boost::format("Received invalid reply %d from device.\n")
-                    % ntohl(pkt_in->id)));
+                std::format("Received invalid reply {} from device.\n",
+                    ntohl(pkt_in->id)));
         }
 
         current_addr += N200_FLASH_DATA_PACKET_SIZE;
     }
-    std::cout << boost::format("\r-- Verifying %s image...successful.")
-                     % session.burn_type
+    std::cout << std::format("\r-- Verifying {} image...successful.",
+                     session.burn_type)
               << std::endl;
 
     image.close();
@@ -613,9 +613,9 @@ static bool n200_image_loader(const image_loader::image_loader_args_t& image_loa
         return false;
     }
 
-    std::cout << boost::format("Unit: USRP %s (%s, %s)")
-                     % nice_name(session.dev_addr.get("hw_rev"))
-                     % session.dev_addr.get("serial") % session.dev_addr.get("addr")
+    std::cout << std::format("Unit: USRP {} ({}, {})",
+                     nice_name(session.dev_addr.get("hw_rev")),
+                     session.dev_addr.get("serial") % session.dev_addr.get("addr"))
               << std::endl;
 
     if (image_loader_args.load_firmware) {
