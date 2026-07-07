@@ -9,7 +9,7 @@
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 #include <uhd/exception.hpp>
 
@@ -39,14 +39,14 @@ public:
 
 		//ip route show to match 10.10.10.2
 
-		std::string cmd = ( boost::format( "ip route show to match %s" ) % remote_addr ).str();
+		std::string cmd = std::format( "ip route show to match {}", remote_addr );
 
 		fp = popen( cmd.c_str() , "r" );
 		if ( NULL == fp ) {
 			throw runtime_error(
-				( boost::format( "failed to run command '%s'" )
-				  % cmd
-				).str()
+				std::format( "failed to run command '{}'",
+					cmd
+				)
 			);
 		}
 
@@ -87,9 +87,9 @@ public:
 		he = gethostbyname( last_addr.c_str() );
 		if ( NULL == he ) {
 			throw runtime_error(
-				( boost::format( "gethostbyname( '%s' ) failed" )
+				std::format( "gethostbyname( '{}' ) failed",
 				  % strs[ 0 ]
-				).str()
+				)
 			);
 		}
 
@@ -110,10 +110,10 @@ public:
 		r = socket( AF_INET, SOCK_DGRAM, 0 );
 		if ( -1 == r ) {
 			throw runtime_error(
-				( boost::format( "socket(): %s ( %d )" )
-				  % strerror( errno )
-				  % errno
-				).str()
+				std::format( "socket(): {} ( {} )",
+					strerror( errno ),
+					errno
+				)
 			);
 		}
 		sockfd = r;
@@ -122,11 +122,11 @@ public:
 		if ( -1 == r ) {
 			close( sockfd );
 			throw runtime_error(
-				( boost::format( "ioctl( SIOCGIFMTU, '%s' ): %s ( %d )" )
-					% iface
-					% strerror( errno )
-					% errno
-				).str()
+				std::format( "ioctl( SIOCGIFMTU, '{}' ): {} ( {} )",
+					iface,
+					strerror( errno ),
+					errno
+				)
 			);
 		}
 
@@ -165,11 +165,11 @@ public:
 				es = std::string( gai_strerror( e ) );
 			}
 			throw runtime_error(
-				( boost::format( "getaddrinfo( '%s' ): %s ( %d )" )
-					% host
-					% es
-					% e
-				).str()
+				std::format( "getaddrinfo( '{}' ): {} ( {} )",
+					host,
+					es,
+					e
+				)
 			);
 		}
 		for ( rp = res; rp != NULL; rp = rp->ai_next ) {
@@ -199,10 +199,10 @@ public:
 		r = socket( AF_INET, SOCK_DGRAM, 0 );
 		if ( -1 == r ) {
 			throw runtime_error(
-				( boost::format( "socket: %s ( %d )" )
-					% strerror( errno )
-					% errno
-				).str()
+				std::format( "socket: {} ( {} )",
+					strerror( errno ),
+					errno
+				)
 			);
 		}
 		fd = r;
@@ -212,10 +212,10 @@ public:
 			close( fd );
 			fd = -1;
 			throw runtime_error(
-				( boost::format( "connect: %s ( %d )" )
-					% strerror( errno )
-					% errno
-				).str()
+				std::format( "connect: {} ( {} )",
+					strerror( errno ),
+					errno
+				)
 			);
 		}
 

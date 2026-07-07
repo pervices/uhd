@@ -31,7 +31,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <functional>
 #include <boost/asio.hpp>
 #include <iostream>
@@ -529,10 +529,10 @@ void crimson_tng_impl::rx_rate_check(size_t ch, double rate_samples) {
     if(rate_used * CRIMSON_TNG_RX_SAMPLE_BITS * 2 > get_link_rate()) {
 
         UHD_LOGGER_WARNING(product_name_c)
-                << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
+                << std::format("The total sum of rates ({} MSps on SFP used by channel {})"
                                 "exceeds the maximum capacity of the connection.\n"
-                                "This can cause overflows.")
-                    % (rate_used / 1e6) % ch;
+                                "This can cause overflows.",
+                    (rate_used / 1e6), ch);
 
         rx_rate_warning_printed = true;
     }
@@ -561,10 +561,10 @@ void crimson_tng_impl::tx_rate_check(size_t ch, double rate_samples) {
     if(rate_used * CRIMSON_TNG_TX_SAMPLE_BITS * 2 > get_link_rate() && !tx_rate_warning_printed) {
 
         UHD_LOGGER_WARNING(product_name_c)
-                << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
+                << std::format("The total sum of rates ({} MSps on SFP used by channel {})"
                                 "exceeds the maximum capacity of the connection.\n"
-                                "This can cause underruns.")
-                    % (rate_used / 1e6) % ch;
+                                "This can cause underruns.",
+                    (rate_used / 1e6), ch);
 
         // Only print this warning once
         tx_rate_warning_printed = true;

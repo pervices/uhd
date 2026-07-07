@@ -14,7 +14,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <chrono>
 #include <numeric>
@@ -71,18 +71,18 @@ struct clock_settings_type
     }
     std::string to_pp_string(void) const
     {
-        return str(boost::format("  r_counter: %d\n"
-                                 "  a_counter: %d\n"
-                                 "  b_counter: %d\n"
-                                 "  prescaler: %d\n"
-                                 "  vco_divider: %d\n"
-                                 "  chan_divider: %d\n"
-                                 "  vco_rate: %fMHz\n"
-                                 "  chan_rate: %fMHz\n"
-                                 "  out_rate: %fMHz\n")
-                   % r_counter % a_counter % b_counter % prescaler % vco_divider
-                   % chan_divider % (get_vco_rate() / 1e6) % (get_chan_rate() / 1e6)
-                   % (get_out_rate() / 1e6));
+        return std::format("  r_counter: {}\n"
+                                 "  a_counter: {}\n"
+                                 "  b_counter: {}\n"
+                                 "  prescaler: {}\n"
+                                 "  vco_divider: {}\n"
+                                 "  chan_divider: {}\n"
+                                 "  vco_rate: {}MHz\n"
+                                 "  chan_rate: {}MHz\n"
+                                 "  out_rate: {}MHz\n",
+                   r_counter, a_counter, b_counter, prescaler, vco_divider,
+                   chan_divider, (get_vco_rate() / 1e6), (get_chan_rate() / 1e6),
+                   (get_out_rate() / 1e6));
     }
 };
 
@@ -184,10 +184,10 @@ static clock_settings_type get_clock_settings(double rate)
         }
     }
 
-    throw uhd::value_error(str(
-        boost::format(
-            "USRP-B100 clock control: could not calculate settings for clock rate %fMHz")
-        % (rate / 1e6)));
+    throw uhd::value_error(
+        std::format(
+            "USRP-B100 clock control: could not calculate settings for clock rate {}MHz",
+        (rate / 1e6)));
 }
 
 b100_clock_ctrl::~b100_clock_ctrl(void)
