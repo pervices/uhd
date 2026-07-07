@@ -11,7 +11,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <functional>
 #include <tuple>
 
@@ -102,16 +102,16 @@ static void register_dboard_key(const dboard_key_t& dboard_key,
     // UHD_LOGGER_TRACE("DBMGR") << "registering: " << name;
     if (get_id_to_args_map().has_key(dboard_key)) {
         if (dboard_key.is_xcvr())
-            throw uhd::key_error(str(
-                boost::format("The dboard id pair [%s, %s] is already registered to %s.")
-                % dboard_key.rx_id().to_string() % dboard_key.tx_id().to_string()
-                % std::get<1>(get_id_to_args_map()[dboard_key])));
+            throw uhd::key_error(
+                std::format("The dboard id pair [{}, {}] is already registered to {}.",
+                dboard_key.rx_id().to_string(), dboard_key.tx_id().to_string(),
+                std::get<1>(get_id_to_args_map()[dboard_key])));
 
         else
             throw uhd::key_error(
-                str(boost::format("The dboard id %s is already registered to %s.")
-                    % dboard_key.xx_id().to_string()
-                    % std::get<1>(get_id_to_args_map()[dboard_key])));
+                std::format("The dboard id {} is already registered to {}.",
+                    dboard_key.xx_id().to_string(),
+                    std::get<1>(get_id_to_args_map()[dboard_key])));
     }
     get_id_to_args_map()[dboard_key] =
         args_t(db_subdev_ctor, name, subdev_names, db_container_ctor);
@@ -184,7 +184,7 @@ std::string dboard_id_t::to_cname(void) const
 
 std::string dboard_id_t::to_pp_string(void) const
 {
-    return str(boost::format("%s (%s)") % this->to_cname() % this->to_string());
+    return std::format("{} ({})", this->to_cname(), this->to_string());
 }
 
 /***********************************************************************
@@ -272,10 +272,10 @@ dboard_manager_impl::dboard_manager_impl(dboard_eeprom_t rx_eeprom,
     try {
         this->init(rx_eeprom, tx_eeprom, subtree, defer_db_init);
     } catch (const std::exception& e) {
-        UHD_LOGGER_ERROR("DBMGR") << boost::format(
+        UHD_LOGGER_ERROR("DBMGR") <<
             "The daughterboard manager encountered a recoverable error in init.\n"
             "Loading the \"unknown\" daughterboard implementations to continue.\n"
-            "The daughterboard cannot operate until this error is resolved.\n")
+            "The daughterboard cannot operate until this error is resolved.\n"
                                   << e.what();
         // clean up the stuff added by the call above
         if (subtree->exists("rx_frontends"))
@@ -317,11 +317,11 @@ void dboard_manager_impl::init(dboard_eeprom_t rx_eeprom,
     if (not xcvr_dboard_key.is_xcvr()
         and (rx_dboard_key.is_xcvr() or tx_dboard_key.is_xcvr())) {
         UHD_LOGGER_WARNING("DBMGR")
-            << boost::format("Unknown transceiver board ID combination.\n"
+            << std::format("Unknown transceiver board ID combination.\n"
                              "Is your daughter-board mounted properly?\n"
-                             "RX dboard ID: %s\n"
-                             "TX dboard ID: %s\n")
-                   % rx_eeprom.id.to_pp_string() % tx_eeprom.id.to_pp_string();
+                             "RX dboard ID: {}\n"
+                             "TX dboard ID: {}\n",
+                   rx_eeprom.id.to_pp_string(), tx_eeprom.id.to_pp_string());
     }
 
     // initialize the gpio pins before creating subdevs
