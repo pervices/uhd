@@ -17,7 +17,7 @@
 #include <uhd/utils/math.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/tasks.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/thread/thread.hpp>
 #include <atomic>
 #include <chrono>
@@ -467,8 +467,8 @@ void usrp1_impl::update_rx_subdev_spec(const uhd::usrp::subdev_spec_t& spec)
         const std::string conn =
             _tree
                 ->access<std::string>(
-                    str(boost::format("/mboards/0/dboards/%s/rx_frontends/%s/connection")
-                        % pair.db_name % pair.sd_name))
+                    std::format("/mboards/0/dboards/{}/rx_frontends/{}/connection",
+                        pair.db_name, pair.sd_name))
                 .get();
         mapping.push_back(std::make_pair(pair.db_name, conn));
     }
@@ -490,8 +490,8 @@ void usrp1_impl::update_tx_subdev_spec(const uhd::usrp::subdev_spec_t& spec)
         const std::string conn =
             _tree
                 ->access<std::string>(
-                    str(boost::format("/mboards/0/dboards/%s/tx_frontends/%s/connection")
-                        % pair.db_name % pair.sd_name))
+                    std::format("/mboards/0/dboards/{}/tx_frontends/{}/connection",
+                        pair.db_name, pair.sd_name))
                 .get();
         mapping.push_back(std::make_pair(pair.db_name, conn));
     }
@@ -625,8 +625,8 @@ double usrp1_impl::update_tx_dsp_freq(const size_t dspno, const double freq)
     const std::string conn =
         _tree
             ->access<std::string>(
-                str(boost::format("/mboards/0/dboards/%s/tx_frontends/%s/connection")
-                    % pair.db_name % pair.sd_name))
+                std::format("/mboards/0/dboards/{}/tx_frontends/{}/connection",
+                    pair.db_name, pair.sd_name))
             .get();
     double sign = (conn == "I" or conn == "IQ") ? +1.0 : -1.0;
 

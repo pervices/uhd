@@ -22,7 +22,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhdlib/usrp/common/max287x.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -882,8 +882,8 @@ private:
         set_gpio_field(TX_GAIN, attn_code);
         write_gpio();
         UHD_LOG_TRACE("UBX",
-            boost::format("UBX TX Gain: %f dB, Code: %d, IO Bits 0x%04x") % gain
-                % attn_code % (attn_code << 10));
+            std::format("UBX TX Gain: {} dB, Code: {}, IO Bits {:#06x}", gain,
+                attn_code, (attn_code << 10));
         _tx_gain = gain;
         return gain;
     }
@@ -896,8 +896,8 @@ private:
         set_gpio_field(RX_GAIN, attn_code);
         write_gpio();
         UHD_LOG_TRACE("UBX",
-            boost::format("UBX RX Gain: %f dB, Code: %d, IO Bits 0x%04x") % gain
-                % attn_code % (attn_code << 10));
+            std::format("UBX RX Gain: {} dB, Code: {}, IO Bits {:#06x}", gain,
+                attn_code, (attn_code << 10));
         _rx_gain = gain;
         return gain;
     }
@@ -922,15 +922,15 @@ private:
         device_addr_t tune_args     = subtree->access<device_addr_t>("tune_args").get();
         is_int_n = boost::iequals(tune_args.get("mode_n", ""), "integer");
         UHD_LOGGER_TRACE("UBX")
-            << boost::format("UBX TX: the requested frequency is %f MHz") % (freq / 1e6);
+            << std::format("UBX TX: the requested frequency is {} MHz", (freq / 1e6));
         double target_pfd_freq = _tx_target_pfd_freq;
         if (is_int_n and tune_args.has_key("int_n_step")) {
             target_pfd_freq = tune_args.cast<double>("int_n_step", _tx_target_pfd_freq);
             if (target_pfd_freq > _tx_target_pfd_freq) {
                 UHD_LOGGER_WARNING("UBX")
-                    << boost::format(
-                           "Requested int_n_step of %f MHz too large, clipping to %f MHz")
-                           % (target_pfd_freq / 1e6) % (_tx_target_pfd_freq / 1e6);
+                    << std::format(
+                           "Requested int_n_step of {} MHz too large, clipping to {} MHz",
+                           (target_pfd_freq / 1e6), (_tx_target_pfd_freq / 1e6));
                 target_pfd_freq = _tx_target_pfd_freq;
             }
         }
@@ -1048,7 +1048,7 @@ private:
         _txlo2_freq = freq_lo2;
 
         UHD_LOGGER_TRACE("UBX")
-            << boost::format("UBX TX: the actual frequency is %f MHz") % (_tx_freq / 1e6);
+            << std::format("UBX TX: the actual frequency is {} MHz", (_tx_freq / 1e6));
 
         return _tx_freq;
     }
@@ -1062,7 +1062,7 @@ private:
         bool is_int_n   = false;
 
         UHD_LOGGER_TRACE("UBX")
-            << boost::format("UBX RX: the requested frequency is %f MHz") % (freq / 1e6);
+            << std::format("UBX RX: the requested frequency is {} MHz", (freq / 1e6));
 
         property_tree::sptr subtree = this->get_rx_subtree();
         device_addr_t tune_args     = subtree->access<device_addr_t>("tune_args").get();
@@ -1072,9 +1072,9 @@ private:
             target_pfd_freq = tune_args.cast<double>("int_n_step", _rx_target_pfd_freq);
             if (target_pfd_freq > _rx_target_pfd_freq) {
                 UHD_LOGGER_WARNING("UBX")
-                    << boost::format(
-                           "Requested int_n_step of %f Mhz too large, clipping to %f MHz")
-                           % (target_pfd_freq / 1e6) % (_rx_target_pfd_freq / 1e6);
+                    << std::format(
+                           "Requested int_n_step of {} Mhz too large, clipping to {} MHz",
+                           (target_pfd_freq / 1e6), (_rx_target_pfd_freq / 1e6));
                 target_pfd_freq = _rx_target_pfd_freq;
             }
         }
@@ -1235,7 +1235,7 @@ private:
         _rxlo2_freq = freq_lo2;
 
         UHD_LOGGER_TRACE("UBX")
-            << boost::format("UBX RX: the actual frequency is %f MHz") % (_rx_freq / 1e6);
+            << std::format("UBX RX: the actual frequency is {} MHz", (_rx_freq / 1e6));
 
         return _rx_freq;
     }
