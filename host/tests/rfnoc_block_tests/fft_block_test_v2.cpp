@@ -45,16 +45,16 @@ public:
     {
         if (addr >= fft_block_control::REG_RESET_ADDR_V1) {
             throw uhd::assertion_error(
-                str(boost::format("Trying to write register %08x which is only supported "
-                                  "for FFT Block v1")
-                    % addr));
+                std::format("Trying to write register {:08x} which is only supported for FFT Block v1", addr)
+            );
         } else if ((addr == fft_block_control::REG_COMPAT_ADDR)
                    || (addr == fft_block_control::REG_CAPABILITIES_ADDR)
                    || (addr == fft_block_control::REG_CAPABILITIES2_ADDR)
                    || (addr == fft_block_control::REG_CP_INS_LIST_OCC_ADDR)
                    || (addr == fft_block_control::REG_CP_REM_LIST_OCC_ADDR)) {
             throw uhd::assertion_error(
-                str(boost::format("Trying to write to read-only register %08x") % addr));
+                std::format("Trying to write to read-only register {:08x}", addr)
+            );
         } else if (addr == fft_block_control::REG_CP_INS_LIST_LOAD_ADDR) {
             uint32_t cp_length = write_memory[fft_block_control::REG_CP_INS_LEN_ADDR];
             cp_insertion_list.push_back(cp_length);
@@ -68,7 +68,7 @@ public:
         } else {
             write_memory[addr] = data;
         }
-        UHD_LOG_TRACE("TEST", str(boost::format("poke [%04x] = %08x") % addr % data));
+        UHD_LOG_TRACE("TEST", std::format("poke [{:04x}] = {:08x}", addr, data));
         if (addr == fft_block_control::REG_RESET_ADDR) {
             reset();
         }
@@ -78,9 +78,8 @@ public:
     {
         if (addr >= fft_block_control::REG_RESET_ADDR_V1) {
             throw uhd::assertion_error(
-                str(boost::format("Trying to read register %08x which is only supported "
-                                  "for FFT Block v1")
-                    % addr));
+                std::format("Trying to read register {:08x} which is only supported for FFT Block v1", addr)
+            );
         }
         if ((fft_block_control::REG_COMPAT_ADDR == addr)
             || (fft_block_control::REG_CAPABILITIES_ADDR == addr)
@@ -93,8 +92,7 @@ public:
         } else {
             read_memory[addr] = write_memory[addr];
         }
-        UHD_LOG_TRACE(
-            "TEST", str(boost::format("peek [%04x] = %08x") % addr % read_memory[addr]));
+        UHD_LOG_TRACE("TEST", std::format("peek [{:04x}] = {:08x}", addr, read_memory[addr]));
     }
     void reset()
     {

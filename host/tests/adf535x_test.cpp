@@ -27,9 +27,7 @@ public:
 
     void poke32(const uint8_t addr, const uint32_t data)
     {
-        UHD_LOG_INFO("ADF535x",
-            "W[" << boost::format("%02d") % static_cast<int>(addr) << "] => "
-                 << boost::format("%08X") % data);
+        UHD_LOG_INFO("ADF535x", std::format("W[{:02d}] => {:08X}", static_cast<int>(addr), data));
         mem[addr] = data;
     }
 

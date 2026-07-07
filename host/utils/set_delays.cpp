@@ -43,7 +43,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD set value at path %s") % desc << std::endl;
+        std::cout << std::format("UHD set value at path {}\n", desc);
         std::cout
             << std::endl
             << "Sets delays on i and q of channels. Used for calibration\n"

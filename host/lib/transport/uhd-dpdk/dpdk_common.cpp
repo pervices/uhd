@@ -107,13 +107,11 @@ dpdk_port::dpdk_port(port_id_t port,
     uint64_t tx_offloads            = DEV_TX_OFFLOAD_IPV4_CKSUM;
 #endif
     if ((dev_info.rx_offload_capa & rx_offloads) != rx_offloads) {
-        UHD_LOGGER_ERROR("DPDK") << boost::format("%d: Only supports RX offloads 0x%0llx")
-                                        % _port % dev_info.rx_offload_capa;
+        UHD_LOGGER_ERROR("DPDK") << std::format("{}: Only supports RX offloads {:#018x}", _port, dev_info.rx_offload_capa);
         throw uhd::runtime_error("DPDK: Missing required RX offloads");
     }
     if ((dev_info.tx_offload_capa & tx_offloads) != tx_offloads) {
-        UHD_LOGGER_ERROR("DPDK") << boost::format("%d: Only supports TX offloads 0x%0llx")
-                                        % _port % dev_info.tx_offload_capa;
+        UHD_LOGGER_ERROR("DPDK") << std::format("{}: Only supports TX offloads {:#018x}", _port, dev_info.tx_offload_capa);
         throw uhd::runtime_error("DPDK: Missing required TX offloads");
     }
 
@@ -121,7 +119,7 @@ dpdk_port::dpdk_port(port_id_t port,
     if (dev_info.max_rx_queues < num_queues || dev_info.max_tx_queues < num_queues) {
         _num_queues = std::min(dev_info.max_rx_queues, dev_info.max_tx_queues);
         UHD_LOGGER_WARNING("DPDK")
-            << boost::format("%d: Maximum queues supported is %d") % _port % _num_queues;
+            << std::format("{}: Maximum queues supported is {}\n", _port, _num_queues);
     } else {
         _num_queues = num_queues;
     }
@@ -150,10 +148,10 @@ dpdk_port::dpdk_port(port_id_t port,
     if (retval) {
         uint16_t actual_mtu;
         UHD_LOGGER_WARNING("DPDK")
-            << boost::format("Port %d: Could not set mtu to %d") % _port % _mtu;
+            << std::format("Port {}: Could not set mtu to {}", _port, _mtu);
         rte_eth_dev_get_mtu(_port, &actual_mtu);
         UHD_LOGGER_WARNING("DPDK")
-            << boost::format("Port %d: Current mtu=%d") % _port % actual_mtu;
+            << std::format("Port {}: Current mtu={}", _port, actual_mtu);
         _mtu = actual_mtu;
     }
 
@@ -162,12 +160,12 @@ dpdk_port::dpdk_port(port_id_t port,
     if (dev_info.rx_desc_lim.nb_max < rx_desc || dev_info.rx_desc_lim.nb_min > rx_desc
         || (dev_info.rx_desc_lim.nb_align - 1) & rx_desc) {
         UHD_LOGGER_ERROR("DPDK")
-            << boost::format("%d: %d RX descriptors requested, but must be in [%d,%d]")
-                   % _port % num_desc % dev_info.rx_desc_lim.nb_min
-                   % dev_info.rx_desc_lim.nb_max;
-        UHD_LOGGER_ERROR("DPDK")
-            << boost::format("Num RX descriptors must also be aligned to 0x%x")
-                   % dev_info.rx_desc_lim.nb_align;
+            << std::format("{}: {} RX descriptors requested, but must be in [{},{}]",
+                   _port, num_desc, dev_info.rx_desc_lim.nb_min,
+                   dev_info.rx_desc_lim.nb_max);
+
+        UHD_LOGGER_ERROR("DPDK") << std::format("Num RX descriptors must also be aligned to {:#x}", dev_info.rx_desc_lim.nb_align);
+
         throw uhd::runtime_error("DPDK: Failed to allocate RX descriptors");
     }
 
@@ -175,12 +173,11 @@ dpdk_port::dpdk_port(port_id_t port,
     if (dev_info.tx_desc_lim.nb_max < tx_desc || dev_info.tx_desc_lim.nb_min > tx_desc
         || (dev_info.tx_desc_lim.nb_align - 1) & tx_desc) {
         UHD_LOGGER_ERROR("DPDK")
-            << boost::format("%d: %d TX descriptors requested, but must be in [%d,%d]")
-                   % _port % num_desc % dev_info.tx_desc_lim.nb_min
-                   % dev_info.tx_desc_lim.nb_max;
-        UHD_LOGGER_ERROR("DPDK")
-            << boost::format("Num TX descriptors must also be aligned to 0x%x")
-                   % dev_info.tx_desc_lim.nb_align;
+            << std::format("{}: {} TX descriptors requested, but must be in [{},{}]",
+                   _port, num_desc, dev_info.tx_desc_lim.nb_min,
+                   dev_info.tx_desc_lim.nb_max);
+        UHD_LOGGER_ERROR("DPDK") << std::format("Num TX descriptors must also be aligned to {:#x}", dev_info.tx_desc_lim.nb_align);
+
         throw uhd::runtime_error("DPDK: Failed to allocate TX descriptors");
     }
 
@@ -198,7 +195,7 @@ dpdk_port::dpdk_port(port_id_t port,
             rte_eth_rx_queue_setup(_port, i, rx_desc, cpu_socket, NULL, _rx_pktbuf_pool);
         if (retval < 0) {
             UHD_LOGGER_ERROR("DPDK")
-                << boost::format("Port %d: Could not init RX queue %d") % _port % i;
+                << std::format("Port {}: Could not init RX queue {}", _port, i);
             throw uhd::runtime_error("DPDK: Failure to init RX queue");
         }
 
@@ -211,7 +208,7 @@ dpdk_port::dpdk_port(port_id_t port,
         retval = rte_eth_tx_queue_setup(_port, i, tx_desc, cpu_socket, &txconf);
         if (retval < 0) {
             UHD_LOGGER_ERROR("DPDK")
-                << boost::format("Port %d: Could not init TX queue %d") % _port % i;
+                << std::format("Port {}: Could not init TX queue {}", _port, i);
             throw uhd::runtime_error("DPDK: Failure to init TX queue");
         }
     }
@@ -222,7 +219,7 @@ dpdk_port::dpdk_port(port_id_t port,
     retval = rte_eth_dev_start(_port);
     if (retval < 0) {
         UHD_LOGGER_ERROR("DPDK")
-            << boost::format("Port %d: Could not start device") % _port;
+            << std::format("Port {}: Could not start device", _port);
         throw uhd::runtime_error("DPDK: Failure to start device");
     }
 
@@ -322,7 +319,7 @@ int dpdk_port::_arp_reply(queue_id_t queue_id, struct rte_arp_hdr* arp_req)
 
     if (rte_eth_tx_burst(_port, queue_id, &mbuf, 1) != 1) {
         UHD_LOGGER_WARNING("DPDK")
-            << boost::format("%s: TX descriptor ring is full") % __func__;
+            << std::format("{}: TX descriptor ring is full", __func__);
         rte_pktmbuf_free(mbuf);
         return -EAGAIN;
     }
@@ -602,8 +599,8 @@ void dpdk_ctx::init(const device_addr_t& user_args)
                 }
                 unsigned int link_status = link.link_status;
                 unsigned int link_speed  = link.link_speed;
-                UHD_LOGGER_TRACE("DPDK") << boost::format("Port %u UP: %d, %u Mbps")
-                                                % portid % link_status % link_speed;
+                UHD_LOGGER_TRACE("DPDK") << std::format("Port {} UP: {}, {} Mbps",
+                                                portid, link_status, link_speed);
                 all_ports_up &= (link.link_status == 1);
             }
 
@@ -737,8 +734,8 @@ struct rte_mempool* dpdk_ctx::_get_rx_pktbuf_pool(
         char name[32];
         snprintf(name, sizeof(name), "rx_mbuf_pool_%u", pool_index);
         UHD_LOG_TRACE("DPDK",
-            str(boost::format("Creating %s with %d x %d bytes") % name % num_bufs
-                % mbuf_size));
+            std::format("Creating {} with {} x {} bytes", name, num_bufs,
+                mbuf_size));
         _rx_pktbuf_pools[pool_index] = rte_pktmbuf_pool_create(name,
             num_bufs,
             _mbuf_cache_size,
@@ -761,8 +758,8 @@ struct rte_mempool* dpdk_ctx::_get_tx_pktbuf_pool(
         char name[32];
         snprintf(name, sizeof(name), "tx_mbuf_pool_%u", pool_index);
         UHD_LOG_TRACE("DPDK",
-            str(boost::format("Creating %s with %d x %d bytes") % name % num_bufs
-                % mbuf_size));
+            std::format("Creating {} with {} x {} bytes", name, num_bufs,
+                mbuf_size));
         _tx_pktbuf_pools[pool_index] = rte_pktmbuf_pool_create(
             name, num_bufs, _mbuf_cache_size, 0, mbuf_size, SOCKET_ID_ANY);
         if (!_tx_pktbuf_pools.at(pool_index)) {

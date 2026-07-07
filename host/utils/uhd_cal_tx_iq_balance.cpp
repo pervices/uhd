@@ -84,9 +84,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("USRP Generate TX IQ Balance Calibration Table %s")
-                         % desc
-                  << std::endl;
+        std::cout << std::format("USRP Generate TX IQ Balance Calibration Table {}\n",
+                         desc);
         std::cout << "This application measures leakage between RX and TX on a "
                      "transceiver daughterboard to self-calibrate.\n"
                      "Note: Not all daughterboards support this feature. Refer to the "
@@ -166,9 +165,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    std::cout << boost::format("Calibration frequency range: %d MHz -> %d MHz")
-                     % (freq_start / 1e6) % (freq_stop / 1e6)
-              << std::endl;
+    std::cout << std::format("Calibration frequency range: {} MHz -> {} MHz\n",
+                     (freq_start / 1e6), (freq_stop / 1e6));
 
     size_t tx_error_count = 0;
     for (double tx_lo_i = freq_start; tx_lo_i <= freq_stop; tx_lo_i += freq_step) {
@@ -261,10 +259,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             result.delta     = best_suppression - initial_suppression;
             results.push_back(result);
             if (vm.count("verbose"))
-                std::cout << boost::format(
-                                 "TX IQ: %f MHz: best suppression %f dB, corrected %f dB")
-                                 % (tx_lo / 1e6) % result.best % result.delta
-                          << std::endl;
+                std::cout << std::format(
+                                 "TX IQ: {} MHz: best suppression {} dB, corrected {} dB\n",
+                                 (tx_lo / 1e6), result.best, result.delta);
             else
                 std::cout << "." << std::flush;
         }
