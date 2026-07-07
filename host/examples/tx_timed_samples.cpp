@@ -8,7 +8,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <boost/thread/thread.hpp>
 #include <complex>
@@ -97,23 +97,23 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args
+    std::cout << std::format("Creating the usrp device with: {}...", args)
               << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}", usrp->get_pp_string()) << std::endl;
 
     // print the actual TX frequency
-    std::cout << boost::format("Actual TX Freq: %f MHz") % (usrp->get_tx_freq() / 1e06)
+    std::cout << std::format("Actual TX Freq: {} MHz", (usrp->get_tx_freq() / 1e06))
               << std::endl;
 
     // set the tx sample rate
-    std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    std::cout << std::format("Setting TX Rate: {} Msps...", (rate / 1e6)) << std::endl;
     usrp->set_tx_rate(rate);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate() / 1e6)
+    std::cout << std::format("Actual TX Rate: {} Msps...", (usrp->get_tx_rate() / 1e6))
               << std::endl
               << std::endl;
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+    std::cout << "Setting device timestamp to 0..." << std::endl;
     usrp->set_time_now(uhd::time_spec_t(0.0));
 
     // create a transmit streamer
@@ -148,7 +148,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         if (num_tx_samps < samps_to_send)
             std::cerr << "Send timeout..." << std::endl;
         if (verbose)
-            std::cout << boost::format("Sent packet: %u samples") % num_tx_samps
+            std::cout << std::format("Sent packet: {} samples", num_tx_samps)
                       << std::endl;
 
         num_acc_samps += num_tx_samps;
