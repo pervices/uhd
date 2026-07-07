@@ -10,7 +10,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <uhd/exception.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
@@ -243,7 +243,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD RX_TX continuous stream %s") % desc << std::endl;
+        std::cout << std::format("UHD RX_TX continuous stream {}\n", desc);
         return ~0;
     }
     
@@ -256,7 +256,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     
     // create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
         
     // detect which channels to use
@@ -343,32 +343,28 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
     
     // set the tx sample rate
-    std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    std::cout << std::format("Setting TX Rate: {} Msps...\n", (rate / 1e6));
     usrp->set_tx_rate(rate);
     double actual_tx_rate = usrp->get_tx_rate();
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (actual_tx_rate / 1e6)
-              << std::endl
-              << std::endl;
+    std::cout << std::format("Actual TX Rate: {} Msps...\n\n", (actual_tx_rate / 1e6));
     
     // set the rx sample rate
-    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    std::cout << std::format("Setting RX Rate: {} Msps...\n", (rate / 1e6));
     usrp->set_rx_rate(rate);
     double actual_rx_rate = usrp->get_rx_rate();
-    std::cout << boost::format("Actual RX Rate: %f Msps...") % (actual_rx_rate / 1e6)
-              << std::endl
-              << std::endl;
+    std::cout << std::format("Actual RX Rate: {} Msps...\n\n", (actual_rx_rate / 1e6));
     
     // setting tuning Tx frequency  
     for(size_t ch = 0; ch < tx_channel_nums.size(); ch++){
-        std::cout << boost::format("Setting ch%i TX Freq: %f MHz...") % tx_channel_nums[ch] % (tx_freqs[ch]/1e6) << std::endl;
+        std::cout << std::format("Setting ch{} TX Freq: {} MHz...\n", tx_channel_nums[ch], (tx_freqs[ch]/1e6));
         uhd::tune_request_t tx_tune_request(tx_freqs[ch]);
         usrp->set_tx_freq(tx_tune_request, tx_channel_nums[ch]);
-        std::cout << boost::format("Actual ch%i TX Freq: %f MHz...") % tx_channel_nums[ch] % (usrp->get_tx_freq(tx_channel_nums[ch])/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual ch{} TX Freq: {} MHz...\n\n", tx_channel_nums[ch], (usrp->get_tx_freq(tx_channel_nums[ch])/1e6));
 
-        std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % rx_channel_nums[ch] % (rx_freqs[ch]/1e6) << std::endl;
+        std::cout << std::format("Setting ch{} RX Freq: {} MHz...\n", rx_channel_nums[ch], (rx_freqs[ch]/1e6));;
         uhd::tune_request_t rx_tune_request(rx_freqs[ch]);
         usrp->set_rx_freq(rx_tune_request, rx_channel_nums[ch]);
-        std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % rx_channel_nums[ch] % (usrp->get_rx_freq(rx_channel_nums[ch])/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual ch{} RX Freq: {} MHz...", rx_channel_nums[ch], (usrp->get_rx_freq(rx_channel_nums[ch])/1e6));
     }
         
     if(actual_rx_rate != actual_tx_rate) {
@@ -378,14 +374,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     
     for(size_t ch = 0; ch < rx_channel_nums.size(); ch++){
         //set the Rx rf gain
-        std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % rx_channel_nums[ch] % rx_gains[ch] << std::endl;
+        std::cout << std::format("Setting ch{} RX Gain: {} dB...\n", rx_channel_nums[ch], rx_gains[ch]);
         usrp->set_rx_gain(rx_gains[ch], rx_channel_nums[ch]);
-        std::cout << boost::format("Actual ch%i RX Gain: %f dB...") % rx_channel_nums[ch] % usrp->get_rx_gain(rx_channel_nums[ch]) << std::endl << std::endl;
+        std::cout << std::format("Actual ch{} RX Gain: {} dB...\n\n", rx_channel_nums[ch], usrp->get_rx_gain(rx_channel_nums[ch]));
             
         //set the Tx rf gain
-        std::cout << boost::format("Setting ch%i TX Gain: %f dB...") % tx_channel_nums[ch] % tx_gains[ch] << std::endl;
+        std::cout << std::format("Setting ch{} TX Gain: {} dB...\n", tx_channel_nums[ch], tx_gains[ch]);
         usrp->set_tx_gain(tx_gains[ch], tx_channel_nums[ch]);
-        std::cout << boost::format("Actual ch%i TX Gain: %f dB...") % tx_channel_nums[ch] % usrp->get_tx_gain(tx_channel_nums[ch]) << std::endl << std::endl;
+        std::cout << std::format("Actual ch{} TX Gain: {} dB...\n\n", tx_channel_nums[ch], usrp->get_tx_gain(tx_channel_nums[ch]));
     }
     
     // Lock mboard clocks
@@ -433,7 +429,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         tx_start_time = seconds_in_future + offset;
     }
     
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+    std::cout << "Setting device timestamp to 0...\n";
     usrp->set_time_now(uhd::time_spec_t(0.0));
 
     rx_stream->issue_stream_cmd(stream_cmd);
