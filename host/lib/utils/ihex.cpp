@@ -195,7 +195,7 @@ void ihex_reader::to_bin_file(const std::string& bin_filename)
     output_file->open(bin_filename.c_str(), std::ios::out | std::ios::binary);
     if (not output_file->is_open()) {
         throw uhd::io_error(
-            str(boost::format("Could not open file for writing: %s") % bin_filename));
+            std::format("Could not open file for writing: {}", bin_filename));
     }
 
     this->read(std::bind(&_file_writer_callback,

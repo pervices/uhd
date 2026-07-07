@@ -498,7 +498,7 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
 
     if (xport_params.num_send_frames * xport_params.send_frame_size % page_size != 0) {
         throw uhd::value_error(
-                boost::format(
+                std::format(
                         "num_send_frames * send_frame_size must be an even multiple of {}",
                         page_size));
     }

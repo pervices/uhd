@@ -70,10 +70,10 @@ udp_dpdk_link::udp_dpdk_link(dpdk::port_id_t port_id,
     if (params.send_frame_size > max_frame_size
         || params.recv_frame_size > max_frame_size) {
         UHD_LOGGER_ERROR("DPDK")
-            << boost::format("recv_frame_size=%d, send_frame_size=%d, max_frame_size=%d, "
-                             "HDR_SIZE_UDP_IPV4=%d")
-                   % params.recv_frame_size % params.send_frame_size % max_frame_size
-                   % dpdk::HDR_SIZE_UDP_IPV4;
+            << std::format("recv_frame_size={}, send_frame_size={}, max_frame_size={}, "
+                             "HDR_SIZE_UDP_IPV4={}",
+                   params.recv_frame_size, params.send_frame_size, max_frame_size,
+                   dpdk::HDR_SIZE_UDP_IPV4);
         throw uhd::assertion_error(
             "{ send_frame_size, recv_frame_size } > max_frame_size");
     }
@@ -82,13 +82,13 @@ udp_dpdk_link::udp_dpdk_link(dpdk::port_id_t port_id,
     auto info      = _port->get_adapter_info();
     auto& adap_ctx = adapter_ctx::get();
     _adapter_id    = adap_ctx.register_adapter(info);
-    UHD_LOGGER_TRACE("DPDK") << boost::format("Created udp_dpdk_link to (%s:%s)")
-                                    % remote_addr % remote_port;
+    UHD_LOGGER_TRACE("DPDK") << std::format("Created udp_dpdk_link to ({}:{})",
+                                    remote_addr, remote_port);
     UHD_LOGGER_TRACE("DPDK")
-        << boost::format("num_recv_frames=%d, recv_frame_size=%d, num_send_frames=%d, "
-                         "send_frame_size=%d")
-               % params.num_recv_frames % params.recv_frame_size % params.num_send_frames
-               % params.send_frame_size;
+        << std::format("num_recv_frames={}, recv_frame_size={}, num_send_frames={}, "
+                         "send_frame_size={}",
+               params.num_recv_frames, params.recv_frame_size, params.num_send_frames,
+               params.send_frame_size);
 }
 
 udp_dpdk_link::sptr udp_dpdk_link::make(const std::string& remote_addr,

@@ -524,7 +524,7 @@ public:
         _send_recv_mgmt_transaction(xport, cfg_xact);
 
         UHD_LOG_DEBUG(
-            LOG_ID, (boost::format("Finished TX stream setup for EPID=%d") % epid));
+            LOG_ID, (std::format("Finished TX stream setup for EPID={}", epid)));
     }
 
     stream_buff_params_t config_remote_stream(chdr_ctrl_xport& xport,
@@ -609,8 +609,8 @@ public:
         _validate_stream_setup(xport, src_node, timeout, fc_enabled);
 
         UHD_LOG_DEBUG(LOG_ID,
-            (boost::format("Setup a stream from EPID=%d to EPID=%d") % src_epid
-                % dst_epid));
+            (std::format("Setup a stream from EPID={} to EPID={}", src_epid,
+                dst_epid)));
 
         // Return discovered buffer parameters
         return std::get<1>(_get_ostrm_status(xport, src_node));

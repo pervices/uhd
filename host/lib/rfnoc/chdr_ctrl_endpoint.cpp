@@ -106,8 +106,8 @@ public:
                 timebase_clk);
             _endpoint_map.insert(std::make_pair(key, ctrlport_ep));
             UHD_LOG_DEBUG("RFNOC",
-                boost::format("Created ctrlport endpoint for port %d on EPID %d")
-                    % dst_port % _my_epid);
+                std::format("Created ctrlport endpoint for port {} on EPID {}",
+                    dst_port, _my_epid));
             return ctrlport_ep;
         } else {
             return _endpoint_map.at(key);

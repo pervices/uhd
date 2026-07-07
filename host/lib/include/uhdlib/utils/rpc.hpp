@@ -83,10 +83,10 @@ public:
         // wait for asynchronous creation to finish
         if (!await_rpc_connected_state(
                 _client, std::chrono::milliseconds(DEFAULT_RPC_TIMEOUT_MS))) {
-            throw uhd::runtime_error(str(
-                boost::format(
-                    "Unknown error during attempt to establish RPC connection at %s:%d")
-                % addr % port));
+            throw uhd::runtime_error(
+                std::format(
+                    "Unknown error during attempt to establish RPC connection at {}:{}",
+                addr, port));
         }
 
         _client->set_timeout(_default_timeout_ms);
