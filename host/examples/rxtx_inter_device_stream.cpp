@@ -13,7 +13,7 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/algorithm/string.hpp>
 #include <stdint.h>
 #include <iostream>
@@ -212,7 +212,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
+        std::cout << std::format("UHD TX Waveforms {}\n", desc);
         return ~0;
     }
 
@@ -271,7 +271,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
     else {
         if(use_a) {
-            std::cout << boost::format("Creating the usrp device with: %s...") % a_args << std::endl;
+            std::cout << std::format("Creating the usrp device with: {}...\n", a_args);
             a_usrp = uhd::usrp::multi_usrp::make(a_args);
         }
         else {
@@ -281,7 +281,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         if(loopback_mode) {
             b_usrp = a_usrp;
         } else if(use_b) {
-            std::cout << boost::format("Creating the usrp device with: %s...") % b_args << std::endl;
+            std::cout << std::format("Creating the usrp device with: {}...\n", b_args);
             b_usrp = uhd::usrp::multi_usrp::make(b_args);
         }
         else {
@@ -329,22 +329,22 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_a) {
         if(a_rx_channel_nums.size() != 0) {
             for(size_t n = 0; n < a_rx_channel_nums.size(); n++) {
-                std::cout << boost::format("Setting ch %lu A RX Rate: %f Msps...") % n % (ab_rates[n]/1e6) << std::endl;
+                std::cout << std::format("Setting ch {} A RX Rate: {} Msps...\n", n, (ab_rates[n]/1e6));
                 a_usrp->set_rx_rate(ab_rates[n], a_rx_channel_nums[n]);
                 actual_ab_rates[n] = a_usrp->get_rx_rate(a_rx_channel_nums[n]);
                 // Record actual rate so that the tx side of B is set to match
                 ab_rates[n] = actual_ab_rates[n];
-                std::cout << boost::format("Actual ch %lu A RX Rate: %f Msps...") % n % (actual_ab_rates[n]/1e6) << std::endl << std::endl;
+                std::cout << std::format("Actual ch {} A RX Rate: {} Msps...\n\n", n, (actual_ab_rates[n]/1e6));
             }
         }
         if(a_tx_channel_nums.size() != 0 && !loopback_mode) {
             for(size_t n = 0; n < a_tx_channel_nums.size(); n++) {
-                std::cout << boost::format("Setting ch %lu A TX Rate: %f Msps...") % n % (ba_rates[n]/1e6) << std::endl;
+                std::cout << std::format("Setting ch {} A TX Rate: {} Msps...\n", n, (ba_rates[n]/1e6));
                 a_usrp->set_tx_rate(ba_rates[n], a_tx_channel_nums[n]);
                 actual_ba_rates[n] = a_usrp->get_tx_rate(a_tx_channel_nums[n]);
                 // Record actual rate so that the tx side of B is set to match
                 ba_rates[n] = actual_ba_rates[n];
-                std::cout << boost::format("Actual ch %lu A TX Rate: %f Msps...") % n % (actual_ba_rates[n]/1e6) << std::endl << std::endl;
+                std::cout << std::format("Actual ch {} A TX Rate: {} Msps...\n\n", n, (actual_ba_rates[n]/1e6));
             }
         }
     }
@@ -352,22 +352,22 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_b) {
         if(b_rx_channel_nums.size() != 0 && !loopback_mode) {
             for(size_t n = 0; n < b_rx_channel_nums.size(); n++) {
-                std::cout << boost::format("Setting ch %lu B RX Rate: %f Msps...") % n % (ba_rates[n]/1e6) << std::endl;
+                std::cout << std::format("Setting ch {} B RX Rate: {} Msps...\n", n, (ba_rates[n]/1e6));
                 b_usrp->set_rx_rate(ba_rates[n], b_rx_channel_nums[n]);
                 double actual_rate = b_usrp->get_rx_rate(b_rx_channel_nums[n]);
                 // Verify B rx matches A tx
                 validate_rates(actual_ba_rates[n], actual_rate);
-                std::cout << boost::format("Actual ch %lu B RX Rate: %f Msps...") % n % (actual_rate/1e6) << std::endl << std::endl;
+                std::cout << std::format("Actual ch {} B RX Rate: {} Msps...\n\n", n, (actual_rate/1e6));
             }
         }
         if(b_tx_channel_nums.size() != 0) {
             for(size_t n = 0; n < b_tx_channel_nums.size(); n++) {
-                std::cout << boost::format("Setting ch %lu B TX Rate: %f Msps...") % n % (ab_rates[n]/1e6) << std::endl;
+                std::cout << std::format("Setting ch {} B TX Rate: {} Msps...\n", n, (ab_rates[n]/1e6));
                 b_usrp->set_tx_rate(ab_rates[n], b_tx_channel_nums[n]);
                 double actual_rate = b_usrp->get_tx_rate(b_tx_channel_nums[n]);
                 // Verify B rx matches A tx
                 validate_rates(actual_ab_rates[n], actual_rate);
-                std::cout << boost::format("Actual ch %lu B TX Rate: %f Msps...") % n % (actual_rate/1e6) << std::endl << std::endl;
+                std::cout << std::format("Actual ch {} B TX Rate: {} Msps...\n\n", n, (actual_rate/1e6));
             }
         }
     }
@@ -414,10 +414,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     if(use_a) {
-        std::cout << boost::format("Using A Device: %s") % a_usrp->get_pp_string() << std::endl;
+        std::cout << std::format("Using A Device: {}\n", a_usrp->get_pp_string());
     }
     if(use_b) {
-        std::cout << boost::format("Using B Device: %s") % b_usrp->get_pp_string() << std::endl;
+        std::cout << std::format("Using B Device: {}\n", b_usrp->get_pp_string());
     }
 
     // Sets the destination IP and port in rx_usrp to match tx_usrp for the specified channels

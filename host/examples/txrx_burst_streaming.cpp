@@ -14,7 +14,7 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/algorithm/string.hpp>
 #include <stdint.h>
 #include <iostream>
@@ -233,14 +233,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
+        std::cout << std::format("UHD TX Waveforms {}\n", desc);
         return ~0;
     }
 
 
     //create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //detect which channels to use
@@ -258,20 +258,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //Lock mboard clocks
     usrp->set_clock_source(ref);
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
     //set the sample rate
     if (not vm.count("rate")){
         std::cerr << "Please specify the sample rate with --rate" << std::endl;
         return ~0;
     }
-    std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
+    std::cout << std::format("Setting TX Rate: {} Msps...\n", (rate/1e6));
     usrp->set_tx_rate(rate);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate()/1e6) << std::endl << std::endl;
+    std::cout << std::format("Actual TX Rate: {} Msps...\n\n", (usrp->get_tx_rate()/1e6));
 
-    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate/1e6) << std::endl;
+    std::cout << std::format("Setting RX Rate: {} Msps...\n", (rate/1e6));
     usrp->set_rx_rate(rate);
-    std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate()/1e6) << std::endl << std::endl;
+    std::cout << std::format("Actual RX Rate: {} Msps...\n\n", % (usrp->get_rx_rate()/1e6));
 
 
     //set the center frequency
@@ -281,24 +281,24 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
-        std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
+        std::cout << std::format("Setting TX Freq: {} MHz...\n", (freq/1e6));
         uhd::tune_request_t tx_tune_request(freq);
         usrp->set_tx_freq(tx_tune_request, channel_nums[ch]);
-        std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual TX Freq: {} MHz...\n\n", (usrp->get_tx_freq(channel_nums[ch])/1e6));
 
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+        std::cout << std::format("Setting RX Freq: {} MHz...\n", (freq/1e6));
         uhd::tune_request_t rx_tune_request(freq);
         usrp->set_rx_freq(rx_tune_request, channel_nums[ch]);
-        std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual RX Freq: {} MHz...\n\n", (usrp->get_rx_freq(channel_nums[ch])/1e6));
 
         //set the rf gain
-        std::cout << boost::format("Setting TX Gain: %f dB...") % tx_gain << std::endl;
+        std::cout << std::format("Setting TX Gain: {} dB...\n", tx_gain);
         usrp->set_tx_gain(tx_gain, channel_nums[ch]);
-        std::cout << boost::format("Actual TX Gain: %f dB...") % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
+        std::cout << std::format("Actual TX Gain: {} dB...\n\n", usrp->get_tx_gain(channel_nums[ch]));
 
-        std::cout << boost::format("Setting RX Gain: %f dB...") % rx_gain << std::endl;
+        std::cout << std::format("Setting RX Gain: {} dB...\n", rx_gain);
         usrp->set_rx_gain(rx_gain, channel_nums[ch]);
-        std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel_nums[ch]) << std::endl << std::endl;
+        std::cout << std::format("Actual RX Gain: {} dB...\n\n" usrp->get_rx_gain(channel_nums[ch]));
     }
 
 
@@ -318,23 +318,23 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     sensor_names = usrp->get_tx_sensor_names(tx_sensor_chan);
     if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
         uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
-        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: {} ...\n", lo_locked.to_pp_string());
         UHD_ASSERT_THROW(lo_locked.to_bool());
     }
     const size_t mboard_sensor_idx = 0;
     sensor_names = usrp->get_mboard_sensor_names(mboard_sensor_idx);
     if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {
         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: {} ...\n", mimo_locked.to_pp_string());
         UHD_ASSERT_THROW(mimo_locked.to_bool());
     }
     if ((ref == "external") and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end())) {
         uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: {} ...\n", ref_locked.to_pp_string());
         UHD_ASSERT_THROW(ref_locked.to_bool());
     }
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+    std::cout << "Setting device timestamp to 0...\n";
     if(pps != "bypass") {
         if (channel_nums.size() > 1)
         {

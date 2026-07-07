@@ -16,7 +16,7 @@
 #include <uhd/utils/graph_utils.hpp>
 #include <uhd/utils/math.hpp>
 #include <uhd/utils/safe_main.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <csignal>
@@ -159,8 +159,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
      * Create device and block controls
      ***********************************************************************/
     std::cout << std::endl;
-    std::cout << boost::format("Creating the RFNoC graph with args: %s...") % args
-              << std::endl;
+    std::cout << std::format("Creating the RFNoC graph with args: {}...\n", args);
+
     uhd::rfnoc::rfnoc_graph::sptr graph = uhd::rfnoc::rfnoc_graph::make(args);
 
     // Create handles for radio objects
@@ -220,80 +220,68 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     if (rate <= 0.0) {
         rate = rx_radio_ctrl->get_rate();
     } else {
-        std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6)
-                  << std::endl;
+        std::cout << std::format("Setting RX Rate: {} Msps...\n", (rate / 1e6));
+
         rate = rx_radio_ctrl->set_rate(rate);
-        std::cout << boost::format("Actual RX Rate: %f Msps...") % (rate / 1e6)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual RX Rate: {} Msps...\n\n", (rate / 1e6));
     }
     std::cout << "Actual Sample Rate: " << (rate / 1e6) << " Msps..." << std::endl
               << std::endl;
 
     // set the center frequency
     if (vm.count("rx-freq")) {
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (rx_freq / 1e6)
-                  << std::endl;
+        std::cout << std::format("Setting RX Freq: {} MHz...", (rx_freq / 1e6));
+
         uhd::tune_request_t tune_request(rx_freq);
         if (vm.count("int-n")) {
             tune_request.args = uhd::device_addr_t("mode_n=integer");
         }
         rx_radio_ctrl->set_rx_frequency(rx_freq, rx_chan);
-        std::cout << boost::format("Actual RX Freq: %f MHz...")
-                         % (rx_radio_ctrl->get_rx_frequency(rx_chan) / 1e6)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual RX Freq: {} MHz...\n\n",
+                         (rx_radio_ctrl->get_rx_frequency(rx_chan) / 1e6));
     }
     if (vm.count("tx-freq")) {
-        std::cout << boost::format("Setting TX Freq: %f MHz...") % (tx_freq / 1e6)
-                  << std::endl;
+        std::cout << std::format("Setting TX Freq: {} MHz...\n", (tx_freq / 1e6));
+
         uhd::tune_request_t tune_request(tx_freq);
         if (vm.count("int-n")) {
             tune_request.args = uhd::device_addr_t("mode_n=integer");
         }
         tx_radio_ctrl->set_tx_frequency(tx_freq, tx_chan);
-        std::cout << boost::format("Actual TX Freq: %f MHz...")
-                         % (tx_radio_ctrl->get_tx_frequency(tx_chan) / 1e6)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual TX Freq: {} MHz...\n\n",
+                (tx_radio_ctrl->get_tx_frequency(tx_chan) / 1e6));
     }
 
     // set the rf gain
     if (vm.count("rx-gain")) {
-        std::cout << boost::format("Setting RX Gain: %f dB...") % rx_gain << std::endl;
+        std::cout << std::format("Setting RX Gain: {} dB...\n", rx_gain);
+
         rx_radio_ctrl->set_rx_gain(rx_gain, rx_chan);
-        std::cout << boost::format("Actual RX Gain: %f dB...")
-                         % rx_radio_ctrl->get_rx_gain(rx_chan)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual RX Gain: {} dB...\n\n",
+                rx_radio_ctrl->get_rx_gain(rx_chan));
     }
     if (vm.count("tx-gain")) {
-        std::cout << boost::format("Setting TX Gain: %f dB...") % tx_gain << std::endl;
+        std::cout << std::format("Setting TX Gain: {} dB...\n", tx_gain);
+
         tx_radio_ctrl->set_tx_gain(tx_gain, tx_chan);
-        std::cout << boost::format("Actual TX Gain: %f dB...")
-                         % tx_radio_ctrl->get_tx_gain(tx_chan)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual TX Gain: {} dB...\n\n",
+                         tx_radio_ctrl->get_tx_gain(tx_chan));
     }
 
     // set the IF filter bandwidth
     if (vm.count("rx-bw")) {
-        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (rx_bw / 1e6)
-                  << std::endl;
+        std::cout << std::format("Setting RX Bandwidth: {} MHz...\n", (rx_bw / 1e6));
+
         rx_radio_ctrl->set_rx_bandwidth(rx_bw, rx_chan);
-        std::cout << boost::format("Actual RX Bandwidth: %f MHz...")
-                         % (rx_radio_ctrl->get_rx_bandwidth(rx_chan) / 1e6)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual RX Bandwidth: {} MHz...\n\n",
+                         (rx_radio_ctrl->get_rx_bandwidth(rx_chan) / 1e6));
     }
     if (vm.count("tx-bw")) {
-        std::cout << boost::format("Setting TX Bandwidth: %f MHz...") % (tx_bw / 1e6)
-                  << std::endl;
+        std::cout << std::format("Setting TX Bandwidth: {} MHz...\n", (tx_bw / 1e6));
+
         tx_radio_ctrl->set_tx_bandwidth(tx_bw, tx_chan);
-        std::cout << boost::format("Actual TX Bandwidth: %f MHz...")
-                         % (tx_radio_ctrl->get_tx_bandwidth(tx_chan) / 1e6)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual TX Bandwidth: {} MHz...\n\n",
+                         (tx_radio_ctrl->get_tx_bandwidth(tx_chan) / 1e6));
     }
 
     // set the antennas
@@ -332,8 +320,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // We just need to check is nsamps was set, otherwise we'll use the duration
     if (total_num_samps > 0) {
         total_time = total_num_samps / rate;
-        std::cout << boost::format("Expected streaming time: %.3f") % total_time
-                  << std::endl;
+        std::cout << std::format("Expected streaming time: {:.3f}\n", total_time);
     }
 
     // Start streaming
