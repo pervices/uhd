@@ -13,7 +13,7 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/algorithm/string.hpp>
 #include <stdint.h>
 #include <iostream>
@@ -202,7 +202,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...", args) << std::endl;
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //always select the subdevice first, the channel mapping affects the other settings
@@ -225,23 +225,23 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         usrp->set_clock_source(ref);
     }
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}", usrp->get_pp_string()) << std::endl;
 
     //set the sample rate
     if (not vm.count("rate")){
         std::cerr << "Please specify the sample rate with --rate" << std::endl;
         return ~0;
     }
-    std::cout << boost::format("Setting TX Rate: %f Msps...") % (rate/1e6) << std::endl;
+    std::cout << std::format("Setting TX Rate: {} Msps...", (rate/1e6)) << std::endl;
     usrp->set_tx_rate(rate);
     double actual_rate = usrp->get_tx_rate();
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (actual_rate/1e6) << std::endl << std::endl;
+    std::cout << std::format("Actual TX Rate: {} Msps...", (actual_rate/1e6)) << std::endl << std::endl;
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
-        std::cout << boost::format("Setting TX Freq: %f MHz...") % (freq/1e6) << std::endl;
+        std::cout << std::format("Setting TX Freq: {} MHz...", (freq/1e6)) << std::endl;
         uhd::tune_request_t tune_request;
         if(vm.count("lo-offset")) {
-            std::cout << boost::format("Setting TX LO Offset: %f MHz...") % (lo_offset / 1e6) << std::endl;
+            std::cout << std::format("Setting TX LO Offset: {} MHz...", (lo_offset / 1e6)) << std::endl;
             tune_request = uhd::tune_request_t(freq, lo_offset);
         } else {
             // Automatically select lo offset
@@ -249,7 +249,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         }
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_tx_freq(tune_request, channel_nums[ch]);
-        std::cout << boost::format("Actual TX Freq: %f MHz...") % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual TX Freq: {} MHz...", (usrp->get_tx_freq(channel_nums[ch])/1e6)) << std::endl << std::endl;
     }
 
     std::this_thread::sleep_for(std::chrono::seconds(1)); //allow for some setup time
@@ -332,21 +332,21 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                           << std::endl;
             }
         } else if (vm.count("gain")) {
-            std::cout << boost::format("Setting TX Gain: %f dB...") % gain << std::endl;
+            std::cout << std::format("Setting TX Gain: {} dB...", gain) << std::endl;
             usrp->set_tx_gain(gain, channel);
-            std::cout << boost::format("Actual TX Gain: %f dB...")
-                             % usrp->get_tx_gain(channel)
+            std::cout << std::format("Actual TX Gain: {} dB...",
+                             % usrp->get_tx_gain(channel))
                       << std::endl
                       << std::endl;
         }
 
         // set the analog frontend filter bandwidth
         if (vm.count("bw")) {
-            std::cout << boost::format("Setting TX Bandwidth: %f MHz...") % bw
+            std::cout << std::format("Setting TX Bandwidth: {} MHz...", bw)
                       << std::endl;
             usrp->set_tx_bandwidth(bw, channel);
-            std::cout << boost::format("Actual TX Bandwidth: %f MHz...")
-                             % usrp->get_tx_bandwidth(channel)
+            std::cout << std::format("Actual TX Bandwidth: {} MHz...",
+                             usrp->get_tx_bandwidth(channel))
                       << std::endl
                       << std::endl;
         }
@@ -362,24 +362,24 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     sensor_names = usrp->get_tx_sensor_names(tx_sensor_chan);
     if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked") != sensor_names.end()) {
         uhd::sensor_value_t lo_locked = usrp->get_tx_sensor("lo_locked", tx_sensor_chan);
-        std::cout << boost::format("Checking TX: %s ...") % lo_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: {} ...", lo_locked.to_pp_string()) << std::endl;
         UHD_ASSERT_THROW(lo_locked.to_bool());
     }
     const size_t mboard_sensor_idx = 0;
     sensor_names = usrp->get_mboard_sensor_names(mboard_sensor_idx);
     if ((ref == "mimo") and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked") != sensor_names.end())) {
         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % mimo_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: {} ...", mimo_locked.to_pp_string()) << std::endl;
         UHD_ASSERT_THROW(mimo_locked.to_bool());
     }
     if ((ref == "external") and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked") != sensor_names.end())) {
         uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", mboard_sensor_idx);
-        std::cout << boost::format("Checking TX: %s ...") % ref_locked.to_pp_string() << std::endl;
+        std::cout << std::format("Checking TX: {} ...", ref_locked.to_pp_string()) << std::endl;
         UHD_ASSERT_THROW(ref_locked.to_bool());
     }
 
     if(pps != "bypass") {
-        std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+        std::cout << "Setting device timestamp to 0..." << std::endl;
         if (channel_nums.size() > 1)
         {
             // Sync times
