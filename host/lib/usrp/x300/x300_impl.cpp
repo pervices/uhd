@@ -27,7 +27,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhdlib/rfnoc/device_id.hpp>
 #include <uhdlib/utils/paths.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <fstream>
 #include <thread>
@@ -72,9 +72,9 @@ device_addrs_t x300_find(const device_addr_t& hint_)
             device_addrs_t found_devices_i = x300_find(hint_i);
             if (found_devices_i.size() != 1)
                 error_msg +=
-                    str(boost::format(
-                            "Could not resolve device hint \"%s\" to a single device.")
-                        % hint_i.to_string());
+                    std::format(
+                            "Could not resolve device hint \"{}\" to a single device.",
+                        hint_i.to_string());
             else
                 found_devices.push_back(found_devices_i[0]);
         }
@@ -438,29 +438,29 @@ uhd::compat_num32 x300_impl::check_fw_compat(
 
     if (compat_major != X300_FW_COMPAT_MAJOR) {
         const std::string image_loader_path = uhd::find_uhd_command("uhd_image_loader");
-        const std::string image_loader_cmd  = str(
-            boost::format("\"%s\" --args=\"type=x300,%s=%s\"") % image_loader_path
-            % (members.xport_path == xport_path_t::ETH ? "addr" : "resource")
-            % (members.xport_path == xport_path_t::ETH ? members.args.get_first_addr()
+        const std::string image_loader_cmd  =
+            std::format("\"{}\" --args=\"type=x300,{}={}\"", image_loader_path
+            ,(members.xport_path == xport_path_t::ETH ? "addr" : "resource"),
+            (members.xport_path == xport_path_t::ETH ? members.args.get_first_addr()
                                                         : members.args.get_resource()));
 
         throw uhd::runtime_error(
-            str(boost::format(
-                    "Expected firmware compatibility number %d, but got %d:\n"
+            std::format(
+                    "Expected firmware compatibility number {}, but got {}:\n"
                     "The FPGA/firmware image on your device is not compatible with this "
                     "host code build.\n"
                     "Download the appropriate FPGA images for this version of UHD.\n"
-                    "%s\n\n"
+                    "{}\n\n"
                     "Then burn a new image to the on-board flash storage of your\n"
                     "USRP X3xx device using the image loader utility. "
-                    "Use this command:\n\n%s\n\n"
+                    "Use this command:\n\n{}\n\n"
                     "For more information, refer to the UHD manual:\n\n"
-                    " http://files.ettus.com/manual/page_usrp_x3x0.html#x3x0_flash")
-                % int(X300_FW_COMPAT_MAJOR) % compat_major
-                % print_utility_error("uhd_images_downloader.py") % image_loader_cmd));
+                    " http://files.ettus.com/manual/page_usrp_x3x0.html#x3x0_flash",
+                int(X300_FW_COMPAT_MAJOR), compat_major,
+                print_utility_error("uhd_images_downloader.py"), image_loader_cmd));
     }
     _tree->create<std::string>(mb_path / "fw_version")
-        .set(str(boost::format("%u.%u") % compat_major % compat_minor));
+        .set(std::format("{}.{}", compat_major, compat_minor));
 
     return {static_cast<uint16_t>(compat_major), static_cast<uint16_t>(compat_minor)};
 }
@@ -475,34 +475,36 @@ uhd::compat_num32 x300_impl::check_fpga_compat(
     if (compat_major != X300_FPGA_COMPAT_MAJOR || compat_minor < X300_FPGA_COMPAT_MINOR) {
         const std::string image_loader_path = uhd::find_uhd_command("uhd_image_loader");
         const std::string image_loader_cmd  = str(
-            boost::format("\"%s\" --args=\"type=x300,%s=%s\"") % image_loader_path
-            % (members.xport_path == xport_path_t::ETH ? "addr" : "resource")
-            % (members.xport_path == xport_path_t::ETH ? members.args.get_first_addr()
+            std::format("\"{}\" --args=\"type=x300,{}={}\"", image_loader_path,
+            (members.xport_path == xport_path_t::ETH ? "addr" : "resource"),
+            (members.xport_path == xport_path_t::ETH ? members.args.get_first_addr()
                                                         : members.args.get_resource()));
 
         throw uhd::runtime_error(
-            str(boost::format(
-                    "Expected FPGA compatibility number %d.%d, but got %d.%d:\n"
+            std::format(
+                    "Expected FPGA compatibility number {}.{}, but got {}.{}:\n"
                     "The FPGA image on your device is not compatible with this host code "
                     "build.\n"
                     "Download the appropriate FPGA images for this version of UHD.\n"
-                    "%s\n\n"
+                    "{}\n\n"
                     "Then burn a new image to the on-board flash storage of your\n"
                     "USRP X3xx device using the image loader utility. Use this "
-                    "command:\n\n%s\n\n"
+                    "command:\n\n{}\n\n"
                     "For more information, refer to the UHD manual:\n\n"
-                    " http://files.ettus.com/manual/page_usrp_x3x0.html#x3x0_flash")
-                % int(X300_FPGA_COMPAT_MAJOR) % int(X300_FPGA_COMPAT_MINOR)
-                % int(compat_major) % int(compat_minor)
-                % print_utility_error("uhd_images_downloader.py") % image_loader_cmd));
+                    " http://files.ettus.com/manual/page_usrp_x3x0.html#x3x0_flash",
+                int(X300_FPGA_COMPAT_MAJOR), int(X300_FPGA_COMPAT_MINOR),
+                int(compat_major), int(compat_minor),
+                print_utility_error("uhd_images_downloader.py"), image_loader_cmd));
     }
     _tree->create<std::string>(mb_path / "fpga_version")
-        .set(str(boost::format("%u.%u") % compat_major % compat_minor));
+        .set(std::format("{}.{}", compat_major, compat_minor));
 
     const uint32_t git_hash =
         members.zpu_ctrl->peek32(SR_ADDR(SET0_BASE, ZPU_RB_GIT_HASH));
-    const std::string git_hash_str = str(boost::format("%07x%s") % (git_hash & 0x0FFFFFFF)
-                                         % ((git_hash & 0xF0000000) ? "-dirty" : ""));
+    const std::string git_hash_str = std::format("{:07x}{}",
+            (git_hash & 0x0FFFFFFF),
+            ((git_hash & 0xF0000000) ? "-dirty" : "")
+    );
     _tree->create<std::string>(mb_path / "fpga_version_hash").set(git_hash_str);
     UHD_LOG_DEBUG("X300",
         "Using FPGA version: " << compat_major << "." << compat_minor

@@ -10,7 +10,7 @@
 #include <uhd/usrp/subdev_spec.hpp>
 #include <boost/algorithm/string.hpp> //for split
 
-#include <boost/format.hpp>
+#include <format>
 #include <boost/tokenizer.hpp>
 #include <sstream>
 #include <vector>
@@ -78,9 +78,8 @@ std::string subdev_spec_t::to_pp_string(void) const
     size_t count = 0;
     ss << "Subdevice Specification:" << std::endl;
     for (const subdev_spec_pair_t& pair : *this) {
-        ss << boost::format("    Channel %d: Daughterboard %s, Subdevice %s") % (count++)
-                  % pair.db_name % pair.sd_name
-           << std::endl;
+        ss << std::format("    Channel {}: Daughterboard {}, Subdevice {}\n", (count++),
+                  pair.db_name, pair.sd_name);
     }
     return ss.str();
 }
