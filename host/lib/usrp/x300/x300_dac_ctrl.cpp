@@ -11,7 +11,7 @@
 #include <uhd/types/time_spec.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_call.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <thread>
 
@@ -276,10 +276,9 @@ public:
         const size_t reg_19 = read_ad9146_reg(0x19);
         if ((reg_19 & 0xFF) != 0xF) {
             std::string msg(
-                (boost::format(
-                     "x300_dac_ctrl: front-end sync failed. unexpected FIFO depth [0x%x]")
-                    % (reg_19 & 0xFF))
-                    .str());
+                std::format(
+                     "x300_dac_ctrl: front-end sync failed. unexpected FIFO depth [{:#x}]",
+                    (reg_19 & 0xFF)));
             if (failure_is_fatal) {
                 throw uhd::runtime_error(msg);
             } else {

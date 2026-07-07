@@ -13,7 +13,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhdlib/usrp/common/async_packet_handler.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <functional>
 #include <mutex>
 #include <queue>
@@ -166,8 +166,8 @@ private:
                                                           : uhd::htowx(addr);
         pkt[packet_info.num_header_words32 + 1] = (_bige) ? uhd::htonx(data)
                                                           : uhd::htowx(data);
-        // UHD_LOGGER_INFO("radio_ctrl") << boost::format("0x%08x, 0x%08x\n") % addr %
-        // data; send the buffer over the interface
+        // UHD_LOGGER_INFO("radio_ctrl") << std::format("{:#10x}, {:#10x}\n", addr,
+        // data); send the buffer over the interface
         _outstanding_seqs.push(_seq_out);
         buff->commit(sizeof(uint32_t) * (packet_info.num_packet_words32));
 
@@ -197,8 +197,8 @@ private:
                     UHD_ASSERT_THROW(buff->size() > 0);
                 } catch (const std::exception& ex) {
                     throw uhd::io_error(
-                        str(boost::format("Radio ctrl (%s) no response packet - %s")
-                            % _name % ex.what()));
+                        std::format("Radio ctrl ({}) no response packet - {}",
+                            _name, ex.what()));
                 }
                 pkt                            = buff->cast<const uint32_t*>();
                 packet_info.num_packet_words32 = buff->size() / sizeof(uint32_t);
@@ -262,8 +262,8 @@ private:
                 UHD_ASSERT_THROW(packet_info.packet_type == _packet_type);
             } catch (const std::exception& ex) {
                 throw uhd::io_error(
-                    str(boost::format("Radio ctrl (%s) packet parse error - %s") % _name
-                        % ex.what()));
+                    std::format("Radio ctrl ({}) packet parse error - {}", _name,
+                        ex.what()));
             }
 
             // return the readback value

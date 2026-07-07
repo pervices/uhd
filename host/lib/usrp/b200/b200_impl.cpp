@@ -21,7 +21,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/static.hpp>
 #include <boost/filesystem.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/functional/hash.hpp>
 #include <chrono>
 #include <cmath>
@@ -127,7 +127,7 @@ std::string check_option_valid(const std::string& name,
     if (std::find(valid_options.begin(), valid_options.end(), option)
         == valid_options.end()) {
         throw uhd::runtime_error(
-            str(boost::format("Invalid option chosen for: %s") % name));
+            std::format("Invalid option chosen for: {}", name));
     }
 
     return option;
@@ -154,7 +154,7 @@ b200_product_t get_b200_product(
     product_id = uhd::cast::from_str<uint16_t>(mb_eeprom["product"]);
     if (not B2XX_PRODUCT_ID.has_key(product_id)) {
         throw uhd::runtime_error(
-            str(boost::format("B200 unknown product code: 0x%04x") % product_id));
+            std::format("B200 unknown product code: {:#06x}", product_id));
     }
     return B2XX_PRODUCT_ID[product_id];
 }
@@ -465,7 +465,7 @@ b200_impl::b200_impl(
     uint32_t status = _iface->load_fpga(b200_fpga_image);
 
     if (status != 0) {
-        throw uhd::runtime_error(str(boost::format("fx3 is in state %1%") % status));
+        throw uhd::runtime_error(std::format("fx3 is in state {}", status));
     }
 
     _iface->reset_gpif();
@@ -1126,37 +1126,41 @@ void b200_impl::enforce_tick_rate_limits(
 {
     const size_t max_chans = 2;
     if (chan_count > max_chans) {
-        throw uhd::value_error(boost::str(
-            boost::format("cannot not setup %d %s channels (maximum is %d)") % chan_count
-            % (direction.empty() ? "data" : direction) % max_chans));
+        throw uhd::value_error(
+            std::format("cannot not setup {} {} channels (maximum is {})", chan_count,
+            (direction.empty() ? "data" : direction), max_chans));
     } else {
         const double max_tick_rate =
             ad9361_device_t::AD9361_MAX_CLOCK_RATE / ((chan_count <= 1) ? 1 : 2);
         if (tick_rate - max_tick_rate >= 1.0) {
-            throw uhd::value_error(boost::str(
-                boost::format(
-                    "current master clock rate (%.6f MHz) exceeds maximum possible "
-                    "master clock rate (%.6f MHz) when using %d %s channels")
-                % (tick_rate / 1e6) % (max_tick_rate / 1e6) % chan_count
-                % (direction.empty() ? "data" : direction)));
+            throw uhd::value_error(std::format(
+                    "current master clock rate ({:.6f} MHz) exceeds maximum possible "
+                    "master clock rate ({:.6f} MHz) when using {} {} channels",
+                    (tick_rate / 1e6),
+                    (max_tick_rate / 1e6),
+                    chan_count,
+                    (direction.empty() ? "data" : direction)
+            ));
         }
         const double min_tick_rate =
             ad9361_device_t::AD9361_MIN_CLOCK_RATE / ((chan_count <= 1) ? 1 : 2);
         if (min_tick_rate - tick_rate >= 1.0) {
-            throw uhd::value_error(boost::str(
-                boost::format(
-                    "current master clock rate (%.6f MHz) is less than minimum possible "
-                    "master clock rate (%.6f MHz) when using %d %s channels")
-                % (tick_rate / 1e6) % (min_tick_rate / 1e6) % chan_count
-                % (direction.empty() ? "data" : direction)));
+            throw uhd::value_error(std::format(
+                    "current master clock rate ({:.6f} MHz) is less than minimum possible "
+                    "master clock rate ({:.6f} MHz) when using {} {} channels",
+                    (tick_rate / 1e6),
+                    (min_tick_rate / 1e6),
+                    chan_count,
+                    (direction.empty() ? "data" : direction)
+            ));
         }
     }
 }
 
 double b200_impl::set_tick_rate(const double new_tick_rate)
 {
-    UHD_LOGGER_INFO("B200") << (boost::format("Asking for clock rate %.6f MHz... ")
-                                % (new_tick_rate / 1e6))
+    UHD_LOGGER_INFO("B200") << std::format("Asking for clock rate {:.6f} MHz... ",
+                                (new_tick_rate / 1e6))
                             << std::flush;
     check_tick_rate_with_current_streamers(new_tick_rate); // Defined in b200_io_impl.cpp
 
@@ -1168,8 +1172,8 @@ double b200_impl::set_tick_rate(const double new_tick_rate)
     }
 
     _tick_rate = _codec_ctrl->set_clock_rate(new_tick_rate);
-    UHD_LOGGER_INFO("B200") << (boost::format("Actually got clock rate %.6f MHz.")
-                                % (_tick_rate / 1e6));
+    UHD_LOGGER_INFO("B200") << std::format("Actually got clock rate {:.6f} MHz.",
+                                (_tick_rate / 1e6));
 
     for (radio_perifs_t& perif : _radio_perifs) {
         perif.time64->set_tick_rate(_tick_rate);
@@ -1189,16 +1193,16 @@ void b200_impl::check_fw_compat(void)
     uint32_t compat_minor = (uint32_t)(compat_num & 0xFF);
 
     if (compat_major != B200_FW_COMPAT_NUM_MAJOR) {
-        throw uhd::runtime_error(str(
-            boost::format(
-                "Expected firmware compatibility number %d.%d, but got %d.%d:\n"
+        throw uhd::runtime_error(
+            std::format(
+                "Expected firmware compatibility number {}.{}, but got {}.{}:\n"
                 "The firmware build is not compatible with the host code build.\n"
-                "%s")
-            % int(B200_FW_COMPAT_NUM_MAJOR) % int(B200_FW_COMPAT_NUM_MINOR) % compat_major
-            % compat_minor % print_utility_error("uhd_images_downloader.py")));
+                "{}",
+            int(B200_FW_COMPAT_NUM_MAJOR), int(B200_FW_COMPAT_NUM_MINOR), compat_major,
+            compat_minor, print_utility_error("uhd_images_downloader.py")));
     }
     _tree->create<std::string>("/mboards/0/fw_version")
-        .set(str(boost::format("%u.%u") % compat_major % compat_minor));
+        .set(std::format("{}.{}", compat_major, compat_minor));
 }
 
 void b200_impl::check_fpga_compat(void)
@@ -1214,15 +1218,15 @@ void b200_impl::check_fpga_compat(void)
     const uint16_t expected =
         (is_b2xx_mini(_product) ? B205_FPGA_COMPAT_NUM : B200_FPGA_COMPAT_NUM);
     if (compat_major != expected) {
-        throw uhd::runtime_error(str(
-            boost::format("Expected FPGA compatibility number %d, but got %d:\n"
+        throw uhd::runtime_error(
+            std::format("Expected FPGA compatibility number {}, but got {}:\n"
                           "The FPGA build is not compatible with the host code build.\n"
-                          "%s")
-            % int(expected) % compat_major
-            % print_utility_error("uhd_images_downloader.py")));
+                          "{}",
+            int(expected), compat_major,
+            print_utility_error("uhd_images_downloader.py")));
     }
     _tree->create<std::string>("/mboards/0/fpga_version")
-        .set(str(boost::format("%u.%u") % compat_major % compat_minor));
+        .set(std::format("{}.{}", compat_major, compat_minor));
 }
 
 /***********************************************************************

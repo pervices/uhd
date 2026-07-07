@@ -12,7 +12,7 @@
 #include <uhdlib/utils/ihex.hpp>
 #include <libusb.h>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/functional/hash.hpp>
 
 #include <chrono>
@@ -27,7 +27,7 @@
 
 //! libusb_error_name is only in newer API
 #ifndef HAVE_LIBUSB_ERROR_NAME
-#    define libusb_error_name(code) str(boost::format("LIBUSB_ERROR_CODE %d") % code)
+#    define libusb_error_name(code) std::format("LIBUSB_ERROR_CODE {}", code)
 #endif
 
 using namespace uhd;
@@ -185,14 +185,12 @@ public:
             bytes.size());
 
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to write EEPROM (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to write EEPROM ({}: {})", ret,
+                                 libusb_error_name(ret)));
         else if ((size_t)ret != bytes.size())
-            throw uhd::io_error((
-                boost::format("Short write on write EEPROM (expecting: %d, returned: %d)")
-                % bytes.size() % ret)
-                                    .str());
+            throw uhd::io_error(
+                std::format("Short write on write EEPROM (expecting: {}, returned: {})",
+                bytes.size(), ret));
     }
 
     byte_vector_t read_eeprom(uint16_t addr, uint16_t offset, size_t num_bytes) override
@@ -205,14 +203,13 @@ public:
             num_bytes);
 
         if (bytes_read < 0)
-            throw uhd::io_error((boost::format("Failed to read EEPROM (%d: %s)")
-                                 % bytes_read % libusb_error_name(bytes_read))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to read EEPROM ({}: {})",
+                                 bytes_read, libusb_error_name(bytes_read)));
+
         else if ((size_t)bytes_read != num_bytes)
             throw uhd::io_error(
-                (boost::format("Short read on read EEPROM (expecting: %d, returned: %d)")
-                    % num_bytes % bytes_read)
-                    .str());
+                std::format("Short read on read EEPROM (expecting: {}, returned: {})",
+                    num_bytes, bytes_read));
 
         return recv_bytes;
     }
@@ -236,7 +233,7 @@ public:
                 0));
         } catch (const uhd::io_error& e) {
             throw uhd::io_error(
-                str(boost::format("Could not load firmware: \n%s") % e.what()));
+                std::format("Could not load firmware: \n{}", e.what()));
         }
 
 
@@ -257,14 +254,13 @@ public:
 
         int ret = fx3_control_write(B200_VREQ_FX3_RESET, 0x00, 0x00, data, bytes_to_send);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to reset FX3 (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to reset FX3 ({}: {})", ret,
+                                 libusb_error_name(ret)));
+
         else if (ret != bytes_to_send)
             throw uhd::io_error(
-                (boost::format("Short write on reset FX3 (expecting: %d, returned: %d)")
-                    % bytes_to_send % ret)
-                    .str());
+                std::format("Short write on reset FX3 (expecting: {}, returned: {})",
+                    bytes_to_send, ret));
     }
 
     void reset_gpif(void) override
@@ -276,14 +272,13 @@ public:
         int ret =
             fx3_control_write(B200_VREQ_GPIF_RESET, 0x00, 0x00, data, bytes_to_send);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to reset GPIF (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to reset GPIF ({}: {})", ret,
+                                 libusb_error_name(ret)));
+
         else if (ret != bytes_to_send)
             throw uhd::io_error(
-                (boost::format("Short write on reset GPIF (expecting: %d, returned: %d)")
-                    % bytes_to_send % ret)
-                    .str());
+                std::format("Short write on reset GPIF (expecting: {}, returned: {})",
+                    bytes_to_send, ret));
     }
 
     void set_fpga_reset_pin(const bool reset) override
@@ -299,10 +294,10 @@ public:
         const int bytes_to_send = sizeof(data);
 
         int ret = fx3_control_write(B200_VREQ_FPGA_RESET, 0x00, 0x00, data,
-        bytes_to_send); if (ret < 0) throw uhd::io_error((boost::format("Failed to reset
-        FPGA (%d: %s)") % ret % libusb_error_name(ret)).str()); else if (ret !=
-        bytes_to_send) throw uhd::io_error((boost::format("Short write on reset FPGA
-        (expecting: %d, returned: %d)") % bytes_to_send % ret).str());
+        bytes_to_send); if (ret < 0) throw uhd::io_error(std::format("Failed to reset
+        FPGA ({}: {})", ret, libusb_error_name(ret))); else if (ret !=
+        bytes_to_send) throw uhd::io_error(std::format("Short write on reset FPGA
+        (expecting: {}, returned: {})", bytes_to_send, ret));
         */
     }
 
@@ -314,14 +309,13 @@ public:
 
         int ret = fx3_control_read(B200_VREQ_GET_USB, 0x00, 0x00, rx_data, bytes_to_recv);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to get USB speed (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to get USB speed ({}: {})", ret,
+                                 libusb_error_name(ret)));
+
         else if (ret != bytes_to_recv)
-            throw uhd::io_error((
-                boost::format("Short read on get USB speed (expecting: %d, returned: %d)")
-                % bytes_to_recv % ret)
-                                    .str());
+            throw uhd::io_error(
+                std::format("Short read on get USB speed (expecting: {}, returned: {})",
+                bytes_to_recv, ret));
 
         return static_cast<uint8_t>(rx_data[0]);
     }
@@ -335,15 +329,13 @@ public:
         int ret =
             fx3_control_read(B200_VREQ_GET_STATUS, 0x00, 0x00, rx_data, bytes_to_recv);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to get FX3 status (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to get FX3 status ({}: {})", ret,
+                                 libusb_error_name(ret)));
         else if (ret != bytes_to_recv)
             throw uhd::io_error(
-                (boost::format(
-                     "Short read on get FX3 status (expecting: %d, returned: %d)")
-                    % bytes_to_recv % ret)
-                    .str());
+                std::format(
+                     "Short read on get FX3 status (expecting: {}, returned: {})",
+                    bytes_to_recv, ret));
 
         return static_cast<uint8_t>(rx_data[0]);
     }
@@ -357,15 +349,14 @@ public:
         int ret =
             fx3_control_read(B200_VREQ_GET_COMPAT, 0x00, 0x00, rx_data, bytes_to_recv);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to get compat num (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to get compat num ({}: {})", ret,
+                                 libusb_error_name(ret)));
+
         else if (ret != bytes_to_recv)
             throw uhd::io_error(
-                (boost::format(
-                     "Short read on get compat num (expecting: %d, returned: %d)")
-                    % bytes_to_recv % ret)
-                    .str());
+                std::format(
+                     "Short read on get compat num (expecting: {}, returned: {})",
+                    bytes_to_recv, ret));
 
         return (((uint16_t)rx_data[0]) << 8) | rx_data[1];
     }
@@ -375,22 +366,20 @@ public:
         const int bytes_to_recv = 4;
         if (sizeof(hash_type) != bytes_to_recv)
             throw uhd::type_error(
-                (boost::format("hash_type is %d bytes but transfer length is %d bytes")
-                    % sizeof(hash_type) % bytes_to_recv)
-                    .str());
+                std::format("hash_type is {} bytes but transfer length is {} bytes",
+                    sizeof(hash_type), bytes_to_recv));
 
         int ret = fx3_control_read(
             B200_VREQ_GET_FW_HASH, 0x00, 0x00, (unsigned char*)&hash, bytes_to_recv, 500);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to get firmware hash (%d: %s)")
-                                 % ret % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to get firmware hash ({}: {})",
+                                 ret, libusb_error_name(ret)));
+
         else if (ret != bytes_to_recv)
             throw uhd::io_error(
-                (boost::format(
-                     "Short read on get firmware hash (expecting: %d, returned: %d)")
-                    % bytes_to_recv % ret)
-                    .str());
+                std::format(
+                     "Short read on get firmware hash (expecting: {}, returned: {})",
+                    bytes_to_recv, ret));
     }
 
     void usrp_set_firmware_hash(hash_type hash)
@@ -398,22 +387,20 @@ public:
         const int bytes_to_send = 4;
         if (sizeof(hash_type) != bytes_to_send)
             throw uhd::type_error(
-                (boost::format("hash_type is %d bytes but transfer length is %d bytes")
-                    % sizeof(hash_type) % bytes_to_send)
-                    .str());
+                std::format("hash_type is {} bytes but transfer length is {} bytes",
+                    sizeof(hash_type), bytes_to_send));
 
         int ret = fx3_control_write(
             B200_VREQ_SET_FW_HASH, 0x00, 0x00, (unsigned char*)&hash, bytes_to_send);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to set firmware hash (%d: %s)")
-                                 % ret % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to set firmware hash ({}: {})",
+                                 ret, libusb_error_name(ret)));
+
         else if (ret != bytes_to_send)
             throw uhd::io_error(
-                (boost::format(
-                     "Short write on set firmware hash (expecting: %d, returned: %d)")
-                    % bytes_to_send % ret)
-                    .str());
+                std::format(
+                     "Short write on set firmware hash (expecting: {}, returned: {})",
+                    bytes_to_send, ret));
     }
 
     void usrp_get_fpga_hash(hash_type& hash)
@@ -421,9 +408,8 @@ public:
         const int bytes_to_recv = 4;
         if (sizeof(hash_type) != bytes_to_recv)
             throw uhd::type_error(
-                (boost::format("hash_type is %d bytes but transfer length is %d bytes")
-                    % sizeof(hash_type) % bytes_to_recv)
-                    .str());
+                std::format("hash_type is {} bytes but transfer length is {} bytes",
+                    sizeof(hash_type), bytes_to_recv));
 
         int ret = fx3_control_read(B200_VREQ_GET_FPGA_HASH,
             0x00,
@@ -432,14 +418,13 @@ public:
             bytes_to_recv,
             500);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to get FPGA hash (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to get FPGA hash ({}: {})", ret,
+                                 libusb_error_name(ret)));
+
         else if (ret != bytes_to_recv)
-            throw uhd::io_error((
-                boost::format("Short read on get FPGA hash (expecting: %d, returned: %d)")
-                % bytes_to_recv % ret)
-                                    .str());
+            throw uhd::io_error(
+                std::format("Short read on get FPGA hash (expecting: %d, returned: %d)",
+                bytes_to_recv, ret));
     }
 
     void usrp_set_fpga_hash(hash_type hash)
@@ -447,22 +432,20 @@ public:
         const int bytes_to_send = 4;
         if (sizeof(hash_type) != bytes_to_send)
             throw uhd::type_error(
-                (boost::format("hash_type is %d bytes but transfer length is %d bytes")
-                    % sizeof(hash_type) % bytes_to_send)
-                    .str());
+                std::format("hash_type is {} bytes but transfer length is {} bytes",
+                    sizeof(hash_type), bytes_to_send));
 
         int ret = fx3_control_write(
             B200_VREQ_SET_FPGA_HASH, 0x00, 0x00, (unsigned char*)&hash, bytes_to_send);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to set FPGA hash (%d: %s)") % ret
-                                 % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to set FPGA hash ({}: {})", ret,
+                                 libusb_error_name(ret)));
+
         else if (ret != bytes_to_send)
             throw uhd::io_error(
-                (boost::format(
-                     "Short write on set FPGA hash (expecting: %d, returned: %d)")
-                    % bytes_to_send % ret)
-                    .str());
+                std::format(
+                     "Short write on set FPGA hash (expecting: {}, returned: {})",
+                    bytes_to_send, ret));
     }
 
     // Establish default largest possible control request transfer size based on operating
@@ -513,16 +496,15 @@ public:
         int nread = fx3_control_read(B200_VREQ_LOOP, 0, 0, out_buff, transfer_size, 1000);
         if (nread < 0)
             throw uhd::io_error(
-                (boost::format(
-                     "load_fpga: unable to complete firmware loopback request (%d: %s)")
-                    % nread % libusb_error_name(nread))
-                    .str());
+                std::format(
+                     "load_fpga: unable to complete firmware loopback request ({}: {})",
+                    nread, libusb_error_name(nread)));
+
         else if (nread != transfer_size)
             throw uhd::io_error(
-                (boost::format("load_fpga: short read on firmware loopback request "
-                               "(expecting: %d, returned: %d)")
-                    % transfer_size % nread)
-                    .str());
+                std::format("load_fpga: short read on firmware loopback request "
+                               "(expecting: {}, returned: {})",
+                    transfer_size, nread));
 
         const size_t file_size = _get_file_size(filename);
 
@@ -542,15 +524,14 @@ public:
         ret =
             fx3_control_write(B200_VREQ_FPGA_CONFIG, 0, 0, out_buff, bytes_to_xfer, 1000);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to start FPGA config (%d: %s)")
-                                 % ret % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to start FPGA config ({}: {})",
+                                 ret, libusb_error_name(ret)));
+
         else if (ret != bytes_to_xfer)
             throw uhd::io_error(
-                (boost::format(
-                     "Short write on start FPGA config (expecting: %d, returned: %d)")
-                    % bytes_to_xfer % ret)
-                    .str());
+                std::format(
+                     "Short write on start FPGA config (expecting: {}, returned: {})",
+                    bytes_to_xfer, ret));
 
         wait_count = 0;
         do {
@@ -574,15 +555,14 @@ public:
         ret =
             fx3_control_write(B200_VREQ_FPGA_START, 0, 0, out_buff, bytes_to_xfer, 1000);
         if (ret < 0)
-            throw uhd::io_error((boost::format("Failed to start FPGA bitstream (%d: %s)")
-                                 % ret % libusb_error_name(ret))
-                                    .str());
+            throw uhd::io_error(std::format("Failed to start FPGA bitstream ({}: {})",
+                                 ret, libusb_error_name(ret)));
+
         else if (ret != bytes_to_xfer)
             throw uhd::io_error(
-                (boost::format(
-                     "Short write on start FPGA bitstream (expecting: %d, returned: %d)")
-                    % bytes_to_xfer % ret)
-                    .str());
+                std::format(
+                     "Short write on start FPGA bitstream (expecting: {}, returned: {})",
+                    bytes_to_xfer, ret));
 
         wait_count = 0;
         do {
@@ -612,15 +592,14 @@ public:
                 B200_VREQ_FPGA_DATA, 0, 0, out_buff, transfer_count, 5000);
             if (nwritten < 0)
                 throw uhd::io_error(
-                    (boost::format("load_fpga: cannot write bitstream to FX3 (%d: %s)")
-                        % nwritten % libusb_error_name(nwritten))
-                        .str());
+                    std::format("load_fpga: cannot write bitstream to FX3 ({}: {})",
+                        nwritten, libusb_error_name(nwritten)));
+
             else if (nwritten != transfer_count)
                 throw uhd::io_error(
-                    (boost::format("load_fpga: short write while transferring bitstream "
-                                   "to FX3  (expecting: %d, returned: %d)")
-                        % transfer_count % nwritten)
-                        .str());
+                    std::format("load_fpga: short write while transferring bitstream "
+                                   "to FX3  (expecting: {}, returned: {})",
+                        transfer_count, nwritten));
 
             const size_t LOG_GRANULARITY = 10; // %. Keep this an integer divisor of 100.
             if (load_img_msg) {
@@ -674,10 +653,9 @@ public:
 
         if (file_size > BOOTLOADER_MAX_SIZE) {
             throw uhd::runtime_error(
-                (boost::format("Bootloader img file is too large for EEPROM! (expecting: "
-                               "less than %d actual: %d")
-                    % BOOTLOADER_MAX_SIZE % file_size)
-                    .str());
+                std::format("Bootloader img file is too large for EEPROM! (expecting: "
+                               "less than {} actual: {}",
+                    BOOTLOADER_MAX_SIZE, file_size));
         }
         std::ifstream file;
         file.open(filename, std::ios::in | std::ios::binary);
@@ -696,16 +674,15 @@ public:
         int nread =
             fx3_control_read(B200_VREQ_LOOP, 0, 0, out_buff.data(), transfer_size, 1000);
         if (nread < 0) {
-            throw uhd::io_error((boost::format("load_bootloader: unable to complete "
-                                               "firmware loopback request (%d: %s)")
-                                 % nread % libusb_error_name(nread))
-                                    .str());
+            throw uhd::io_error(std::format("load_bootloader: unable to complete "
+                                               "firmware loopback request ({}: {})",
+                                 nread, libusb_error_name(nread)));
+
         } else if (nread != transfer_size) {
             throw uhd::io_error(
-                (boost::format("load_bootloader: short read on firmware loopback request "
-                               "(expecting: %d, returned: %d)")
-                    % transfer_size % nread)
-                    .str());
+                std::format("load_bootloader: short read on firmware loopback request "
+                               "(expecting: {}, returned: {})",
+                    transfer_size, nread));
         }
         // ensure FX3 is in non-error state
         {
@@ -736,17 +713,16 @@ public:
                 5000);
             if (nwritten < 0) {
                 throw uhd::io_error(
-                    (boost::format(
-                         "load_bootloader: cannot write bitstream to FX3 (%d: %s)")
-                        % nwritten % libusb_error_name(nwritten))
-                        .str());
+                    std::format(
+                         "load_bootloader: cannot write bitstream to FX3 ({}: {})",
+                        nwritten, libusb_error_name(nwritten)));
+
             } else if (nwritten != transfer_count) {
                 throw uhd::io_error(
-                    (boost::format(
+                    std::format(
                          "load_bootloader: short write while transferring bitstream "
-                         "to FX3  (expecting: %d, returned: %d)")
-                        % transfer_count % nwritten)
-                        .str());
+                         "to FX3  (expecting: {}, returned: {})",
+                        transfer_count, nwritten));
             }
 
             const size_t LOG_GRANULARITY = 10; // %. Keep this an integer divisor of 100.
