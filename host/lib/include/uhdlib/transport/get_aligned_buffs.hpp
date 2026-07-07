@@ -9,7 +9,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <boost/dynamic_bitset.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 namespace uhd { namespace transport {
 
@@ -74,9 +74,9 @@ public:
                 } catch (const uhd::value_error& e) {
                     // Bad packet
                     UHD_LOGGER_ERROR("STREAMER")
-                        << boost::format(
-                               "The receive transport caught a value exception.\n%s")
-                               % e.what();
+                        << std::format(
+                               "The receive transport caught a value exception.\n{}",
+                               e.what());
                     return BAD_PACKET;
                 }
             }

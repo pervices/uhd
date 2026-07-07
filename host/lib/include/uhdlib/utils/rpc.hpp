@@ -11,7 +11,7 @@
 #include <uhd/utils/log.hpp>
 #include <rpc/client.h>
 #include <rpc/rpc_error.h>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -115,12 +115,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 
@@ -149,12 +149,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 
@@ -183,12 +183,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 
@@ -214,12 +214,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 
