@@ -12,7 +12,7 @@
 #include <uhdlib/usrp/common/adf435x.hpp>
 #include <uhdlib/usrp/common/adf535x.hpp>
 #include <uhdlib/utils/narrow.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cmath>
 #include <thread>
@@ -57,20 +57,20 @@ public:
                     TWINRX_REV_C_PFD_FREQ)
                 != 0) {
                 throw uhd::value_error(
-                    str(boost::format(
-                            "TwinRX clock rate %f is not a multiple of the pfd freq %f.")
-                        % _db_iface->get_clock_rate(dboard_iface::UNIT_RX)
-                        % TWINRX_REV_C_PFD_FREQ));
+                    std::format(
+                            "TwinRX clock rate {} is not a multiple of the pfd freq {}.",
+                        _db_iface->get_clock_rate(dboard_iface::UNIT_RX),
+                        TWINRX_REV_C_PFD_FREQ));
             }
         } else {
             if (fmod(_db_iface->get_clock_rate(dboard_iface::UNIT_RX),
                     TWINRX_REV_AB_PFD_FREQ)
                 != 0) {
                 throw uhd::value_error(
-                    str(boost::format(
-                            "TwinRX clock rate %f is not a multiple of the pfd freq %f.")
-                        % _db_iface->get_clock_rate(dboard_iface::UNIT_RX)
-                        % TWINRX_REV_AB_PFD_FREQ));
+                    std::format(
+                            "TwinRX clock rate {} is not a multiple of the pfd freq {}.",
+                        _db_iface->get_clock_rate(dboard_iface::UNIT_RX),
+                        TWINRX_REV_AB_PFD_FREQ));
             }
         }
         // Require the clock rate to remain the same after initialization.

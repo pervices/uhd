@@ -19,7 +19,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -91,10 +91,10 @@ private:
             for (int i = 0; i < num_bytes; i++) {
                 regs_vector[1 + i] = _max2118_write_regs.get_reg(start_addr + i);
                 UHD_LOGGER_TRACE("DBSRX")
-                    << boost::format("DBSRX: send reg 0x%02x, value 0x%04x, start_addr = "
-                                     "0x%04x, num_bytes %d")
-                           % int(start_addr + i) % int(regs_vector[1 + i])
-                           % int(start_addr) % num_bytes;
+                    << std::format("DBSRX: send reg {:#04x}, value {:#06x}, start_addr = "
+                                     "{:#06x}, num_bytes {}",
+                           static_cast<int>(start_addr + i), static_cast<int>(regs_vector[1 + i]),
+                           static_cast<int>(start_addr), num_bytes);
             }
 
             // send the data
@@ -125,10 +125,10 @@ private:
                     _max2118_read_regs.set_reg(i + start_addr, regs_vector[i]);
                 }
                 UHD_LOGGER_TRACE("DBSRX")
-                    << boost::format("DBSRX: read reg 0x%02x, value 0x%04x, start_addr = "
-                                     "0x%04x, num_bytes %d")
-                           % int(start_addr + i) % int(regs_vector[i]) % int(start_addr)
-                           % num_bytes;
+                    << std::format("DBSRX: read reg {:#04x}, value {:#06x}, start_addr = "
+                                     "{:#06x}, num_bytes {}",
+                           static_cast<int>(start_addr + i), static_cast<int>(regs_vector[i]), static_cast<int>(start_addr),
+                           num_bytes);
             }
         }
     }
@@ -144,7 +144,7 @@ private:
         // mask and return lock detect
         bool locked = 5 >= _max2118_read_regs.adc and _max2118_read_regs.adc >= 2;
 
-        UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX: locked %d") % locked;
+        UHD_LOGGER_TRACE("DBSRX") << std::::format("DBSRX: locked {}", locked);
 
         return sensor_value_t("LO", locked, "locked", "unlocked");
     }
@@ -175,21 +175,21 @@ dbsrx::dbsrx(ctor_args_t args) : rx_dboard_base(args)
     if (this->get_iface()->get_special_props().soft_clock_divider
         and this->get_rx_id() == 0x000D)
         UHD_LOGGER_WARNING("DBSRX")
-            << boost::format("DBSRX: incorrect dbid\n"
+            << std::format("DBSRX: incorrect dbid\n"
                              "Expected dbid 0x0002 and R193\n"
-                             "found dbid == %d\n"
-                             "Please see the daughterboard app notes")
-                   % this->get_rx_id().to_pp_string();
+                             "found dbid == {}\n"
+                             "Please see the daughterboard app notes",
+                   this->get_rx_id().to_pp_string());
 
     // warn user about incorrect DBID on non-USRP1, requires R194 populated
     if (not this->get_iface()->get_special_props().soft_clock_divider
         and this->get_rx_id() == 0x0002)
         UHD_LOGGER_WARNING("DBSRX")
-            << boost::format("DBSRX: incorrect dbid\n"
+            << std::format("DBSRX: incorrect dbid\n"
                              "Expected dbid 0x000D and R194\n"
-                             "found dbid == %d\n"
-                             "Please see the daughterboard app notes")
-                   % this->get_rx_id().to_pp_string();
+                             "found dbid == {}\n"
+                             "Please see the daughterboard app notes",
+                   this->get_rx_id().to_pp_string());
 
     // send initial register settings
     this->send_reg(0x0, 0x5);
@@ -290,8 +290,8 @@ double dbsrx::set_lo_freq(double target_freq)
         }
 
         UHD_LOGGER_TRACE("DBSRX")
-            << boost::format("DBSRX: trying ref_clock %f and m_divider %d") % (ref_clock)
-                   % m;
+            << std::format("DBSRX: trying ref_clock {} and m_divider {}", (ref_clock),
+                   m);
 
         if (m >= 32)
             continue;
@@ -331,10 +331,10 @@ done_loop:
     UHD_ASSERT_THROW((N >= 256) and (N <= 32768));
 
     UHD_LOGGER_TRACE("DBSRX")
-        << boost::format(
-               "DBSRX: choose ref_clock (current: %f, new: %f) and m_divider %d")
-               % (this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX)) % ref_clock
-               % m;
+        << std::format(
+               "DBSRX: choose ref_clock (current: {}, new: {}) and m_divider {}",
+               (this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX)), ref_clock,
+               m);
 
     // if ref_clock or m divider changed, we need to update the filter settings
     if (ref_clock != this->get_iface()->get_clock_rate(dboard_iface::UNIT_RX)
@@ -358,8 +358,8 @@ done_loop:
                                            : max2118_write_regs_t::DIV2_DIV2;
 
     UHD_LOGGER_TRACE("DBSRX")
-        << boost::format("DBSRX: scaler %d, actual_freq %f MHz, register bit: %d")
-               % scaler % (actual_freq / 1e6) % int(_max2118_write_regs.div2);
+        << std::format("DBSRX: scaler {}, actual_freq {} MHz, register bit: {}",
+               scaler, (actual_freq / 1e6), int(_max2118_write_regs.div2));
 
     // compute vco frequency and select vco
     double vco_freq = actual_freq * scaler;
@@ -386,10 +386,10 @@ done_loop:
     // check vtune for lock condition
     read_reg(0x0, 0x0);
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format(
-                                     "DBSRX: initial guess for vco %d, vtune adc %d")
-                                     % int(_max2118_write_regs.osc_band)
-                                     % int(_max2118_read_regs.adc);
+    UHD_LOGGER_TRACE("DBSRX") << std::format(
+                                     "DBSRX: initial guess for vco {}, vtune adc {}",
+                                     int(_max2118_write_regs.osc_band),
+                                     int(_max2118_read_regs.adc));
 
     // if we are out of lock for chosen vco, change vco
     while ((_max2118_read_regs.adc == 0) or (_max2118_read_regs.adc == 7)) {
@@ -397,9 +397,9 @@ done_loop:
         if (_max2118_read_regs.adc == 0) {
             if (_max2118_write_regs.osc_band == 0) {
                 UHD_LOGGER_WARNING("DBSRX")
-                    << boost::format("DBSRX: Tuning exceeded vco range, "
-                                     "_max2118_write_regs.osc_band == %d\n")
-                           % int(_max2118_write_regs.osc_band);
+                    << std::format("DBSRX: Tuning exceeded vco range, "
+                                     "_max2118_write_regs.osc_band == {}\n",
+                           int(_max2118_write_regs.osc_band));
                 UHD_ASSERT_THROW(_max2118_read_regs.adc != 0); // just to cause a throw
             }
             if (_max2118_write_regs.osc_band <= 0)
@@ -411,9 +411,9 @@ done_loop:
         if (_max2118_read_regs.adc == 7) {
             if (_max2118_write_regs.osc_band == 7) {
                 UHD_LOGGER_WARNING("DBSRX")
-                    << boost::format("DBSRX: Tuning exceeded vco range, "
-                                     "_max2118_write_regs.osc_band == %d\n")
-                           % int(_max2118_write_regs.osc_band);
+                    << std::format("DBSRX: Tuning exceeded vco range, "
+                                     "_max2118_write_regs.osc_band == {}\n",
+                           int(_max2118_write_regs.osc_band));
                 UHD_ASSERT_THROW(_max2118_read_regs.adc != 7); // just to cause a throw
             }
             if (_max2118_write_regs.osc_band >= 7)
@@ -421,9 +421,9 @@ done_loop:
             _max2118_write_regs.osc_band += 1;
         }
 
-        UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX: trying vco %d, vtune adc %d")
-                                         % int(_max2118_write_regs.osc_band)
-                                         % int(_max2118_read_regs.adc);
+        UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX: trying vco {}, vtune adc {}",
+                                         int(_max2118_write_regs.osc_band),
+                                         int(_max2118_read_regs.adc));
 
         // update vco selection and check vtune
         send_reg(0x2, 0x2);
@@ -433,9 +433,9 @@ done_loop:
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX: final vco %d, vtune adc %d")
-                                     % int(_max2118_write_regs.osc_band)
-                                     % int(_max2118_read_regs.adc);
+    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX: final vco {}, vtune adc {}",
+                                     int(_max2118_write_regs.osc_band),
+                                     int(_max2118_read_regs.adc));
 
     // select charge pump bias current
     if (_max2118_read_regs.adc <= 2)
@@ -455,16 +455,16 @@ done_loop:
 
     // debug output of calculated variables
     UHD_LOGGER_TRACE("DBSRX")
-        << boost::format("DBSRX tune:\n")
-        << boost::format("    VCO=%d, CP=%d, PFD Freq=%fMHz\n")
-               % int(_max2118_write_regs.osc_band) % _max2118_write_regs.cp_current
-               % (pfd_freq / 1e6)
-        << boost::format("    R=%d, N=%f, scaler=%d, div2=%d\n") % R % N % scaler
-               % int(_max2118_write_regs.div2)
-        << boost::format("    Ref    Freq=%fMHz\n") % (ref_clock / 1e6)
-        << boost::format("    Target Freq=%fMHz\n") % (target_freq / 1e6)
-        << boost::format("    Actual Freq=%fMHz\n") % (_lo_freq / 1e6)
-        << boost::format("    VCO    Freq=%fMHz\n") % (vco_freq / 1e6);
+        << ("DBSRX tune:\n")
+        << std::format("    VCO={}, CP={}, PFD Freq={}MHz\n",
+               int(_max2118_write_regs.osc_band), _max2118_write_regs.cp_current,
+               (pfd_freq / 1e6))
+        << std::format("    R={}, N={}, scaler={}, div2={}\n", R, N, scaler,
+               int(_max2118_write_regs.div2))
+        << std::format("    Ref    Freq={}MHz\n", (ref_clock / 1e6))
+        << std::format("    Target Freq={}MHz\n", (target_freq / 1e6))
+        << std::format("    Actual Freq={}MHz\n", (_lo_freq / 1e6))
+        << std::format("    VCO    Freq={}MHz\n", (vco_freq / 1e6));
 
     if (update_filter_settings)
         set_bandwidth(_bandwidth);
@@ -496,8 +496,8 @@ static int gain_to_gc2_vga_reg(double& gain)
         gain = std::round(gain);
     }
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX GC2 Gain: %f dB, reg: %d") % gain
-                                     % reg;
+    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX GC2 Gain: {} dB, reg: {}", gain
+                                     reg);
 
     return reg;
 }
@@ -520,8 +520,8 @@ static double gain_to_gc1_rfvga_dac(double& gain)
     // calculate the voltage for the aux dac
     double dac_volts = gain * slope + min_volts;
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format("DBSRX GC1 Gain: %f dB, dac_volts: %f V")
-                                     % gain % dac_volts;
+    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX GC1 Gain: {} dB, dac_volts: {} V",
+                                     gain, dac_volts);
 
     // the actual gain setting
     gain = (dac_volts - min_volts) / slope;
@@ -571,11 +571,11 @@ double dbsrx::set_bandwidth(double bandwidth)
     _bandwidth = double((ref_clock / (_max2118_write_regs.m_divider))
                         * (4 + 0.145 * _max2118_write_regs.f_dac));
 
-    UHD_LOGGER_TRACE("DBSRX") << boost::format(
-                                     "DBSRX Filter Bandwidth: %f MHz, m: %d, f_dac: %d\n")
-                                     % (_bandwidth / 1e6)
-                                     % int(_max2118_write_regs.m_divider)
-                                     % int(_max2118_write_regs.f_dac);
+    UHD_LOGGER_TRACE("DBSRX") << std::format(
+                                     "DBSRX Filter Bandwidth: {} MHz, m: {}, f_dac: {}\n",
+                                     (_bandwidth / 1e6),
+                                     int(_max2118_write_regs.m_divider),
+                                     int(_max2118_write_regs.f_dac));
 
     this->send_reg(0x3, 0x4);
 
