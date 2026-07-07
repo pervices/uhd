@@ -9,7 +9,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <complex>
@@ -108,7 +108,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD RX Multi Samples %s") % desc << std::endl;
+        std::cout << std::format("UHD RX Multi Samples {}\n", desc);
         std::cout
             << "    This is a demonstration of how to receive aligned data from multiple "
                "channels.\n"
@@ -130,24 +130,22 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args
-              << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
+
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     // always select the subdevice first, the channel mapping affects the other settings
     if (vm.count("subdev"))
         usrp->set_rx_subdev_spec(subdev); // sets across all mboards
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
     // set the rx sample rate (sets across all channels)
-    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    std::cout << std::format("Setting RX Rate: {} Msps...\n", (rate / 1e6));
     usrp->set_rx_rate(rate);
-    std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate() / 1e6)
-              << std::endl
-              << std::endl;
+    std::cout << std::format("Actual RX Rate: {} Msps...\n\n", (usrp->get_rx_rate() / 1e6));
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+    std::cout << "Setting device timestamp to 0...\n";
     if (sync == "now") {
         // This is not a true time lock, the devices will be off by a few RTT.
         // Rather, this is just to allow for demonstration of the code below.
@@ -189,10 +187,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     uhd::rx_streamer::sptr rx_stream = usrp->get_rx_stream(stream_args);
 
     // setup streaming
-    std::cout << std::endl;
-    std::cout << boost::format("Begin streaming %u samples, %f seconds in the future...")
-                     % total_num_samps % seconds_in_future
-              << std::endl;
+    std::cout << std::format("\nBegin streaming {} samples, {} seconds in the future...",
+                     total_num_samps, seconds_in_future);
+
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
     stream_cmd.num_samps  = total_num_samps;
     stream_cmd.stream_now = false;
@@ -228,15 +225,14 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             break;
         if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
             throw std::runtime_error(
-                str(boost::format("Receiver error %s") % md.strerror()));
+                std::format("Receiver error {}", % md.strerror()));
         }
 
         if (verbose)
-            std::cout << boost::format(
-                             "Received packet: %u samples, %u full secs, %f frac secs")
-                             % num_rx_samps % md.time_spec.get_full_secs()
-                             % md.time_spec.get_frac_secs()
-                      << std::endl;
+            std::cout << std::format(
+                             "Received packet: {} samples, {} full secs, {} frac secs{}",
+                             num_rx_samps, md.time_spec.get_full_secs(),
+                             md.time_spec.get_frac_secs());
 
         num_acc_samps += num_rx_samps;
     }
