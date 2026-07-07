@@ -11,7 +11,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <chrono>
 #include <complex>
@@ -122,10 +122,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args
-              << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
+
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
     // Lock mboard clocks
     if (vm.count("ref")) {
@@ -138,38 +138,30 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // set the rx sample rate
-    std::cout << boost::format("Setting RX Rate: %f Msps...") % (rate / 1e6) << std::endl;
+    std::cout << std::format("Setting RX Rate: {} Msps...\n", (rate / 1e6));
     usrp->set_rx_rate(rate);
-    std::cout << boost::format("Actual RX Rate: %f Msps...") % (usrp->get_rx_rate() / 1e6)
-              << std::endl
-              << std::endl;
+    std::cout << std::format("Actual RX Rate: {} Msps...\n\n", (usrp->get_rx_rate() / 1e6));
 
     // set the rx center frequency
-    std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq / 1e6) << std::endl;
+    std::cout << std::format("Setting RX Freq: {} MHz...\n", (freq / 1e6));
     uhd::tune_request_t tune_request(freq);
     if (vm.count("int-n"))
         tune_request.args = uhd::device_addr_t("mode_n=integer");
     usrp->set_rx_freq(tune_request);
-    std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq() / 1e6)
-              << std::endl
-              << std::endl;
+    std::cout << std::format("Actual RX Freq: {} MHz...\n\n", (usrp->get_rx_freq() / 1e6));
 
     // set the rx rf gain
-    std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+    std::cout << std::format("Setting RX Gain: {} dB...\n", gain);
     usrp->set_rx_gain(gain);
-    std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain()
-              << std::endl
-              << std::endl;
+    std::cout << std::format("Actual RX Gain: {} dB...\n\n", usrp->get_rx_gain());
 
     // set the analog frontend filter bandwidth
     if (vm.count("bw")) {
-        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw / 1e6)
-                  << std::endl;
+        std::cout << std::format("Setting RX Bandwidth: {} MHz...\n", (bw / 1e6));
+
         usrp->set_rx_bandwidth(bw);
-        std::cout << boost::format("Actual RX Bandwidth: %f MHz...")
-                         % (usrp->get_rx_bandwidth() / 1e6)
-                  << std::endl
-                  << std::endl;
+        std::cout << std::format("Actual RX Bandwidth: {} MHz...\n\n",
+                         (usrp->get_rx_bandwidth() / 1e6));
     }
 
     // set the antenna
@@ -184,8 +176,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     if (std::find(sensor_names.begin(), sensor_names.end(), "lo_locked")
         != sensor_names.end()) {
         uhd::sensor_value_t lo_locked = usrp->get_rx_sensor("lo_locked", 0);
-        std::cout << boost::format("Checking RX: %s ...") % lo_locked.to_pp_string()
-                  << std::endl;
+        std::cout << std::format("Checking RX: {} ...\n", lo_locked.to_pp_string());
+
         UHD_ASSERT_THROW(lo_locked.to_bool());
     }
     sensor_names = usrp->get_mboard_sensor_names(0);
@@ -193,16 +185,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         and (std::find(sensor_names.begin(), sensor_names.end(), "mimo_locked")
              != sensor_names.end())) {
         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", 0);
-        std::cout << boost::format("Checking RX: %s ...") % mimo_locked.to_pp_string()
-                  << std::endl;
+        std::cout << std::format("Checking RX: {} ...\n", mimo_locked.to_pp_string());
+
         UHD_ASSERT_THROW(mimo_locked.to_bool());
     }
     if ((ref == "external")
         and (std::find(sensor_names.begin(), sensor_names.end(), "ref_locked")
              != sensor_names.end())) {
         uhd::sensor_value_t ref_locked = usrp->get_mboard_sensor("ref_locked", 0);
-        std::cout << boost::format("Checking RX: %s ...") % ref_locked.to_pp_string()
-                  << std::endl;
+        std::cout << std::format("Checking RX: {} ...\n", ref_locked.to_pp_string());
+
         UHD_ASSERT_THROW(ref_locked.to_bool());
     }
 
@@ -234,15 +226,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
                 if (num_acc_samps == 0)
                     continue;
-                std::cout << boost::format("Got timeout before all samples received, "
-                                           "possible packet loss, exiting loop...")
-                          << std::endl;
+                std::cout << "Got timeout before all samples received, "
+                                           "possible packet loss, exiting loop...\n";
+
                 goto done_loop;
 
             default:
-                std::cout << boost::format("Got error code 0x%x, exiting loop...")
-                                 % md.error_code
-                          << std::endl;
+                 std::cout << std::format(
+                        "Got error code {:#x}, exiting loop...\n",
+                        static_cast<std::underlying_type_t<decltype(md.error_code)>>(md.error_code)
+                );
                 goto done_loop;
         }
 

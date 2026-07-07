@@ -12,7 +12,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <fstream>
@@ -45,7 +45,7 @@ bool check_locked_sensor(
         + std::chrono::milliseconds(int64_t(setup_time * 1000));
     bool lock_detected = false;
 
-    std::cout << boost::format("Waiting for \"%s\": ") % sensor_name;
+    std::cout << std::format("Waiting for \"{}\": \n", sensor_name);
     std::cout.flush();
 
     while (true) {
@@ -62,9 +62,9 @@ bool check_locked_sensor(
         else {
             if (std::chrono::steady_clock::now() > setup_timeout) {
                 std::cout << std::endl;
-                throw std::runtime_error(str(
-                    boost::format("timed out waiting for consecutive locks on sensor \"%s\"")
-                    % sensor_name
+                throw std::runtime_error(
+                    std::format("timed out waiting for consecutive locks on sensor \"{}\"",
+                    sensor_name
                 ));
             }
             std::cout << "_";
@@ -95,7 +95,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD RX stream init %s") % desc << std::endl;
+        std::cout << std::format("UHD RX stream stop %s\n", desc);
         std::cout
             << std::endl
             << "This application stops rx from streaming data by through register writes.\n"
@@ -105,7 +105,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //Lock mboard clocks
@@ -114,7 +114,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //always select the subdevice first, the channel mapping affects the other settings
     if (vm.count("subdev")) usrp->set_rx_subdev_spec(subdev);
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
     //detect which channels to use
     //detect which channels to use
