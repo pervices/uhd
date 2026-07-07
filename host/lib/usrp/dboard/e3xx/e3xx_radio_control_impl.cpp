@@ -13,7 +13,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -194,8 +194,8 @@ void e3xx_radio_control_impl::set_tx_antenna(const std::string& ant, const size_
     std::lock_guard<std::recursive_mutex> l(_set_lock);
     if (ant != get_tx_antenna(chan)) {
         throw uhd::value_error(
-            str(boost::format("[%s] Requesting invalid TX antenna value: %s")
-                % get_unique_id() % ant));
+            std::format("[{}] Requesting invalid TX antenna value: {}",
+                get_unique_id(), ant));
     }
     radio_control_impl::set_tx_antenna(ant, chan);
     // We can't actually set the TX antenna, so let's stop here.
@@ -208,8 +208,8 @@ void e3xx_radio_control_impl::set_rx_antenna(const std::string& ant, const size_
     if (std::find(E3XX_RX_ANTENNAS.begin(), E3XX_RX_ANTENNAS.end(), ant)
         == E3XX_RX_ANTENNAS.end()) {
         throw uhd::value_error(
-            str(boost::format("[%s] Requesting invalid RX antenna value: %s")
-                % get_unique_id() % ant));
+            std::format("[{}] Requesting invalid RX antenna value: {}",
+                get_unique_id(), ant));
     }
     RFNOC_LOG_TRACE("Setting RX antenna to " << ant << " for chan " << chan);
 
@@ -502,8 +502,11 @@ void e3xx_radio_control_impl::loopback_self_test(const size_t chan)
             if (test_fail) {
                 RFNOC_LOG_DEBUG(
                     "CODEC loopback test failure: "
-                    << boost::format("Expected: 0x%08X Received (TX/RX): 0x%08X/0x%08X")
-                           % word32 % rb_tx % rb_rx);
+                        << std::format("Expected: 0x{:08X} Received (TX/RX): 0x{:08X}/0x{:08X}",
+                               word32,
+                               rb_tx,
+                               rb_rx
+                        );
                 if (tries < retries) {
                     // TODO: Investigate why loopback test sometimes fails
                     // Upon failure, setting the streaming mode again makes

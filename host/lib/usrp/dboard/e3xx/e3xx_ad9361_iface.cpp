@@ -7,7 +7,7 @@
 #include "e3xx_ad9361_iface.hpp"
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 using namespace uhd;
 
@@ -153,6 +153,5 @@ std::string get_which_ad9361_chain(
     UHD_ASSERT_THROW(dir == RX_DIRECTION or dir == TX_DIRECTION);
     UHD_ASSERT_THROW(chan == 0 or chan == 1);
     size_t ad9361_chan = fe_swap ? (chan ? 0 : 1) : chan;
-    return str(
-        boost::format("%s%d") % (dir == RX_DIRECTION ? "RX" : "TX") % (ad9361_chan + 1));
+    return std::format("{}{}", (dir == RX_DIRECTION ? "RX" : "TX"), (ad9361_chan + 1));
 }

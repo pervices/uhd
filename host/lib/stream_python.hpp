@@ -10,7 +10,7 @@
 
 #include <uhd/stream.hpp>
 #include <uhd/types/metadata.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 #include <numpy/ndarrayobject.h>
 #include <numpy/ndarraytypes.h>
@@ -37,9 +37,9 @@ static size_t wrap_recv(uhd::rx_streamer* rx_stream,
         // If we don't have a 2D NumPy array, assume we have a 1D array
         size_t input_channels = (dims != 2) ? 1 : array.shape(0);
         throw uhd::runtime_error(
-            str(boost::format("Number of RX channels (%d) does not match the dimensions "
-                              "of the data array (%d)")
-                % channels % input_channels));
+            std::format("Number of RX channels ({}) does not match the dimensions "
+                              "of the data array ({})",
+                channels, input_channels));
     }
 
     // Get a pointer to the storage
@@ -78,9 +78,9 @@ static size_t wrap_send(uhd::tx_streamer* tx_stream,
         // If we don't have a 2D NumPy array, assume we have a 1D array
         size_t input_channels = (dims != 2) ? 1 : array.shape(0);
         throw uhd::runtime_error(
-            str(boost::format("Number of TX channels (%d) does not match the dimensions "
-                              "of the data array (%d)")
-                % channels % input_channels));
+            std::format("Number of TX channels (%d) does not match the dimensions "
+                              "of the data array (%d)",
+                channels, input_channels));
     }
 
     // Get a pointer to the storage
