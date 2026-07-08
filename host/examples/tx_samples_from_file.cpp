@@ -474,7 +474,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     uhd::tune_request_t tune_request;
     if(manual_lo) {
-        std::cout << std::format("Setting TX Freq {} using LO Offset: {} MHz...\n", (freq / 1e6) % (lo_offset / 1e6));
+        std::cout << std::format("Setting TX Freq {} using LO Offset: {} MHz...\n", (freq / 1e6), (lo_offset / 1e6));
         tune_request = uhd::tune_request_t(freq, lo_offset);
     } else {
         std::cout << std::format("Setting TX Freq: {} MHz...\n", (freq / 1e6));

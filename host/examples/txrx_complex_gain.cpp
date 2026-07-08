@@ -739,7 +739,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             != rx_sensor_names.end()) {
             uhd::sensor_value_t lo_locked =
                 multi_usrp->get_rx_sensor("lo_locked", channel);
-            std::cout << std::format("Checking RX Channel {}: {} ...\n", channel
+            std::cout << std::format("Checking RX Channel {}: {} ...\n", channel,
                              lo_locked.to_pp_string());
 
             if (!lo_locked.to_bool()) {
