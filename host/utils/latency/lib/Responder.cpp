@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <type_traits>
 
 const std::string _eth_file("eths_info.txt");
 
@@ -553,7 +554,7 @@ bool Responder::handle_rx_errors(
         ++_overruns;
         print_overrun_msg(); // update overrun info on console.
     } else if (err != uhd::rx_metadata_t::ERROR_CODE_NONE) {
-        throw std::runtime_error(std::format("Unexpected error code {:#x}", err));
+        throw std::runtime_error(std::format("Unexpected error code {:#x}", static_cast<std::underlying_type_t<decltype(err)>>(err)));
     }
     return false;
 }
