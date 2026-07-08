@@ -506,7 +506,7 @@ void e3xx_radio_control_impl::loopback_self_test(const size_t chan)
                                word32,
                                rb_tx,
                                rb_rx
-                        );
+                        ));
                 if (tries < retries) {
                     // TODO: Investigate why loopback test sometimes fails
                     // Upon failure, setting the streaming mode again makes

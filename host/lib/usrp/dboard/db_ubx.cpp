@@ -883,7 +883,7 @@ private:
         write_gpio();
         UHD_LOG_TRACE("UBX",
             std::format("UBX TX Gain: {} dB, Code: {}, IO Bits {:#06x}", gain,
-                attn_code, (attn_code << 10));
+                attn_code, (attn_code << 10)));
         _tx_gain = gain;
         return gain;
     }
@@ -897,7 +897,7 @@ private:
         write_gpio();
         UHD_LOG_TRACE("UBX",
             std::format("UBX RX Gain: {} dB, Code: {}, IO Bits {:#06x}", gain,
-                attn_code, (attn_code << 10));
+                attn_code, (attn_code << 10)));
         _rx_gain = gain;
         return gain;
     }
