@@ -84,8 +84,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << std::format("USRP Generate TX IQ Balance Calibration Table {}\n",
-                         desc);
+        std::cout << "USRP Generate TX IQ Balance Calibration Table " << desc << std::endl;
+
         std::cout << "This application measures leakage between RX and TX on a "
                      "transceiver daughterboard to self-calibrate.\n"
                      "Note: Not all daughterboards support this feature. Refer to the "
