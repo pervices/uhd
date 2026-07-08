@@ -187,8 +187,8 @@ void x300_mb_controller::set_time_source(const std::string& source)
     /* TODO - Implement intelligent PPS detection
     //check for valid pps
     if (!is_pps_present(mb)) {
-        throw uhd::runtime_error((boost::format("The %d PPS was not detected.  Please
-    check the PPS source and try again.") % source).str());
+        throw uhd::runtime_error(std::format("The {} PPS was not detected.  Please
+    check the PPS source and try again.", source));
     }
     */
 }
@@ -250,9 +250,8 @@ void x300_mb_controller::set_clock_source(const std::string& source)
             // failed to lock on reference
             if (_initialization_done) {
                 throw uhd::runtime_error(
-                    (boost::format("Reference Clock PLL failed to lock to %s source.")
-                        % source)
-                        .str());
+                    std::format("Reference Clock PLL failed to lock to {} source.",
+                        source));
             } else {
                 // TODO: Re-enable this warning when we figure out a reliable lock time
                 // UHD_LOGGER_WARNING("X300::MB_CTRL") << "Reference clock failed to lock
@@ -272,9 +271,8 @@ void x300_mb_controller::set_clock_source(const std::string& source)
         if (not wait_for_clk_locked(
                 fw_regmap_t::clk_status_reg_t::RADIO_CLK_LOCK, 0.01)) {
             throw uhd::runtime_error(
-                (boost::format("Reference Clock PLL in FPGA failed to lock to %s source.")
-                    % source)
-                    .str());
+                std::format("Reference Clock PLL in FPGA failed to lock to {} source.",
+                    source));
         }
 
         // Reset the IDELAYCTRL used to calibrate the data interface delays
@@ -286,10 +284,9 @@ void x300_mb_controller::set_clock_source(const std::string& source)
         if (not wait_for_clk_locked(
                 fw_regmap_t::clk_status_reg_t::IDELAYCTRL_LOCK, 0.01)) {
             throw uhd::runtime_error(
-                (boost::format(
-                     "ADC Calibration Clock in FPGA failed to lock to %s source.")
-                    % source)
-                    .str());
+                std::format(
+                     "ADC Calibration Clock in FPGA failed to lock to {} source.",
+                    source));
         }
 
         // Reset ADCs and DACs
@@ -723,7 +720,7 @@ void x300_mb_controller::self_cal_adc_xfer_delay(bool apply_delay)
             }
         }
         UHD_LOG_TRACE(
-            LOG_ID, boost::format("XferDelay=%fns, Error=%d") % delay % err_code);
+            LOG_ID, std::format("XferDelay={}ns, Error={}", delay, err_code));
         results.push_back(std::pair<double, bool>(delay, err_code == 0));
     }
 
@@ -801,32 +798,34 @@ void x300_mb_controller::self_cal_adc_xfer_delay(bool apply_delay)
         radio->set_adc_test_word("normal", "normal");
         radio->set_adc_checker_enabled(false);
     }
-    UHD_LOGGER_INFO(LOG_ID)
-        << (boost::format("ADC transfer delay self-cal done (FPGA->ADC=%.3fns%s, "
-                          "Window=%.3fns)")
-               % (win_center - fpga_clk_delay) % (cycle_slip ? " +cyc" : "")
-               % win_length);
+    UHD_LOGGER_INFO(LOG_ID) << std::format(
+        "ADC transfer delay self-cal done (FPGA->ADC={:.3f}ns{}, Window={:.3f}ns)",
+        (win_center - fpga_clk_delay),
+        (cycle_slip ? " +cyc" : ""),
+        win_length
+    );
 }
 
 void x300_mb_controller::extended_adc_test(double duration_s)
 {
     static const size_t SECS_PER_ITER = 5;
-    RFNOC_LOG_INFO(
-        boost::format("Running Extended ADC Self-Test (Duration=%.0fs, %ds/iteration)...")
-        % duration_s % SECS_PER_ITER);
+    RFNOC_LOG_INFO(std::format(
+        "Running Extended ADC Self-Test (Duration={:.0f}s, {}s/iteration)...",
+        duration_s,
+        SECS_PER_ITER
+    ));
 
     size_t num_iters    = static_cast<size_t>(ceil(duration_s / SECS_PER_ITER));
     size_t num_failures = 0;
     for (size_t iter = 0; iter < num_iters; iter++) {
         // Run self-test
-        RFNOC_LOG_INFO(
-            boost::format("Extended ADC Self-Test Iteration %06d... ") % (iter + 1));
+        RFNOC_LOG_INFO(std::format("Extended ADC Self-Test Iteration {:06d}... ", iter + 1));
+
         try {
             for (auto& radio : _radio_refs) {
                 radio->self_test_adc(SECS_PER_ITER * 1000);
             }
-            RFNOC_LOG_INFO(boost::format("Extended ADC Self-Test Iteration %06d passed ")
-                           % (iter + 1));
+            RFNOC_LOG_INFO(std::format("Extended ADC Self-Test Iteration {:06d} passed ", iter + 1));
         } catch (std::exception& e) {
             num_failures++;
             RFNOC_LOG_ERROR(e.what());
@@ -836,9 +835,9 @@ void x300_mb_controller::extended_adc_test(double duration_s)
         RFNOC_LOG_INFO("Extended ADC Self-Test PASSED");
     } else {
         const std::string err_msg =
-            (boost::format("Extended ADC Self-Test FAILED!!! (%d/%d failures)")
-                % num_failures % num_iters)
-                .str();
+            std::format("Extended ADC Self-Test FAILED!!! ({}/{} failures)",
+                num_failures, num_iters);
+
         RFNOC_LOG_ERROR(err_msg);
         throw uhd::runtime_error(err_msg);
     }

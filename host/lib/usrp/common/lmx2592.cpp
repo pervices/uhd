@@ -390,9 +390,7 @@ public:
         const auto value_read  = _read_fn(_regs.ADDR_R0);
         const auto lock_status = (value_read == 0xFFFF);
 
-        UHD_LOG_TRACE("LMX2592",
-            str(boost::format("Read Lock status: 0x%04X")
-                % static_cast<unsigned int>(value_read)));
+        UHD_LOG_TRACE("LMX2592", std::format("Read Lock status: {:#06X}", static_cast<unsigned int>(value_read)));
 
         return lock_status;
     }

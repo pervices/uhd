@@ -10,7 +10,7 @@
 #include <uhd/utils/log.hpp>
 #include <uhdlib/transport/udp_common.hpp>
 #include <uhdlib/utils/atomic.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <memory>
 #include <thread>
@@ -42,11 +42,11 @@ static void check_registry_for_fast_send_threshold(const size_t mtu)
                != ERROR_SUCCESS
         or threshold < mtu) {
         UHD_LOGGER_WARNING("UDP")
-            << boost::format(
-                   "The MTU (%d) is larger than the FastSendDatagramThreshold (%d)!\n"
+            << std::format(
+                   "The MTU ({}) is larger than the FastSendDatagramThreshold ({})!\n"
                    "This will negatively affect the transmit performance.\n"
-                   "See the transport application notes for more detail.\n")
-                   % mtu % threshold;
+                   "See the transport application notes for more detail.\n",
+                   mtu, threshold);
         warned = true;
     }
     reg_key.Close();
@@ -155,7 +155,7 @@ public:
         , _next_send_buff_index(0)
     {
         UHD_LOGGER_TRACE("UDP")
-            << boost::format("Creating UDP transport to %s:%s") % addr % port;
+            << std::format("Creating UDP transport to {}:{}", addr, port);
 
 #ifdef CHECK_REG_SEND_THRESH
         check_registry_for_fast_send_threshold(this->get_send_frame_size());
@@ -164,8 +164,8 @@ public:
         _socket  = open_udp_socket(addr, port, _io_context);
         _sock_fd = _socket->native_handle();
 
-        UHD_LOGGER_TRACE("UDP") << boost::format("Local UDP socket endpoint: %s:%s")
-                                       % get_local_addr() % get_local_port();
+        UHD_LOGGER_TRACE("UDP") << std::format("Local UDP socket endpoint: {}:{}",
+                get_local_addr(), get_local_port());
 
         // allocate re-usable managed receive buffers
         for (size_t i = 0; i < get_num_recv_frames(); i++) {

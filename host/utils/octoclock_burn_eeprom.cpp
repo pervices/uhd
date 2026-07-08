@@ -11,7 +11,7 @@
 #include <uhd/usrp/mboard_eeprom.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <vector>
@@ -41,9 +41,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help") or (not vm.count("values") and not vm.count("read-all"))) {
-        std::cout << boost::format("OctoClock Burn EEPROM %s") % desc << std::endl;
-        std::cout << boost::format("Omit the value argument to perform a readback,\n"
-                                   "Or specify a new value to burn into the EEPROM.\n")
+        std::cout << "OctoClock Burn EEPROM " << desc << std::endl;
+        std::cout << "Omit the value argument to perform a readback,\n"
+                                   "Or specify a new value to burn into the EEPROM.\n"
                   << std::endl;
         return EXIT_FAILURE;
     }
@@ -69,13 +69,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << "Fetching current settings from EEPROM..." << std::endl;
     for (size_t i = 0; i < keys_vec.size(); i++) {
         if (not oc_eeprom.has_key(keys_vec[i])) {
-            std::cerr << boost::format("Cannot find value for EEPROM[\"%s\"]")
-                             % keys_vec[i]
+            std::cerr << std::format("Cannot find value for EEPROM[\"{}\"]", keys_vec[i])
                       << std::endl;
             return EXIT_FAILURE;
         }
-        std::cout << boost::format("    EEPROM [\"%s\"] is \"%s\"") % keys_vec[i]
-                         % oc_eeprom[keys_vec[i]]
+        std::cout << std::format("    EEPROM [\"{}\"] is \"{}\"", keys_vec[i], oc_eeprom[keys_vec[i]])
                   << std::endl;
     }
     if (!vm.count("read-all")) {
@@ -83,8 +81,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         for (size_t i = 0; i < vals_vec.size(); i++) {
             if (!vals_vec[i].empty()) {
                 oc_eeprom[keys_vec[i]] = vals_vec[i];
-                std::cout << boost::format("Setting EEPROM [\"%s\"] to \"%s\"...")
-                                 % keys_vec[i] % vals_vec[i]
+                std::cout << std::format("Setting EEPROM [\"{}\"] to \"{}\"...", keys_vec[i], vals_vec[i])
                           << std::endl;
             }
         }

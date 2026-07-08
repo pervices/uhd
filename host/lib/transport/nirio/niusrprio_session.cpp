@@ -13,7 +13,7 @@
 #include <uhdlib/transport/nirio/status.h>
 #include <stdio.h>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <fstream>
 #include <thread>
@@ -154,7 +154,7 @@ nirio_status niusrprio_session::_verify_signature()
     for (uint32_t i = 0; i < 8; i++) {
         uint32_t quarter_sig;
         nirio_status_chain(_riok_proxy->peek(sig_offset, quarter_sig), status);
-        signature += boost::str(boost::format("%08x") % quarter_sig);
+        signature += std::format("{:08x}", quarter_sig);
     }
 
     std::string expected_signature(_lvbitx->get_signature());
@@ -176,7 +176,7 @@ std::string niusrprio_session::_read_bitstream_checksum()
         uint32_t quarter_sig;
         nirio_status_chain(
             _riok_proxy->peek(FPGA_USR_SIG_REG_BASE + i, quarter_sig), status);
-        usr_signature += boost::str(boost::format("%08x") % quarter_sig);
+        usr_signature += std::format("{:08x}", quarter_sig);
     }
     boost::to_upper(usr_signature);
 

@@ -13,7 +13,7 @@
 #include <uhd/transport/usb_device_handle.hpp>
 #include <uhd/utils/noncopyable.hpp>
 #include <libusb.h>
-#include <boost/format.hpp>
+#include <format>
 #include <memory>
 
 //! Define LIBUSB_CALL when its missing (non-windows)
@@ -29,7 +29,7 @@
 
 //! libusb_error_name is only in newer API
 #ifndef HAVE_LIBUSB_ERROR_NAME
-#    define libusb_error_name(code) str(boost::format("LIBUSB_ERROR_CODE %d") % code)
+#    define libusb_error_name(code) std::format("LIBUSB_ERROR_CODE {}", code)
 #endif /* HAVE_LIBUSB_ERROR_NAME */
 
 //! libusb_strerror is only in newer API

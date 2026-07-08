@@ -12,7 +12,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <fstream>
@@ -78,11 +78,11 @@ template<typename samp_type> void recv_to_file(
     rx_stream->recv(&buff.front(), buff.size(), md, 3.0, enable_size_map);
 
     if (md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
-            std::cerr << boost::format("First packet timed out. It is likely that no data will be received") << std::endl;
+            std::cerr << "First packet timed out. It is likely that no data will be received\n";
         }
 
     if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE){
-        std::string error = str(boost::format("Receiver error: %s") % md.strerror());
+        std::string error = std::format("Receiver error: {}", md.strerror());
         if (continue_on_bad_packet){
             std::cerr << error << std::endl;
         }
@@ -125,7 +125,7 @@ bool check_locked_sensor(
         + std::chrono::milliseconds(int64_t(setup_time * 1000));
     bool lock_detected = false;
 
-    std::cout << boost::format("Waiting for \"%s\": ") % sensor_name;
+    std::cout << std::format("Waiting for \"{}\": ", sensor_name);
     std::cout.flush();
 
     while (true) {
@@ -142,10 +142,10 @@ bool check_locked_sensor(
         else {
             if (std::chrono::steady_clock::now() > setup_timeout) {
                 std::cout << std::endl;
-                throw std::runtime_error(str(
-                    boost::format("timed out waiting for consecutive locks on sensor \"%s\"")
-                    % sensor_name
-                ));
+                throw std::runtime_error(
+                    std::format("timed out waiting for consecutive locks on sensor \"{}\"",
+                    sensor_name)
+                );
             }
             std::cout << "_";
             std::cout.flush();
@@ -206,7 +206,7 @@ int run_exec(std::string argument) {
 
     if(child_pid == 0) {
         execvp(args[0], args);
-        std::cerr << boost::format("Failed to launch: %s" ) % args[0] << std::endl;
+        std::cerr << std::format("Failed to launch: {}\n", args[0]);
         int n = 0;
         while(args[n]!=NULL) {
             std::cout << args[n] << std::endl;
@@ -263,7 +263,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD RX stream init %s") % desc << std::endl;
+        std::cout << "UHD RX stream init " << desc << std::endl;
         std::cout
             << std::endl
             << "This application streams data from a single channel of a USRP device, and launches programs to process it.\n"
@@ -279,7 +279,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //Lock mboard clocks
@@ -288,7 +288,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //always select the subdevice first, the channel mapping affects the other settings
     if (vm.count("subdev")) usrp->set_rx_subdev_spec(subdev);
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
     //set the sample rate
     if (rate <= 0.0){
@@ -299,11 +299,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //set the center frequency
     if (vm.count("lo-freq") && vm.count("dsp-freq")) { //with default of 0.0 this will always be true
         double freq = lo_freq+dsp_freq;
-        std::cout << boost::format("Setting RX Freq: %f MHz...") % (freq/1e6) << std::endl;
+        std::cout << std::format("Setting RX Freq: {} MHz...\n", (freq/1e6));
         uhd::tune_request_t tune_request(-dsp_freq, lo_freq, 0);
         if(vm.count("int-n")) tune_request.args = uhd::device_addr_t("mode_n=integer");
         usrp->set_rx_freq(tune_request, channel);
-        std::cout << boost::format("Actual RX Freq: %f MHz...") % (usrp->get_rx_freq(channel)/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual RX Freq: {} MHz...\n\n", (usrp->get_rx_freq(channel)/1e6));
     } else {
         std::cerr << "Please specify a dsp shift and lo frequency" << std::endl;
         return ~0;
@@ -311,16 +311,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //set the rf gain
     if (vm.count("gain")) {
-        std::cout << boost::format("Setting RX Gain: %f dB...") % gain << std::endl;
+        std::cout << std::format("Setting RX Gain: {} dB...\n", gain);
         usrp->set_rx_gain(gain, channel);
-        std::cout << boost::format("Actual RX Gain: %f dB...") % usrp->get_rx_gain(channel) << std::endl << std::endl;
+        std::cout << std::format("Actual RX Gain: {} dB...\n\n", usrp->get_rx_gain(channel));
     }
 
     //set the IF filter bandwidth
     if (vm.count("bw")) {
-        std::cout << boost::format("Setting RX Bandwidth: %f MHz...") % (bw/1e6) << std::endl;
+        std::cout << std::format("Setting RX Bandwidth: {} MHz...\n", (bw/1e6));
         usrp->set_rx_bandwidth(bw, channel);
-        std::cout << boost::format("Actual RX Bandwidth: %f MHz...") % (usrp->get_rx_bandwidth(channel)/1e6) << std::endl << std::endl;
+        std::cout << std::format("Actual RX Bandwidth: {} MHz...\n\n", (usrp->get_rx_bandwidth(channel)/1e6));
     }
 
     //set the antenna

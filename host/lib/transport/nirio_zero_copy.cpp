@@ -11,7 +11,7 @@
 #include <uhdlib/utils/atomic.hpp>
 #include <stdio.h>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/interprocess/mapped_region.hpp> //get_page_size()
 #include <algorithm> // std::max
 #include <chrono>
@@ -148,17 +148,17 @@ public:
         , _next_send_buff_index(0)
     {
         UHD_LOGGER_TRACE("NIRIO")
-            << boost::format("Creating PCIe transport for channel %d") % instance;
+            << std::format("Creating PCIe transport for channel {}", instance);
         UHD_LOGGER_TRACE("NIRIO")
-            << boost::format("nirio zero-copy RX transport configured with frame size = "
-                             "%u, #frames = %u, buffer size = %u\n")
-                   % _xport_params.recv_frame_size % _xport_params.num_recv_frames
-                   % (_xport_params.recv_frame_size * _xport_params.num_recv_frames);
+            << std::format("nirio zero-copy RX transport configured with frame size = "
+                    "{}, #frames = {}, buffer size = {}\n",
+                   _xport_params.recv_frame_size % _xport_params.num_recv_frames,
+                   (_xport_params.recv_frame_size * _xport_params.num_recv_frames));
         UHD_LOGGER_TRACE("NIRIO")
-            << boost::format("nirio zero-copy TX transport configured with frame size = "
-                             "%u, #frames = %u, buffer size = %u\n")
-                   % _xport_params.send_frame_size % _xport_params.num_send_frames
-                   % (_xport_params.send_frame_size * _xport_params.num_send_frames);
+            << std::format("nirio zero-copy TX transport configured with frame size = "
+                    "%u, #frames = %u, buffer size = %u\n",
+                    _xport_params.send_frame_size % _xport_params.num_send_frames,
+                    (_xport_params.send_frame_size * _xport_params.num_send_frames));
 
         nirio_status status = 0;
         size_t actual_depth = 0, actual_size = 0;
@@ -416,18 +416,16 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
     if (hints.has_key("recv_buff_size")) {
         if (usr_recv_buff_size % page_size != 0) {
             throw uhd::value_error(
-                (boost::format("recv_buff_size must be multiple of %d") % page_size)
-                    .str());
+                    std::format("recv_buff_size must be multiple of {}", page_size));
         }
     }
 
     if (hints.has_key("recv_frame_size") and hints.has_key("num_recv_frames")) {
         if (usr_num_recv_frames * xport_params.recv_frame_size % page_size != 0) {
             throw uhd::value_error(
-                (boost::format(
-                     "num_recv_frames * recv_frame_size must be an even multiple of %d")
-                    % page_size)
-                    .str());
+                    std::format(
+                            "num_recv_frames * recv_frame_size must be an even multiple of {}",
+                            page_size));
         }
     }
 
@@ -450,10 +448,10 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
 
     if (xport_params.num_recv_frames * xport_params.recv_frame_size % page_size != 0) {
         throw uhd::value_error(
-            (boost::format(
-                 "num_recv_frames * recv_frame_size must be an even multiple of %d")
-                % page_size)
-                .str());
+                std::format(
+                        "num_recv_frames * recv_frame_size must be an even multiple of {}",
+                        page_size)
+        );
     }
 
     // TX
@@ -468,18 +466,16 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
     if (hints.has_key("send_buff_size")) {
         if (usr_send_buff_size % page_size != 0) {
             throw uhd::value_error(
-                (boost::format("send_buff_size must be multiple of %d") % page_size)
-                    .str());
+                std::format("send_buff_size must be multiple of {}", page_size));
         }
     }
 
     if (hints.has_key("send_frame_size") and hints.has_key("num_send_frames")) {
         if (usr_num_send_frames * xport_params.send_frame_size % page_size != 0) {
             throw uhd::value_error(
-                (boost::format(
-                     "num_send_frames * send_frame_size must be an even multiple of %d")
-                    % page_size)
-                    .str());
+                    std::format(
+                            "num_send_frames * send_frame_size must be an even multiple of {}",
+                            page_size));
         }
     }
 
@@ -502,10 +498,9 @@ nirio_zero_copy::sptr nirio_zero_copy::make(
 
     if (xport_params.num_send_frames * xport_params.send_frame_size % page_size != 0) {
         throw uhd::value_error(
-            (boost::format(
-                 "num_send_frames * send_frame_size must be an even multiple of %d")
-                % page_size)
-                .str());
+                std::format(
+                        "num_send_frames * send_frame_size must be an even multiple of {}",
+                        page_size));
     }
 
     return nirio_zero_copy::sptr(

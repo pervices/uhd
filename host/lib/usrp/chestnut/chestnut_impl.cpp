@@ -160,9 +160,9 @@ device_addrs_t chestnut_impl::chestnut_find(const device_addr_t &hint_)
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
             device_addrs_t found_devices_i = chestnut_find(hint_i);
-            if (found_devices_i.size() != 1) error_msg += str(boost::format(
-                "Could not resolve device hint \"%s\" to a single device."
-            ) % hint_i.to_string());
+            if (found_devices_i.size() != 1) error_msg += std::format(
+                "Could not resolve device hint \"{}\" to a single device.",
+            hint_i.to_string());
             else found_devices.push_back(found_devices_i[0]);
         }
         if (found_devices.empty()) return device_addrs_t();

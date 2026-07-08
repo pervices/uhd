@@ -1,5 +1,5 @@
 #include "rpc/dispatcher.h"
-#include <boost/format.hpp>
+#include <format>
 #include "rpc/detail/client_error.h"
 #include "rpc/this_handler.h"
 
@@ -48,18 +48,18 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             return response::make_result(id, std::move(result));
         } catch (rpc::detail::client_error &e) {
             return response::make_error(
-                id, str(boost::format("rpclib: %s") % e.what()));
+                id, std::format("rpclib: {}", e.what()));
         } catch (std::exception &e) {
             if (!suppress_exceptions) {
                 throw;
             }
             return response::make_error(
                 id,
-                str(boost::format("rpclib: function '%s' (called with %d "
-                                   "arg(s)) "
-                                   "threw an exception. The exception "
-                              "contained this information: %s.") %
-                                   name % args.via.array.size % e.what()));
+                std::format("rpclib: function '{}' (called with {} arg(s)) "
+                "threw an exception. The exception "
+                "contained this information: {}.",
+                name, args.via.array.size, e.what())
+            );
         } catch (rpc::detail::handler_error &) {
             // doing nothing, the exception was only thrown to
             // return immediately
@@ -72,17 +72,19 @@ response dispatcher::dispatch_call(RPCLIB_MSGPACK::object const &msg,
             }
             return response::make_error(
                 id,
-                str(boost::format("rpclib: function '%s' (called with %d "
-                                   "arg(s)) threw an exception. The exception "
-                                   "is not derived from std::exception. No "
-                              "further information available.") %
-                                   name % args.via.array.size));
+                std::format("rpclib: function '{}' (called with {} arg(s)) threw an exception. "
+                    "The exception is not derived from std::exception. No "
+                    "further information available.",
+                    name, args.via.array.size)
+            );
         }
     }
     return response::make_error(
-        id, str(boost::format("rpclib: server could not find "
-                          "function '%s' with argument count %d.") %
-                               name % args.via.array.size));
+        id,
+        std::format("rpclib: server could not find "
+            "function '{}' with argument count {}.",
+            name, args.via.array.size)
+    );
 }
 
 response dispatcher::dispatch_notification(RPCLIB_MSGPACK::object const &msg,
@@ -124,10 +126,10 @@ void dispatcher::enforce_arg_count(std::string const &func, std::size_t found,
     if (found != expected) {
         throw client_error(
             client_error::code::wrong_arity,
-            str(boost::format(
-                "Function '%s' was called with an invalid number of "
-                "arguments. Expected: %d, got: %d") %
-                func % expected % found));
+            std::format("Function '{}' was called with an invalid number of "
+                "arguments. Expected: {}, got: {}",
+                func, expected, found)
+            );
     }
 }
 

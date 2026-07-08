@@ -12,7 +12,7 @@
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/utils/narrow.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -47,8 +47,8 @@ void _validate_lo_name(const std::string& name, const std::string& function_name
 {
     if (!uhd::has(_get_lo_names(), name) and name != radio_control::ALL_LOS) {
         throw uhd::value_error(
-            str(boost::format("%s was called with an invalid LO name: %s") % function_name
-                % name));
+            std::format("{} was called with an invalid LO name: {}", function_name,
+                name));
     }
 }
 
@@ -253,9 +253,9 @@ void rhodium_radio_control_impl::set_tx_lo_source(
             rhodium_cpld_ctrl::tx_lo_input_sel_t::TX_LO_INPUT_SEL_EXTERNAL);
     } else {
         throw uhd::value_error(
-            str(boost::format("set_tx_lo_source was called with an invalid LO source: %s "
-                              "Valid sources are [internal, external]")
-                % src));
+            std::format("set_tx_lo_source was called with an invalid LO source: {} "
+                              "Valid sources are [internal, external]",
+                src));
     }
 
     const bool enable_corrections = not _is_tx_lowband(get_tx_frequency(0))
@@ -290,9 +290,9 @@ void rhodium_radio_control_impl::set_rx_lo_source(
             rhodium_cpld_ctrl::rx_lo_input_sel_t::RX_LO_INPUT_SEL_EXTERNAL);
     } else {
         throw uhd::value_error(
-            str(boost::format("set_rx_lo_source was called with an invalid LO source: %s "
-                              "Valid sources for LO1 are [internal, external]")
-                % src));
+            std::format("set_rx_lo_source was called with an invalid LO source: {} "
+                              "Valid sources for LO1 are [internal, external]",
+                src));
     }
 
     const bool enable_corrections = not _is_rx_lowband(get_rx_frequency(0))
@@ -402,16 +402,16 @@ void rhodium_radio_control_impl::_validate_output_port(
 {
     if (!_lo_dist_present) {
         throw uhd::runtime_error(
-            str(boost::format(
-                    "%s can only be called if the LO distribution board was detected")
-                % function_name));
+            std::format(
+                    "{} can only be called if the LO distribution board was detected",
+                function_name));
     }
 
     if (!uhd::has(LO_OUTPUT_PORT_NAMES, port_name)) {
         throw uhd::value_error(
-            str(boost::format("%s was called with an invalid LO output port: %s Valid "
-                              "ports are [LO_OUT_0, LO_OUT_1, LO_OUT_2, LO_OUT_3]")
-                % function_name % port_name));
+            std::format("{} was called with an invalid LO output port: {} Valid "
+                              "ports are [LO_OUT_0, LO_OUT_1, LO_OUT_2, LO_OUT_3]",
+                function_name, port_name));
     }
 }
 

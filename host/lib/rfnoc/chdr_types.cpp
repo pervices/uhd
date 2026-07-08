@@ -7,7 +7,8 @@
 #include <uhd/exception.hpp>
 #include <uhd/rfnoc/chdr_types.hpp>
 #include <uhd/types/endianness.hpp>
-#include <boost/format.hpp>
+#include <format>
+#include <type_traits>
 #include <cassert>
 #include <sstream>
 
@@ -38,12 +39,17 @@ const std::string chdr_header::to_string() const
     // The static_casts are because vc and num_mdata are uint8_t -> unsigned char
     // For some reason, despite the %u meaning unsigned int, boost still formats them
     // as chars
-    return str(boost::format("chdr_header{vc:%u, eob:%c, eov:%c, pkt_type:%u, "
-                             "num_mdata:%u, seq_num:%u, length:%u, dst_epid:%u}\n")
-               % static_cast<uint16_t>(get_vc()) % (get_eob() ? 'Y' : 'N')
-               % (get_eov() ? 'Y' : 'N') % get_pkt_type()
-               % static_cast<uint16_t>(get_num_mdata()) % get_seq_num() % get_length()
-               % get_dst_epid());
+    return std::format("chdr_header{{vc:{}, eob:{}, eov:{}, pkt_type:{}, "
+    "num_mdata:{}, seq_num:{}, length:{}, dst_epid:{}}}\n",
+        static_cast<uint16_t>(get_vc()),
+        get_eob() ? 'Y' : 'N',
+        get_eov() ? 'Y' : 'N',
+        static_cast<std::underlying_type_t<decltype(get_pkt_type())>>(get_pkt_type()),
+        static_cast<uint16_t>(get_num_mdata()),
+        get_seq_num(),
+        get_length(),
+        get_dst_epid()
+    );
 }
 
 //----------------------------------------------------
@@ -181,18 +187,22 @@ bool ctrl_payload::operator==(const ctrl_payload& rhs) const
 
 std::string ctrl_payload::to_string() const
 {
-    return str(boost::format(
-                   "ctrl_payload{dst_port:%d, src_port:%d, seq_num:%d, timestamp:%s, "
-                   "is_ack:%s, src_epid:%d, address:0x%05x, byte_enable:0x%x, "
-                   "op_code:%d, status:%d, num_data:%d")
-               % dst_port % src_port % int(seq_num)
-               % (bool(timestamp) ? str(boost::format("0x%016x") % *timestamp)
-                                  : std::string("<not present>"))
-               % (is_ack ? "true" : "false") % src_epid % address % int(byte_enable)
-               % op_code % status % int(data_vtr.size()))
-           + (data_vtr.empty() ? std::string()
-                               : str(boost::format(" data[0]:0x%08x") % data_vtr[0]))
-           + "}\n";
+    std::string str_a = std::format(
+        "ctrl_payload{{dst_port:{}, src_port:{}, seq_num:{}, timestamp:{}, "
+        "is_ack:{}, src_epid:{}, address:0x{:05x}, byte_enable:0x{:x}, "
+        "op_code:{}, status:{}, num_data:{}}}",
+        dst_port, src_port, int(seq_num),
+        bool(timestamp) ? std::format("0x{:016x}", *timestamp) : std::string("<not present>"),
+        is_ack ? "true" : "false",
+        src_epid, address, int(byte_enable),
+        static_cast<std::underlying_type_t<decltype(op_code)>>(op_code),
+        static_cast<std::underlying_type_t<decltype(status)>>(status),
+        int(data_vtr.size())
+    );
+    std::string str_b = data_vtr.empty() ? std::string() : std::format(" data[0]:0x{:08x}", data_vtr[0]);
+    std::string str_c = "}\n";
+
+    return str_a + str_b + str_c;
 }
 
 //----------------------------------------------------
@@ -288,12 +298,19 @@ bool strs_payload::operator==(const strs_payload& rhs) const
 
 std::string strs_payload::to_string() const
 {
-    return str(boost::format("strs_payload{src_epid:%lu, status:%d, capacity_bytes:%lu, "
-                             "capacity_pkts:%lu, "
-                             "xfer_count_pkts:%lu, xfer_count_bytes:%lu, "
-                             "buff_info:0x%x, status_info:0x%x}\n")
-               % src_epid % int(status) % capacity_bytes % capacity_pkts % xfer_count_pkts
-               % xfer_count_bytes % buff_info % status_info.info);
+    return std::format("strs_payload{{src_epid:{}, status:{}, capacity_bytes:{}, "
+        "capacity_pkts:{}, "
+        "xfer_count_pkts:{}, xfer_count_bytes:{}, "
+        "buff_info:0x{:x}, status_info:0x{:x}}}\n",
+        src_epid,
+        int(status),
+        capacity_bytes,
+        capacity_pkts,
+        xfer_count_pkts,
+        xfer_count_bytes,
+        buff_info,
+        status_info.info
+    );
 }
 
 //----------------------------------------------------
@@ -359,9 +376,14 @@ bool strc_payload::operator==(const strc_payload& rhs) const
 
 std::string strc_payload::to_string() const
 {
-    return str(boost::format("strc_payload{src_epid:%lu, op_code:%d, op_data:0x%x, "
-                             "num_pkts:%lu, num_bytes:%lu}\n")
-               % src_epid % int(op_code) % int(op_data) % num_pkts % num_bytes);
+    return std::format(
+        "strc_payload{{src_epid:{}, op_code:{}, op_data:0x{:x}, "
+        "num_pkts:{}, num_bytes:{}}}\n",
+        src_epid,
+        static_cast<std::underlying_type_t<decltype(op_code)>>(op_code),
+        op_data,
+        num_pkts,
+        num_bytes);
 }
 
 //----------------------------------------------------
@@ -413,8 +435,7 @@ std::string mgmt_op_t::to_string() const
         case mgmt_op_t::MGMT_OP_CFG_RD_REQ:
         case mgmt_op_t::MGMT_OP_CFG_RD_RESP: {
             mgmt_op_t::cfg_payload payload = static_cast<uint64_t>(get_op_payload());
-            stream << str(
-                boost::format("addr:0x%08x, data:0x%08x") % payload.addr % payload.data);
+            stream << std::format("addr:0x{:08x}, data:0x{:08x}", payload.addr, payload.data);
             break;
         }
         case mgmt_op_t::MGMT_OP_INFO_REQ:
@@ -576,9 +597,13 @@ size_t mgmt_payload::get_length() const
 
 std::string mgmt_payload::to_string() const
 {
-    return str(boost::format(
-                   "mgmt_payload{src_epid:%lu, chdr_w:%d, protover:0x%x, num_hops:%lu}\n")
-               % _src_epid % int(_chdr_w) % _protover % _hops.size());
+    return std::format(
+        "mgmt_payload{{src_epid:{}, chdr_w:{}, protover:0x{:x}, num_hops:{}}}\n",
+        _src_epid,
+        int(_chdr_w),
+        _protover,
+        _hops.size()
+    );
 }
 
 std::string mgmt_payload::hops_to_string() const

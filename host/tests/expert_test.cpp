@@ -8,7 +8,7 @@
 #include <uhd/experts/expert_container.hpp>
 #include <uhd/experts/expert_factory.hpp>
 #include <uhd/property_tree.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/test/unit_test.hpp>
 #include <fstream>
 #include <memory>
@@ -143,14 +143,18 @@ private:
 //=============================================================================
 
 #define DUMP_VARS                                                                     \
-    BOOST_TEST_MESSAGE(str(                                                           \
-        boost::format(                                                                \
-            "### State = {A=%d%s, B=%d%s, C=%d%s, D=%d%s, E=%d%s, F=%d%s, G=%d%s}\n") \
-        % nodeA.get() % (nodeA.is_dirty() ? "*" : "") % nodeB.get()                   \
-        % (nodeB.is_dirty() ? "*" : "") % nodeC.get() % (nodeC.is_dirty() ? "*" : "") \
-        % nodeD.get() % (nodeD.is_dirty() ? "*" : "") % nodeE.get()                   \
-        % (nodeE.is_dirty() ? "*" : "") % nodeF.get() % (nodeF.is_dirty() ? "*" : "") \
-        % nodeG.get() % (nodeG.is_dirty() ? "*" : "")));
+    BOOST_TEST_MESSAGE(\
+        std::format(\
+            "### State = {{A={}{}, B={}{}, C={}{}, D={}{}, E={}{}, F={}{}, G={}{}}}\n",\
+            nodeA.get(), (nodeA.is_dirty() ? "*" : ""),\
+            nodeB.get(), (nodeB.is_dirty() ? "*" : ""),\
+            nodeC.get(), (nodeC.is_dirty() ? "*" : ""),\
+            nodeD.get(), (nodeD.is_dirty() ? "*" : ""),\
+            nodeE.get(), (nodeE.is_dirty() ? "*" : ""),\
+            nodeF.get(), (nodeF.is_dirty() ? "*" : ""),\
+            nodeG.get(), (nodeG.is_dirty() ? "*" : "")\
+        )\
+    );
 
 #define VALIDATE_ALL_DEPENDENCIES                          \
     BOOST_CHECK(!nodeA.is_dirty());                        \

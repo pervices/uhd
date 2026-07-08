@@ -7,7 +7,7 @@
 #pragma once
 
 #include <uhdlib/rfnoc/rfnoc_common.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/optional.hpp>
 #include <list>
@@ -104,8 +104,8 @@ struct topo_node_t
             {node_type::STRM_EP, "sep"},
             {node_type::XPORT, "xport"},
             {node_type::VIRTUAL, "virtual"}};
-        return str(boost::format("device%s:%d/%s:%d") % (is_local_sep ? "[local]" : "")
-                   % device_id % NODE_STR.at(type) % inst);
+        return std::format("device{}:{}/{}:{}", (is_local_sep ? "[local]" : ""),
+                device_id, NODE_STR.at(type), inst);
     }
 
     // This is effectively a hashing function for this struct, used for comparisons.

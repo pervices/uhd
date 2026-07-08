@@ -9,7 +9,7 @@
 #include <uhd/rfnoc/registry.hpp>
 #include <uhd/utils/compat_check.hpp>
 #include <uhdlib/rfnoc/prop_accessor.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <numeric>
 
 #define VERSION_DEPENDENT_ADDR(addr) ((_fpga_compat.get_major() == 1) ? addr##_V1 : addr)
@@ -398,10 +398,10 @@ private:
             static_cast<uint32_t>(2 * std::ceil(log2(double(_length)) / 2));
         const uint32_t max_scale = (1 << scale_width) - 1;
         if (scaling > max_scale) {
-            throw uhd::value_error(str(
-                boost::format(
-                    "FFT scaling mask 0x%08x is greater then max. supported mask 0x%08x")
-                % scaling % max_scale));
+            throw uhd::value_error(std::format(
+                "FFT scaling mask {:#010x} is greater than max. supported mask {:#010x}",
+                scaling, max_scale
+            ));
         }
         RFNOC_LOG_DEBUG("Setting FFT Scaling to " << scaling);
         regs().poke32(VERSION_DEPENDENT_ADDR(REG_SCALING_ADDR), scaling);

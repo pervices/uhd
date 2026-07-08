@@ -1,7 +1,6 @@
 #include <boost/program_options.hpp>
 #include <uhd/transport/udp_simple.hpp>
 #include <boost/endian/conversion.hpp>
-#include <boost/format.hpp>
 #include <boost/thread.hpp>
 #include <iostream>
 #include <cmath>
@@ -239,7 +238,7 @@ int main(int argc, char* argv[])
     po::notify(vm);
     if(vm.count("help"))
     {
-        std::cout << boost::format("%s") % desc << std::endl;
+        std::cout << desc << std::endl;
         std::cout << "Exiting..." << std::endl;
         exit(1);
     }

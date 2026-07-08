@@ -7,7 +7,7 @@
 #include <uhd/rfnoc/node_accessor.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/rfnoc/block_container.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 
 
@@ -32,8 +32,10 @@ void block_container_t::register_block(noc_block_base::sptr block)
 {
     std::lock_guard<std::mutex> lock(_mutex);
     UHD_LOGGER_DEBUG("RFNOC::BLOCK_CONTAINER")
-        << boost::format("Registering block: %s (NOC ID=%08x)") % block->get_unique_id()
-               % block->get_noc_id();
+            << std::format("Registering block: {} (NOC ID={:08x})",
+                    block->get_unique_id(),
+                    block->get_noc_id()
+            );
     _blocks.insert(block);
 }
 

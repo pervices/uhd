@@ -468,12 +468,12 @@ void eth_manager::discover_eth(
         // Show a warning if there exists duplicate addresses in the mboard eeprom
         if (std::find(mb_eeprom_addrs.begin(), mb_eeprom_addrs.end(), mb_eeprom[key])
             != mb_eeprom_addrs.end()) {
-            UHD_LOGGER_WARNING("X300") << str(
-                boost::format(
-                    "Duplicate IP address %s found in mboard EEPROM. "
+            UHD_LOGGER_WARNING("X300") <<
+                std::format(
+                    "Duplicate IP address {} found in mboard EEPROM. "
                     "Device may not function properly. View and reprogram the values "
-                    "using the usrp_burn_mb_eeprom utility.")
-                % mb_eeprom[key]);
+                    "using the usrp_burn_mb_eeprom utility.",
+                mb_eeprom[key]);
         }
         mb_eeprom_addrs.push_back(mb_eeprom[key]);
     }
@@ -503,12 +503,12 @@ void eth_manager::discover_eth(
         // Check default IP addresses if we couldn't
         // determine the IP from the mboard eeprom
         if (conn_iface.type == X300_IFACE_NONE) {
-            UHD_LOGGER_WARNING("X300") << str(
-                boost::format(
-                    "Address %s not found in mboard EEPROM. Address may be wrong or "
+            UHD_LOGGER_WARNING("X300") <<
+                std::format(
+                    "Address {} not found in mboard EEPROM. Address may be wrong or "
                     "the EEPROM may be corrupt. Attempting to continue with default "
-                    "IP addresses.")
-                % conn_iface.addr);
+                    "IP addresses.",
+                conn_iface.addr);
 
             if (addr
                 == boost::asio::ip::address_v4(uint32_t(X300_DEFAULT_IP_ETH0_1G))
@@ -532,10 +532,10 @@ void eth_manager::discover_eth(
                 conn_iface.link_rate = MAX_RATE_10GIGE;
             } else {
                 throw uhd::assertion_error(
-                    str(boost::format(
-                            "X300 Initialization Error: Failed to match address %s with "
-                            "any addresses for the device. Please check the address.")
-                        % conn_iface.addr));
+                    std::format(
+                            "X300 Initialization Error: Failed to match address {} with "
+                            "any addresses for the device. Please check the address.",
+                        conn_iface.addr));
             }
         }
 
@@ -556,8 +556,8 @@ void eth_manager::discover_eth(
             // If the address does not work, throw an error
             catch (std::exception&) {
                 throw uhd::io_error(
-                    str(boost::format("X300 Initialization Error: Invalid address %s")
-                        % conn_iface.addr));
+                    std::format("X300 Initialization Error: Invalid address {}",
+                        conn_iface.addr));
             }
             if (conn_iface.addr == eth_conns.at(init_dev_id).addr) {
                 eth_conns[init_dev_id] = conn_iface;

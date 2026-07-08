@@ -31,7 +31,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <functional>
 #include <boost/asio.hpp>
 #include <iostream>
@@ -491,10 +491,10 @@ void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
     if(rate_used * otw_rx * 2 > get_link_rate()) {
 
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C)
-                << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
+                << std::format("The total sum of rates ({} MSps on SFP used by channel {})"
                                 "exceeds the maximum capacity of the connection.\n"
-                                "This can cause overflows.")
-                    % (rate_used / 1e6) % ch;
+                                "This can cause overflows.",
+                    (rate_used / 1e6), ch);
 
         rx_rate_warning_printed = true;
     }
@@ -523,10 +523,10 @@ void cyan_nrnt_impl::tx_rate_check(size_t ch, double rate_samples) {
     if(rate_used * otw_tx * 2 > get_link_rate() && !tx_rate_warning_printed) {
 
         UHD_LOGGER_WARNING(CYAN_NRNT_DEBUG_NAME_C)
-                << boost::format("The total sum of rates (%f MSps on SFP used by channel %u)"
+                << std::format("The total sum of rates ({} MSps on SFP used by channel {})"
                                 "exceeds the maximum capacity of the connection.\n"
-                                "This can cause underruns.")
-                    % (rate_used / 1e6) % ch;
+                                "This can cause underruns.",
+                    (rate_used / 1e6), ch);
 
         // Only print this warning once
         tx_rate_warning_printed = true;

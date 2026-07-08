@@ -8,7 +8,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <complex>
 #include <iostream>
@@ -67,11 +67,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // create a usrp device
-    std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args
-              << std::endl;
+    std::cout << std::format("\nCreating the usrp device with: {}...\n", args);
+
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
     // check if timed commands are supported
     std::cout << std::endl;
@@ -96,9 +95,8 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         const uhd::time_spec_t t1 = usrp->get_time_now();
         total_time += (t1 - t0);
     }
-    std::cout << boost::format(" Difference between paired reads: %f us")
-                     % (total_time.get_real_secs() / 100 * 1e6)
-              << std::endl;
+    std::cout << std::format(" Difference between paired reads: {} us\n",
+                     (total_time.get_real_secs() / 100 * 1e6));
 
     // test timed control command
     // issues get_time_now() command twice a fixed time apart
@@ -115,24 +113,23 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     usrp->set_command_time(cmd_time2);
     uhd::time_spec_t response_time2 = usrp->get_time_now();
     usrp->clear_command_time();
-    std::cout << boost::format(" Span      : %f us\n"
-                               " Now       : %f us\n"
-                               " Response 1: %f us\n"
-                               " Response 2: %f us")
-                     % (span.get_real_secs() * 1e6) % (now.get_real_secs() * 1e6)
-                     % (response_time1.get_real_secs() * 1e6)
-                     % (response_time2.get_real_secs() * 1e6)
-              << std::endl;
-    std::cout << boost::format(" Difference of response time 1: %f us")
-                     % ((response_time1 - cmd_time1).get_real_secs() * 1e6)
-              << std::endl;
-    std::cout << boost::format(" Difference of response time 2: %f us")
-                     % ((response_time2 - cmd_time2).get_real_secs() * 1e6)
-              << std::endl;
-    std::cout << boost::format(
-                     " Difference between actual and expected time delta: %f us")
-                     % ((response_time2 - response_time1 - span).get_real_secs() * 1e6)
-              << std::endl;
+    std::cout << std::format(" Span      : {} us\n"
+                               " Now       : {} us\n"
+                               " Response 1: {} us\n"
+                               " Response 2: {} us\n",
+                     (span.get_real_secs() * 1e6), (now.get_real_secs() * 1e6),
+                     (response_time1.get_real_secs() * 1e6),
+                     (response_time2.get_real_secs() * 1e6));
+
+    std::cout << std::format(" Difference of response time 1: {} us\n",
+                     ((response_time1 - cmd_time1).get_real_secs() * 1e6));
+
+    std::cout << std::format(" Difference of response time 2: {} us\n",
+                     ((response_time2 - cmd_time2).get_real_secs() * 1e6));
+
+    std::cout << std::format(
+                     " Difference between actual and expected time delta: {} us\n",
+                     ((response_time2 - response_time1 - span).get_real_secs() * 1e6));
 
     // use a timed command to start a stream at a specific time
     // this is not the right way start streaming at time x,
@@ -160,18 +157,17 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     const size_t num_rx_samps = rx_stream->recv(&buff.front(), buff.size(), md, 1.0);
     if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
-        throw std::runtime_error(str(boost::format("Receiver error %s") % md.strerror()));
+        throw std::runtime_error(std::format("Receiver error {}", md.strerror()));
     }
-    std::cout << boost::format(" Received packet: %u samples, %u full secs, %f frac secs")
-                     % num_rx_samps % md.time_spec.get_full_secs()
-                     % md.time_spec.get_frac_secs()
-              << std::endl;
-    std::cout << boost::format(" Stream time was: %u full secs, %f frac secs")
-                     % stream_time.get_full_secs() % stream_time.get_frac_secs()
-              << std::endl;
-    std::cout << boost::format(" Difference between stream time and first packet: %f us")
-                     % ((md.time_spec - stream_time).get_real_secs() * 1e6)
-              << std::endl;
+    std::cout << std::format(" Received packet: {} samples, {} full secs, {} frac secs\n",
+                     num_rx_samps, md.time_spec.get_full_secs(),
+                     md.time_spec.get_frac_secs());
+
+    std::cout << std::format(" Stream time was: {} full secs, {} frac secs\n",
+                     stream_time.get_full_secs(), stream_time.get_frac_secs());
+
+    std::cout << std::format(" Difference between stream time and first packet: {} us\n",
+                     ((md.time_spec - stream_time).get_real_secs() * 1e6));
 
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;

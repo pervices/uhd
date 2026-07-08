@@ -8,7 +8,7 @@
 #include <uhd/types/tune_request.hpp>
 #include <uhd/types/tune_result.hpp>
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 //#define TUNE_DEBUG
 
@@ -77,14 +77,13 @@ tune_request_t::tune_request_t(double target_freq, double rf_ch_freq , double rf
 }
 
 std::string tune_result_t::to_pp_string(void) const{
-    return str(boost::format(
-        "Tune Result:\n"
-        "    Target RF  Freq: %f (MHz)\n"
-        "    Actual RF  Freq: %f (MHz)\n"
-        "    Target DSP Freq: %f (MHz)\n"
-        "    Actual DSP Freq: %f (MHz)\n"
-    )
-        % (target_rf_freq/1e6)  % (actual_rf_freq/1e6)
-        % (target_dsp_freq/1e6) % (actual_dsp_freq/1e6)
+    return std::format(
+            "Tune Result:\n"
+            "    Target RF  Freq: {} (MHz)\n"
+            "    Actual RF  Freq: {} (MHz)\n"
+            "    Target DSP Freq: {} (MHz)\n"
+            "    Actual DSP Freq: {} (MHz)\n",
+            (target_rf_freq/1e6), (actual_rf_freq/1e6),
+            (target_dsp_freq/1e6), (actual_dsp_freq/1e6)
     );
 }

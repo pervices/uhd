@@ -11,7 +11,7 @@
 #include <uhd/usrp/mboard_eeprom.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <vector>
@@ -38,14 +38,13 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help") or (not vm.count("values") and not vm.count("read-all"))) {
-        std::cout << boost::format("USRP Burn Motherboard EEPROM %s") % desc << std::endl;
-        std::cout << boost::format(
+        std::cout << "USRP Burn Motherboard EEPROM " << desc << std::endl;
+        std::cout <<
             "In values argument, omit value to perform a readback,\n"
             "Or specify a new value to burn into the EEPROM.\n"
             "Example (write to ip-addr0 and read out ip-addr1):\n"
             "    usrp_burn_mb_eeprom --args=<device args> "
-            "--values \"ip-addr0=192.168.10.3,ip-addr1\"")
-                  << std::endl;
+            "--values \"ip-addr0=192.168.10.3,ip-addr1\"\n";
         return EXIT_FAILURE;
     }
 
@@ -71,13 +70,10 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     std::cout << "Fetching current settings from EEPROM..." << std::endl;
     for (size_t i = 0; i < keys_vec.size(); i++) {
         if (not mb_eeprom.has_key(keys_vec[i])) {
-            std::cerr << boost::format("Cannot find value for EEPROM[%s]") % keys_vec[i]
-                      << std::endl;
+            std::cerr << std::format("Cannot find value for EEPROM[{}]\n", keys_vec[i]);
             return EXIT_FAILURE;
         }
-        std::cout << boost::format("    EEPROM [\"%s\"] is \"%s\"") % keys_vec[i]
-                         % mb_eeprom[keys_vec[i]]
-                  << std::endl;
+        std::cout << std::format("    EEPROM [\"{}\"] is \"{}\"\n", keys_vec[i], mb_eeprom[keys_vec[i]]);
     }
     std::cout << std::endl;
 
@@ -87,9 +83,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         for (size_t i = 0; i < vals_vec.size(); i++) {
             if (!vals_vec[i].empty()) {
                 mb_eeprom[keys_vec[i]] = vals_vec[i];
-                std::cout << boost::format("Setting EEPROM [\"%s\"] to \"%s\"...")
-                                 % keys_vec[i] % vals_vec[i]
-                          << std::endl;
+                std::cout << std::format("Setting EEPROM [\"{}\"] to \"{}\"...\n", keys_vec[i], vals_vec[i]);
             }
         }
         tree->access<uhd::usrp::mboard_eeprom_t>("/mboards/0/eeprom").set(mb_eeprom);

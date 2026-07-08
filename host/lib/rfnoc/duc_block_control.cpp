@@ -515,8 +515,7 @@ private:
                 case uhd::tune_request_t::POLICY_NONE:
                     break; // does not set
             }
-            RFNOC_LOG_TRACE(
-                str(boost::format("Target DSP Freq: %.6fMHz") % (target_dsp_freq / 1e6)));
+            RFNOC_LOG_TRACE(std::format("Target DSP Freq: {:.6f}MHz", target_dsp_freq / 1e6));
 
             //------------------------------------------------------------------
             //-- Tune the DSP
@@ -526,8 +525,7 @@ private:
             }
             const double actual_dsp_freq = get_freq(chan);
 
-            RFNOC_LOG_TRACE(
-                str(boost::format("Actual DSP Freq: %.6fMHz") % (actual_dsp_freq / 1e6)));
+            RFNOC_LOG_TRACE(std::format("Actual DSP Freq: {:.6f}MHz", actual_dsp_freq / 1e6));
 
             tune_request_action->tune_result.target_dsp_freq = target_dsp_freq;
             tune_request_action->tune_result.actual_dsp_freq += actual_dsp_freq;

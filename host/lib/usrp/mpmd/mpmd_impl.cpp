@@ -10,7 +10,7 @@
 #include <uhd/utils/static.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhdlib/utils/prefs.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <future>
 #include <memory>
@@ -72,10 +72,10 @@ void reset_time_synchronized(uhd::property_tree::sptr tree)
         time_spec_t time_i = get_time_now(m);
         if (time_i < time_0 or (time_i - time_0) > time_spec_t(MPMD_CHDR_MAX_RTT)) {
             UHD_LOGGER_WARNING("MULTI_USRP")
-                << boost::format("Detected time deviation between board %d and board 0.\n"
-                                 "Board 0 time is %f seconds.\n"
-                                 "Board %d time is %f seconds.\n")
-                       % m % time_0.get_real_secs() % m % time_i.get_real_secs();
+                << std::format("Detected time deviation between board {} and board 0.\n"
+                                 "Board 0 time is {} seconds.\n"
+                                 "Board {} time is {} seconds.\n",
+                       m, time_0.get_real_secs(), m, time_i.get_real_secs());
         }
     }
 }
@@ -105,27 +105,27 @@ void assert_compat_number_throw(const std::string& component,
 
     if (actual[0] != expected[0]) {
         const std::string err_msg =
-            str(boost::format("%s major compat number mismatch. "
-                              "Expected: %i.%i Actual: %i.%i.%s%s")
-                % component % expected[0] % expected[1] % actual[0] % actual[1]
-                % (advice_on_failure.empty() ? "" : " ") % advice_on_failure);
+            std::format("{} major compat number mismatch. "
+                              "Expected: {}.{} Actual: {}.{}.{}{}",
+                component, expected[0], expected[1], actual[0], actual[1],
+                (advice_on_failure.empty() ? "" : " "), advice_on_failure);
         UHD_LOG_ERROR("MPMD", err_msg);
         throw uhd::runtime_error(err_msg);
     }
     if (actual[1] < expected[1]) {
         const std::string err_msg =
-            str(boost::format("%s minor compat number mismatch. "
-                              "Expected: %i.%i Actual: %i.%i.%s%s")
-                % component % expected[0] % expected[1] % actual[0] % actual[1]
-                % (advice_on_failure.empty() ? "" : " ") % advice_on_failure);
+            std::format("{} minor compat number mismatch. "
+                              "Expected: {}.{} Actual: {}.{}.{}{}",
+                component, expected[0], expected[1], actual[0], actual[1],
+                (advice_on_failure.empty() ? "" : " "), advice_on_failure);
         UHD_LOG_ERROR("MPMD", err_msg);
         throw uhd::runtime_error(err_msg);
     }
     if (actual[1] > expected[1]) {
         const std::string err_msg =
-            str(boost::format("%s minor compat number mismatch. "
-                              "Expected: %i.%i Actual: %i.%i")
-                % component % expected[0] % expected[1] % actual[0] % actual[1]);
+            std::format("{} minor compat number mismatch. "
+                              "Expected: {}.{} Actual: {}.{}",
+                component, expected[0], expected[1], actual[0], actual[1]);
         UHD_LOG_WARNING("MPMD", err_msg);
     }
 }

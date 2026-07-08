@@ -7,7 +7,7 @@
 #include "magnesium_cpld_ctrl.hpp"
 #include "magnesium_constants.hpp"
 #include <uhd/utils/log.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 
 namespace {
@@ -22,14 +22,18 @@ magnesium_cpld_ctrl::magnesium_cpld_ctrl(write_spi_t write_fn, read_spi_t read_f
 {
     _write_fn = [write_fn](const uint8_t addr, const uint32_t data) {
         UHD_LOG_TRACE("MG_CPLD",
-            str(boost::format("Writing to CPLD: 0x%02X -> 0x%04X") % uint32_t(addr)
-                % data));
+                std::format("Writing to CPLD: 0x{:02X} -> 0x{:04X}",
+                        static_cast<uint32_t>(addr),
+                        data
+                ));
         const uint32_t spi_transaction = 0 | ((addr & 0x7F) << 16) | data;
         write_fn(spi_transaction);
     };
     _read_fn = [read_fn](const uint8_t addr) {
         UHD_LOG_TRACE("MG_CPLD",
-            str(boost::format("Reading from CPLD address 0x%02X") % uint32_t(addr)));
+                std::format("Reading from CPLD address 0x{:02X}",
+                        static_cast<uint32_t>(addr)
+                ));
         const uint32_t spi_transaction = (1 << 23) | ((addr & 0x7F) << 16);
         return read_fn(spi_transaction);
     };
@@ -430,7 +434,7 @@ void magnesium_cpld_ctrl::_loopback_test()
     if (actual != random_number) {
         UHD_LOGGER_ERROR("MG_CPLD")
             << "CPLD scratch loopback failed! "
-            << boost::format("Expected: 0x%04X Got: 0x%04X") % random_number % actual;
+            << std::format("Expected: 0x{:04X} Got: 0x{:04X}", random_number, actual);
         throw uhd::runtime_error("CPLD scratch loopback failed!");
     }
     UHD_LOG_TRACE("MG_CPLD", "CPLD scratch loopback test passed!");

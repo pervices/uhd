@@ -51,8 +51,8 @@ void sbx_xcvr::sbx_version4::write_lo_regs(
  **********************************************************************/
 double sbx_xcvr::sbx_version4::set_lo_freq(dboard_iface::unit_t unit, double target_freq)
 {
-    UHD_LOGGER_TRACE("SBX") << boost::format("SBX tune: target frequency %f MHz")
-                                   % (target_freq / 1e6);
+    UHD_LOGGER_TRACE("SBX") << std::format("SBX tune: target frequency {} MHz",
+                                   (target_freq / 1e6));
 
     /*
      * If the user sets 'mode_n=integer' in the tuning args, the user wishes to

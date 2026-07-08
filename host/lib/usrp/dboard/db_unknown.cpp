@@ -11,7 +11,7 @@
 #include <uhd/utils/assert_has.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <tuple>
 #include <vector>
 
@@ -89,7 +89,7 @@ unknown_rx::unknown_rx(ctor_args_t args) : rx_dboard_base(args)
     // Register properties
     ////////////////////////////////////////////////////////////////////
     this->get_rx_subtree()->create<std::string>("name").set(std::string(
-        str(boost::format("%s - %s") % get_rx_id().to_pp_string() % get_subdev_name())));
+        std::format("{} - {}", get_rx_id().to_pp_string(), get_subdev_name())));
     this->get_rx_subtree()->create<int>("gains"); // phony property so this dir exists
     this->get_rx_subtree()->create<double>("freq/value").set(double(0.0));
     this->get_rx_subtree()
@@ -118,7 +118,7 @@ unknown_tx::unknown_tx(ctor_args_t args) : tx_dboard_base(args)
     // Register properties
     ////////////////////////////////////////////////////////////////////
     this->get_tx_subtree()->create<std::string>("name").set(std::string(
-        str(boost::format("%s - %s") % get_tx_id().to_pp_string() % get_subdev_name())));
+        std::format("{} - {}", get_tx_id().to_pp_string(), get_subdev_name())));
     this->get_tx_subtree()->create<int>("gains"); // phony property so this dir exists
     this->get_tx_subtree()->create<double>("freq/value").set(double(0.0));
     this->get_tx_subtree()

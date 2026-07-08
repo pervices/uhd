@@ -68,10 +68,10 @@ static b200_iface::sptr get_b200_iface(
             for (usb_device_handle::sptr dev_handle : applicable_dev_handles) {
                 eeprom = b200_impl::get_mb_eeprom(
                     b200_iface::make(usb_control::make(dev_handle, 0)));
-                err_msg += str(
-                    boost::format(" * %s (serial=%s)\n")
-                    % B2XX_STR_NAMES.get(get_b200_product(dev_handle, mb_eeprom), "B2XX")
-                    % mb_eeprom.get("serial"));
+                err_msg +=
+                    std::format(" * {} (serial={})\n",
+                    B2XX_STR_NAMES.get(get_b200_product(dev_handle, mb_eeprom), "B2XX"),
+                    mb_eeprom.get("serial"));
             }
 
             err_msg += "\nSpecify one of these devices with the given args to load an "
@@ -126,9 +126,9 @@ static bool b200_image_loader(const image_loader::image_loader_args_t& image_loa
     } else
         fpga_path = image_loader_args.fpga_path;
 
-    std::cout << boost::format("Unit: USRP %s (%s)")
-                     % B2XX_STR_NAMES.get(get_b200_product(handle, mb_eeprom), "B2XX")
-                     % mb_eeprom.get("serial")
+    std::cout << std::format("Unit: USRP {} ({})",
+                     B2XX_STR_NAMES.get(get_b200_product(handle, mb_eeprom), "B2XX"),
+                     mb_eeprom.get("serial"))
               << std::endl;
 
     iface->load_fpga(fpga_path, true);

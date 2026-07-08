@@ -27,7 +27,7 @@
 #include <uhdlib/usrp/multi_usrp_utils.hpp>
 #include <uhdlib/utils/narrow.hpp>
 #include <unordered_set>
-#include <boost/format.hpp>
+#include <format>
 #include <algorithm>
 #include <chrono>
 #include <memory>
@@ -635,8 +635,10 @@ public:
     {
         double clipped_requested_freq = tune_range.clip(tune_request.target_freq);
         UHD_LOGGER_TRACE("MULTI_USRP")
-            << boost::format("Frequency Range %.3fMHz->%.3fMHz")
-                   % (tune_range.start() / 1e6) % (tune_range.stop() / 1e6);
+                << std::format("Frequency Range {:.3f}MHz->{:.3f}MHz",
+                        (tune_range.start() / 1e6),
+                        (tune_range.stop() / 1e6)
+                );
         UHD_LOGGER_TRACE("MULTI_USRP")
             << "Clipped RX frequency requested: "
                    + std::to_string(clipped_requested_freq / 1e6) + "MHz";
@@ -659,9 +661,9 @@ public:
                      * The case to handle uses MANUAL rf_freq_policy and
                      * AUTOMATIC dsp_freq_policy */
                     UHD_LOGGER_WARNING("MULTI_USRP")
-                        << boost::format("No DSP capabilities detected. Combining offset "
-                                         "into target frequency of %.3fMHz")
-                               % (clipped_requested_freq / 1e6);
+                        << std::format("No DSP capabilities detected. Combining offset "
+                                         "into target frequency of {:.3f}MHz",
+                               (clipped_requested_freq / 1e6));
                     target_rf_freq = clipped_requested_freq;
                 } else {
                     /* Normal manual mode observing individual tune requests*/
@@ -827,47 +829,47 @@ public:
 
     std::string get_pp_string(void) override
     {
-        std::string buff = str(boost::format("%s USRP:\n"
-                                             "  Device: %s\n")
-                               % ((get_num_mboards() > 1) ? "Multi" : "Single")
-                               % (_tree->access<std::string>("/name").get()));
+        std::string buff = std::format("{} USRP:\n"
+                                             "  Device: {}\n",
+                               ((get_num_mboards() > 1) ? "Multi" : "Single"),
+                               (_tree->access<std::string>("/name").get()));
         for (size_t m = 0; m < get_num_mboards(); m++) {
-            buff += str(
-                boost::format("  Mboard %d: %s\n") % m % _get_mbc(m)->get_mboard_name());
+            buff +=
+                std::format("  Mboard {}: {}\n", m, _get_mbc(m)->get_mboard_name());
         }
 
 
         //----------- rx side of life ----------------------------------
         for (size_t rx_chan = 0; rx_chan < get_rx_num_channels(); rx_chan++) {
-            buff += str(boost::format("  RX Channel: %u\n"
-                                      "    RX DSP: %s\n"
-                                      "    RX Dboard: %s\n"
-                                      "    RX Subdev: %s\n")
-                        % rx_chan
-                        % (_rx_chans.at(rx_chan).ddc ? std::to_string(rx_chan) : "n/a")
-                        % _rx_chans.at(rx_chan).radio->get_slot_name()
-                        % get_rx_subdev_name(rx_chan));
+            buff += std::format("  RX Channel: {}\n"
+                                      "    RX DSP: {}\n"
+                                      "    RX Dboard: {}\n"
+                                      "    RX Subdev: {}\n",
+                        rx_chan,
+                        (_rx_chans.at(rx_chan).ddc ? std::to_string(rx_chan) : "n/a"),
+                        _rx_chans.at(rx_chan).radio->get_slot_name(),
+                        get_rx_subdev_name(rx_chan));
 
             if (_rx_chans.at(rx_chan).extension) {
-                buff += str(boost::format("    RX Extension: %s\n")
-                            % _rx_chans.at(rx_chan).extension->get_name());
+                buff += std::format("    RX Extension: {}\n",
+                            _rx_chans.at(rx_chan).extension->get_name());
             }
         }
 
         //----------- tx side of life ----------------------------------
         for (size_t tx_chan = 0; tx_chan < get_tx_num_channels(); tx_chan++) {
-            buff += str(boost::format("  TX Channel: %u\n"
-                                      "    TX DSP: %s\n"
-                                      "    TX Dboard: %s\n"
-                                      "    TX Subdev: %s\n")
-                        % tx_chan
-                        % (_tx_chans.at(tx_chan).duc ? std::to_string(tx_chan) : "n/a")
-                        % _tx_chans.at(tx_chan).radio->get_slot_name()
-                        % get_tx_subdev_name(tx_chan));
+            buff += std::format("  TX Channel: {}\n"
+                                      "    TX DSP: {}\n"
+                                      "    TX Dboard: {}\n"
+                                      "    TX Subdev: {}\n",
+                        tx_chan,
+                        (_tx_chans.at(tx_chan).duc ? std::to_string(tx_chan) : "n/a"),
+                        _tx_chans.at(tx_chan).radio->get_slot_name(),
+                        get_tx_subdev_name(tx_chan));
 
             if (_tx_chans.at(tx_chan).extension) {
-                buff += str(boost::format("    TX Extension: %s\n")
-                            % _rx_chans.at(tx_chan).extension->get_name());
+                buff += std::format("    TX Extension: {}\n",
+                            _rx_chans.at(tx_chan).extension->get_name());
             }
         }
 
@@ -935,11 +937,15 @@ public:
                 // 10 ms: greater than RTT but not too big
                 if (time_i < time_0 or (time_i - time_0) > time_spec_t(0.01)) {
                     UHD_LOGGER_WARNING("MULTI_USRP")
-                        << boost::format("Detected time deviation between board %1%/TK "
-                                         "%2% and board 0.\n"
-                                         "Board 0/TK 0 time is %3% seconds.\n"
-                                         "Board %1%/TK %2% time is %4% seconds.\n")
-                               % m % tk % time_0.get_real_secs() % time_i.get_real_secs();
+                            << std::format("Detected time deviation between board {0}/TK "
+                                    "{1} and board 0.\n"
+                                    "Board 0/TK 0 time is {2} seconds.\n"
+                                    "Board {0}/TK {1} time is {3} seconds.\n",
+                                    m,
+                                    tk,
+                                    time_0.get_real_secs(),
+                                    time_i.get_real_secs()
+                            );
                 }
             }
         }
@@ -1325,9 +1331,9 @@ public:
         }();
         if (actual_rate != rate) {
             UHD_LOGGER_WARNING("MULTI_USRP")
-                << boost::format(
-                       "Could not set RX rate to %.3f MHz. Actual rate is %.3f MHz")
-                       % (rate / 1.0e6) % (actual_rate / 1.0e6);
+                << std::format(
+                       "Could not set RX rate to {:.3f} MHz. Actual rate is {:.3f} MHz",
+                       (rate / 1.0e6), (actual_rate / 1.0e6));
         }
         _rx_rates[chan] = actual_rate;
     }
@@ -2010,9 +2016,9 @@ public:
         }();
         if (actual_rate != rate) {
             UHD_LOGGER_WARNING("MULTI_USRP")
-                << boost::format(
-                       "Could not set TX rate to %.3f MHz. Actual rate is %.3f MHz")
-                       % (rate / 1.0e6) % (actual_rate / 1.0e6);
+                << std::format(
+                       "Could not set TX rate to {:.3f} MHz. Actual rate is {:.3f} MHz",
+                       (rate / 1.0e6), (actual_rate / 1.0e6));
         }
         _tx_rates[chan] = actual_rate;
     }

@@ -7,7 +7,7 @@
 
 
 #include <uhdlib/transport/nirio/status.h>
-#include <boost/format.hpp>
+#include <format>
 
 namespace uhd { namespace niusrprio {
 
@@ -25,12 +25,11 @@ const size_t nirio_err_info::NIRIO_ERROR_TABLE_SIZE =
 const std::string lookup_err_msg(nirio_status code)
 {
     std::string error_msg =
-        (boost::format("Unknown error. (Error code %d)") % code).str();
+        std::format("Unknown error. (Error code {})", code);
     for (size_t i = 0; i < nirio_err_info::NIRIO_ERROR_TABLE_SIZE; i++) {
         if (nirio_err_info::NIRIO_ERROR_TABLE[i].code == code) {
-            error_msg = (boost::format("%s (Error code %d)")
-                         % nirio_err_info::NIRIO_ERROR_TABLE[i].msg % code)
-                            .str();
+            error_msg = std::format("{} (Error code {})",
+                    nirio_err_info::NIRIO_ERROR_TABLE[i].msg, code);
             break;
         }
     }
@@ -41,7 +40,7 @@ void nirio_status_to_exception(const nirio_status& status, const std::string& me
 {
     if (nirio_status_fatal(status)) {
         throw uhd::runtime_error(
-            (boost::format("%s %s") % message % lookup_err_msg(status)).str());
+            std::format("{} {}", message, lookup_err_msg(status)));
     }
 }
 

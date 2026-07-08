@@ -42,13 +42,13 @@ public:
     {
         if (_n_frontends < 1 or _n_frontends > 2) {
             throw uhd::runtime_error(
-                str(boost::format(
-                        "AD936x device can only have either 1 or 2 frontends, not %d.")
-                    % _n_frontends));
+                std::format(
+                        "AD936x device can only have either 1 or 2 frontends, not {}.",
+                    _n_frontends));
         }
         for (size_t i = 1; i <= _n_frontends; i++) {
-            const std::string rx_fe_str = str(boost::format("RX%d") % i);
-            const std::string tx_fe_str = str(boost::format("TX%d") % i);
+            const std::string rx_fe_str = std::format("RX{}", i);
+            const std::string tx_fe_str = std::format("TX{}", i);
             _rx_frontends.push_back(rx_fe_str);
             _tx_frontends.push_back(tx_fe_str);
             _bw[rx_fe_str] = 0.0;
@@ -120,10 +120,12 @@ public:
             // Compare TX and RX values to test word
             const bool test_fail = word32 != rb_tx or word32 != rb_rx;
             if (test_fail) {
-                UHD_LOGGER_ERROR("AD936X")
-                    << "CODEC loopback test failed! "
-                    << boost::format("Expected: 0x%08X Received (TX/RX): 0x%08X/0x%08X")
-                           % word32 % rb_tx % rb_rx;
+                UHD_LOGGER_ERROR("AD936X") << std::format(
+                    "CODEC loopback test failed! Expected: {:#010X} Received (TX/RX): {:#010X}/{:#010X}",
+                    word32,
+                    rb_tx,
+                    rb_rx
+                );
                 throw uhd::runtime_error("CODEC loopback test failed.");
             }
         }
@@ -150,9 +152,9 @@ public:
             > uhd::math::fp_compare::fp_compare_delta<double>(
                 max_tick_rate, uhd::math::FREQ_COMPARISON_DELTA_HZ)) {
             throw uhd::value_error(
-                str(boost::format("[ad936x_manager] Cannot get determine a tick rate if "
-                                  "sampling rate exceeds maximum tick rate (%f > %f)")
-                    % lcm_rate % max_tick_rate));
+                std::format("[ad936x_manager] Cannot get determine a tick rate if "
+                                  "sampling rate exceeds maximum tick rate ({} > {})",
+                    lcm_rate, max_tick_rate));
         }
 
         // **** Choose the new rate ****

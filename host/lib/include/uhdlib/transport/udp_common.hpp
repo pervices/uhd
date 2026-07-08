@@ -16,7 +16,7 @@
 #include <uhdlib/asio.hpp>
 #include <uhdlib/transport/links.hpp>
 #include <uhdlib/utils/narrow.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <thread>
 #include <errno.h>
@@ -156,7 +156,7 @@ UHD_INLINE size_t recv_udp_packet(
         }
         if (len < 0) {
             throw uhd::io_error(
-                str(boost::format("recv error on socket: %s") % strerror(errno)));
+                std::format("recv error on socket: {}", strerror(errno)));
         }
         return len;
     }
@@ -180,7 +180,7 @@ UHD_INLINE void send_udp_packet(int sock_fd, void* mem, size_t len)
         }
         if (ret == -1) {
             throw uhd::io_error(
-                str(boost::format("send error on socket: %s") % strerror(errno)));
+                std::format("send error on socket: {}", strerror(errno)));
         }
         UHD_ASSERT_THROW(ret == ssize_t(len));
     }
@@ -214,8 +214,8 @@ UHD_INLINE size_t resize_udp_socket_buffer_with_warning(
     size_t actual_size = 0;
     std::string help_message;
 #if defined(UHD_PLATFORM_LINUX)
-    help_message = str(boost::format("Please run: sudo sysctl -w net.core.%smem_max=%d")
-                       % ((name == "recv") ? "r" : "w") % target_size);
+    help_message = std::format("Please run: sudo sysctl -w net.core.{}mem_max={}",
+                       ((name == "recv") ? "r" : "w"), target_size);
 #endif /*defined(UHD_PLATFORM_LINUX)*/
 
     // resize the buffer if size was provided
@@ -224,16 +224,16 @@ UHD_INLINE size_t resize_udp_socket_buffer_with_warning(
 
         //see udp_zero_copy make for the code that automatically sets the buffer size
         UHD_LOGGER_TRACE("UDP")
-            << boost::format("Target/actual %s sock buff size: %d/%d bytes") % name
-                   % target_size % actual_size;
+            << std::format("Target/actual {} sock buff size: {}/{} bytes", name,
+                   target_size, actual_size);
         if (actual_size < target_size)
             UHD_LOGGER_WARNING("UDP")
-                << boost::format(
-                       "The %s buffer could not be resized sufficiently.\n"
-                       "Target sock buff size: %d bytes.\n"
-                       "Actual sock buff size: %d bytes.\n"
-                       "See the transport application notes on buffer resizing.\n%s")
-                       % name % target_size % actual_size % help_message;
+                << std::format(
+                       "The {} buffer could not be resized sufficiently.\n"
+                       "Target sock buff size: {} bytes.\n"
+                       "Actual sock buff size: {} bytes.\n"
+                       "See the transport application notes on buffer resizing.\n{}",
+                       name, target_size, actual_size, help_message);
     }
 
     return actual_size;

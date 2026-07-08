@@ -17,7 +17,7 @@
 #include <uhd/utils/math.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -873,18 +873,24 @@ double max287x<max287x_regs_t>::set_frequency(double target_freq,
                          * fb_divisor / RFdiv;
 
     UHD_LOGGER_TRACE("MAX287X")
-        << boost::format("Intermediates: ref=%0.2f, outdiv=%f, fbdiv=%f") % ref_freq
-               % double(RFdiv * 2) % double(N + double(FRAC) / double(MOD));
+            << std::format("Intermediates: ref={:.2f}, outdiv={:f}, fbdiv={:f}",
+                    ref_freq,
+                    static_cast<double>(RFdiv * 2),
+                    static_cast<double>(N + static_cast<double>(FRAC) / static_cast<double>(MOD))
+            );
     UHD_LOGGER_TRACE("MAX287X")
-        << boost::format(
-               "Tune: R=%d, BS=%d, N=%d, FRAC=%d, MOD=%d, T=%d, D=%d, RFdiv=%d, type=%s")
-               % R % BS % N % FRAC % MOD % T % D % RFdiv
-               % ((is_int_n) ? "Integer-N" : "Fractional");
+            << std::format("Tune: R={}, BS={}, N={}, FRAC={}, MOD={}, T={}, D={}, RFdiv={}, type={}",
+                    R, BS, N, FRAC, MOD, T, D, RFdiv,
+                    ((is_int_n) ? "Integer-N" : "Fractional")
+            );
     UHD_LOGGER_TRACE("MAX287X")
-        << boost::format("Frequencies (MHz): REQ=%0.2f, ACT=%0.2f, VCO=%0.2f, PFD=%0.2f, "
-                         "BAND=%0.2f")
-               % (target_freq / 1e6) % (actual_freq / 1e6) % (vco_freq / 1e6)
-               % (pfd_freq / 1e6) % (pfd_freq / BS / 1e6);
+            << std::format("Frequencies (MHz): REQ={:.2f}, ACT={:.2f}, VCO={:.2f}, PFD={:.2f}, BAND={:.2f}",
+                    (target_freq / 1e6),
+                    (actual_freq / 1e6),
+                    (vco_freq / 1e6),
+                    (pfd_freq / 1e6),
+                    (pfd_freq / BS / 1e6)
+            );
 
     // load the register values
     _regs.rf_output_enable = output_port == RF_OUT || output_port == BOTH

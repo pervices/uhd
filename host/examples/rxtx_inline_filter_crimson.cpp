@@ -14,7 +14,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/circular_buffer.hpp>
 #include <boost/endian/buffers.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/program_options.hpp>
 
 #include <uhd/utils/thread.hpp>

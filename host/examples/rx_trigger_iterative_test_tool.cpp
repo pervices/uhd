@@ -14,7 +14,7 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <boost/math/special_functions/round.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/algorithm/string.hpp>
 #include <stdint.h>
 #include <iostream>
@@ -205,7 +205,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        std::cout << boost::format("UHD TX Waveforms %s") % desc << std::endl;
+        std::cout << "UHD TX Waveforms " << desc << std::endl;
         return ~0;
     }
 
@@ -247,7 +247,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //create a usrp device
     std::cout << std::endl;
-    std::cout << boost::format("Creating the usrp device with: %s...") % args << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //detect which channels to use
@@ -265,53 +265,53 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     //Lock mboard clocks
     usrp->set_clock_source("internal");
 
-    std::cout << boost::format("Using Device: %s") % usrp->get_pp_string() << std::endl;
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         if(use_tx) {
-            std::cout << boost::format("Setting ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl;
+            std::cout << std::format("Setting ch{} TX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6));
             usrp->set_tx_rate(rate, channel_nums[ch]);
             //Adjust the requested rate to match the desired rate
             rate = usrp->get_tx_rate(channel_nums[ch]);
-            std::cout << boost::format("Actual ch%i TX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl << std::endl;
+            std::cout << std::format("Actual ch{} TX Rate: {} Msps...\n\n", channel_nums[ch], (rate/1e6));
         }
         if(use_rx) {
-            std::cout << boost::format("Setting ch%i RX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl;
+            std::cout << std::format("Setting ch{} RX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6));
             usrp->set_rx_rate(rate, channel_nums[ch]);
             rate = usrp->get_rx_rate(channel_nums[ch]);
-            std::cout << boost::format("Actual ch%i RX Rate: %f Msps...") % channel_nums[ch] % (rate/1e6) << std::endl << std::endl;
+            std::cout << std::format("Actual ch{} RX Rate: {} Msps...\n\n", channel_nums[ch], (rate/1e6));
         }
     }
 
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         if(use_tx) {
-            std::cout << boost::format("Setting ch%i TX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
+            std::cout << std::format("Setting ch{} TX Freq: {} MHz...\n", channel_nums[ch], (freq/1e6));
             uhd::tune_request_t tune_request(freq);
             usrp->set_tx_freq(tune_request, channel_nums[ch]);
-            std::cout << boost::format("Actual ch%i TX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_tx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+            std::cout << std::format("Actual ch{} TX Freq: {} MHz...\n\n", channel_nums[ch], (usrp->get_tx_freq(channel_nums[ch])/1e6));
         }
         if(use_rx) {
-            std::cout << boost::format("Setting ch%i RX Freq: %f MHz...") % channel_nums[ch] % (freq/1e6) << std::endl;
+            std::cout << std::format("Setting ch{} RX Freq: {} MHz...\n", channel_nums[ch], (freq/1e6));;
             uhd::tune_request_t tune_request(freq);
             usrp->set_rx_freq(tune_request, channel_nums[ch]);
-            std::cout << boost::format("Actual ch%i RX Freq: %f MHz...") % channel_nums[ch] % (usrp->get_rx_freq(channel_nums[ch])/1e6) << std::endl << std::endl;
+            std::cout << std::format("Actual ch{} RX Freq: {} MHz...\n\n", channel_nums[ch], (usrp->get_rx_freq(channel_nums[ch])/1e6));
         }
 
 
         //set the rf gain
         if(use_tx) {
             if (vm.count("tx_gain")){
-                std::cout << boost::format("Setting ch%i TX Gain: %f dB...") % channel_nums[ch] % tx_gain << std::endl;
+                std::cout << std::format("Setting ch{} TX Gain: {} dB...\n", channel_nums[ch], tx_gain);
                 usrp->set_tx_gain(tx_gain, channel_nums[ch]);
-                std::cout << boost::format("Actual ch%i TX Gain: %f dB...") % channel_nums[ch] % usrp->get_tx_gain(channel_nums[ch]) << std::endl << std::endl;
+                std::cout << std::format("Actual ch{} TX Gain: {} dB...\n\n", channel_nums[ch], usrp->get_tx_gain(channel_nums[ch]));
             }
         }
         //set the rf gain
         if(use_rx) {
             if (vm.count("rx_gain")){
-                std::cout << boost::format("Setting ch%i RX Gain: %f dB...") % channel_nums[ch] % rx_gain << std::endl;
+                std::cout << std::format("Setting ch{} RX Gain: {} dB...", channel_nums[ch], rx_gain);
                 usrp->set_rx_gain(rx_gain, channel_nums[ch]);
-                std::cout << boost::format("Actual ch%i RX Gain: %f dB...") % channel_nums[ch] % usrp->get_rx_gain(channel_nums[ch]) << std::endl << std::endl;
+                std::cout << std::format("Actual ch{} RX Gain: {} dB...\n\n", channel_nums[ch], usrp->get_rx_gain(channel_nums[ch]));
             }
         }
     }
@@ -358,7 +358,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_rx) {
         size_t actual_samples_per_trigger = usrp->rx_trigger_setup(channel_nums, samples_per_trigger);
         if(actual_samples_per_trigger != samples_per_trigger) {
-            std::cout << boost::format("Actual samples per trigger: %lu") % actual_samples_per_trigger << std::endl;
+            std::cout << "Actual samples per trigger: " << actual_samples_per_trigger << std::endl;
             samples_per_trigger = actual_samples_per_trigger;
         }
     }
@@ -383,7 +383,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::signal(SIGINT, &sig_int_handler);
 
 
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+    std::cout << "Setting device timestamp to 0..." << std::endl;
     usrp->set_time_now(0.0);
 
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;

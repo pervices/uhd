@@ -11,7 +11,7 @@
 #include <uhd/utils/math.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <cmath>
 #include <cstdlib>
 #include <stdexcept>
@@ -376,11 +376,11 @@ public:
         }
 
         UHD_LOG_DEBUG("X300",
-            boost::format(
-                "x300_clock_ctrl::set_clock_delay: Which=%d, Requested=%f, Digital "
-                "Taps=%d, Half Shift=%d, Analog Delay=%d (%s), Coerced Delay=%fns")
-                % which % delay_ns % ddly_value % (half_shift_en ? "ON" : "OFF")
-                % ((int)adly_value) % (adly_en ? "ON" : "OFF") % coerced_delay)
+            std::format(
+                "x300_clock_ctrl::set_clock_delay: Which={}, Requested={}, Digital "
+                "Taps={}, Half Shift={}, Analog Delay={} ({}), Coerced Delay={}ns",
+                which, delay_ns, ddly_value, (half_shift_en ? "ON" : "OFF"),
+                ((int)adly_value), (adly_en ? "ON" : "OFF"), coerced_delay));
 
         // Apply settings
         switch (which) {
@@ -567,15 +567,19 @@ private:
 
         if (fp_compare_epsilon<double>(best_error) > 0.0) {
             UHD_LOGGER_WARNING("X300")
-                << boost::format("Attempted master clock rate %0.2f MHz, got %0.2f MHz")
-                       % (output_freq / 1e6) % (best_mcr / 1e6);
+                    << std::format("Attempted master clock rate {:.2f} MHz, got {:.2f} MHz",
+                            (output_freq / 1e6),
+                            (best_mcr / 1e6)
+                    );
         }
 
         UHD_LOGGER_TRACE("X300")
-            << boost::format("Using automatic LMK04816 PLL2 config: N=%d, R=%d, "
-                             "VCO=%0.2f MHz, MCR=%0.2f MHz")
-                   % _lmk04816_regs.PLL2_N_30 % _lmk04816_regs.PLL2_R_28
-                   % (_vco_freq / 1e6) % (best_mcr / 1e6);
+                << std::format("Using automatic LMK04816 PLL2 config: N={}, R={}, VCO={:.2f} MHz, MCR={:.2f} MHz",
+                        _lmk04816_regs.PLL2_N_30,
+                        _lmk04816_regs.PLL2_R_28,
+                        (_vco_freq / 1e6),
+                        (best_mcr / 1e6)
+                );
 
         return best_mcr;
     }
@@ -631,11 +635,11 @@ private:
                 clocking_mode = m10M_AUTO_NOZDEL;
             } else {
                 throw uhd::runtime_error(
-                    str(boost::format("Invalid master clock rate: %.2f MHz.\n"
-                                      "Valid master clock rates when using a %f MHz "
+                    std::format("Invalid master clock rate: {:.2f} MHz.\n"
+                                      "Valid master clock rates when using a {} MHz "
                                       "reference clock are:\n"
-                                      "120 MHz, 184.32 MHz and 200 MHz.")
-                        % (_master_clock_rate / 1e6) % (_system_ref_rate / 1e6)));
+                                      "120 MHz, 184.32 MHz and 200 MHz.",
+                        (_master_clock_rate / 1e6), (_system_ref_rate / 1e6)));
             }
         } else if (math::frequencies_are_equal(_system_ref_rate, 11.52e6)) {
             if (math::frequencies_are_equal(_master_clock_rate, 184.32e6)) {
@@ -643,10 +647,10 @@ private:
                 clocking_mode = m11_52M_184_32M_ZDEL;
             } else {
                 throw uhd::runtime_error(
-                    str(boost::format("Invalid master clock rate: %.2f MHz.\n"
-                                      "Valid master clock rate when using a %.2f MHz "
-                                      "reference clock is: 184.32 MHz.")
-                        % (_master_clock_rate / 1e6) % (_system_ref_rate / 1e6)));
+                    std::format("Invalid master clock rate: {:.2f} MHz.\n"
+                                      "Valid master clock rate when using a {:.2f} MHz "
+                                      "reference clock is: 184.32 MHz.",
+                        (_master_clock_rate / 1e6), (_system_ref_rate / 1e6)));
             }
         } else if (math::frequencies_are_equal(_system_ref_rate, 23.04e6)) {
             if (math::frequencies_are_equal(_master_clock_rate, 184.32e6)) {
@@ -654,10 +658,10 @@ private:
                 clocking_mode = m23_04M_184_32M_ZDEL;
             } else {
                 throw uhd::runtime_error(
-                    str(boost::format("Invalid master clock rate: %.2f MHz.\n"
-                                      "Valid master clock rate when using a %.2f MHz "
-                                      "reference clock is: 184.32 MHz.")
-                        % (_master_clock_rate / 1e6) % (_system_ref_rate / 1e6)));
+                    std::format("Invalid master clock rate: {:.2f} MHz.\n"
+                                      "Valid master clock rate when using a {:.2f} MHz "
+                                      "reference clock is: 184.32 MHz.",
+                        (_master_clock_rate / 1e6), (_system_ref_rate / 1e6)));
             }
         } else if (math::frequencies_are_equal(_system_ref_rate, 30.72e6)) {
             if (math::frequencies_are_equal(_master_clock_rate, 184.32e6)) {
@@ -665,17 +669,17 @@ private:
                 clocking_mode = m30_72M_184_32M_ZDEL;
             } else {
                 throw uhd::runtime_error(
-                    str(boost::format("Invalid master clock rate: %.2f MHz.\n"
-                                      "Valid master clock rate when using a %.2f MHz "
-                                      "reference clock is: 184.32 MHz.")
-                        % (_master_clock_rate / 1e6) % (_system_ref_rate / 1e6)));
+                    std::format("Invalid master clock rate: {:.2f} MHz.\n"
+                                      "Valid master clock rate when using a {:.2f} MHz "
+                                      "reference clock is: 184.32 MHz.",
+                        (_master_clock_rate / 1e6), (_system_ref_rate / 1e6)));
             }
         } else {
             throw uhd::runtime_error(
-                str(boost::format("Invalid system reference rate: %.2f MHz.\nValid "
+                std::format("Invalid system reference rate: {:.2f} MHz.\nValid "
                                   "reference frequencies are: 10 MHz, 11.52 MHz, "
-                                  "23.04 MHz, 30.72 MHz.")
-                    % (_system_ref_rate / 1e6)));
+                                  "23.04 MHz, 30.72 MHz.",
+                    (_system_ref_rate / 1e6)));
         }
         UHD_ASSERT_THROW(clocking_mode != INVALID);
 

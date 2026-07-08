@@ -6,7 +6,7 @@
 
 #include <uhd/utils/chdr/chdr_packet.hpp>
 #include <uhdlib/rfnoc/chdr_packet_writer.hpp>
-#include <boost/format.hpp>
+#include <format>
 
 namespace chdr_rfnoc = uhd::rfnoc::chdr;
 namespace chdr_util  = uhd::utils::chdr;
@@ -161,6 +161,5 @@ void chdr_util::chdr_packet::set_payload_bytes(std::vector<uint8_t> bytes)
 //! Return a string representation of this object
 std::string chdr_util::chdr_packet::to_string() const
 {
-    return str(boost::format("chdr_packet{chdr_w:%u}\n%s")
-               % uhd::rfnoc::chdr_w_to_bits(_chdr_w) % _header.to_string());
+    return std::format("chdr_packet{{chdr_w:{}}}\n{}", uhd::rfnoc::chdr_w_to_bits(_chdr_w), _header.to_string());
 }

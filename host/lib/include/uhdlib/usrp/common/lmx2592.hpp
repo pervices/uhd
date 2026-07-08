@@ -10,7 +10,6 @@
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/math.hpp>
 #include <uhd/utils/safe_call.hpp>
-#include <boost/format.hpp>
 #include <algorithm>
 #include <cstdint>
 #include <functional>

@@ -11,7 +11,7 @@
 #include <uhd/utils/log.hpp>
 #include <rpc/client.h>
 #include <rpc/rpc_error.h>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <memory>
 #include <mutex>
@@ -83,10 +83,10 @@ public:
         // wait for asynchronous creation to finish
         if (!await_rpc_connected_state(
                 _client, std::chrono::milliseconds(DEFAULT_RPC_TIMEOUT_MS))) {
-            throw uhd::runtime_error(str(
-                boost::format(
-                    "Unknown error during attempt to establish RPC connection at %s:%d")
-                % addr % port));
+            throw uhd::runtime_error(
+                std::format(
+                    "Unknown error during attempt to establish RPC connection at {}:{}",
+                addr, port));
         }
 
         _client->set_timeout(_default_timeout_ms);
@@ -115,12 +115,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 
@@ -149,12 +149,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 
@@ -183,12 +183,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 
@@ -214,12 +214,12 @@ public:
                 UHD_LOG_ERROR("RPC", error);
             }
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % (error.empty() ? ex.what() : error)));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, (error.empty() ? ex.what() : error)));
         } catch (const std::bad_cast& ex) {
             throw uhd::runtime_error(
-                str(boost::format("Error during RPC call to `%s'. Error message: %s")
-                    % func_name % ex.what()));
+                std::format("Error during RPC call to `{}'. Error message: {}",
+                    func_name, ex.what()));
         }
     };
 

@@ -96,7 +96,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << boost::format("UHD set value at path %s") % desc << std::endl;
+        std::cout << "UHD set value at path " << desc << std::endl;
         std::cout
             << std::endl
             << "This set the value at the path specified.\n"

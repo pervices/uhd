@@ -7,7 +7,7 @@
 
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/utils/byteswap.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/test/unit_test.hpp>
 #include <cstdlib>
 #include <iostream>
@@ -26,9 +26,9 @@ static void pack_and_unpack(vrt::if_packet_info_t& if_packet_info_in)
     vrt::if_hdr_pack_be(packet_buff, if_packet_info_in);
     std::cout << std::endl;
     for (size_t i = 0; i < 5; i++) {
-        std::cout << boost::format("packet_buff[%u] = 0x%.8x") % i
-                         % uhd::byteswap(packet_buff[i])
-                  << std::endl;
+        std::cout << std::format("packet_buff[{}] = 0x{:08x}", i,
+                uhd::byteswap(packet_buff[i]))
+                << std::endl;
     }
 
     vrt::if_packet_info_t if_packet_info_out;

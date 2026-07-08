@@ -16,7 +16,7 @@
 #include <b200_iface.hpp>
 #include <libusb.h>
 #include <stdint.h>
-#include <boost/format.hpp>
+#include <format>
 #include <boost/functional/hash.hpp>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -182,11 +182,9 @@ uhd::transport::usb_device_handle::sptr open_device(
         handles = uhd::transport::usb_device_handle::get_device_list(vid_pid_pair_list);
         if (handles.empty()) {
             if (user_supplied) {
-                std::cerr << (boost::format("Failed to open device with VID 0x%04x and "
-                                            "PID 0x%04x - trying other known VID/PIDs")
-                              % vid % pid)
-                                 .str()
-                          << std::endl;
+                std::cerr <<
+                        std::format("Failed to open device with VID 0x{:04x} and PID 0x{:04x} - trying other known VID/PIDs", vid, pid)
+                        << std::endl;
             }
 
             // try known VID/PIDs next
@@ -199,10 +197,9 @@ uhd::transport::usb_device_handle::sptr open_device(
 
         if (!handles.empty()) {
             handle = handles[0];
-            std::cout << (boost::format("Device opened (VID=0x%04x,PID=0x%04x)") % vp.vid
-                          % vp.pid)
-                             .str()
-                      << std::endl;
+            std::cout <<
+                    std::format("Device opened (VID=0x{:04x},PID=0x{:04x})", vp.vid, vp.pid)
+                    << std::endl;
         }
 
         if (!handle)
@@ -334,7 +331,7 @@ uhd::byte_vector_t dump_eeprom(
     // Dump current eeprom data
     const uint16_t eeprom_addr = offset | (uint16_t(addr) << 8);
     UHD_LOGGER_DEBUG("B2XX_FX3")
-        << "Reading EEPROM at address " << boost::format("0x%X") % (int)eeprom_addr
+        << "Reading EEPROM at address " << std::format("0x{:X}", static_cast<int>(eeprom_addr))
         << " with " << (int)num_bytes << " bytes";
     try {
         return b200->read_eeprom(addr, offset, num_bytes);
@@ -355,7 +352,7 @@ int blank_eeprom(b200_iface::sptr& b200, uint16_t addr, uint16_t offset, size_t 
     const uint16_t eeprom_addr = offset | (uint16_t(addr) << 8);
     uhd::byte_vector_t bytes(num_bytes, 0xFF);
     UHD_LOGGER_DEBUG("B2XX_FX3")
-        << "Blanking EEPROM at address " << boost::format("0x%X") % (int)eeprom_addr
+        << "Blanking EEPROM at address " << std::format("0x{:X}", static_cast<int>(eeprom_addr))
         << " with " << (int)num_bytes << " bytes";
     try {
         b200->write_eeprom(addr, offset, bytes);
@@ -377,7 +374,7 @@ int write_to_eeprom(b200_iface::sptr& b200,
     // Note: write_eeprom() uses hardcode address and offset (0x0, 0x0)
     const uint16_t eeprom_addr = offset | (uint16_t(addr) << 8);
     UHD_LOGGER_DEBUG("B2XX_FX3")
-        << "Writing EEPROM at address " << boost::format("0x%X") % (int)eeprom_addr
+        << "Writing EEPROM at address " << std::format("0x{:X}", static_cast<int>(eeprom_addr))
         << " with " << (int)data.size() << " bytes";
     try {
         b200->write_eeprom(addr, offset, data);
@@ -440,13 +437,13 @@ int32_t main(int32_t argc, char* argv[])
         po::notify(vm);
     } catch (std::exception& e) {
         std::cerr << "Exception while parsing arguments: " << e.what() << std::endl;
-        std::cout << boost::format("B2xx Utility Program %s") % visible << std::endl;
+        std::cout << "B2xx Utility Program " << visible << std::endl;
         return ~0;
     }
 
     if (vm.count("help")) {
         try {
-            std::cout << boost::format("B2xx Utility Program %s") % visible << std::endl;
+            std::cout << "B2xx Utility Program " << visible << std::endl;
         } catch (...) {
         }
         return ~0;
@@ -561,7 +558,7 @@ int32_t main(int32_t argc, char* argv[])
             return -1;
 
         for (int i = 0; i < 8; i++)
-            std::cout << i << ": " << boost::format("0x%X") % (int)data[i] << std::endl;
+            std::cout << i << ": " << std::format("0x{:X}", static_cast<int>(data[i])) << std::endl;
 
         return 0;
     }

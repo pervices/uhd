@@ -446,11 +446,11 @@ void magnesium_radio_control_impl::_init_mpm()
         _rpcc->request_with_token<double>(_rpc_prefix + "get_master_clock_rate");
     if (block_args.cast<double>("master_clock_rate", _master_clock_rate)
         != _master_clock_rate) {
-        throw uhd::runtime_error(str(
-            boost::format("Master clock rate mismatch. Device returns %f MHz, "
-                          "but should have been %f MHz.")
-            % (_master_clock_rate / 1e6)
-            % (block_args.cast<double>("master_clock_rate", _master_clock_rate) / 1e6)));
+        throw uhd::runtime_error(
+            std::format("Master clock rate mismatch. Device returns {} MHz, "
+                          "but should have been {} MHz.",
+            (_master_clock_rate / 1e6),
+            (block_args.cast<double>("master_clock_rate", _master_clock_rate) / 1e6)));
     }
     RFNOC_LOG_DEBUG("Master Clock Rate is: " << (_master_clock_rate / 1e6) << " MHz.");
     set_tick_rate(_master_clock_rate);

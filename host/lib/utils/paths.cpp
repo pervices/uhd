@@ -13,7 +13,6 @@
 #include <uhdlib/utils/paths.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/dll/runtime_symbol_info.hpp>
-#include <boost/format.hpp>
 #include <boost/tokenizer.hpp>
 #include <boost/version.hpp>
 #include <cstdio>

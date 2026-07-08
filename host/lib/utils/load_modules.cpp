@@ -9,7 +9,7 @@
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhdlib/utils/paths.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -27,7 +27,7 @@ static void load_module(const std::string& file_name)
 {
     if (dlopen(file_name.c_str(), RTLD_LAZY) == NULL) {
         throw uhd::os_error(
-            str(boost::format("dlopen failed to load \"%s\"") % file_name));
+            std::format("dlopen failed to load \"{}\"", file_name));
     }
 }
 #endif /* HAVE_DLOPEN */
@@ -39,7 +39,7 @@ static void load_module(const std::string& file_name)
 {
     if (LoadLibrary(file_name.c_str()) == NULL) {
         throw uhd::os_error(
-            str(boost::format("LoadLibrary failed to load \"%s\"") % file_name));
+            std::format("LoadLibrary failed to load \"{}\"", file_name));
     }
 }
 #endif /* HAVE_LOAD_LIBRARY */
@@ -48,8 +48,8 @@ static void load_module(const std::string& file_name)
 #ifdef HAVE_LOAD_MODULES_DUMMY
 static void load_module(const std::string& file_name)
 {
-    throw uhd::not_implemented_error(str(
-        boost::format("Module loading not supported: Cannot load \"%s\"") % file_name));
+    throw uhd::not_implemented_error(
+        std::format("Module loading not supported: Cannot load \"{}\"", file_name));
 }
 #endif /* HAVE_LOAD_MODULES_DUMMY */
 
@@ -65,7 +65,7 @@ static void load_module(const std::string& file_name)
 static void load_module_path(const fs::path& path)
 {
     if (not fs::exists(path)) {
-        // std::cerr << boost::format("Module path \"%s\" not found.") % path.string() <<
+        // std::cerr << std::format("Module path \"{}\" not found.", path.string() <<
         // std::endl;
         return;
     }
@@ -83,7 +83,7 @@ static void load_module_path(const fs::path& path)
     try {
         load_module(path.string());
     } catch (const std::exception& err) {
-        std::cerr << boost::format("Error: %s") % err.what() << std::endl;
+        std::cerr << std::format("Error: {}\n", err.what());
     }
 }
 

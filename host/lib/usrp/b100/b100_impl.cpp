@@ -15,7 +15,7 @@
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhdlib/usrp/common/apply_corrections.hpp>
-#include <boost/format.hpp>
+#include <format>
 #include <chrono>
 #include <cstdio>
 #include <functional>
@@ -73,8 +73,8 @@ static device_addrs_t b100_find(const device_addr_t& hint)
             b100_fw_image = find_image_path(hint.get("fw", B100_FW_FILE_NAME));
         } catch (...) {
             UHD_LOGGER_WARNING("B100")
-                << boost::format("Could not locate B100 firmware. %s\n")
-                       % print_utility_error("uhd_images_downloader.py");
+                << std::format("Could not locate B100 firmware. {}\n",
+                       print_utility_error("uhd_images_downloader.py"));
             return b100_addrs;
         }
         UHD_LOGGER_DEBUG("B100") << "the firmware image: " << b100_fw_image;
@@ -390,7 +390,7 @@ b100_impl_constructor_begin:
         _tree->access<double>(mb_path / "tick_rate")
             .add_coerced_subscriber(std::bind(
                 &rx_dsp_core_200::set_tick_rate, _rx_dsps[dspno], std::placeholders::_1));
-        fs_path rx_dsp_path = mb_path / str(boost::format("rx_dsps/%u") % dspno);
+        fs_path rx_dsp_path = mb_path / std::format("rx_dsps/{}", dspno);
         _tree->create<meta_range_t>(rx_dsp_path / "rate/range")
             .set_publisher(std::bind(&rx_dsp_core_200::get_host_rates, _rx_dsps[dspno]));
         _tree->create<double>(rx_dsp_path / "rate/value")
@@ -573,15 +573,15 @@ void b100_impl::check_fw_compat(void)
         _fx2_ctrl->usrp_control_read(VRQ_FW_COMPAT, 0, 0, data, sizeof(data));
     if (fw_compat_num != B100_FW_COMPAT_NUM) {
         throw uhd::runtime_error(
-            str(boost::format(
-                    "Expected firmware compatibility number %d, but got %d:\n"
+            std::format(
+                    "Expected firmware compatibility number {}, but got {}:\n"
                     "The firmware build is not compatible with the host code build.\n"
-                    "%s")
-                % int(B100_FW_COMPAT_NUM) % fw_compat_num
-                % print_utility_error("uhd_images_downloader.py")));
+                    "{}",
+                int(B100_FW_COMPAT_NUM) % fw_compat_num,
+                print_utility_error("uhd_images_downloader.py")));
     }
     _tree->create<std::string>("/mboards/0/fw_version")
-        .set(str(boost::format("%u.0") % fw_compat_num));
+        .set(std::format("{}.0", fw_compat_num));
 }
 
 void b100_impl::check_fpga_compat(void)
@@ -594,14 +594,14 @@ void b100_impl::check_fpga_compat(void)
     }
     if (fpga_major != B100_FPGA_COMPAT_NUM) {
         throw uhd::runtime_error(
-            str(boost::format("Expected FPGA compatibility number %d, but got %d:\n"
+            std::format("Expected FPGA compatibility number {}, but got {}:\n"
                               "The FPGA build is not compatible with the host code build."
-                              "%s")
-                % int(B100_FPGA_COMPAT_NUM) % fpga_major
-                % print_utility_error("uhd_images_downloader.py")));
+                              "{}",
+                int(B100_FPGA_COMPAT_NUM), fpga_major,
+                print_utility_error("uhd_images_downloader.py")));
     }
     _tree->create<std::string>("/mboards/0/fpga_version")
-        .set(str(boost::format("%u.%u") % fpga_major % fpga_minor));
+        .set(std::format("{}.{}", fpga_major, fpga_minor));
 }
 
 double b100_impl::update_rx_codec_gain(const double gain)
