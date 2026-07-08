@@ -955,7 +955,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
         if (drop_threshold_err) {
             std::cout << std::format("  * Dropped packets (RX) ({}/{})\n",
-                             num_seqrx_errors, drop_threshold);
+                             num_seqrx_errors.load(), drop_threshold);
         }
         if (seq_threshold_err) {
             std::cout << std::format("  * Sequence errors (TX) ({}/{})\n",
