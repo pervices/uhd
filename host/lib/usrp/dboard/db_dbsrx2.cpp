@@ -127,7 +127,7 @@ private:
                 if (i + start_addr >= status_addr) {
                     _max2112_read_regs.set_reg(i + start_addr, regs_vector[i]);
                 }
-                UHD_LOGGER_TRACE("DBSRX")
+                UHD_LOGGER_TRACE("DBSRX") <<
                         std::format("DBSRX2: read reg 0x{:02x}, value 0x{:04x}, start_addr = 0x{:04x}, num_bytes {}",
                                 static_cast<int>(start_addr + i),
                                 static_cast<int>(regs_vector[i]),

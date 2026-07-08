@@ -500,7 +500,6 @@ public:
         _regs.ldf = int_n_mode ? adf435x_regs_t::LDF_INT_N : adf435x_regs_t::LDF_FRAC_N;
 
         // clang-format off
-            % R % BS % N % FRAC % MOD % T % D % RFdiv);
         UHD_LOG_TRACE("ADF435X", std::format(
             "ADF 435X Frequencies (MHz): REQUESTED={:.9f}, ACTUAL={:.9f}",
                                              target_freq / 1e6,

@@ -144,7 +144,7 @@ private:
         // mask and return lock detect
         bool locked = 5 >= _max2118_read_regs.adc and _max2118_read_regs.adc >= 2;
 
-        UHD_LOGGER_TRACE("DBSRX") << std::::format("DBSRX: locked {}", locked);
+        UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX: locked {}", locked);
 
         return sensor_value_t("LO", locked, "locked", "unlocked");
     }
@@ -496,7 +496,7 @@ static int gain_to_gc2_vga_reg(double& gain)
         gain = std::round(gain);
     }
 
-    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX GC2 Gain: {} dB, reg: {}", gain
+    UHD_LOGGER_TRACE("DBSRX") << std::format("DBSRX GC2 Gain: {} dB, reg: {}", gain,
                                      reg);
 
     return reg;
