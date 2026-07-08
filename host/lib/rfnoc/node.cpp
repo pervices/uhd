@@ -28,7 +28,7 @@ node_t::node_t()
 std::string node_t::get_unique_id() const
 {
     // TODO return something better
-    return std::format("{:08X}", reinterpret_cast<std::ptr_t>(this));
+    return std::format("{:08X}", reinterpret_cast<std::uintptr_t>(this));
 }
 
 std::vector<std::string> node_t::get_property_ids() const

@@ -43,7 +43,7 @@ public:
         UHD_LOG_DEBUG("RFNOC",
             std::format(
                 "Started thread {} to process messages control messages on EPID {}",
-                thread_name, _my_epid);
+                thread_name, _my_epid));
     }
 
     ~chdr_ctrl_endpoint_impl() override
