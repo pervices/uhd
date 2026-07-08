@@ -44,7 +44,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             "Or specify a new value to burn into the EEPROM.\n"
             "Example (write to ip-addr0 and read out ip-addr1):\n"
             "    usrp_burn_mb_eeprom --args=<device args> "
-            "--values \"ip-addr0=192.168.10.3,ip-addr1\"\n")
+            "--values \"ip-addr0=192.168.10.3,ip-addr1\"\n"
         return EXIT_FAILURE;
     }
 

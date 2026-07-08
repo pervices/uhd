@@ -160,7 +160,7 @@ void init_buffers(std::vector<std::vector<char>>& buf,
                 init_random_vector_real_int<uint32_t>(buf[i], n_items);
             } else {
                 throw uhd::runtime_error(
-                    std::format("Cannot handle data type: {}", type);
+                    std::format("Cannot handle data type: {}", type));
             }
         }
 
