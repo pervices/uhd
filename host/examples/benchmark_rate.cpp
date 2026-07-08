@@ -946,11 +946,11 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         || seq_threshold_err || tx_timeout_threshold_err || rx_timeout_threshold_err) {
         std::cout << "The following error thresholds were exceeded:\n";
         if (overrun_threshold_err) {
-            std::cout << std::format("  * Overruns ({}/{})\n", num_overruns,
+            std::cout << std::format("  * Overruns ({}/{})\n", num_overruns.load(),
                              overrun_threshold);
         }
         if (underrun_threshold_err) {
-            std::cout << std::format("  * Underruns ({}/{})\n", num_underruns,
+            std::cout << std::format("  * Underruns ({}/{})\n", num_underruns.load(),
                              underrun_threshold);
         }
         if (drop_threshold_err) {
@@ -959,19 +959,19 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         }
         if (seq_threshold_err) {
             std::cout << std::format("  * Sequence errors (TX) ({}/{})\n",
-                             num_seq_errors, seq_threshold);
+                             num_seq_errors.load(), seq_threshold);
         }
         if (late_command_threshold_err) {
             std::cout << std::format("  * Late commands (RX) ({}/{})",
-                             num_late_commands, late_cmd_threshold);
+                             num_late_commands.load(), late_cmd_threshold);
         }
         if (tx_timeout_threshold_err) {
             std::cout << std::format("  * Timeout (TX) ({}/{})\n",
-                             num_timeouts_tx, tx_timeout_threshold);
+                             num_timeouts_tx.load(), tx_timeout_threshold);
         }
         if (rx_timeout_threshold_err) {
             std::cout << std::format("  * Timeout (RX) ({}/{})\n",
-                             num_timeouts_rx, rx_timeout_threshold);
+                             num_timeouts_rx.load(), rx_timeout_threshold);
         }
         return EXIT_FAILURE;
     }

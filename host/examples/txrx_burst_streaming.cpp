@@ -271,7 +271,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::cout << std::format("Setting RX Rate: {} Msps...\n", (rate/1e6));
     usrp->set_rx_rate(rate);
-    std::cout << std::format("Actual RX Rate: {} Msps...\n\n", % (usrp->get_rx_rate()/1e6));
+    std::cout << std::format("Actual RX Rate: {} Msps...\n\n", (usrp->get_rx_rate()/1e6));
 
 
     //set the center frequency
@@ -298,7 +298,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
         std::cout << std::format("Setting RX Gain: {} dB...\n", rx_gain);
         usrp->set_rx_gain(rx_gain, channel_nums[ch]);
-        std::cout << std::format("Actual RX Gain: {} dB...\n\n" usrp->get_rx_gain(channel_nums[ch]));
+        std::cout << std::format("Actual RX Gain: {} dB...\n\n", usrp->get_rx_gain(channel_nums[ch]));
     }
 
 

@@ -152,7 +152,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     //print the help message
     if (vm.count("help") || argc <= 1) {
-        std::cout << std::format("UHD_USRP_INFO {}", desc) << std::endl;
+        std::cout << std::format("UHD_USRP_INFO " << desc << std::endl;
                 std::cout << std::endl
                   << "This application gets various parameters related to the system. It is primarily meant for disagnostic/checking versions\n"
                   << std::endl;
