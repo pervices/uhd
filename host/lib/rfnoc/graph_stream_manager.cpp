@@ -110,7 +110,7 @@ public:
                                      "EPIDs {} -> {}.",
                            src_addr.first, src_addr.second, dst_addr.first,
                            dst_addr.second, kv.first, epid_pair.first,
-                           epid_pair.second;
+                           epid_pair.second);
                 return epid_pair;
             }
         }

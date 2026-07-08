@@ -67,7 +67,7 @@ UHD_INLINE std::string string_vector_to_string(
     throw uhd::exception::runtime_error(                                         \
         std::format(                                                          \
              "{}: gain \"{}\" not found for channel {}.\nAvailable gains: {}\n", \
-            UHD_FUNCTION, name, chan                                         \
+            UHD_FUNCTION, name, chan,                                         \
             string_vector_to_string(get_##dir##_gain_names(chan))));
 
 /***********************************************************************
@@ -340,7 +340,7 @@ public:
                                ((get_num_mboards() > 1) ? "Multi" : "Single"),
                                (_tree->access<std::string>("/name").get()));
         for (size_t m = 0; m < get_num_mboards(); m++) {
-            buff += std::format("  Mboard {}: {}\n", m
+            buff += std::format("  Mboard {}: {}\n", m,
                         (_tree->access<std::string>(mb_root(m) / "name").get()));
         }
 
@@ -584,7 +584,7 @@ public:
             if(result == "Error Unlocked PLL with External Reference") {
                 UHD_LOGGER_ERROR("MULTI_USRP")  << "PLL unlocked while using external reference. Verify if the external reference is connected";
             } else if(result.substr(0, source.size()) != source) {
-                UHD_LOGGER_ERROR("MULTI_USRP")  << std::format( "Unable to set clock source. The program attempted to set it to {} but it returned: {}", source, result;
+                UHD_LOGGER_ERROR("MULTI_USRP")  << std::format( "Unable to set clock source. The program attempted to set it to {} but it returned: {}", source, result);
             }
             return;
         }
