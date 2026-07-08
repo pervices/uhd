@@ -936,9 +936,9 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
                                "  Num late commands:        {}\n" //-- need to check -- late_cmd_threshold
                                "  Num timeouts (Tx):        {}\n" //-- need to check
                                "  Num timeouts (Rx):        {}\n\n", //-- need to check
-                     num_rx_samps, num_dropped_samps, num_overruns, num_tx_samps,
-                     num_seq_errors, num_seqrx_errors, num_underruns,
-                     num_late_commands, num_timeouts_tx, num_timeouts_rx);
+                     num_rx_samps.load(), num_dropped_samps.load(), num_overruns.load(), num_tx_samps.load(),
+                     num_seq_errors.load(), num_seqrx_errors.load(), num_underruns.load(),
+                     num_late_commands.load(), num_timeouts_tx.load(), num_timeouts_rx.load());
     // finished
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 
