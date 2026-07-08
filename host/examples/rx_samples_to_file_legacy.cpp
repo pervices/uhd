@@ -298,7 +298,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         // ETTUS changed a lot of this example program
         // This is being kept as a backup in case we run into issues with their changes
         // Removing this file after we know the new rx_samples_to_file has no suprises
-        std::cout << std::format("UHD RX samples to file old version {}\n", desc);
+        std::cout << "UHD RX samples to file old version " << desc << std::endl;
         std::cout << std::endl
                   << "This application streams data from a single channel of a USRP "
                      "device to a file.\n"

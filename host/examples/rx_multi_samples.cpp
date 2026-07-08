@@ -108,7 +108,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD RX Multi Samples {}\n", desc);
+        std::cout << "UHD RX Multi Samples " << desc << std::endl;
         std::cout
             << "    This is a demonstration of how to receive aligned data from multiple "
                "channels.\n"

@@ -194,7 +194,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        std::cout << std::format("UHD TX Waveforms {}\n", desc);
+        std::cout << "UHD TX Waveforms " << desc << std::endl;
         return ~0;
     }
 
@@ -347,7 +347,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_rx) {
         size_t actual_samples_per_trigger = usrp->rx_trigger_setup(channel_nums, samples_per_trigger, trigger_direction);
         if(actual_samples_per_trigger != samples_per_trigger) {
-            std::cout << std::format("Actual samples per trigger: {}\n", actual_samples_per_trigger);
+            std::cout << "Actual samples per trigger: " << actual_samples_per_trigger << std::endl;
             samples_per_trigger = actual_samples_per_trigger;
         }
     }

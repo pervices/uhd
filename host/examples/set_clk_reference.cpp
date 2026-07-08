@@ -44,7 +44,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << std::format("set_clk_reference {}\n", desc);
+        std::cout << "set_clk_reference " << desc << std::endl;
         std::cout
             << std::endl
             << "This application attempts to set the clk reference, then attempts to read it back.\n"
@@ -52,18 +52,18 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    std::cout << std::format("Starting: {}\n", argv[0]);
+    std::cout << "Starting: " << argv[0] << std::endl;
 
     std::cout << std::format("Creating the usrp device with: {}...\n", args);
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
     //Sets the clock source
-    std::cout << std::format("Setting clock source to: {}\n", ref);
+    std::cout << "Setting clock source to: " << ref << std::endl;
     usrp->set_clock_source(ref, mboard);
 
     std::string actual_ref = usrp->get_clock_source(mboard);
 
-    std::cout << std::format("The clock source is {}\n", actual_ref);
+    std::cout << "The clock source is " << actual_ref << std::endl;
 
     std::cout << std::endl << "Done!" << std::endl << std::endl;
 

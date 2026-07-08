@@ -540,7 +540,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD Converter Benchmark Tool {}\n", desc);
+        std::cout << "UHD Converter Benchmark Tool " << desc << std::endl;
         std::cout
             << "  Use this to benchmark or debug converters." << std::endl
             << "  When using as a benchmark tool, it will output the execution time\n"

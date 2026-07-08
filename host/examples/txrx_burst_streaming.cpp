@@ -233,7 +233,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")){
-        std::cout << std::format("UHD TX Waveforms {}\n", desc);
+        std::cout << "UHD TX Waveforms " << desc << std::endl;
         return ~0;
     }
 

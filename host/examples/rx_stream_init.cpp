@@ -263,7 +263,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD RX stream init {}\n", desc);
+        std::cout << "UHD RX stream init " << desc << std::endl;
         std::cout
             << std::endl
             << "This application streams data from a single channel of a USRP device, and launches programs to process it.\n"

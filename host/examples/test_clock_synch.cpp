@@ -63,7 +63,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // Create a Multi-USRP-Clock device (currently OctoClock only)
-    std::cout << std::format("\nCreating the Clock device with: {}\n", clock_args);
+    std::cout << "\nCreating the Clock device with: " << clock_args << std::endl;
 
     multi_usrp_clock::sptr clock = multi_usrp_clock::make(clock_args);
 
@@ -76,7 +76,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     }
 
     // Create a Multi-USRP device
-    std::cout << std::format("\nCreating the USRP device with: {}\n", usrp_args);
+    std::cout << "\nCreating the USRP device with: " << usrp_args << std::endl;
 
     multi_usrp::sptr usrp = multi_usrp::make(usrp_args);
 
@@ -90,7 +90,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     bool all_locked = true;
     for (size_t ch = 0; ch < usrp->get_num_mboards(); ch++) {
         std::string ref_locked = usrp->get_mboard_sensor("ref_locked", ch).value;
-        std::cout << std::format(" * {}: {}\n", serials[ch], ref_locked);
+        std::cout << " * {}: " << serials[ch], ref_locked << std::endl;
 
         if (ref_locked != "true")
             all_locked = false;
@@ -126,7 +126,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
         std::cout << std::format("Comparison #{}\n", (i + 1));
         bool all_match = true;
-        std::cout << std::format(" * Clock time: {}\n", clock_time);
+        std::cout << " * Clock time: " << clock_time << std::endl;
         for (size_t j = 0; j < usrp->get_num_mboards(); j++) {
             std::cout << std::format(" * {} time: {}", serials[j], usrp_times[j]);
 
@@ -137,7 +137,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             num_matches++;
     }
 
-    std::cout << std::format("\nNumber of matches: {}/{}\n", num_matches, num_tests);
+    std::cout << "\nNumber of matches: {}/" << num_matches, num_tests << std::endl;
 
     return EXIT_SUCCESS;
 }

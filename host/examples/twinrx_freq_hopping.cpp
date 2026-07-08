@@ -178,16 +178,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     usrp->set_rx_lo_source("disabled", uhd::usrp::multi_usrp::ALL_LOS, UNUSED_CHAN);
 
     // Set user settings
-    std::cout << std::format("Setting antenna to:     {}\n", ant);
+    std::cout << "Setting antenna to:     " << ant << std::endl;
     usrp->set_rx_antenna(ant, ACTIVE_CHAN);
     std::cout << std::format("Actual antenna:         {}\n",
                      usrp->get_rx_antenna(ACTIVE_CHAN));
 
-    std::cout << std::format("Setting sample rate to: {}\n", rate);
+    std::cout << "Setting sample rate to: " << rate << std::endl;
     usrp->set_rx_rate(rate);
     std::cout << std::format("Actual sample rate:     {}\n", usrp->get_rx_rate());
 
-    std::cout << std::format("Setting gain to: {}\n", gain);
+    std::cout << "Setting gain to: " << gain << std::endl;
     usrp->set_rx_gain(gain);
     std::cout << std::format("Actual gain:     {}\n", usrp->get_rx_gain());
 

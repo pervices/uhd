@@ -402,7 +402,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD TX samples from file {}\n", desc);
+        std::cout << "UHD TX samples from file " << desc << std::endl;
         return ~0;
     }
 

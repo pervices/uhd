@@ -509,7 +509,7 @@ static void x300_ethernet_read(x300_session_t& session)
 
     session.outpath += extension;
     std::ofstream image(session.outpath.c_str(), std::ios::binary);
-    std::cout << std::format("-- Output FPGA file: {}\n", session.outpath);
+    std::cout << "-- Output FPGA file: " << session.outpath << std::endl;
 
     // Write the first packet
     image.write((char*)pkt_in->data8, X300_PACKET_SIZE_BYTES);

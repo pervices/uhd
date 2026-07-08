@@ -51,7 +51,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Print the help message
     if (vm.count("help")) {
-        std::cout << std::format("Synchronize USRP to GPS {}\n", desc);
+        std::cout << "Synchronize USRP to GPS " << desc << std::endl;
         return EXIT_FAILURE;
     }
 

@@ -437,13 +437,13 @@ int32_t main(int32_t argc, char* argv[])
         po::notify(vm);
     } catch (std::exception& e) {
         std::cerr << "Exception while parsing arguments: " << e.what() << std::endl;
-        std::cout << std::format("B2xx Utility Program {}\n", visible);
+        std::cout << "B2xx Utility Program " << visible << std::endl;
         return ~0;
     }
 
     if (vm.count("help")) {
         try {
-            std::cout << std::format("B2xx Utility Program {}\n", visible);
+            std::cout << "B2xx Utility Program " << visible << std::endl;
         } catch (...) {
         }
         return ~0;

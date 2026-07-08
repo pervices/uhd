@@ -41,7 +41,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help") or (not vm.count("values") and not vm.count("read-all"))) {
-        std::cout << std::format("OctoClock Burn EEPROM {}\n", desc);
+        std::cout << "OctoClock Burn EEPROM " << desc << std::endl;
         std::cout << "Omit the value argument to perform a readback,\n"
                                    "Or specify a new value to burn into the EEPROM.\n"
                   << std::endl;

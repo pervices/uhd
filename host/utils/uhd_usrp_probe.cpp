@@ -415,7 +415,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD USRP Probe {}\n", desc);
+        std::cout << "UHD USRP Probe " << desc << std::endl;
         return EXIT_FAILURE;
     }
 

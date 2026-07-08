@@ -70,7 +70,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << std::format("USRP Burn Daughterboard EEPROM {}\n", desc);
+        std::cout << "USRP Burn Daughterboard EEPROM " << desc << std::endl;
 
         std::cout << "Omit the ID argument to perform readback,\n"
                      "Or specify a new ID to burn into the EEPROM.\n"

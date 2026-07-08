@@ -68,7 +68,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD get value at path {}\n", desc);
+        std::cout << "UHD get value at path " << desc << std::endl;
         std::cout
             << std::endl
             << "This gets the value at the path specified.\n"
