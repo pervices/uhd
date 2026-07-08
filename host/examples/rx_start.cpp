@@ -183,7 +183,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if (vm.count("rate")) {
         for(size_t n = 0; n < channel_nums.size(); n++) {
             size_t channel = channel_nums[n];
-            std::cout << "Setting ch{} RX Rate: " << channel, rate << std::endl;
+            std::cout << std::format("Setting ch{} RX Rate: {}\n", channel, rate);
 
             usrp->set_rx_rate(rate, channel);
             std::cout << std::format("Actual ch{} RX Rate: {}\n\n", channel, usrp->get_rx_rate(channel));

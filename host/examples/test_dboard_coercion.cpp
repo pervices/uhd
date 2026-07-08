@@ -488,7 +488,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
              != sensor_names.end())) {
         uhd::sensor_value_t mimo_locked = usrp->get_mboard_sensor("mimo_locked", 0);
         std::cout << std::format("Checking MIMO lock: {} ...\n",
-                         % mimo_locked.to_pp_string());
+                         mimo_locked.to_pp_string());
 
         UHD_ASSERT_THROW(mimo_locked.to_bool());
     }

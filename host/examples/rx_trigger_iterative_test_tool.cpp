@@ -276,7 +276,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             std::cout << std::format("Actual ch{} TX Rate: {} Msps...\n\n", channel_nums[ch], (rate/1e6));
         }
         if(use_rx) {
-            std::cout << std::format("Setting ch{} RX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6))
+            std::cout << std::format("Setting ch{} RX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6));
             usrp->set_rx_rate(rate, channel_nums[ch]);
             rate = usrp->get_rx_rate(channel_nums[ch]);
             std::cout << std::format("Actual ch{} RX Rate: {} Msps...\n\n", channel_nums[ch], (rate/1e6));

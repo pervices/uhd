@@ -461,7 +461,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->set_tx_rate(rate, channel);
         rate = usrp->get_tx_rate();
         std::cout << std::format("Actual TX Rate: {} Msps...\n\n",
-        % (usrp->get_tx_rate(channel) / 1e6));
+        (usrp->get_tx_rate(channel) / 1e6));
     }
 
     // set the center frequency

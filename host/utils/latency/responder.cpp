@@ -112,7 +112,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Print help message instead of executing Responder.
     if (vm.count("help")) {
-        cout << std::format("UHD Latency Test {}\n", desc);
+        std::cout << "UHD Latency Test " << desc << std::endl;
         return Responder::RETCODE_OK;
     }
 

@@ -947,7 +947,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         std::cout << "The following error thresholds were exceeded:\n";
         if (overrun_threshold_err) {
             std::cout << std::format("  * Overruns ({}/{})\n", num_overruns,
-                             overrun_threshold)
+                             overrun_threshold);
         }
         if (underrun_threshold_err) {
             std::cout << std::format("  * Underruns ({}/{})\n", num_underruns,
