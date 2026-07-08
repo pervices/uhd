@@ -127,7 +127,7 @@ void rhodium_radio_control_impl::_update_rx_freq_switches(const double freq)
             break;
         case rx_band::RX_BAND_INVALID:
             throw uhd::runtime_error(
-                str(boost::format("Cannot map RX frequency to band: %f") % freq));
+                std::format("Cannot map RX frequency to band: {}", freq));
         default:
             UHD_THROW_INVALID_CODE_PATH();
     }
@@ -192,7 +192,7 @@ void rhodium_radio_control_impl::_update_tx_freq_switches(const double freq)
             break;
         case tx_band::TX_BAND_INVALID:
             throw uhd::runtime_error(
-                str(boost::format("Cannot map TX frequency to band: %f") % freq));
+                std::format("Cannot map TX frequency to band: {}", freq));
         default:
             UHD_THROW_INVALID_CODE_PATH();
     }
