@@ -166,20 +166,18 @@ void cyan_nrnt_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_
 void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
 
     // Let other threads know this is running
-    dev->_pps_thread_running = true;
-    _mm_sfence();
+    dev->_pps_thread_running.store(true, std::memory_order_relaxed);
 
     int pps_detected;
 
-    _mm_lfence();
-    while (! dev->_pps_thread_should_exit) {
+    while (! dev->_pps_thread_should_exit.load(std::memory_order_relaxed)) {
         dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").set(1);
         pps_detected = dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").get();
 
         if (pps_detected == 0) {
             std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
             // Stop PPS monitoring after one failure to avoid spamming the user with the same warning message
-            dev->_pps_thread_should_exit = true;
+            dev->_pps_thread_should_exit.store(true, std::memory_order_relaxed);
         }
 #ifdef DEBUG_COUT
             std::cout << "PPS flag: " << pps_detected << std::endl;
@@ -187,17 +185,14 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
         // Check if it should exit every 10ms for up to 2s
         for (size_t i = 0; i < 200; i++) {
             usleep(10000);
-            // lfence to update _pps_thread_should_exit (needed for for the following line and the while loop check)
-            _mm_lfence();
-            if (dev->_pps_thread_should_exit) {
+            if (dev->_pps_thread_should_exit.load(std::memory_order_relaxed)) {
                 break;
             }
         }
 
     }
     // Let other threads know this loop is stopping
-    dev->_pps_thread_running = false;
-    _mm_sfence();
+    dev->_pps_thread_running.store(false, std::memory_order_relaxed);
 }
 
 void cyan_nrnt_impl::set_command_time( const std::string key, time_spec_t value ) {
@@ -271,8 +266,9 @@ void cyan_nrnt_impl::set_user_reg(const std::string key, user_reg_t value) {
 }
 
 void cyan_nrnt_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
+    set_time_initiated(time_spec.get_full_secs());
     _tree->access<time_spec_t>(mb_root(mboard) / "time/now").set(time_spec);
-    request_resync_time_diff();
+    set_time_finished();
 }
 
 // TODO: handle case where clock sync is incomplete/failed
@@ -490,32 +486,26 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find(const device_addr_t &hint_)
 }
 
 void cyan_nrnt_impl::start_pps_dtc() {
-    // Esnure _pps_thread_needed and _pps_thread_running are loaded
-    _mm_lfence();
 
     if ( ! _pps_thread_needed ) {
         return;
     }
 
-    if ( ! _pps_thread_running ) {
-        _pps_thread_should_exit = false;
-        _mm_sfence();
+    if ( ! _pps_thread_running.load(std::memory_order_relaxed) ) {
+        _pps_thread_should_exit.store(false, std::memory_order_relaxed);
         _pps_thread = std::thread( detect_pps, this );
     }
 }
 
 void cyan_nrnt_impl::stop_pps_dtc() {
-    // Esnure _pps_thread_needed is loaded
-    _mm_lfence();
 
     if ( ! _pps_thread_needed ) {
         return;
     }
 
     if(_pps_thread.joinable()) {
-        _pps_thread_should_exit = true;
+        _pps_thread_should_exit.store(true, std::memory_order_relaxed);
         // Update _pps_thread_should_exit in other threads
-        _mm_sfence();
         _pps_thread.join();
     }
 }
@@ -974,7 +964,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     // TODO: see if time/clk/cmd is used anywhere, and if not remove it
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     // This line will get time spec, the time diff port must be initialized first
-    // Call request_resync_time_diff anytime this is set
+    // Call set_time_initiated before setting time/clk/cur_time and set_time_finished after
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
     TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
@@ -987,10 +977,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     } catch(uhd::lookup_error &e) {
         _pps_thread_needed = false;
     }
-    _pps_thread_running = false;
-    _pps_thread_should_exit = false;
-    // Ensure pps control variables are updated to other threads
-    _mm_sfence();
+    _pps_thread_running.store(false, std::memory_order_relaxed);
+    _pps_thread_should_exit.store(false, std::memory_order_relaxed);
 
     // if the "serial" property is not added, then multi_usrp->get_rx_info() crashes libuhd
     // unfortunately, we cannot yet call get_mboard_eeprom().
@@ -1314,8 +1302,6 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     }
     _tree->access<subdev_spec_t>(root / "tx_subdev_spec").set(subdev_spec_t( sub_spec_tx ));
 
-    // Ensure _pps_thread_needed is loaded if changed in another thread
-    _mm_lfence();
     if ( _pps_thread_needed ) {
         start_pps_dtc();
     }
@@ -1917,8 +1903,12 @@ double cyan_nrnt_impl::get_tx_rate(size_t chan) {
     return _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").get();
 }
 
-inline void cyan_nrnt_impl::request_resync_time_diff() {
-    device_clock_sync_info->request_resync();
+void cyan_nrnt_impl::set_time_initiated(int64_t planned_time_s) {
+    device_clock_sync_info->set_time_initiated(planned_time_s);
+}
+
+void cyan_nrnt_impl::set_time_finished() {
+    device_clock_sync_info->set_time_finished();
 }
 
 bool cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {

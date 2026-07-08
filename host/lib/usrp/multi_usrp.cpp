@@ -400,8 +400,9 @@ public:
     void set_time_now(const time_spec_t& time_spec, size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
+            this->get_device()->set_time_initiated(time_spec.get_full_secs());
             this->get_device()->set_time_now(time_spec, mboard);
-            this->get_device()->request_resync_time_diff();
+            this->get_device()->set_time_finished();
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++) {
@@ -412,8 +413,9 @@ public:
     void set_time_next_pps(const time_spec_t& time_spec, size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
+            this->get_device()->set_time_initiated(time_spec.get_full_secs());
             _tree->access<time_spec_t>(mb_root(mboard) / "time/pps").set(time_spec);
-            this->get_device()->request_resync_time_diff();
+            this->get_device()->set_time_finished();
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++) {
@@ -467,7 +469,6 @@ public:
                            m, time_0.get_real_secs(), m, time_i.get_real_secs());
             }
         }
-        this->get_device()->request_resync_time_diff();
     }
 
     bool get_time_synchronized(void) override

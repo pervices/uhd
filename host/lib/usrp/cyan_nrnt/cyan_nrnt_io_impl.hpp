@@ -91,11 +91,11 @@ public:
 
     // Starts buffer monitor thread if it is not already running
     inline void start_buffer_monitor_thread() {
-        _stop_buffer_monitor = false;
+        _stop_buffer_monitor.store(false, std::memory_order_relaxed);
 
         //spawn a thread to monitor the buffer level
         _buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
-        _buffer_monitor_running = true;
+        _buffer_monitor_running.store(true, std::memory_order_relaxed);
     }
 
     void stop_buffer_monitor_thread();
@@ -107,8 +107,8 @@ protected:
 
 private:
     bool _first_call_to_send;
-    bool _buffer_monitor_running;
-    bool _stop_buffer_monitor;
+    std::atomic<bool> _buffer_monitor_running;
+    std::atomic<bool> _stop_buffer_monitor;
     std::thread _buffer_monitor_thread;
     timenow_type _time_now;
     // The sfp oflow counter value at start of streamer. Must be tracked since value only resets on reboot.
