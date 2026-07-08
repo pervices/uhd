@@ -1481,7 +1481,7 @@ void tvrx2::tvrx2_tda18272_tune_rf_filter(uint32_t uRF)
                                               "\tRF Filter Cap    = {}\n"
                                               "\tRF Filter Band   = {}\n"
                                               "\tGain Taper       = {}\n",
-                                    (get_subdev_name())
+                                    (get_subdev_name()),
                                     static_cast<int>(_tda18272hnm_regs.rf_filter_bypass),
                                     static_cast<int>(_tda18272hnm_regs.rf_filter_cap),
                                     static_cast<int>(_tda18272hnm_regs.rf_filter_band),

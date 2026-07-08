@@ -722,7 +722,7 @@ double xcvr2450::set_rx_bandwidth(double bandwidth)
         << std::format(
                "XCVR2450 RX Bandwidth (lp_fc): {} Hz, coarse reg: {}, fine reg: {}",
                _rx_bandwidth, static_cast<int>(_max2829_regs.rx_lpf_coarse_adj),
-               static_cast<int>(_max2829_regs.rx_lpf_fine_adj);
+               static_cast<int>(_max2829_regs.rx_lpf_fine_adj));
 
     return 2.0 * _rx_bandwidth;
 }
@@ -743,7 +743,7 @@ double xcvr2450::set_tx_bandwidth(double bandwidth)
 
     UHD_LOGGER_TRACE("XCVR2450")
         << std::format("XCVR2450 TX Bandwidth (lp_fc): {} Hz, coarse reg: {}",
-               _tx_bandwidth, static_cast<int>(_max2829_regs.tx_lpf_coarse_adj);
+               _tx_bandwidth, static_cast<int>(_max2829_regs.tx_lpf_coarse_adj));
 
     // convert lowpass back to complex bandpass bandwidth
     return 2.0 * _tx_bandwidth;
