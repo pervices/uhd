@@ -212,7 +212,7 @@ protected:
 			|| nominal_buffer_level_pcnt > 1
 		) {
 			throw uhd::value_error(
-				std::format( "Invalid buffer level {}", nominal_buffer_level_pcnt );
+				std::format( "Invalid buffer level {}", nominal_buffer_level_pcnt )
 			);
 		}
 		if ( nominal_sample_rate <= 0 ) {

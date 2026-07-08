@@ -232,8 +232,8 @@ UHD_INLINE size_t resize_udp_socket_buffer_with_warning(
                        "The {} buffer could not be resized sufficiently.\n"
                        "Target sock buff size: {} bytes.\n"
                        "Actual sock buff size: {} bytes.\n"
-                       "See the transport application notes on buffer resizing.\n{}")
-                       % name % target_size % actual_size % help_message;
+                       "See the transport application notes on buffer resizing.\n{}",
+                       name, target_size, actual_size, help_message);
     }
 
     return actual_size;
