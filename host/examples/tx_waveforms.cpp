@@ -111,7 +111,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     ("nsamps", po::value<uint64_t>(&total_num_samps)->default_value(0), "Total number of samples to "
         "transmit. Transmission stops when this number is reached. If set to 0, data will be continuously "
         "transmitted.")
-    ("rate", po::value<double>(&rate), "rate of outgoing samples")
     ("rate,r", po::value<double>(&rate)->required(), "Sample rate in samples/second.")
     ("freq,f", po::value<double>(&freq)->required(), "RF center frequency in Hz.")
     ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
