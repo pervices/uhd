@@ -224,8 +224,8 @@ UHD_INLINE size_t resize_udp_socket_buffer_with_warning(
 
         //see udp_zero_copy make for the code that automatically sets the buffer size
         UHD_LOGGER_TRACE("UDP")
-            << std::format("Target/actual {} sock buff size: {}/{} bytes") % name
-                   % target_size % actual_size;
+            << std::format("Target/actual {} sock buff size: {}/{} bytes", name,
+                   target_size, actual_size);
         if (actual_size < target_size)
             UHD_LOGGER_WARNING("UDP")
                 << std::format(
