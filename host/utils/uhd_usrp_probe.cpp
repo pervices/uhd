@@ -32,7 +32,7 @@ using namespace uhd;
 static std::string make_border(const std::string& text)
 {
     std::stringstream ss;
-    ss << "  _____________________________________________________\n"
+    ss << "  _____________________________________________________\n";
     ss << " /\n";
     std::vector<std::string> lines;
     boost::split(lines, text, boost::is_any_of("\n"));
@@ -50,7 +50,7 @@ static std::string get_dsp_pp_string(
     const std::string& type, property_tree::sptr tree, const fs_path& path)
 {
     std::stringstream ss;
-    ss << std::format("{} DSP: {}\n", type, path.leaf().string());
+    ss << std::format("{} DSP: {}\n", type, path.leaf());
     ss << std::endl;
     meta_range_t freq_range = tree->access<meta_range_t>(path / "freq/range").get();
     ss << std::format("Freq range: {:.3f} to {:.3f} MHz\n", freq_range.start() / 1e6, freq_range.stop() / 1e6);
@@ -71,7 +71,7 @@ static std::string get_frontend_pp_string(
     const std::string& type, property_tree::sptr tree, const fs_path& path)
 {
     std::stringstream ss;
-    ss << std::format("{} Frontend: {}\n", type, path.leaf().string());
+    ss << std::format("{} Frontend: {}\n", type, path.leaf());
 
     ss << std::format("Name: {}\n", tree->access<std::string>(path / "name").get());
     ss << std::format("Antennas: {}\n",
@@ -117,7 +117,7 @@ static std::string get_codec_pp_string(
 {
     std::stringstream ss;
     if (tree->exists(path / "name")) {
-        ss << std::format("{} Codec: {}\n", type, path.leaf().string());
+        ss << std::format("{} Codec: {}\n", type, path.leaf());
 
         ss << std::format("Name: {}\n", tree->access<std::string>(path / "name").get());
 

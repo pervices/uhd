@@ -126,7 +126,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     std::cout << std::format(" Difference of response time 2: {} us\n",
                      ((response_time2 - cmd_time2).get_real_secs() * 1e6));
-              << std::endl;
+
     std::cout << std::format(
                      " Difference between actual and expected time delta: {} us\n",
                      ((response_time2 - response_time1 - span).get_real_secs() * 1e6));
