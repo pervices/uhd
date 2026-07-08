@@ -43,7 +43,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD Find Devices {}", desc) << std::endl;
+        std::cout << "UHD Find Devices " << desc << std::endl;
         return EXIT_SUCCESS;
     }
 

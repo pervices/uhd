@@ -46,7 +46,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // Print the help message
     if (vm.count("help") > 0 or vm.empty()) {
-        std::cout << std::format("UHD Config Info - {}\n", desc);
+        std::cout << "UHD Config Info - " << desc << std::endl;
         return EXIT_FAILURE;
     }
 
