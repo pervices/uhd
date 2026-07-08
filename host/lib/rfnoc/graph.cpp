@@ -339,7 +339,7 @@ std::string graph_t::impl::to_dot()
     for (const auto& elem : _node_map) {
         // add block, prepend with cluster,
         // the cluster prefix ensures a box around the node
-        result += std::format("  subgraph \"cluster_{}\" {\n"
+        result += std::format("  subgraph \"cluster_{}\" {{\n"
                                     "    label=\"{}\"\n",
                       elem.first->get_unique_id(), elem.first->get_unique_id());
 

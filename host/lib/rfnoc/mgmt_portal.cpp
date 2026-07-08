@@ -408,7 +408,7 @@ public:
         }
 
         UHD_LOG_DEBUG(LOG_ID,
-            std::format("Programmed a route from EPID={} to EPID={}", src_epid
+            std::format("Programmed a route from EPID={} to EPID={}", src_epid,
                 dst_epid));
     }
 
