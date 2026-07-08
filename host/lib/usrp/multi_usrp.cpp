@@ -2764,7 +2764,7 @@ private:
             }
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                std::format("multi_usrp::rx_dsp_root({}) - mcp({}) - {}", chan
+                std::format("multi_usrp::rx_dsp_root({}) - mcp({}) - {}", chan,
                     mcp.chan, e.what()));
         }
     }
@@ -2851,7 +2851,7 @@ private:
         } else if (slot_name == "D") {
             return 3;
         } else {
-            throw uhd::key_error(str(
+            throw uhd::key_error(
                 std::format("[multi_usrp]: radio slot name {} out of supported range.",
                 slot_name));
         }
@@ -2880,7 +2880,7 @@ private:
                    / spec.sd_name;
         } catch (const std::exception& e) {
             throw uhd::index_error(
-                std::format("multi_usrp::tx_rf_fe_root({}) - mcp({}) - {}", chan
+                std::format("multi_usrp::tx_rf_fe_root({}) - mcp({}) - {}", chan,
                     mcp.chan, e.what()));
         }
     }

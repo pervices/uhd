@@ -154,14 +154,14 @@ static void print_usrp2_error(const image_loader::image_loader_args_t& image_loa
     usrp2_card_burner_gui += "\"";
 
     if (image_loader_args.load_firmware) {
-        usrp2_card_burner_gui += std::format("{}--fw=\"{}\"", nl
+        usrp2_card_burner_gui += std::format("{}--fw=\"{}\"", nl,
                                      ((image_loader_args.firmware_path.empty())
                                              ? find_image_path("usrp2_fw.bin")
                                              : image_loader_args.firmware_path));
     }
     if (image_loader_args.load_fpga) {
         usrp2_card_burner_gui +=
-            std::format("{}--fpga=\"{}\"", nl
+            std::format("{}--fpga=\"{}\"", nl,
             ((image_loader_args.fpga_path.empty()) ? find_image_path("usrp2_fpga.bin")
                                                      : image_loader_args.fpga_path));
     }
@@ -615,7 +615,7 @@ static bool n200_image_loader(const image_loader::image_loader_args_t& image_loa
 
     std::cout << std::format("Unit: USRP {} ({}, {})",
                      nice_name(session.dev_addr.get("hw_rev")),
-                     session.dev_addr.get("serial") % session.dev_addr.get("addr"))
+                     session.dev_addr.get("serial"), session.dev_addr.get("addr"))
               << std::endl;
 
     if (image_loader_args.load_firmware) {
