@@ -1141,7 +1141,7 @@ void Responder::write_log_file()
             logs << std::format("response_length={}\n", _response_length);
             logs << std::format("timeout={:f}\n", _opt.timeout);
             logs << std::format("timeout_burst_count={}\n", _timeout_burst_count);
-            logs << std::format("timeout_eob_count={:f}\n", _timeout_eob_count);
+            logs << std::format("timeout_eob_count={}\n", _timeout_eob_count);
             logs << std::format("allow_late_bursts={}\n", _allow_late_bursts ? "yes" : "no");
             logs << std::format("skip_eob={}\n", _opt.skip_eob ? "yes" : "no");
             logs << std::format("combine_eob={}\n", _opt.combine_eob ? "yes" : "no");
