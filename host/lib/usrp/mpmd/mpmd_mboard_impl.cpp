@@ -233,14 +233,14 @@ boost::optional<device_addr_t> mpmd_mboard_impl::is_device_reachable(
                 chdr_rpcc->request<dev_info>(MPMD_SHORT_RPC_TIMEOUT, "get_device_info");
             if (dev_info_chdr["serial"] != device_info_dict["serial"]) {
                 UHD_LOG_DEBUG("MPMD",
-                    boost::format("Connected to CHDR interface, but got wrong device. "
-                                  "Tried to reach serial %s, got %s")
-                        % device_info_dict["serial"] % dev_info_chdr["serial"]);
+                    std::format("Connected to CHDR interface, but got wrong device. "
+                                  "Tried to reach serial {}, got {}",
+                        device_info_dict["serial"], dev_info_chdr["serial"]));
                 continue;
             } else {
                 UHD_LOG_TRACE("MPMD",
-                    boost::format("Reachable device matches expected device (serial=%s)")
-                        % device_info_dict["serial"]);
+                    std::format("Reachable device matches expected device (serial={})",
+                        device_info_dict["serial"]));
             }
             device_addr_t device_addr_copy = device_addr;
             device_addr_copy["addr"]       = chdr_addr;

@@ -40,8 +40,8 @@ void init_prop_tree(const size_t mb_idx,
             mbc->get_zpu_ctrl()->peek32(SR_ADDR(SET0_BASE, ZPU_RB_DNA_HI)));
         const uint64_t device_dna = device_dna_lo | (device_dna_hi << 32);
         pt->create<std::string>(mb_path / "device_dna")
-            .set(str(boost::format("%016X") % device_dna));
-        UHD_LOG_DEBUG("X300", "Device DNA: " << boost::format("%016X") % device_dna);
+            .set(std::format("{:016X}", device_dna));
+        UHD_LOG_DEBUG("X300", std::format("Device DNA: {:016X}", device_dna));
     }
 
     ////////////////////////////////////////////////////////////////////

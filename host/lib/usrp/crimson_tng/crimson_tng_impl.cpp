@@ -69,11 +69,11 @@ static void do_samp_rate_warning_message(
     static const double max_allowed_error = 1.0; // Sps
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
         UHD_LOGGER_WARNING("CRIMSON_TNG")
-            << boost::format(
-                "The hardware does not support the requested %s sample rate on ch %li:\n"
-                "Target sample rate: %f MSps\n"
-                "Actual sample rate: %f MSps\n")
-                % xx % chan % (target_rate / 1e6) % (actual_rate / 1e6);
+            << std::format(
+                "The hardware does not support the requested {} sample rate on ch {}:\n"
+                "Target sample rate: {} MSps\n"
+                "Actual sample rate: {} MSps\n",
+                xx, chan, (target_rate / 1e6), (actual_rate / 1e6));
     }
 }
 
@@ -421,9 +421,9 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
         BOOST_FOREACH(const device_addr_t &hint_i, hints)
         {
             device_addrs_t found_devices_i = crimson_tng_find(hint_i);
-            if (found_devices_i.size() != 1) error_msg += str(boost::format(
-                "Could not resolve device hint \"%s\" to a single device."
-            ) % hint_i.to_string());
+            if (found_devices_i.size() != 1) error_msg += std::format(
+                "Could not resolve device hint \"{}\" to a single device."
+            hint_i.to_string());
             else found_devices.push_back(found_devices_i[0]);
         }
         if (found_devices.empty()) return device_addrs_t();
@@ -1759,13 +1759,14 @@ void crimson_tng_impl::set_rx_gain(double gain, const std::string &name, size_t 
             double low_band_gain = gain > MAX_VARAMP_GAIN ? MAX_VARAMP_GAIN : gain;
 
             if ( low_band_gain != gain ) {
-                boost::format rf_lo_message(
-                    "RX channel " + std::to_string(chan) + " RF Low Band does not support the requested gain:\n"
-                    "    Requested RF Low Band gain: %f dB\n"
-                    "    Actual RF Low Band gain: %f dB\n"
+                std::string results_string = std::format(
+                    "RX channel {} RF Low Band does not support the requested gain:\n"
+                    "    Requested RF Low Band gain: {:f} dB\n"
+                    "    Actual RF Low Band gain: {:f} dB\n",
+                    chan,
+                    gain,
+                    low_band_gain
                 );
-                rf_lo_message % gain % low_band_gain;
-                std::string results_string = rf_lo_message.str();
                 UHD_LOGGER_INFO("CRIMSON_TNG") << results_string;
             }
 
