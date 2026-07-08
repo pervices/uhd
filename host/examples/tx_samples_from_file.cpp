@@ -515,7 +515,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             std::cout << std::format("Setting TX Gain: {} dB...\n", gain);
             usrp->set_tx_gain(gain, channel);
             std::cout << std::format("Actual TX Gain: {} dB...\n\n",
-            % usrp->get_tx_gain(channel));
+            usrp->get_tx_gain(channel));
         }
     }
 

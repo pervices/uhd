@@ -96,7 +96,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         db_eeprom.id = dboard_id_t::from_string(vm["id"].as<std::string>());
         tree->access<dboard_eeprom_t>(db_path).set(db_eeprom);
     }
-    std::cout << std::format("  Current ID: {}\n", db_eeprom.id.to_pp_string())
+    std::cout << std::format("  Current ID: {}\n", db_eeprom.id.to_pp_string());
 
     //------------- handle the dboard serial--------------------------//
     if (vm.count("ser")) {

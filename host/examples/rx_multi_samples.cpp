@@ -225,12 +225,12 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             break;
         if (md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE) {
             throw std::runtime_error(
-                std::format("Receiver error {}", % md.strerror()));
+                std::format("Receiver error {}", md.strerror()));
         }
 
         if (verbose)
             std::cout << std::format(
-                             "Received packet: {} samples, {} full secs, {} frac secs{}",
+                             "Received packet: {} samples, {} full secs, {} frac secs\n",
                              num_rx_samps, md.time_spec.get_full_secs(),
                              md.time_spec.get_frac_secs());
 

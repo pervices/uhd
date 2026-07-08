@@ -95,7 +95,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     //print the help message
     if (vm.count("help")) {
-        std::cout << std::format("UHD RX stream stop %s\n", desc);
+        std::cout << "UHD RX stream stop " << desc << std::endl;
         std::cout
             << std::endl
             << "This application stops rx from streaming data by through register writes.\n"
