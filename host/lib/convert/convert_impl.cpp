@@ -70,8 +70,8 @@ void uhd::convert::register_converter(
     get_table()[id][prio] = fcn;
 
     //----------------------------------------------------------------//
-    // UHD_LOG_TRACE("CONVERT", boost::format("register_converter: %s prio: %s") %
-    // id.to_string() % prio)
+    // UHD_LOG_TRACE("CONVERT", std::format("register_converter: {} prio: {}",
+    // id.to_string(), prio));
     //----------------------------------------------------------------//
 }
 
