@@ -25,6 +25,7 @@
 #include <functional>
 #include <thread>
 #include <utility>
+#include <type_traits>
 
 using namespace uhd;
 using namespace uhd::usrp;
@@ -456,9 +457,11 @@ done_loop:
     // debug output of calculated variables
     UHD_LOGGER_TRACE("DBSRX")
         << ("DBSRX tune:\n")
-        << std::format("    VCO={}, CP={}, PFD Freq={}MHz\n",
-               int(_max2118_write_regs.osc_band), _max2118_write_regs.cp_current,
-               (pfd_freq / 1e6))
+        << std::format("    VCO={:d}, CP={:d}, PFD Freq={}MHz\n",
+            static_cast<int>(_max2118_write_regs.osc_band),
+            static_cast<int>(_max2118_write_regs.cp_current),
+            (pfd_freq / 1e6)
+        )
         << std::format("    R={}, N={}, scaler={}, div2={}\n", R, N, scaler,
                int(_max2118_write_regs.div2))
         << std::format("    Ref    Freq={}MHz\n", (ref_clock / 1e6))
