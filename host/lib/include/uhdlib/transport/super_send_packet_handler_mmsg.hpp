@@ -555,15 +555,16 @@ private:
         struct timespec timeout_time;
         clock_gettime(CLOCK_MONOTONIC_COARSE, &timeout_time);
         int64_t timeout_s = (int64_t) timeout;
-        int64_t timeout_ns = (int64_t) (timeout - timeout_s);
+        int64_t timeout_ns = (int64_t) ((timeout - timeout_s) * 1e9);
         int64_t sum_ns = timeout_ns + timeout_time.tv_nsec;
         int64_t carry = 0;
         if(sum_ns > 1e9) {
             sum_ns -= 1e9;
             carry = 1;
         }
+
         // Add timeout with carry to current time
-        timeout_time.tv_nsec = timeout_time.tv_nsec + sum_ns;
+        timeout_time.tv_nsec = sum_ns;
         timeout_time.tv_sec = timeout_time.tv_sec + timeout_s + carry;
 
         // Time at the end of the loop, used for checking timeouts
