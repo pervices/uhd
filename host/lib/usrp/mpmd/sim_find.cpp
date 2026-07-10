@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+// Need this import because pybind doesn't have an equivalent to Py_IsInitialized()
+#include <Python.h>
+
 #include "mpmd_devices.hpp"
 #include "mpmd_impl.hpp"
 #include <uhd/device.hpp>
 #include <uhd/utils/static.hpp>
 #include <uhdlib/rfnoc/rfnoc_device.hpp>
-// Need this import because pybind doesn't have an equivalent to Py_IsInitialized()
-#include <Python.h>
 #include <pybind11/embed.h>
 #include <pybind11/pybind11.h>
 #include <chrono>
