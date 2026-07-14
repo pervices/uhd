@@ -1,3 +1,15 @@
+uhdpv (4.10.0.1-0ubuntu1) ubuntu_release; urgency=medium
+
+  * Update to upstream 4.10
+  * Fixing ignoring fractional part of send timeouts
+  * Replace boost::format with std::format (fix compliation with boost earlier than 1.74 and C++20)
+  * Fix UDP receive error on exit
+  * Fix GNU Radio copilation issue related to boost system removal
+  * Updating preemption warning message for kernel 6.13 mode
+  * Adding preemption warning message to tx
+
+ -- Per Vices <packages@pervices.com>  Wed, 15 Jul 2026 15:51:27 -0400
+
 uhdpv (4.8.0.34-0ubuntu1) ubuntu_release; urgency=low
 
   * Fixed io_uring error for high channel count devices
