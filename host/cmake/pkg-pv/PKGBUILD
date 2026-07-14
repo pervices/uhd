@@ -57,7 +57,7 @@ build() {
        -DENABLE_USB=OFF \
        -DENABLE_LIBURING=ON \
        -DENABLE_PYTHON_API=ON \
-       -DENABLE_STATIC_LIBS=ON \
+       -DENABLE_STATIC_LIBS=OFF \
        ..
     make -j$(nproc)
 }
@@ -68,7 +68,7 @@ check() {
 }
 
 package() {
-    depends=('python' 'python-numpy' 'glibc' 'gcc-libs' 'libusb' 'liburing')
+    depends=('python' 'python-numpy' 'boost-libs' 'glibc' 'gcc-libs' 'libusb' 'liburing')
     cd "$srcdir/$_gitname/host/build"
     make DESTDIR="$pkgdir" install
     install -Dm644 "../utils/uhd-usrp.rules" "$pkgdir/usr/lib/udev/rules.d/10-uhd-usrp.rules"
