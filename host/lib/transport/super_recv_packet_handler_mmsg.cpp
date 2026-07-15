@@ -62,7 +62,7 @@ recv_packet_handler_mmsg:: recv_packet_handler_mmsg(const std::vector<size_t>& c
     check_high_order_alloc_disable();
 
     // Checks and warns the user if the preemption mode is suboptimal
-    check_preemption();
+    check_preemption("RECV_PACKET_HANDLER");
 
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         check_rx_ring_buffer_size(dst_ip[n]);

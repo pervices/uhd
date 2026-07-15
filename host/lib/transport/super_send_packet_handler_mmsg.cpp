@@ -50,7 +50,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _streaming_locks(streaming_locks)
 {
     // Checks and warns the user if the preemption mode is suboptimal
-    check_preemption();
+    check_preemption("SEND_PACKET_HANDLER");
 
     // Copy provided channel list vector to internal channel list
     std::copy(channels.begin(), channels.end(), _channels);
