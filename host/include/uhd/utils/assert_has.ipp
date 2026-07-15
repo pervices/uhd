@@ -10,7 +10,6 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/algorithm.hpp>
 #include <uhd/utils/cast.hpp>
-#include <format>
 
 namespace uhd {
 
@@ -27,10 +26,10 @@ UHD_INLINE void assert_has(const Range& range, const T& value, const std::string
         possible_values += uhd::cast::to_str(v);
     }
     throw uhd::assertion_error(
-        std::format("assertion failed:\n"
-                                 "  {} is not a valid {}.\n"
-                                 "  possible values are: [{}].\n",
-                   uhd::cast::to_str(value), what, possible_values));
+        "assertion failed:\n"
+            "  " + uhd::cast::to_str(value) + " is not a valid " + what + ".\n"
+            "  possible values are: [" + possible_values + "].\n"
+    );
 }
 
 } // namespace uhd

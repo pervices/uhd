@@ -15,6 +15,7 @@
 #include <map>
 #include <numeric>
 #include <tuple>
+#include <format>
 
 
 // Forward-declare factories for complex gain
