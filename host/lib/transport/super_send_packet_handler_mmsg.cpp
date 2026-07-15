@@ -137,9 +137,11 @@ void send_packet_handler_mmsg::set_samp_rate(const double rate) {
         ch_send_buffer_info_i.buffer_level_manager.set_sample_rate(rate);
     }
 
-    // Drop packets if they are within the lower of 20% of a buffer of being late and 40us
-    // 40e-6 was chosen since it is extremely rare for packets to be over 35e-6 seconds late based on clock sync predictions
-    drop_lead = std::min(0.2 * _DEVICE_BUFFER_SIZE / _sample_rate, 40e-6);
+    // Drop packets if they are within the lower of 20% of a buffer of being late and 100us
+    // 100e-6 was chosen since it is extremely rare for packets to be over 35e-6 seconds late based on clock sync predictions
+    // And the time the FPGA takes to process the packet
+    // set drop_lead to always be 0 once the FPGA is able to drop late packets (issue 17952)
+    drop_lead = std::min(0.2 * _DEVICE_BUFFER_SIZE / _sample_rate, 100e-6);
 }
 
 void send_packet_handler_mmsg::enable_blocking_fc(int64_t blocking_setpoint) {
