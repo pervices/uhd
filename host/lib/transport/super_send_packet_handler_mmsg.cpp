@@ -26,6 +26,8 @@
 #include <net/if.h>
 #include <sys/file.h>
 
+#include <uhdlib/utils/preemption_check.hpp>
+
 namespace uhd {
 namespace transport {
 namespace sph {
@@ -47,6 +49,9 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _async_msg_fifo(async_msg_fifo),
     _streaming_locks(streaming_locks)
 {
+    // Checks and warns the user if the preemption mode is suboptimal
+    check_preemption();
+
     // Copy provided channel list vector to internal channel list
     std::copy(channels.begin(), channels.end(), _channels);
 
