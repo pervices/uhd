@@ -33,7 +33,7 @@ template <typename Range>
 UHD_INLINE Range sorted(const Range& range)
 {
     Range r(range);
-    std::ranges::sort(r);
+    std::sort(r.begin(), r.end());
     return r;
 }
 
