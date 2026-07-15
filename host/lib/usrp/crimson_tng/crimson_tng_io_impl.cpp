@@ -52,26 +52,8 @@
 #endif
 
 #if 0
-#ifndef UHD_TXRX_SEND_DEBUG_PRINTS
-#define UHD_TXRX_SEND_DEBUG_PRINTS
-#endif
-#endif
-
-#if 0
-#ifndef DEBUG_FC
-#define DEBUG_FC
-#endif
-#endif
-
-#if 0
 #ifndef BUFFER_LVL_DEBUG
 #define BUFFER_LVL_DEBUG
-#endif
-#endif
-
-#if 0
-#ifndef UHD_TXRX_DEBUG_TIME
-#define UHD_TXRX_DEBUG_TIME
 #endif
 #endif
 
