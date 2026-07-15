@@ -9,7 +9,7 @@
 #include <string>
 #include <cstdio>
 
-uhd::preempt_mode_t uhd::check_preemption() {
+uhd::preempt_mode_t uhd::check_preemption(std::string log_header) {
     std::string path = "/sys/kernel/debug/sched/preempt";
 
     FILE *file;
@@ -26,16 +26,16 @@ uhd::preempt_mode_t uhd::check_preemption() {
     if(file == NULL) {
         // Insufficient permission
         if(errno == EACCES) {
-            UHD_LOG_WARNING("PREEMPTION_CHECK", "Insufficient permission to check preemption setting.\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+            UHD_LOG_WARNING(log_header, "Insufficient permission to check preemption setting.\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
 
             return PREEMPT_DYNAMIC_UNDEFINED;
             // File missing (probably because debugfs isn't mounted)
         } else if (errno == ENOENT) {
-            UHD_LOG_WARNING("PREEMPTION_CHECK", "debugfs is not mounted or not mounted in it's usual location, unable to check preemption setting.\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+            UHD_LOG_WARNING(log_header, "debugfs is not mounted or not mounted in it's usual location, unable to check preemption setting.\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
             return PREEMPT_DYNAMIC_UNDEFINED;
             // Unexpected error when attempting to open file
         } else {
-            UHD_LOG_WARNING("PREEMPTION_CHECK", "Preemption check failed with error code: " + std::to_string(errno) + ": " + std::string(strerror(errno)) + "\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+            UHD_LOG_WARNING(log_header, "Preemption check failed with error code: " + std::to_string(errno) + ": " + std::string(strerror(errno)) + "\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
         return PREEMPT_DYNAMIC_UNDEFINED;
         }
     }
@@ -70,13 +70,13 @@ uhd::preempt_mode_t uhd::check_preemption() {
 
     } else if(mode == PREEMPT_DYNAMIC_FULL) {
         // Warn the user they are using a suboptimal preemption mode
-        UHD_LOG_WARNING("PREEMPTION_CHECK", "Preemption is currently set to full, this will cause unreliable performance.\n\t" + read_preempt + "\n\t" + set_preempt);
+        UHD_LOG_WARNING(log_header, "Preemption is currently set to full, this will cause unreliable performance.\n\t" + read_preempt + "\n\t" + set_preempt);
         return mode;
 
     } else /*PREEMPT_DYNAMIC_UNDEFINED*/ {
         // Warn the user we were unable to detect a preemption mode
         // This should never happen if a new mode is added
-        UHD_LOG_WARNING("PREEMPTION_CHECK", "Unrecognized preemption mode, this will cause unreliable performance.\n\t" + read_preempt + "\n\t" + set_preempt);
+        UHD_LOG_WARNING(log_header, "Unrecognized preemption mode, this will cause unreliable performance.\n\t" + read_preempt + "\n\t" + set_preempt);
         return PREEMPT_DYNAMIC_UNDEFINED;
     }
 }

@@ -19,8 +19,9 @@ namespace uhd {
 
     /**
      * Check if preemption is enabled and warn the user if it isn't
+     * @param log_header The header to use during the print message
      * @return Returns the preemption mode on success. Returns PREEMPT_DYNAMIC_UNDEFINED on failure
      */
-    preempt_mode_t check_preemption();
+    preempt_mode_t check_preemption(std::string log_header = "PREEMPTION_CHECK");
 
 }; /* namespace uhd */
