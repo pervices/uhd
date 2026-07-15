@@ -480,12 +480,6 @@ private:
      */
     void check_high_order_alloc_disable();
 
-    /*
-     * Checks if preemption is set to full.
-     * Preemption can cause occasional brief latency spikes that cause overflows at high sample rates
-     */
-    void check_pre_empt();
-
     /**
      * Checks if the rx ring buffer for the device with the specified ip is set to it's maximum and prints a warning ot the user if it isn't.
      */
