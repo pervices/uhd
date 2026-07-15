@@ -74,7 +74,7 @@ static void do_samp_rate_warning_message(
     if (std::abs(target_rate - actual_rate) > max_allowed_error) {
         UHD_LOGGER_WARNING("MULTI_USRP")
             << std::format(
-                "The hardware does not support the requested {} sample rate on ch %li:\n"
+                "The hardware does not support the requested {} sample rate on ch {}:\n"
                 "Target sample rate: {} MSps\n"
                 "Actual sample rate: {} MSps\n",
                 xx, chan, (target_rate / 1e6), (actual_rate / 1e6));
