@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <string>
+
 namespace uhd {
 
     // Copy of the enum from kernel/sched/core.c that defines preemption types

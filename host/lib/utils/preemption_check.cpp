@@ -6,7 +6,6 @@
 
 #include <uhdlib/utils/preemption_check.hpp>
 #include <uhd/utils/log.hpp>
-#include <string>
 #include <cstdio>
 
 uhd::preempt_mode_t uhd::check_preemption(std::string log_header) {
