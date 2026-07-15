@@ -15,8 +15,9 @@
 #include <uhd/types/time_spec.hpp>
 #include <uhd/utils/log.hpp>
 #include <unordered_map>
-#include <format>
 #include <vector>
+#include <sstream>
+#include <iomanip>
 
 namespace uhd { namespace rfnoc {
 
@@ -68,9 +69,12 @@ public:
         try {
             return read_memory.at(addr);
         } catch (const std::out_of_range&) {
-            throw uhd::runtime_error(
-                std::format("No data defined for address: {:#06X}", addr)
-            );
+            std::stringstream ss;
+            ss << "No data defined for address: 0x" 
+                << std::setfill('0') << std::setw(4) << std::uppercase 
+                << std::hex << addr;
+            std::string result = ss.str();
+            throw uhd::runtime_error(result);
         }
     }
 
