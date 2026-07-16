@@ -1456,10 +1456,17 @@ constexpr double RX_SIGN = +1.0;
 constexpr double TX_SIGN = -1.0;
 
 // XXX: @CF: 20180418: stop-gap until moved to server
-static int select_band( const double freq ) {
+static int select_band( const double freq, bool is_tx ) {
+    double low_mid_transition;
+    if(is_tx) {
+        low_mid_transition = CYAN_NRNT_LOW_MID_BARRIER_TX;
+    } else {
+        low_mid_transition = CYAN_NRNT_LOW_MID_BARRIER_RX;
+    }
+
     if( freq >= CYAN_NRNT_MID_HIGH_BARRIER )
         return HIGH_BAND;
-    else if( freq >= CYAN_NRNT_LOW_MID_BARRIER )
+    else if( freq >= low_mid_transition )
         return MID_BAND;
     else
         return LOW_BAND;
@@ -1478,7 +1485,11 @@ double cyan_nrnt_impl::choose_lo_shift( double target_freq, int band, property_t
     double band_min_lo;
     if(band == MID_BAND) {
         band_max_lo = CYAN_NRNT_MID_MAX_LO;
-        band_min_lo = CYAN_NRNT_LOW_MID_BARRIER;
+        if(is_tx) {
+            band_min_lo = CYAN_NRNT_LOW_MID_BARRIER_TX;
+        } else {
+            band_min_lo = CYAN_NRNT_LOW_MID_BARRIER_RX;
+        }
     } else if (band == HIGH_BAND) {
         band_min_lo = CYAN_NRNT_MID_HIGH_BARRIER;
         band_max_lo = _freq_range_stop;
@@ -1601,7 +1612,7 @@ tune_result_t cyan_nrnt_impl::tune_xx_subdev_and_dsp( const double xx_sign, prop
         band = LOW_BAND;
     // Is a normal board, use normal band selection
     } else {
-        band = select_band( clipped_requested_freq );
+        band = select_band( clipped_requested_freq, TX_SIGN == xx_sign );
     }
 
     //------------------------------------------------------------------
