@@ -113,7 +113,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         "transmitted.")
     ("rate,r", po::value<double>(&rate)->required(), "Sample rate in samples/second.")
     ("freq,f", po::value<double>(&freq)->required(), "RF center frequency in Hz.")
-    ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
+    ("lo-offset", po::value<double>(&lo_offset),
         "LO offset for the frontend in Hz.")
     ("gain", po::value<double>(&gain), "Gain for the RF chain in dB. Will be ignored, if --power is "
         "specified.")
