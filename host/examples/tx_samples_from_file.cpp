@@ -350,7 +350,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             "configuration. If you request a rate that is not supported, the USRP device will automatically select and "
             "use the closest available rate.")
         ("freq,f", po::value<double>(&freq)->required(), "RF center frequency in Hz.")
-        ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
+        ("lo-offset", po::value<double>(&lo_offset),
             "LO offset for the frontend in Hz.")
         ("gain", po::value<double>(&gain), "Gain for the RF chain in dB. Will be ignored, if --power is "
             "specified.")
