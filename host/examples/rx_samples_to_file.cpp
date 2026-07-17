@@ -487,7 +487,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             "If you request a rate that is not supported, the USRP device will automatically select and use the closest "
             "available rate. For accurate processing of received baseband data, always verify and use the actual sample "
             "rate.")
-        ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
+        ("lo-offset", po::value<double>(&lo_offset),
             "LO offset for the frontend in Hz.")
         ("gain", po::value<double>(&gain), "RX gain for the RF chain in dB.")
         ("ant", po::value<std::string>(&ant), "Antenna port selection string selecting a specific antenna "
@@ -610,10 +610,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // set the center frequency
     if (vm.count("freq")) {
         std::cout << std::format("Setting RX Freq: {} MHz...\n", (freq / 1e6));
+        uhd::tune_request_t tune_request;
 
-        std::cout << std::format("Setting RX LO Offset: {} MHz...\n", (lo_offset / 1e6));
-
-        uhd::tune_request_t tune_request(freq, lo_offset);
+        if(vm.count("lo-offset")) {
+            std::cout << std::format("Setting RX LO Offset: {} MHz...\n", (lo_offset / 1e6));
+            tune_request = uhd::tune_request_t(freq, lo_offset);
+        } else {
+            tune_request = uhd::tune_request_t(freq);
+        }
+        
         if (vm.count("int-n"))
             tune_request.args = uhd::device_addr_t("mode_n=integer");
         for (size_t chan : channel_list)
