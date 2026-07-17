@@ -110,7 +110,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             "\nTo use the 2nd UBX (slot B, RF TX 0), specify --subdev \"B:0\".")
         ("ref", po::value<std::string>(&ref), "Sets the source for the frequency reference. Available values "
             "depend on the USRP model. Typical values are 'internal', 'external', 'mimo', and 'gpsdo'.")
-        ("lo-offset", po::value<double>(&lo_offset)->default_value(0.0),
+        ("lo-offset", po::value<double>(&lo_offset),
             "LO offset for the frontend in Hz.")
         ("bw", po::value<double>(&bw), "Sets the analog frontend filter bandwidth for the TX path in Hz. Not "
             "all USRP devices support programmable bandwidth; if an unsupported value is requested, the device will use "
@@ -173,12 +173,20 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         return ~0;
     }
 
+    bool manual_lo = vm.count("lo-offset");
+
     std::cout << "Requesting TX Freq: " << freq / 1e6 << " MHz..." << std::endl;
-    std::cout << "Requesting TX LO Offset: " << lo_offset / 1e6 << " MHz..." << std::endl;
+    if(manual_lo) {
+        std::cout << "Requesting TX LO Offset: " << lo_offset / 1e6 << " MHz..." << std::endl;
+    }
 
     for (size_t i = 0; i < channel_nums.size(); i++) {
         uhd::tune_request_t tune_request;
-        tune_request = uhd::tune_request_t(freq, lo_offset);
+        if(manual_lo) {
+            tune_request = uhd::tune_request_t(freq, lo_offset);
+        } else {
+            tune_request = uhd::tune_request_t(freq);
+        }
 
         if (vm.count("int-n"))
             tune_request.args = uhd::device_addr_t("mode_n=integer");
