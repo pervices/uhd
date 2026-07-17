@@ -1,3 +1,9 @@
+uhdpv (4.10.0.2-0ubuntu1) ubuntu_release; urgency=low
+
+  * Revert example programs bad to using default lo tuning
+
+ -- Per Vices <packages@pervices.com>  Fri, 17 Jul 2026 12:41:17 -0400
+
 uhdpv (4.10.0.1-0ubuntu1) ubuntu_release; urgency=medium
 
   * Update to upstream 4.10
