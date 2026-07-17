@@ -577,7 +577,7 @@ void b100_impl::check_fw_compat(void)
                     "Expected firmware compatibility number {}, but got {}:\n"
                     "The firmware build is not compatible with the host code build.\n"
                     "{}",
-                int(B100_FW_COMPAT_NUM) % fw_compat_num,
+                int(B100_FW_COMPAT_NUM), fw_compat_num,
                 print_utility_error("uhd_images_downloader.py")));
     }
     _tree->create<std::string>("/mboards/0/fw_version")
