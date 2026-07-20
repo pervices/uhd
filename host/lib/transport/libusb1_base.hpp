@@ -13,7 +13,6 @@
 #include <uhd/transport/usb_device_handle.hpp>
 #include <uhd/utils/noncopyable.hpp>
 #include <libusb.h>
-#include <format>
 #include <memory>
 
 //! Define LIBUSB_CALL when its missing (non-windows)
