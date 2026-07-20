@@ -1,3 +1,12 @@
+
+uhdpv (4.10.0.3-0ubuntu1) ubuntu_release; urgency=low
+
+  * Lower the default transition frequency for low to mid band for Cyan/Chestnut to 250MHz from 400MHz 
+  * Fix compliation issue with RPM packages
+  * Turn of static linking of boost on Arch due to issues it was causing with GNU Radio compilation
+
+ -- Per Vices <packages@pervices.com>  Mon, 20 Jul 2026 10:48:14 -0400
+
 uhdpv (4.10.0.2-0ubuntu1) ubuntu_release; urgency=low
 
   * Revert example programs bad to using default lo tuning
