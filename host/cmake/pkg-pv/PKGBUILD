@@ -26,7 +26,7 @@ install=$pkgname.install
 pkgver() {
     if [ $nightly == '0' ]; then
         cd ${srcdir}/${_gitname}/host/cmake/debian-pv
-        echo $(cat changelog | head -1 | cut -d ' ' -f2 | cut -d '-' -f1 | tr --delete ['('])
+        echo $(grep -E "uhdpv \\([0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]" changelog | head -1 | cut -d ' ' -f2 | cut -d '-' -f1 | tr --delete ['('])
     else
         cd ${srcdir}/$_gitname
         echo -n `date +%Y%m%d%H%M`+g && git rev-parse --short HEAD
