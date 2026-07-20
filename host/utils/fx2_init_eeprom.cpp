@@ -70,7 +70,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             std::cerr << (std::format(
                     "Removing the '{}' module failed with error '{}'.\n",
                     module, std::strerror(errno)
-            );
+            ));
     }
 #endif // UHD_PLATFORM_LINUX
 
