@@ -1,3 +1,11 @@
+uhdpv (4.10.0.4-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fix changelog formatting error from 4.10.0.3
+  * Fix compliation issue with LIBUSB enabled
+  * Fix compilation issue with FX2 enabled
+
+ -- Per Vices <packages@pervices.com>  Mon, 20 Jul 2026 18:48:22 -0400
+
 uhdpv (4.10.0.3-0ubuntu1) ubuntu_release; urgency=low
 
   * Lower the default transition frequency for low to mid band for Cyan/Chestnut to 250MHz from 400MHz 
