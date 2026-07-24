@@ -5,7 +5,6 @@
 //
 
 #include <uhdlib/utils/config_parser.hpp>
-#include <boost/filesystem.hpp>
 #include <format>
 #include <boost/property_tree/ini_parser.hpp>
 

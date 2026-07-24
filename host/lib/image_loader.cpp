@@ -11,7 +11,6 @@
 #include <uhd/utils/log.hpp>
 
 #include <uhd/utils/static.hpp>
-#include <boost/filesystem.hpp>
 #include <format>
 #include <filesystem>
 #include <iostream>

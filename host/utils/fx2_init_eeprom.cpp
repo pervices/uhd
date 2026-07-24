@@ -11,7 +11,8 @@
 #include <uhd/property_tree.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/filesystem.hpp>
+#include <filesystem>
+#include <cstdio>
 #include <format>
 #include <boost/program_options.hpp>
 #include <fstream>
@@ -120,8 +121,18 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             return EXIT_FAILURE;
         }
 
-        // get temporary file name, and write image to that.
-        image = boost::filesystem::unique_path().string();
+        // Buffer for use by std::filesystem::path since otherwise the function
+        char unique_path[L_tmpnam];
+        // Fill unique_path with a unique path
+        if(std::tmpnam(unique_path)) {
+            // get temporary file name, and write image to that.
+            image = std::filesystem::path(unique_path).filename().string();
+        } else {
+            throw std::filesystem::filesystem_error(
+                "Failed to generate a unique temporary filename for temporary image storage",
+                std::error_code(errno, std::generic_category())
+            );
+        }
         std::ofstream tmp_image(image, std::ofstream::binary);
         tmp_image.write((const char*)image_data, image_len);
         tmp_image.close();
@@ -146,7 +157,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
 
     // delete temporary image file if we created one
     if (!vm.count("image")) {
-        boost::filesystem::remove(image);
+        std::filesystem::remove(image);
     }
 
     std::cout << "Power-cycle the usrp for the changes to take effect." << std::endl;

@@ -14,7 +14,6 @@
 #include <format>
 #include <boost/program_options.hpp>
 #ifdef __linux__
-#    include <boost/filesystem.hpp>
 #    include <boost/version.hpp>
 #    if BOOST_VERSION >= 108800
 #        define BOOST_PROCESS_VERSION 1
@@ -33,6 +32,10 @@
 #include <numeric>
 #include <regex>
 #include <thread>
+#include <filesystem>
+#include <random>
+#include <sstream>
+#include <iomanip>
 
 using namespace std::chrono_literals;
 
@@ -68,11 +71,18 @@ double disk_rate_check(const size_t sample_type_size,
     std::string err_msg =
         "Disk benchmark tool 'dd' did not run or returned an unexpected output format";
     boost::process::ipstream pipe_stream;
-    boost::filesystem::path temp_file =
-        boost::filesystem::path(file).parent_path() / boost::filesystem::unique_path();
+
+    // Generate a random 16-character hex string for the temporary file used by the disk rate check
+    std::stringstream ss;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+    ss << std::hex << std::setfill('0') << std::setw(16) << dis(gen);
+
+    std::filesystem::path temp_file = std::filesystem::path(file).parent_path() / ss.str();
 
     std::string disk_check_proc_str =
-        "dd if=/dev/zero of=" + temp_file.native()
+        "dd if=/dev/zero of=" + temp_file.string()
         + " bs=" + std::to_string(samps_per_buff * channel_count * sample_type_size)
         + " count=100";
 
@@ -85,14 +95,14 @@ double disk_rate_check(const size_t sample_type_size,
         }
     } catch (std::system_error& err) {
         std::cerr << err_msg << std::endl;
-        if (boost::filesystem::exists(temp_file)) {
-            boost::filesystem::remove(temp_file);
-        }
+        
+        std::filesystem::remove(temp_file);
+
         return 0;
     }
     // sig_int_handler will absorb SIGINT by this point, but other signals may
     // leave a temporary file on program exit.
-    boost::filesystem::remove(temp_file);
+    std::filesystem::remove(temp_file);
 
     std::string line;
     std::string dd_output;

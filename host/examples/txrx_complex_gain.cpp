@@ -26,7 +26,7 @@
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/thread.hpp>
 #include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
+#include <filesystem>
 #include <format>
 #include <boost/program_options.hpp>
 #include <chrono>
@@ -96,8 +96,8 @@ std::string generate_out_filename(
         return base_fn;
     }
 
-    boost::filesystem::path base_fn_fp(base_fn);
-    base_fn_fp.replace_extension(boost::filesystem::path(
+    std::filesystem::path base_fn_fp(base_fn);
+    base_fn_fp.replace_extension(std::filesystem::path(
         std::format("{:02}{}", this_name, base_fn_fp.extension().string())
     ));
     return base_fn_fp.string();

@@ -9,7 +9,6 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/paths.hpp>
 #include <uhdlib/utils/paths.hpp>
-#include <boost/filesystem/operations.hpp>
 #include <boost/test/unit_test.hpp>
 #include <iostream>
 #include <vector>

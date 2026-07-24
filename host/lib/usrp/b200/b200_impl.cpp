@@ -20,7 +20,6 @@
 #include <uhd/utils/paths.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <uhd/utils/static.hpp>
-#include <boost/filesystem.hpp>
 #include <format>
 #include <boost/functional/hash.hpp>
 #include <chrono>
