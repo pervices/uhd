@@ -1,3 +1,9 @@
+uhdpv (4.10.0.5-0ubuntu1) ubuntu_release; urgency=low
+
+  * Remove dependency: boost::filesystem
+
+ -- Per Vices <packages@pervices.com>  Fri, 24 Jul 2026 17:56:06 -0400
+
 uhdpv (4.10.0.4-0ubuntu1) ubuntu_release; urgency=low
 
   * Fix changelog formatting error from 4.10.0.3
