@@ -335,7 +335,6 @@ message(STATUS "Configuring Boost C++ Libraries...")
 set(UHD_BOOST_REQUIRED_COMPONENTS
     chrono
     date_time
-    filesystem
     program_options
     serialization
     #system Boost.System is used, but explicitly listing it causes errors on some systems.

@@ -28,7 +28,6 @@ find_dependency(Boost ${UHD_BOOST_MIN_VERSION}
   COMPONENTS
   chrono
   date_time
-  filesystem
   program_options
   serialization
   thread

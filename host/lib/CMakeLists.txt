@@ -195,7 +195,6 @@ target_link_libraries(uhd
     Boost::boost
     Boost::chrono
     Boost::date_time
-    Boost::filesystem
     Boost::serialization
     Boost::thread
     ${libuhd_boost_msvc_libs}
@@ -305,7 +304,6 @@ function(UHD_ADD_STATIC_LIB)
         Boost::boost
         Boost::chrono
         Boost::date_time
-        Boost::filesystem
         Boost::serialization
         Boost::thread
         ${libuhd_boost_msvc_libs}
