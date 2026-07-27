@@ -90,19 +90,7 @@ static std::string rx_rf_fe_root(const size_t channel, const size_t mboard = 0) 
     return mb_root(mboard) + "/dboards/" + letter + "/rx_frontends/Channel_" + letter;
 }
 
-std::string crimson_tng_impl::rx_link_root(const size_t channel, const size_t mboard)
-{
-    return mb_root(mboard) + "/rx_link/" + std::to_string(channel);
-}
 
-std::string crimson_tng_impl::tx_link_root(const size_t channel, const size_t mboard)
-{
-    return mb_root(mboard) + "/tx_link/" + std::to_string(channel);
-}
-
-std::string crimson_tng_impl::tx_dsp_root(const size_t channel, const size_t mboard) {
-    return mb_root(mboard) + "/tx_dsps/" + std::to_string(channel);
-}
 
 static std::string tx_rf_fe_root(const size_t channel, const size_t mboard = 0) {
     auto letter = std::string(1, 'A' + channel);
@@ -119,141 +107,37 @@ static size_t pre_to_ch( const std::string & pre ) {
     return ch;
 }
 
-void crimson_tng_impl::lock_xx_channel_streaming(const size_t channel_num, const uhd::direction_t xx_sign) {
-    // Get the streaming lockfile for the tx/rx channel
-    int lock_fd;
-    switch(xx_sign) {
-        case RX_DIRECTION:
-            lock_fd = rx_streaming_lock_fd[channel_num];
-            break;
-        case TX_DIRECTION:
-            lock_fd = tx_streaming_lock_fd[channel_num];
-            break;
-        default:
-            throw uhd::value_error("Invalid 'xx_sign' argument. Expected either RX_DIRECTION or TX_DIRECTION of type uhd::direction_t");
-    }
-    // Set an exclusive lock on the channel lockfile. Nonblocking so it fails if already locked instead of waiting for it to be unlocked.
-    int r = flock(lock_fd, LOCK_EX | LOCK_NB);
-    if (r == -1) {
-        int err = errno;
-        // EWOULDBLOCK is expected if there is already a lock since we ran with the LOCK_NB flag.
-        if (err == EWOULDBLOCK) {
-            throw uhd::runtime_error("Another instance of UHD is currently using channel " + std::to_string(channel_num) + ".");
-        } else {
-            throw uhd::runtime_error("flock failed to lock streaming for channel " + std::to_string(channel_num) + " with error: " + std::string(strerror(err)));
-        }
-    }
-}
 
-// TODO: refactor so this function can be called even if this has been destructed
-// NOTE: this is called via the state tree and via a bound function to rx streamers. When refactoring make sure both used are handled
-void crimson_tng_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
-    const size_t ch = pre_to_ch( pre );
 
-    rx_stream_cmd_issuer[ch].issue_stream_command(stream_cmd);
-}
-
-// Loop that polls Crimson to verify the PPS is working
-void crimson_tng_impl::detect_pps( crimson_tng_impl *dev ) {
-
-    // Let other threads know this is running
-    dev->_pps_thread_running.store(true, std::memory_order_relaxed);
+void crimson_tng_impl::detect_pps_loop() {
+    _pps_thread_running.store(true, std::memory_order_relaxed);
 
     int pps_detected;
 
-    while (! dev->_pps_thread_should_exit.load(std::memory_order_relaxed)) {
-        dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").set(1);
-        pps_detected = dev->get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").get();
+    while (!_pps_thread_should_exit.load(std::memory_order_relaxed)) {
+        get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").set(1);
+        pps_detected = get_tree()->access<int>(CRIMSON_TNG_TIME_PATH / "pps_detected").get();
 
         if (pps_detected == 0) {
             std::cout << "WARNING: PPS has not been detected in the past two seconds" << std::endl;
-            // Stop PPS monitoring after one failure to avoid spamming the user with the same warning message
-            dev->_pps_thread_should_exit.store(true, std::memory_order_relaxed);
+            _pps_thread_should_exit.store(true, std::memory_order_relaxed);
         }
 #ifdef DEBUG_COUT
-            std::cout << "PPS flag: " << pps_detected << std::endl;
+        std::cout << "PPS flag: " << pps_detected << std::endl;
 #endif
-        // Check if it should exit every 10ms for up to 2s
         for (size_t i = 0; i < 200; i++) {
             usleep(10000);
-            if (dev->_pps_thread_should_exit.load(std::memory_order_relaxed)) {
+            if (_pps_thread_should_exit.load(std::memory_order_relaxed)) {
                 break;
             }
         }
     }
-    // Let other threads know this loop is stopping
-    dev->_pps_thread_running.store(false, std::memory_order_relaxed);
+    _pps_thread_running.store(false, std::memory_order_relaxed);
 }
 
-void crimson_tng_impl::set_command_time( const std::string key, time_spec_t value ) {
-    (void) key;
+std::string crimson_tng_impl::get_log_id() const { return product_name_c; }
+std::string crimson_tng_impl::get_prop_prefix() const { return "crimson:"; }
 
-    _command_time = value;
-}
-
-void crimson_tng_impl::send_gpio_burst_req(const gpio_burst_req& req) {
-    // TODO: Adjust the port is SFP A is unresponsive & confirm it works on other SFPs
-    _basic_sfp_iface[0]->send(boost::asio::const_buffer(&req, sizeof(req)));
-}
-
-//TODO: validate if this works
-// It is okay to leave set/get user reg here because it requires use of the SFP ports (which iface doesn't have) and will never be accessed by a streamer
-void crimson_tng_impl::set_user_reg(const std::string key, user_reg_t value) {
-    (void) key;
-
-    const uint8_t  address = value.first;
-    const uint64_t setting = value.second;
-
-    static uint64_t pins = 0x0;
-    static uint64_t mask = 0x0;
-
-    // Clearing.
-    const uint64_t all = 0xFFFFFFFF;
-    if(address == 0) pins &= ~(all << 0x00);
-    if(address == 1) pins &= ~(all << 0x20);
-    if(address == 2) mask &= ~(all << 0x00);
-    if(address == 3) mask &= ~(all << 0x20);
-
-    // Setting.
-    if(address == 0) pins |= (setting << 0x00);
-    if(address == 1) pins |= (setting << 0x20);
-    if(address == 2) mask |= (setting << 0x00);
-    if(address == 3) mask |= (setting << 0x20);
-
-    if(address > 3)
-        std::cout << "UHD: WARNING: User defined registers [4:256] not defined" << std::endl;
-
-    // Ship if address 3 was written to.
-    if(address == 3)
-    {
-        gpio_burst_req pkt;
-        pkt.header = ((uint64_t) 0x3) << 32;
-        // TODO: replace with the time set by time/clk/cmd
-        pkt.tv_sec = _command_time.get_full_secs();
-        pkt.tv_psec = _command_time.get_frac_secs() * 1e12;
-        pkt.pins = pins;
-        pkt.mask = mask;
-
-        std::printf(
-            "SHIPPING(set_user_reg):\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n"
-            "0x%016lX\n", pkt.header, pkt.tv_sec, pkt.tv_psec, pkt.pins, pkt.mask);
-
-        boost::endian::native_to_big_inplace(pkt.header);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_sec);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.tv_psec);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.pins);
-        boost::endian::native_to_big_inplace((uint64_t&) pkt.mask);
-        #ifdef DEBUG_COUT
-        std::cout << "GPIO packet size: " << sizeof(pkt) << " bytes" << std::endl;
-        #endif
-
-        send_gpio_burst_req(pkt);
-    }
-}
 
 void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {
     set_time_initiated(time_spec.get_full_secs());
@@ -261,47 +145,7 @@ void crimson_tng_impl::set_time_now(const time_spec_t& time_spec, size_t mboard)
     set_time_finished();
 }
 
-// TODO: handle case where clock sync is incomplete/failed
-uhd::time_spec_t crimson_tng_impl::get_time_now() {
-    return device_clock_sync_info->get_device_time();
-}
 
-void crimson_tng_impl::set_properties_from_addr() {
-
-    static const std::string crimson_prop_prefix( "crimson:" );
-    static const std::vector<std::string> blacklist { "crimson:sob" };
-
-    for( auto & prop: device_addr.keys() ) {
-        if ( 0 == prop.compare( 0, crimson_prop_prefix.length(), crimson_prop_prefix ) ) {
-
-            bool is_blacklisted = false;
-            for( auto & e: blacklist ) {
-                if ( e == prop ) {
-                    is_blacklisted = true;
-                }
-            }
-            if ( is_blacklisted ) {
-                continue;
-            }
-
-            std::string key = prop.substr( crimson_prop_prefix.length() );
-            std::string expected_string = device_addr[ prop ];
-
-            _mbc.iface->set_string( key, expected_string );
-
-            std::string actual_string = _mbc.iface->get_string( key );
-            if ( actual_string != expected_string ) {
-                UHD_LOGGER_ERROR(product_name_c + "_IMPL")
-                    << __func__ << "(): "
-                    << "Setting Crimson property failed: "
-                    << "key: '"<< key << "', "
-                    << "expected val: '" << expected_string << "', "
-                    << "actual val: '" << actual_string  << "'"
-                    << std::endl;
-            }
-        }
-    }
-}
 
 /***********************************************************************
 * Discovery over the udp transport
@@ -485,30 +329,7 @@ device_addrs_t crimson_tng_impl::crimson_tng_find(const device_addr_t &hint_)
     return addrs;
 }
 
-void crimson_tng_impl::start_pps_dtc() {
 
-    if ( ! _pps_thread_needed ) {
-        return;
-    }
-
-    if ( ! _pps_thread_running.load(std::memory_order_relaxed) ) {
-        _pps_thread_should_exit.store(false, std::memory_order_relaxed);
-        _pps_thread = std::thread( detect_pps, this );
-    }
-}
-
-void crimson_tng_impl::stop_pps_dtc() {
-
-    if ( ! _pps_thread_needed ) {
-        return;
-    }
-
-    if(_pps_thread.joinable()) {
-        _pps_thread_should_exit.store(true, std::memory_order_relaxed);
-        // Update _pps_thread_should_exit in other threads
-        _pps_thread.join();
-    }
-}
 
 /***********************************************************************
 * Make

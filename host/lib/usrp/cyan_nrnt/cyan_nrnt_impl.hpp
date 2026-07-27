@@ -34,43 +34,19 @@
 #include "uhd/transport/udp_zero_copy.hpp"
 
 #include "cyan_nrnt_fw_common.h"
-#include <uhdlib/usrp/common/pv_iface.hpp>
-#include <uhdlib/usrp/common/clock_sync.hpp>
-#include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
+#include "../pv_device/pv_device_impl.hpp"
 #include "cyan_nrnt_io_impl.hpp"
-#include <uhdlib/utils/system_time.hpp>
-#include <immintrin.h>
-#include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
-
-typedef std::pair<uint8_t, uint32_t> user_reg_t;
+#include <filesystem>
 
 namespace uhd {
 namespace usrp {
 
-#pragma pack(push,1)
-struct gpio_burst_req {
-    uint64_t header; // Frame 1
-    int64_t tv_sec;  // Frame 2
-    int64_t tv_psec; // Frame 2
-    uint64_t pins;   // Frame 3
-    uint64_t mask;   // Frame 3
-};
-#pragma pack(pop)
-
-}
-}
-
-namespace uhd {
-namespace usrp {
-
-class cyan_nrnt_impl : public uhd::device
+class cyan_nrnt_impl : public pv_device_impl
 {
 public:
     static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 4;
 
-    // Cache line size
-    // Assume it is 64, which is the case for virtually all AMD64 systems
-    static constexpr uint_fast8_t CACHE_LINE_SIZE = 64;
+
 
     // This is the core constructor to be called when a cyan_nrnt device is found
     cyan_nrnt_impl(const uhd::device_addr_t &, const bool use_dpdk, double freq_range_stop = CYAN_NRNT_FREQ_RANGE_STOP);
@@ -84,36 +60,9 @@ public:
     virtual uhd::rx_streamer::sptr get_rx_stream(const uhd::stream_args_t &args);
     virtual uhd::tx_streamer::sptr get_tx_stream(const uhd::stream_args_t &args);
 
-    bool recv_async_msg_deprecated_warning = false;
-    std::shared_ptr<uhd::pv_tx_async_msg_queue> _async_msg_fifo;
     bool recv_async_msg(uhd::async_metadata_t &, double);
 
-    uhd::device_addr_t device_addr;
-
-    uhd::time_spec_t get_time_now();
-
-    void start_pps_dtc();
-    void stop_pps_dtc();
-
 private:
-    // Advisory lock file descriptor for the device
-    int device_lock_fd;
-    // Lockfile descriptors to indicate a streamer has already been created for a channel
-    // Locked and unlocked during streamer construction/destruction
-    std::vector<int> tx_channel_lock_fd;
-    std::vector<int> rx_channel_lock_fd;
-    // Lockfile descriptors to indicate a channel is actively streaming
-    // Locked at start of stream and unlocked at end or while setting the channel rate
-    std::vector<int> tx_streaming_lock_fd;
-    std::vector<int> rx_streaming_lock_fd;
-
-    // Attempt to lock a channel as actively streaming. Throws a runtime error if channel is already locked.
-    // xx_sign: indicates whether this is for tx or rx
-    void lock_xx_channel_streaming(const size_t channel_num, const uhd::direction_t xx_sign);
-
-    std::string rx_link_root(const size_t channel, const size_t mboard = 0);
-    std::string tx_link_root(const size_t channel, const size_t mboard = 0);
-    std::string tx_dsp_root(const size_t channel, const size_t mboard = 0);
 
     // The buffer size in number of samples
     int64_t max_buffer_level;
@@ -134,47 +83,12 @@ private:
     // Flag to indicate the unit is a 3G unit being operated in 1G mode
     int flag_use_3g_as_1g;
 
-    // Changing the band results in the gain being reset. These are used to decide if a warning should be printed to let the user know
-    bool gain_reset_warning_printed = false;
-    std::vector<int> rx_gain_is_set;
-    std::vector<int> last_set_rx_band;
-    std::vector<int> tx_gain_is_set;
-    std::vector<int> last_set_tx_band;
+    void detect_pps_loop() override;
+    std::string get_log_id() const override;
+    std::string get_prop_prefix() const override;
 
-    // wrapper for type <stream_cmd_t> through the SFP ports
-    void set_stream_cmd(const std::string pre, uhd::stream_cmd_t data);
-
-    static void detect_pps(cyan_nrnt_impl *dev);
-
-
-    void set_command_time(const std::string key, uhd::time_spec_t value);
-    void send_gpio_burst_req(const gpio_burst_req& req);
-    void set_user_reg(const std::string key, user_reg_t value);
-
-    // set arbitrary crimson properties from dev_addr_t using mappings of the form "crimson:key" => "val"
-    void set_properties_from_addr();
-
-    /**
-     * UDP sockets for each SFP port used for sending rx command packets and buffer level requests
-     * NOTE: rx command packets and buffer level requests can use the same socket since rx commands are send only
-     * Any operations that require receiving (such as clock sync) must have their own socket
-     */
-    std::vector<uhd::transport::udp_simple::sptr> _basic_sfp_iface;
-
-    // device_clock_sync_info is the main location used to store clock sync info
-    // streamer_clock_sync_info contains the location to copy clock sync info to be shared with streamers
-    std::shared_ptr<clock_sync> device_clock_sync_info;
 
 private:
-
-    std::thread _pps_thread;
-    // Control variables for _pps_thread. Always use _mm_sfence/_mm_lfence after writing/before reading
-    bool _pps_thread_needed;
-    // TODO: replace _pps_thread_running with checks to the thread object
-    std::atomic<bool> _pps_thread_running;
-    std::atomic<bool> _pps_thread_should_exit;
-
-    time_spec_t _command_time;
 
     // Maximum frequency of the highest band
     double _freq_range_stop;

@@ -18,16 +18,12 @@
 #ifndef INCLUDED_CYAN_NRNT_IO_IMPL_HPP
 #define INCLUDED_CYAN_NRNT_IO_IMPL_HPP
 
-#include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
-#include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
-
-#include <uhdlib/usrp/common/pv_iface.hpp>
-#include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
+#include "../pv_device/pv_device_io_impl.hpp"
 
 namespace uhd {
 namespace usrp {
 
-class cyan_nrnt_recv_packet_streamer : public uhd::transport::sph::recv_packet_streamer_mmsg
+class cyan_nrnt_recv_packet_streamer : public pv_device_recv_packet_streamer
 {
 public:
 
@@ -42,23 +38,9 @@ public:
 
     void teardown();
 
-private:
-
-    std::vector<size_t> _channels;
-    std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
-    // Indicates a streamer has already been created for a channel
-    std::vector<int> _channel_locks;
-    // Indicates a channel is actively streaming 
-    std::vector<int> _streaming_locks;
-
-    /**
-    * A shared pointer to the interface used to access the server.
-    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-    */
-    pv_iface::sptr _iface;
 };
 
-class cyan_nrnt_send_packet_streamer : public uhd::transport::sph::send_packet_streamer_mmsg {
+class cyan_nrnt_send_packet_streamer : public pv_device_send_packet_streamer {
 public:
 
     typedef std::function<uhd::time_spec_t(void)> timenow_type;
@@ -89,70 +71,6 @@ public:
 
     void resize(const size_t size);
 
-    // Starts buffer monitor thread if it is not already running
-    inline void start_buffer_monitor_thread() {
-        _stop_buffer_monitor.store(false, std::memory_order_relaxed);
-
-        //spawn a thread to monitor the buffer level
-        _buffer_monitor_thread = std::thread( cyan_nrnt_send_packet_streamer::buffer_monitor_loop, this );
-        _buffer_monitor_running.store(true, std::memory_order_relaxed);
-    }
-
-    void stop_buffer_monitor_thread();
-
-protected:
-    void if_hdr_pack(uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
-
-    int64_t get_buffer_level_from_device(const size_t ch_i);
-
-private:
-    bool _first_call_to_send;
-    std::atomic<bool> _buffer_monitor_running;
-    std::atomic<bool> _stop_buffer_monitor;
-    std::thread _buffer_monitor_thread;
-    timenow_type _time_now;
-    // The sfp oflow counter value at start of streamer. Must be tracked since value only resets on reboot.
-    uint16_t _sfp_oflow_start;
-    uint16_t _max_sfp_oflow_count;
-
-    // extended per-channel properties, beyond what is available in sphc::send_packet_handler::xport_chan_props_type
-    struct eprops_type{
-        uhd::transport::zero_copy_if::sptr xport_chan;
-        xport_chan_fifo_lvl_abs_type xport_chan_fifo_lvl_abs;
-        uint64_t oflow;
-        uint64_t uflow;
-        /**
-        * Upper case channel letter.
-        */
-        std::string name;
-        eprops_type() : oflow( -1 ), uflow( -1 ) {}
-        eprops_type( const eprops_type & other )
-        :
-            xport_chan( other.xport_chan ),
-            oflow( other.oflow ),
-            uflow( other.uflow )
-        {}
-    };
-    std::vector<eprops_type> _eprops;
-
-    std::shared_ptr<std::vector<bool>> _tx_streamer_channel_in_use;
-    std::vector<int> _channel_locks;
-
-    bool _performance_warning_printed = false;
-
-    /**
-    * A shared pointer to the interface used to access the server.
-    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-    */
-    pv_iface::sptr _iface;
-
-    /***********************************************************************
-    * buffer_monitor_loop
-    * - DOES NOT update predicted buffer levels: predicted buffer level is based entirely on time. Having timestamps on every packet fixes dropped packets, and time diffs calculates the latency of sending data over the SFP. The benefit of having this update the buffer level is non-existent, the penalty of the inter-thread communication updating the bias is very significant when using no DDR mode
-    * - update over / underflow counters
-    * - put async message packets into queue
-    **********************************************************************/
-    static void buffer_monitor_loop( cyan_nrnt_send_packet_streamer *self );
 };
 
 }
