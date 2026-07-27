@@ -156,27 +156,9 @@ private:
     // Records if ping succeeded
     uint8_t sfp_working[NUMBER_OF_XG_CONTROL_INTF] ={0};
 
-    // Samples per second being using per channel
-    std::vector<double> tx_sfp_throughput_used;
-    // Used to check if a tx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> tx_channel_in_use;
-
-    // SFP link speed in bits per second
-    double link_rate_cache = 0;
     double get_link_rate();
-
-    bool tx_rate_warning_printed = false;
     void tx_rate_check(size_t ch, double rate_samples);
-
-    // Samples per second being using per channel
-    std::vector<double> rx_sfp_throughput_used;
-    // Used to check if a rx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> rx_channel_in_use;
-    bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
-
-    // Used to rx start/stop stream commands
-    std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
 
     // Full tx is a mode where tx channels C and D operate at full rate, but rx channels C and D are disabled
     // Update the error message in get_rx_stream if the number of rx channels ever changes

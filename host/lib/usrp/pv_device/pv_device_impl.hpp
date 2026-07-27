@@ -72,11 +72,33 @@ protected:
     std::string tx_link_root(const size_t channel, const size_t mboard = 0);
     std::string tx_dsp_root(const size_t channel, const size_t mboard = 0);
 
+    // Common device runtime/config state shared by Crimson/Cyan implementations
+    int64_t max_buffer_level;
+    int64_t buffer_level_multiple;
+    int nsamps_multiple_rx;
+    double max_sample_rate;
+    int otw_rx;
+    std::string otw_rx_s;
+    int otw_tx;
+    std::string otw_tx_s;
+
     bool gain_reset_warning_printed = false;
     std::vector<int> rx_gain_is_set;
     std::vector<int> last_set_rx_band;
     std::vector<int> tx_gain_is_set;
     std::vector<int> last_set_tx_band;
+
+    // Common per-channel streaming/rate tracking state
+    std::vector<double> tx_sfp_throughput_used;
+    std::shared_ptr<std::vector<bool>> tx_channel_in_use;
+    double link_rate_cache = 0;
+    bool tx_rate_warning_printed = false;
+
+    std::vector<double> rx_sfp_throughput_used;
+    std::shared_ptr<std::vector<bool>> rx_channel_in_use;
+    bool rx_rate_warning_printed = false;
+
+    std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
 
     void set_stream_cmd(const std::string pre, uhd::stream_cmd_t data);
     void set_command_time(const std::string key, uhd::time_spec_t value);

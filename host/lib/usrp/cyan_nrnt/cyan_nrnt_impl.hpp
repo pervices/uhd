@@ -63,22 +63,6 @@ public:
 
 private:
 
-    // The buffer size in number of samples
-    int64_t max_buffer_level;
-    // The number to multiply get buffer level requests by to get the actual buffer level in number of samples
-    int64_t buffer_level_multiple;
-
-    int nsamps_multiple_rx;
-
-    // The maximum smaple rate of the unit
-    double max_sample_rate;
-
-    // Over the wire format, int bits per half of the iq pair. i.e. 16 = sc16
-    int otw_rx;
-    std::string otw_rx_s;
-    int otw_tx;
-    std::string otw_tx_s;
-
     // Flag to indicate the unit is a 3G unit being operated in 1G mode
     int flag_use_3g_as_1g;
 
@@ -181,32 +165,14 @@ private:
     // Records if ping succeeded
     uint8_t sfp_working[NUMBER_OF_XG_CONTROL_INTF] ={0};
 
-    // Samples per second being using per channel
-    std::vector<double> tx_sfp_throughput_used;
-    // Used to check if a tx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> tx_channel_in_use;
-
-    // SFP link speed in bits per second
-    double link_rate_cache = 0;
     double get_link_rate();
-
-    bool tx_rate_warning_printed = false;
     void tx_rate_check(size_t ch, double rate_samples);
-
-    // Samples per second being using per channel
-    std::vector<double> rx_sfp_throughput_used;
-    // Used to check if a rx channel's rate should be counted towards the max rate check
-    std::shared_ptr<std::vector<bool>> rx_channel_in_use;
-    bool rx_rate_warning_printed = false;
     void rx_rate_check(size_t ch, double rate_samples);
 
     // Stores the deault rate rx boards operate at so that is doesn't need to be asked every time it is accessed
     std::vector<double> rx_rfe_rate_cache;
 
     const bool _use_dpdk;
-
-    // Used to rx start/stop stream commands
-    std::vector<stream_cmd_issuer> rx_stream_cmd_issuer;
 };
 
 }
