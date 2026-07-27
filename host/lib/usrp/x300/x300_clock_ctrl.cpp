@@ -379,7 +379,7 @@ public:
             std::format(
                 "x300_clock_ctrl::set_clock_delay: Which={}, Requested={}, Digital "
                 "Taps={}, Half Shift={}, Analog Delay={} ({}), Coerced Delay={}ns",
-                which, delay_ns, ddly_value, (half_shift_en ? "ON" : "OFF"),
+                static_cast<int>(which), delay_ns, ddly_value, (half_shift_en ? "ON" : "OFF"),
                 ((int)adly_value), (adly_en ? "ON" : "OFF"), coerced_delay));
 
         // Apply settings

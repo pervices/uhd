@@ -293,8 +293,7 @@ static void octoclock_verify(octoclock_session_t& session)
         pkt_out.sequence = uhd::htonx<uint32_t>(++session.sequence);
         pkt_out.addr     = i * OCTOCLOCK_BLOCK_SIZE;
 
-        std::cout << str(
-            std::format("\r -- Verifying firmware load: {}%% ({}/{} blocks)",
+        std::cout << std::format("\r -- Verifying firmware load: {}% ({}/{} blocks)",
             static_cast<int>((double(i) / double(session.num_blocks)) * 100), i,
             session.num_blocks)
                   << std::flush;
@@ -355,7 +354,7 @@ bool octoclock_image_loader(const image_loader::image_loader_args_t& image_loade
     if (!session.found or !image_loader_args.load_firmware)
         return false;
 
-    std::cout << std::format("Unit: OctoClock ({})\n", session.dev_addr["addr"])
+    std::cout << std::format("Unit: OctoClock ({})\n", session.dev_addr["addr"]);
     std::cout << "Firmware: " << session.image_filepath << std::endl;
 
     octoclock_burn(session);

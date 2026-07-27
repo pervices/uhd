@@ -474,8 +474,7 @@ uhd::compat_num32 x300_impl::check_fpga_compat(
 
     if (compat_major != X300_FPGA_COMPAT_MAJOR || compat_minor < X300_FPGA_COMPAT_MINOR) {
         const std::string image_loader_path = uhd::find_uhd_command("uhd_image_loader");
-        const std::string image_loader_cmd  = str(
-            std::format("\"{}\" --args=\"type=x300,{}={}\"", image_loader_path,
+        const std::string image_loader_cmd  = std::format("\"{}\" --args=\"type=x300,{}={}\"", image_loader_path,
             (members.xport_path == xport_path_t::ETH ? "addr" : "resource"),
             (members.xport_path == xport_path_t::ETH ? members.args.get_first_addr()
                                                         : members.args.get_resource()));
