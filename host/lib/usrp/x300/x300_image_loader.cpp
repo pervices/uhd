@@ -337,7 +337,7 @@ static void x300_ethernet_load(x300_session_t& session)
     // Each sector
     for (size_t i = 0; i < session.size; i += X300_FLASH_SECTOR_SIZE) {
         // Print progress percentage at beginning of each sector
-        std::cout << std::format("\r-- Loading {}FPGA image: {}% ({}/{s} sectors)",
+        std::cout << std::format("\r-- Loading {}FPGA image: {}% ({}/{} sectors)",
             (session.fpga_type.empty() ? "" : (session.fpga_type + " ")),
             static_cast<int>(static_cast<double>(i) / static_cast<double>(session.size) * 100.0),
             (i / X300_FLASH_SECTOR_SIZE),

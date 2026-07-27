@@ -248,14 +248,14 @@ octoclock_impl::octoclock_impl(const device_addr_t& _device_addr)
         _proto_ver = _get_fw_version(oc);
         if (_proto_ver < OCTOCLOCK_FW_MIN_COMPAT_NUM
             or _proto_ver > OCTOCLOCK_FW_COMPAT_NUM) {
-            throw uhd::runtime_error(str(
+            throw uhd::runtime_error(
                 std::format(
                     "\n\nPlease update your OctoClock's firmware.\n"
                     "Expected firmware compatibility number {}, but got {}:\n"
                     "The firmware build is not compatible with the host code build.\n\n"
                     "{}\n",
-                static_cast<int>(OCTOCLOCK_FW_COMPAT_NUM), static_cast<int>(_proto_ver)
-                _get_images_help_message(addr))));
+                static_cast<int>(OCTOCLOCK_FW_COMPAT_NUM), static_cast<int>(_proto_ver),
+                _get_images_help_message(addr)));
         }
         _tree->create<std::string>(oc_path / "fw_version")
             .set(std::to_string(int(_proto_ver)));
@@ -323,7 +323,7 @@ octoclock_impl::octoclock_impl(const device_addr_t& _device_addr)
         } else
             UHD_LOGGER_INFO("OCTOCLOCK") << "No GPSDO found";
         UHD_LOGGER_INFO("OCTOCLOCK")
-            << std::format("{}Detecting external reference...{}", asterisk
+            << std::format("{}Detecting external reference...{}", asterisk,
                    _ext_ref_detected(oc).value);
         UHD_LOGGER_INFO("OCTOCLOCK") << std::format("{}Detecting switch position...{}",
                                             asterisk, _switch_pos(oc).value);

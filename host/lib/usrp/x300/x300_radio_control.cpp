@@ -1233,7 +1233,7 @@ public:
         if ((i_status != "Good") or (q_status != "Good")) {
             throw uhd::runtime_error(
                 std::format("ADC self-test failed for {}. Ramp checker status: "
-                               "{ADC_A={}, ADC_B={}}",
+                               "{{ADC_A={}, ADC_B={}}}",
                     get_unique_id(), i_status, q_status)
             );
         }
