@@ -37,6 +37,9 @@ build() {
     cd ${srcdir}/$_gitname/host
     mkdir -p build
     cd build
+    # Enable Per Vice's devices
+    # Disable other devices since we do not support them with this fork
+    # MPMD and SUM may not be needed but included just in case
     cmake \
        -DCMAKE_INSTALL_PREFIX=/usr/ \
        -DPYTHON_EXECUTABLE=/usr/bin/python3 \
@@ -52,10 +55,18 @@ build() {
        -DENABLE_B100=OFF \
        -DENABLE_X300=OFF \
        -DENABLE_CRIMSON_TNG=ON \
+       -DENABLE_CYAN_NRNT=ON \
+       -DENABLE_CHESTNUT=ON \
+       -DENABLE_X400=OFF \
+       -DENABLE_MPMD=ON \
+       -DENABLE_SIM=ON \
+       -DENABLE_N320=OFF \
+       -DENABLE_E300=OFF \
        -DENABLE_OCTOCLOCK=OFF \
        -DENABLE_DOXYGEN=OFF \
        -DENABLE_USB=OFF \
        -DENABLE_LIBURING=ON \
+       -DENABLE_PYMOD_UTILS=OFF \
        -DENABLE_PYTHON_API=ON \
        -DENABLE_STATIC_LIBS=OFF \
        ..
