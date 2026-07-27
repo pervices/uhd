@@ -103,19 +103,9 @@ crimson_tng_send_packet_streamer::crimson_tng_send_packet_streamer(const std::st
 
 crimson_tng_send_packet_streamer::~crimson_tng_send_packet_streamer() = default;
 
-void crimson_tng_send_packet_streamer::set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
-    _eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
-}
-void crimson_tng_send_packet_streamer::set_channel_name( size_t chan, std::string name ) {
-    _eprops.at(chan).name = name;
-}
 // Stores the channel sample rate in eprops variable
 void crimson_tng_send_packet_streamer::sync_channel_rate( size_t chan, double rate ) {
-    size_t channel_index = std::distance(_channels, std::find(_channels, _channels + _NUM_CHANNELS, chan));
-    _eprops.at(channel_index).sample_rate = rate;
-}
-void crimson_tng_send_packet_streamer::resize(const size_t size){
-    _eprops.resize( size );
+    pv_device_send_packet_streamer::sync_channel_rate(chan, rate);
 }
 
 // Check that all channels on a streamer have the same sample rate.
@@ -125,7 +115,7 @@ void crimson_tng_send_packet_streamer::check_matching_rates() {
     double prev_rate = _eprops[0].sample_rate;
     for (auto &e : _eprops) {
         if (e.sample_rate != prev_rate) {
-            UHD_LOG_ERROR(_product_name_c, mismatch_message);
+            UHD_LOG_ERROR(_log_id, mismatch_message);
             throw uhd::runtime_error(mismatch_message);
         }
         prev_rate = e.sample_rate;

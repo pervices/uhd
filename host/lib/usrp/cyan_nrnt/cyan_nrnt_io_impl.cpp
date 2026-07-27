@@ -94,17 +94,6 @@ cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector
 
 cyan_nrnt_send_packet_streamer::~cyan_nrnt_send_packet_streamer() = default;
 
-void cyan_nrnt_send_packet_streamer::set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs ) {
-    _eprops.at(chan).xport_chan_fifo_lvl_abs = get_fifo_lvl_abs;
-}
-void cyan_nrnt_send_packet_streamer::set_channel_name( size_t chan, std::string name ) {
-    _eprops.at(chan).name = name;
-}
-
-void cyan_nrnt_send_packet_streamer::resize(const size_t size){
-    _eprops.resize( size );
-}
-
 
 
 /***********************************************************************

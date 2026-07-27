@@ -146,6 +146,8 @@ void cyan_nrnt_impl::detect_pps_loop() {
 
 std::string cyan_nrnt_impl::get_log_id() const { return CYAN_NRNT_DEBUG_NAME_C; }
 std::string cyan_nrnt_impl::get_prop_prefix() const { return "crimson:"; }
+std::vector<stream_cmd_issuer>& cyan_nrnt_impl::get_rx_stream_cmd_issuer() { return rx_stream_cmd_issuer; }
+pv_iface::sptr cyan_nrnt_impl::get_mb_iface() { return _mbc.iface; }
 
 
 void cyan_nrnt_impl::set_time_now(const time_spec_t& time_spec, size_t mboard) {

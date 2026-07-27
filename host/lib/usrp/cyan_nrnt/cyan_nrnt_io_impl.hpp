@@ -34,17 +34,12 @@ public:
 
     ~cyan_nrnt_recv_packet_streamer();
 
-    void if_hdr_unpack(const uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
 
-    void teardown();
 
 };
 
 class cyan_nrnt_send_packet_streamer : public pv_device_send_packet_streamer {
 public:
-
-    typedef std::function<uhd::time_spec_t(void)> timenow_type;
-    typedef std::function<void(uint64_t&,uint64_t&,uint64_t&,uhd::time_spec_t&)> xport_chan_fifo_lvl_abs_type;
 
     /**
     * @param iface The interface to access thes server
@@ -53,23 +48,7 @@ public:
 
     ~cyan_nrnt_send_packet_streamer();
 
-    void teardown();
 
-    size_t send(
-        const tx_streamer::buffs_type &buffs,
-        const size_t nsamps_per_buff,
-        const uhd::tx_metadata_t &metadata_,
-        const double timeout
-    );
-
-    // Calls the function from the device to get the time on the device if it has been set, otherwise get's the host's system time
-    uhd::time_spec_t get_time_now();
-
-    void set_xport_chan_fifo_lvl_abs( size_t chan, xport_chan_fifo_lvl_abs_type get_fifo_lvl_abs );
-
-    void set_channel_name( size_t chan, std::string name );
-
-    void resize(const size_t size);
 
 };
 

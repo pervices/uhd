@@ -36,7 +36,6 @@
 #include "cyan_nrnt_fw_common.h"
 #include "../pv_device/pv_device_impl.hpp"
 #include "cyan_nrnt_io_impl.hpp"
-#include <filesystem>
 
 namespace uhd {
 namespace usrp {
@@ -86,6 +85,8 @@ private:
     void detect_pps_loop() override;
     std::string get_log_id() const override;
     std::string get_prop_prefix() const override;
+    std::vector<stream_cmd_issuer>& get_rx_stream_cmd_issuer() override;
+    pv_iface::sptr get_mb_iface() override;
 
 
 private:

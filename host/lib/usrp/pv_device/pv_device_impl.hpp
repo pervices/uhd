@@ -57,6 +57,8 @@ protected:
     virtual std::string get_log_id() const = 0;
     virtual std::string get_prop_prefix() const = 0;
     virtual void detect_pps_loop() = 0;
+    virtual std::vector<stream_cmd_issuer>& get_rx_stream_cmd_issuer() = 0;
+    virtual pv_iface::sptr get_mb_iface() = 0;
 
     int device_lock_fd;
     std::vector<int> tx_channel_lock_fd;

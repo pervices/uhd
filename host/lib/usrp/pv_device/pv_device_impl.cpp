@@ -1,5 +1,10 @@
 #include <boost/asio.hpp>
 #include <boost/endian/conversion.hpp>
+#include <uhd/exception.hpp>
+#include <uhd/utils/log.hpp>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
 
 #include "pv_device_impl.hpp"
 
@@ -69,7 +74,7 @@ void pv_device_impl::lock_xx_channel_streaming(const size_t channel_num, const u
 
 void pv_device_impl::set_stream_cmd( const std::string pre, stream_cmd_t stream_cmd ) {
     const size_t ch = pre_to_ch( pre );
-    rx_stream_cmd_issuer[ch].issue_stream_command(stream_cmd);
+    get_rx_stream_cmd_issuer()[ch].issue_stream_command(stream_cmd);
 }
 
 void pv_device_impl::set_command_time( const std::string key, time_spec_t value ) {
@@ -154,8 +159,8 @@ void pv_device_impl::set_properties_from_addr() {
             std::string key = prop.substr( prop_prefix.length() );
             std::string expected_string = device_addr[ prop ];
 
-            _mbc.iface->set_string( key, expected_string );
-            std::string actual_string = _mbc.iface->get_string( key );
+            get_mb_iface()->set_string( key, expected_string );
+            std::string actual_string = get_mb_iface()->get_string( key );
             if ( actual_string != expected_string ) {
                 UHD_LOGGER_ERROR(get_log_id() + "_IMPL")
                     << __func__ << "(): "
