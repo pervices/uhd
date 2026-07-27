@@ -22,12 +22,13 @@
 #include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
 
 #include <uhdlib/usrp/common/pv_iface.hpp>
+#include <uhdlib/usrp/pv_device/pv_device_recv_packet_streamer.hpp>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
 
 namespace uhd {
 namespace usrp {
 
-class cyan_nrnt_recv_packet_streamer : public uhd::transport::sph::recv_packet_streamer_mmsg
+class cyan_nrnt_recv_packet_streamer : public pv_device_recv_packet_streamer
 {
 public:
 
@@ -41,21 +42,6 @@ public:
     void if_hdr_unpack(const uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
 
     void teardown();
-
-private:
-
-    std::vector<size_t> _channels;
-    std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
-    // Indicates a streamer has already been created for a channel
-    std::vector<int> _channel_locks;
-    // Indicates a channel is actively streaming 
-    std::vector<int> _streaming_locks;
-
-    /**
-    * A shared pointer to the interface used to access the server.
-    * When using this to access properties use the actual path on the server and use the get function in pv_iface instead of the mapping and access command from the property tree
-    */
-    pv_iface::sptr _iface;
 };
 
 class cyan_nrnt_send_packet_streamer : public uhd::transport::sph::send_packet_streamer_mmsg {
