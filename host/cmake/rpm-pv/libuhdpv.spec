@@ -64,8 +64,39 @@ source /opt/rh/gcc-toolset-13/enable
 find . -type f -name "*.py" -exec sed -i '/^#!/ s|.*|#!%{__python3}|' {} \;
 mkdir -p host/build
 pushd host/build
-%cmake %{?have_neon} -DPKG_LIB_DIR="/usr/lib/uhd" -DCMAKE_INSTALL_PREFIX="/usr" -DENABLE_CRIMSON_TNG="ON" -DENABLE_EXAMPLES="ON" -DENABLE_TESTS="OFF"  -DENABLE_N300="OFF"  -DENABLE_E320="OFF" -DENABLE_USRP1="OFF" -DENABLE_B200="OFF" -DENABLE_X300="OFF" -DENABLE_OCTOCLOCK="OFF" -DENABLE_DOXYGEN="OFF" -DENABLE_LIBURING="OFF" -DENABLE_PYTHON_API="ON" \
- ../
+# Enable Per Vice's devices
+# Disable other devices since we do not support them with this fork
+# MPMD and SUM may not be needed but included just in case
+%cmake %{?have_neon} \
+    -DPKG_LIB_DIR="/usr/lib/uhd" \
+    -DCMAKE_INSTALL_PREFIX="/usr" \
+    -DENABLE_EXAMPLES=ON \
+    -DENABLE_UTILS=ON \
+    -DENABLE_DPDK=OFF \
+    -DENABLE_TESTS=OFF \
+    -DENABLE_N300=OFF \
+    -DENABLE_E320=OFF \
+    -DENABLE_USRP1=OFF \
+    -DENABLE_USRP2=ON \
+    -DENABLE_B200=OFF \
+    -DENABLE_B100=OFF \
+    -DENABLE_X300=OFF \
+    -DENABLE_CRIMSON_TNG=ON \
+    -DENABLE_CYAN_NRNT=ON \
+    -DENABLE_CHESTNUT=ON \
+    -DENABLE_X400=OFF \
+    -DENABLE_MPMD=ON \
+    -DENABLE_SIM=ON \
+    -DENABLE_N320=OFF \
+    -DENABLE_E300=OFF \
+    -DENABLE_OCTOCLOCK=OFF \
+    -DENABLE_DOXYGEN=OFF \
+    -DENABLE_USB=OFF \
+    -DENABLE_LIBURING=OFF \
+    -DENABLE_PYMOD_UTILS=ON \
+    -DENABLE_PYTHON_API=ON \
+    -DENABLE_STATIC_LIBS=OFF \
+    ../
 make %{?_smp_mflags}
 #make -j1 
 popd
