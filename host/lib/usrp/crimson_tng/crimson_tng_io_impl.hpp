@@ -36,18 +36,6 @@ public:
     * @param iface The interface to access thes server
     */
     crimson_tng_recv_packet_streamer(const std::string product_name_c, const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian,  std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer, std::vector<int> channel_locks, std::vector<int> streaming_locks);
-
-    ~crimson_tng_recv_packet_streamer();
-
-    void if_hdr_unpack(const uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info);
-
-    void teardown();
-
-private:
-
-    // The product name in all capitals
-    // Used for messages to the user, should not be used for anything else
-    const std::string _product_name_c;
 };
 
 class crimson_tng_send_packet_streamer : public uhd::transport::sph::send_packet_streamer_mmsg {

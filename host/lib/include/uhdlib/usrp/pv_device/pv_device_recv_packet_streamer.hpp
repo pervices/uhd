@@ -25,8 +25,8 @@ namespace uhd {
 namespace usrp {
 
 /**
- * Base class containing the state common to all Per Vices device receive
- * packet streamers (e.g. crimson_tng_recv_packet_streamer and
+ * Base class containing the state and behaviour common to all Per Vices
+ * device receive packet streamers (e.g. crimson_tng_recv_packet_streamer and
  * cyan_nrnt_recv_packet_streamer).
  */
 class pv_device_recv_packet_streamer : public uhd::transport::sph::recv_packet_streamer_mmsg
@@ -34,6 +34,7 @@ class pv_device_recv_packet_streamer : public uhd::transport::sph::recv_packet_s
 public:
 
     pv_device_recv_packet_streamer(
+        const std::string product_name_c,
         const std::vector<size_t> channels,
         const std::vector<int>& recv_sockets,
         const std::vector<std::string>& dst_ip,
@@ -49,18 +50,21 @@ public:
         std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer,
         std::vector<int> channel_locks,
         std::vector<int> streaming_locks
-    )
-    : uhd::transport::sph::recv_packet_streamer_mmsg(channels, recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, device_total_rx_channels, cmd_issuer, streaming_locks),
-    _channels(channels),
-    _rx_streamer_channel_in_use(rx_channel_in_use),
-    _channel_locks(channel_locks),
-    _streaming_locks(streaming_locks),
-    _iface(iface)
-    {}
+    );
 
-    virtual ~pv_device_recv_packet_streamer() = default;
+    // Pure virtual destructor (with a definition in the .cpp) so this class
+    // cannot be instantiated directly; it only exists to be inherited from.
+    virtual ~pv_device_recv_packet_streamer() = 0;
+
+    void if_hdr_unpack(const uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info) override;
+
+    void teardown();
 
 protected:
+
+    // The product name in all capitals
+    // Used for messages to the user, should not be used for anything else
+    const std::string _product_name_c;
 
     std::vector<size_t> _channels;
     std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;

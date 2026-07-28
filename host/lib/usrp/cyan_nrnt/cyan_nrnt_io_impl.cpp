@@ -83,54 +83,8 @@ namespace asio = boost::asio;
 namespace pt = boost::posix_time;
 
 cyan_nrnt_recv_packet_streamer::cyan_nrnt_recv_packet_streamer(const std::vector<size_t> channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> rx_channel_in_use, size_t device_total_rx_channels, pv_iface::sptr iface, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuer, std::vector<int> channel_locks, std::vector<int> streaming_locks)
-: pv_device_recv_packet_streamer(channels, recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, rx_channel_in_use, device_total_rx_channels, iface, cmd_issuer, channel_locks, streaming_locks)
+: pv_device_recv_packet_streamer(CYAN_NRNT_DEBUG_NAME_C, channels, recv_sockets, dst_ip, max_sample_bytes_per_packet, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, cpu_format, wire_format, wire_little_endian, rx_channel_in_use, device_total_rx_channels, iface, cmd_issuer, channel_locks, streaming_locks)
 {
-    // Attempt to lock each channel used by this streamer. This channel will remain locked for the lifetime of this streamer.
-    // This is just advisory so an error will be printed if it was locked or could not get the lock but the program will continue.
-    for (size_t n = 0; n < channels.size(); n++) {
-        int lock_fd = _channel_locks[channels[n]];
-        int r = flock(lock_fd, LOCK_EX | LOCK_NB);
-        if (r == -1) {
-            int err = errno;
-            if (err == EWOULDBLOCK) {
-                // Since flock was run with the nonblocking flag, errno will be EWOULDBLOCK if this channel was already locked
-               std::string err_msg = "Another UHD streamer has already been created using channel " + std::to_string(_channels[n]) + " which may cause unexpected behaviour.";
-                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, err_msg);
-            } else {
-                UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to place lock on channel " + std::to_string(_channels[n]) + " lockfile.\nflock failed with error: " + std::string(strerror(err)));
-            }
-        }
-    }
-
-    _rx_streamer_channel_in_use = rx_channel_in_use;
-    for(size_t n = 0; n < channels.size(); n++) {
-        _rx_streamer_channel_in_use->at(channels[n]) = true;
-    }
-}
-
-cyan_nrnt_recv_packet_streamer::~cyan_nrnt_recv_packet_streamer() {
-    // TODO: see if having teardown seperate from the destructor is still required
-    teardown();
-}
-
-void cyan_nrnt_recv_packet_streamer::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
-    vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
-}
-
-void cyan_nrnt_recv_packet_streamer::teardown() {
-
-    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-        // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns off the outward facing LED on the board
-        // Does not actually turn off board
-        _iface->set_string("rx/" + std::string(1, (char) (_channels[n] + 'a')) + "/stream", "0");
-        _iface->set_string("rx/" + std::string(1, (char) (_channels[n] + 'a')) + "/pwr", "0");
-
-        // Marks this channel as not in use for the purposes of the check if the SFP can handle the combined rates on it
-        _rx_streamer_channel_in_use->at(_channels[n]) = false;
-
-        // Release channel locks
-        flock(_channel_locks[_channels[n]], LOCK_UN);
-    }
 }
 
 cyan_nrnt_send_packet_streamer::cyan_nrnt_send_packet_streamer(const std::vector<size_t>& channels, const size_t max_num_samps, const size_t max_bl, std::vector<std::string>& dst_ips, std::vector<int>& dst_ports, int64_t device_target_nsamps, const size_t nsamp_multiple, const std::shared_ptr<uhd::pv_tx_async_msg_queue> async_msg_fifo, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, std::shared_ptr<std::vector<bool>> tx_channel_in_use, pv_iface::sptr iface, std::shared_ptr<uhd::usrp::clock_sync> clock_sync_info, std::vector<int> channel_locks, std::vector<int> streaming_locks)
