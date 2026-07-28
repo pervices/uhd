@@ -66,6 +66,7 @@ build() {
        -DENABLE_DOXYGEN=OFF \
        -DENABLE_USB=OFF \
        -DENABLE_LIBURING=ON \
+       -DENABLE_PYMOD_UTILS=ON \
        -DENABLE_PYTHON_API=ON \
        -DENABLE_STATIC_LIBS=OFF \
        ..
