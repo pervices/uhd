@@ -25,9 +25,9 @@ namespace uhd {
 namespace usrp {
 
 /**
- * Base class containing the state and behaviour common to all Per Vices
- * device receive packet streamers (e.g. crimson_tng_recv_packet_streamer and
- * cyan_nrnt_recv_packet_streamer).
+ * Receive packet streamer used by all Per Vices devices (Crimson TNG,
+ * Cyan NRNT, Chestnut, etc). There is no device-specific receive streaming
+ * behaviour, so a single concrete class is shared by all of them.
  */
 class pv_device_recv_packet_streamer : public uhd::transport::sph::recv_packet_streamer_mmsg
 {
@@ -52,9 +52,7 @@ public:
         std::vector<int> streaming_locks
     );
 
-    // Pure virtual destructor (with a definition in the .cpp) so this class
-    // cannot be instantiated directly; it only exists to be inherited from.
-    virtual ~pv_device_recv_packet_streamer() = 0;
+    virtual ~pv_device_recv_packet_streamer();
 
     void if_hdr_unpack(const uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info) override;
 
