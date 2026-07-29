@@ -14,7 +14,7 @@
 
 #include <boost/bind.hpp>
 
-#include "../lib/usrp/crimson_tng/crimson_tng_fw_common.h"
+#include "../lib/usrp/crimson_tng/crimson_tng_fw_common.hpp"
 
 #define TREE_CREATE_ST(PATH, TYPE, VAL) \
 	_tree->create<TYPE>(PATH).set(VAL)

@@ -24,7 +24,7 @@
 #include <bits/stdc++.h>
 
 #include "crimson_tng_impl.hpp"
-#include "crimson_tng_fw_common.h"
+#include "crimson_tng_fw_common.hpp"
 
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_simple.hpp"
@@ -312,7 +312,7 @@ device_addrs_t crimson_tng_impl::crimson_tng_find_with_addr(const device_addr_t 
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
+        hint["addr"], std::to_string(CRIMSON_TNG_FW_COMMS_UDP_PORT));
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
@@ -366,7 +366,7 @@ device_addrs_t crimson_tng_impl::crimson_tng_find_with_addr(const device_addr_t 
         std::transform(product_name.begin(), product_name.end(), std::back_inserter(product_name_c_l), ::toupper);
 
         udp_simple::sptr comm = udp_simple::make_connected(
-        addr["addr"], BOOST_STRINGIZE(CRIMSON_TNG_FW_COMMS_UDP_PORT));
+        addr["addr"], std::to_string(CRIMSON_TNG_FW_COMMS_UDP_PORT));
 
 
         size_t bytes_sent = comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
@@ -1034,8 +1034,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
         // RX bandwidth
-        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
-        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL(_max_rate) );
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL(_max_rate), (double) CRIMSON_TNG_BW_FULL(_max_rate) ) );
 
         TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
             meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
@@ -1080,11 +1080,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         case 'C':
         case 'D':
             TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-                meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+                meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STEP));
             TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-                meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+                meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
             TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-                meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+                meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL(_max_rate), (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
             break;
         }
 
@@ -1164,8 +1164,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
         // TX bandwidth
         // NOTE: this is not true for quarter rate DACs
-        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL );
-        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL, (double) CRIMSON_TNG_BW_FULL ) );
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL(_max_rate) );
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CRIMSON_TNG_BW_FULL(_max_rate), (double) CRIMSON_TNG_BW_FULL(_max_rate) ) );
 
         TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
             meta_range_t((double) CRIMSON_TNG_FREQ_RANGE_START, (double) _max_lo, (double) CRIMSON_TNG_FREQ_RANGE_STEP));
@@ -1201,31 +1201,31 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         if(is_full_tx) {
             // On full tx Crimson all tx channels can operate at the maximum rate
             TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-                meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+                meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STEP));
             TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-                meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+                meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
             TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-                meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+                meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL(_max_rate), (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
         } else {
             // Ch C and D operate at a quarter rate on normal Crimsons
             switch( dspno + 'A' ) {
             case 'A':
             case 'B':
                 TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-                    meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+                    meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STOP_FULL(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STEP));
                 TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-                    meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+                    meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_FULL(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_FULL(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
                 TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-                    meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+                    meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_FULL(_max_rate), (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
                 break;
             case 'C':
             case 'D':
                 TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-                    meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START, (double) CRIMSON_TNG_RATE_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_RATE_RANGE_STEP));
+                    meta_range_t((double) CRIMSON_TNG_RATE_RANGE_START(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STOP_QUARTER(_max_rate), (double) CRIMSON_TNG_RATE_RANGE_STEP));
                 TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-                    meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER, (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
+                    meta_range_t((double) CRIMSON_TNG_DSP_FREQ_RANGE_START_QUARTER(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STOP_QUARTER(_max_rate), (double) CRIMSON_TNG_DSP_FREQ_RANGE_STEP));
                 TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-                    meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_QUARTER, (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
+                    meta_range_t((double) CRIMSON_TNG_DSP_BW_START, (double) CRIMSON_TNG_DSP_BW_STOP_QUARTER(_max_rate), (double) CRIMSON_TNG_DSP_BW_STEPSIZE));
                 break;
             }
         }

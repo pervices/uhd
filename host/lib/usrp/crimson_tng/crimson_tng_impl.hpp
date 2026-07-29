@@ -31,7 +31,7 @@
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "crimson_tng_fw_common.h"
+#include "crimson_tng_fw_common.hpp"
 #include <uhdlib/usrp/common/pv_iface.hpp>
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>

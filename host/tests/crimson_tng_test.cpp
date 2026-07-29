@@ -13,7 +13,7 @@
 #include <uhd/usrp/multi_usrp.hpp>
 #include <uhd/utils/static.hpp>
 
-#include "../lib/usrp/crimson_tng/crimson_tng_fw_common.h"
+#include "../lib/usrp/crimson_tng/crimson_tng_fw_common.hpp"
 #include "../lib/usrp/crimson_tng/crimson_tng_impl.hpp"
 
 constexpr size_t NUM_RX_CHANNELS = 4;

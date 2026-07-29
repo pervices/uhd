@@ -25,7 +25,7 @@
 
 #include "crimson_tng_io_impl.hpp"
 #include "crimson_tng_impl.hpp"
-#include "crimson_tng_fw_common.h"
+#include "crimson_tng_fw_common.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/exception.hpp>
