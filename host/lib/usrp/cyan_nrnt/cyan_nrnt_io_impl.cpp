@@ -25,7 +25,7 @@
 
 #include "cyan_nrnt_io_impl.hpp"
 #include "cyan_nrnt_impl.hpp"
-#include "cyan_nrnt_fw_common.h"
+#include "cyan_nrnt_fw_common.hpp"
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/tasks.hpp>
 #include <uhd/exception.hpp>
@@ -247,7 +247,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     }
 
     if (args.otw_format != otw_rx_s){
-        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " RX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S + " RX cannot handle requested wire format: " + args.otw_format);
     }
 
 
@@ -562,7 +562,7 @@ tx_streamer::sptr cyan_nrnt_impl::get_tx_stream(const uhd::stream_args_t &args_)
     }
 
     if (args.otw_format != otw_tx_s){
-        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S " TX cannot handle requested wire format: " + args.otw_format);
+        throw uhd::value_error(CYAN_NRNT_DEBUG_NAME_S + " TX cannot handle requested wire format: " + args.otw_format);
     }
 
     const size_t spp = CYAN_NRNT_MAX_SEND_SAMPLE_BYTES/convert::get_bytes_per_item(args.otw_format);

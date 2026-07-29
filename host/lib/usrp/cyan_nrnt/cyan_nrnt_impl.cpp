@@ -26,7 +26,7 @@
 #include <numeric>
 
 #include "cyan_nrnt_impl.hpp"
-#include "cyan_nrnt_fw_common.h"
+#include "cyan_nrnt_fw_common.hpp"
 
 #include "uhd/transport/if_addrs.hpp"
 #include "uhd/transport/udp_simple.hpp"
@@ -301,9 +301,9 @@ void cyan_nrnt_impl::set_properties_from_addr() {
 
             std::string actual_string = _mbc.iface->get_string( key );
             if ( actual_string != expected_string ) {
-                UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C "_IMPL")
+                UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C + "_IMPL")
                     << __func__ << "(): "
-                    << "Setting " CYAN_NRNT_DEBUG_NAME_S "  property failed: "
+                    << "Setting " << CYAN_NRNT_DEBUG_NAME_S << "  property failed: "
                     << "key: '"<< key << "', "
                     << "expected val: '" << expected_string << "', "
                     << "actual val: '" << actual_string  << "'"
@@ -322,7 +322,7 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find_with_addr(const device_addr_t &hin
     // temporarily make a UDP device only to look for devices
     // loop for all the available ports, if none are available, that means all 8 are open already
     udp_simple::sptr comm = udp_simple::make_broadcast(
-        hint["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+        hint["addr"], std::to_string(CYAN_NRNT_FW_COMMS_UDP_PORT));
 
     //send request for echo
     comm->send(asio::buffer("1,get,fpga/about/name", sizeof("1,get,fpga/about/name")));
@@ -365,7 +365,7 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find_with_addr(const device_addr_t &hin
     // Gets the Serial number for all connected Cyans found in the previous loop, and adds them to the return list if all required parameters match filters
     for(auto& addr : cyan_nrnt_addrs) {
         udp_simple::sptr comm = udp_simple::make_connected(
-        addr["addr"], BOOST_STRINGIZE(CYAN_NRNT_FW_COMMS_UDP_PORT));
+        addr["addr"], std::to_string(CYAN_NRNT_FW_COMMS_UDP_PORT));
 
 
         size_t bytes_sent = comm->send(asio::buffer("1,get,fpga/about/serial", sizeof("1,get,fpga/about/serial")));
@@ -381,11 +381,11 @@ device_addrs_t cyan_nrnt_impl::cyan_nrnt_find_with_addr(const device_addr_t &hin
         std::vector<std::string> tokens;
         tng_csv_parse(tokens, buff, ',');
         if (tokens.size() < 3) {
-            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C " failed to get serial number");
+            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C + " failed to get serial number");
             addr["serial"]  = "0000000000000000";
         }
         else if (tokens[1].c_str()[0] == CMD_ERROR) {
-            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C " failed to get serial number");
+            UHD_LOGGER_ERROR(CYAN_NRNT_DEBUG_NAME_C + " failed to get serial number");
             addr["serial"]  = "0000000000000000";
         } else {
             addr["serial"] = tokens[2];
@@ -830,7 +830,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
     _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "clock_source" / "options").set(clock_source_options);
 
-    TREE_CREATE_ST("/name", std::string, CYAN_NRNT_DEBUG_NAME_S " Device");
+    TREE_CREATE_ST("/name", std::string, CYAN_NRNT_DEBUG_NAME_S + " Device");
 
     ////////////////////////////////////////////////////////////////////
     // create frontend mapping
@@ -1061,8 +1061,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         TREE_CREATE_ST(rx_fe_path / "name",   std::string, "RX Board");
 
         // RX bandwidth
-        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL );
-        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL(max_sample_rate) );
+        TREE_CREATE_ST(rx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL(max_sample_rate), (double) CYAN_NRNT_BW_FULL(max_sample_rate) ) );
 
         TREE_CREATE_ST(rx_fe_path / "freq", meta_range_t,
             meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
@@ -1102,11 +1102,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
         // DSPs
         TREE_CREATE_ST(rx_dsp_path / "rate" / "range", meta_range_t,
-            meta_range_t((double) CYAN_NRNT_RATE_RANGE_START, (double) CYAN_NRNT_RATE_RANGE_STOP_FULL, (double) CYAN_NRNT_RATE_RANGE_STEP));
+            meta_range_t((double) CYAN_NRNT_RATE_RANGE_START(max_sample_rate), (double) CYAN_NRNT_RATE_RANGE_STOP_FULL(max_sample_rate), (double) CYAN_NRNT_RATE_RANGE_STEP(max_sample_rate)));
         TREE_CREATE_ST(rx_dsp_path / "freq" / "range", meta_range_t,
-            meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
+            meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL(max_sample_rate), (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL(max_sample_rate), (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
         TREE_CREATE_ST(rx_dsp_path / "bw" / "range",   meta_range_t,
-            meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL, (double) CYAN_NRNT_DSP_BW_STEPSIZE));
+            meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL(max_sample_rate), (double) CYAN_NRNT_DSP_BW_STEPSIZE));
 
         TREE_CREATE_RW(rx_dsp_path / "rate" / "value", "rx_"+lc_num+"/dsp/rate", double, double);
 
@@ -1186,8 +1186,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
         // TX bandwidth
-        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL );
-        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL, (double) CYAN_NRNT_BW_FULL ) );
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL(max_sample_rate) );
+        TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL(max_sample_rate), (double) CYAN_NRNT_BW_FULL(max_sample_rate) ) );
 
         TREE_CREATE_ST(tx_fe_path / "freq", meta_range_t,
             meta_range_t((double) CYAN_NRNT_FREQ_RANGE_START, (double) _freq_range_stop, (double) CYAN_NRNT_FREQ_RANGE_STEP));
@@ -1220,11 +1220,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // DSPs
 
         TREE_CREATE_ST(tx_dsp_path / "rate" / "range", meta_range_t,
-            meta_range_t((double) CYAN_NRNT_RATE_RANGE_START, (double) CYAN_NRNT_RATE_RANGE_STOP_FULL, (double) CYAN_NRNT_RATE_RANGE_STEP));
+            meta_range_t((double) CYAN_NRNT_RATE_RANGE_START(max_sample_rate), (double) CYAN_NRNT_RATE_RANGE_STOP_FULL(max_sample_rate), (double) CYAN_NRNT_RATE_RANGE_STEP(max_sample_rate)));
         TREE_CREATE_ST(tx_dsp_path / "freq" / "range", meta_range_t,
-            meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL, (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
+            meta_range_t((double) CYAN_NRNT_DSP_FREQ_RANGE_START_FULL(max_sample_rate), (double) CYAN_NRNT_DSP_FREQ_RANGE_STOP_FULL(max_sample_rate), (double) CYAN_NRNT_DSP_FREQ_RANGE_STEP));
         TREE_CREATE_ST(tx_dsp_path / "bw" / "range",   meta_range_t,
-            meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL, (double) CYAN_NRNT_DSP_BW_STEPSIZE));
+            meta_range_t((double) CYAN_NRNT_DSP_BW_START, (double) CYAN_NRNT_DSP_BW_STOP_FULL(max_sample_rate), (double) CYAN_NRNT_DSP_BW_STEPSIZE));
 
         TREE_CREATE_RW(tx_dsp_path / "rate" / "value", "tx_"+lc_num+"/dsp/rate", double, double);
 
@@ -1363,7 +1363,7 @@ int cyan_nrnt_impl::get_rx_xg_intf(int channel) {
 
 std::string cyan_nrnt_impl::get_tx_sfp( size_t chan ) {
     if ( chan >= num_tx_channels ) {
-        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested sfp port of non-existant channel: " + std::to_string(chan);
+        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S + " requested sfp port of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_tx_sfp_cached[chan] ) {
@@ -1378,7 +1378,7 @@ std::string cyan_nrnt_impl::get_tx_sfp( size_t chan ) {
 
 std::string cyan_nrnt_impl::get_rx_sfp( size_t chan ) {
     if ( chan >= num_rx_channels ) {
-        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested sfp port of non-existant channel: " + std::to_string(chan);
+        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S + " requested sfp port of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_rx_sfp_cached[chan] ) {
@@ -1392,7 +1392,7 @@ std::string cyan_nrnt_impl::get_rx_sfp( size_t chan ) {
 
 std::string cyan_nrnt_impl::get_tx_ip( size_t chan ) {
     if ( chan >= num_tx_channels ) {
-        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested ip of non-existant channel: " + std::to_string(chan);
+        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S + " requested ip of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_tx_ip_cached[chan] ) {
@@ -1408,7 +1408,7 @@ std::string cyan_nrnt_impl::get_tx_ip( size_t chan ) {
 
 uint16_t cyan_nrnt_impl::get_tx_fc_port( size_t chan ) {
     if ( chan >= num_tx_channels ) {
-        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested fc port of non-existant channel: " + std::to_string(chan);
+        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S + " requested fc port of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_tx_fc_cached[chan] ) {
@@ -1424,7 +1424,7 @@ uint16_t cyan_nrnt_impl::get_tx_fc_port( size_t chan ) {
 
 uint16_t cyan_nrnt_impl::get_tx_udp_port( size_t chan ) {
     if ( chan >= num_tx_channels ) {
-        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S " requested udp port of non-existant channel: " + std::to_string(chan);
+        std::string error_msg = CYAN_NRNT_DEBUG_NAME_S + " requested udp port of non-existant channel: " + std::to_string(chan);
         throw uhd::value_error(error_msg);
     }
     if( is_tx_udp_port_cached[chan] ) {

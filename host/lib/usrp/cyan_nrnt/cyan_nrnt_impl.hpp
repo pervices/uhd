@@ -33,7 +33,7 @@
 
 #include "uhd/transport/udp_zero_copy.hpp"
 
-#include "cyan_nrnt_fw_common.h"
+#include "cyan_nrnt_fw_common.hpp"
 #include <uhdlib/usrp/common/pv_iface.hpp>
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
