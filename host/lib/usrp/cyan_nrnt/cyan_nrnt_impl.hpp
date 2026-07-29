@@ -185,7 +185,7 @@ private:
         pv_iface::sptr iface;
         // TODO: see if removing rx_streamers and tx_streamers is viable
         std::vector<std::weak_ptr<uhd::usrp::pv_device_recv_packet_streamer>> rx_streamers;
-        std::vector<std::weak_ptr<uhd::usrp::cyan_nrnt_send_packet_streamer>> tx_streamers;
+        std::vector<std::weak_ptr<uhd::usrp::pv_device_send_packet_streamer>> tx_streamers;
         std::vector<uhd::transport::udp_simple::sptr> fifo_ctrl_xports;
     };
     mb_container_type _mbc;
