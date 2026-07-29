@@ -5,7 +5,6 @@
 //
 
 // Header file for classes related to clock sync between the host and device
-// WIP: the clock sync loop itself is currently done by bm_thread_fn in the device's respective impl files
 
 #pragma once
 

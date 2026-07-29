@@ -172,8 +172,6 @@ private:
 
     double _lo_stepsize;
 
-    static void bm_thread_fn( crimson_tng_impl *dev );
-
     struct mb_container_type{
         pv_iface::sptr iface;
         // TODO: see if removing rx_streamers and tx_streamers is viable

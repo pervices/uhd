@@ -179,8 +179,6 @@ private:
     // Maximum frequency of the highest band
     double _freq_range_stop;
 
-    static void bm_thread_fn( cyan_nrnt_impl *dev );
-
     struct mb_container_type{
         pv_iface::sptr iface;
         // TODO: see if removing rx_streamers and tx_streamers is viable
