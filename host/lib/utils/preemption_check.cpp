@@ -56,9 +56,9 @@ uhd::preempt_mode_t uhd::check_preemption(std::string log_header) {
         mode = PREEMPT_DYNAMIC_NONE;
     } else if(value.find("(voluntary)") == std::string::npos) {
         mode = PREEMPT_DYNAMIC_VOLUNTARY;
-    } else if(value.find("(full)")) {
+    } else if(value.find("(full)")  == std::string::npos) {
         mode = PREEMPT_DYNAMIC_FULL;
-    } else if(value.find("(lazy)")) {
+    } else if(value.find("(lazy)") == std::string::npos) {
         mode = PREEMPT_DYNAMIC_LAZY;
     } else {
         mode = PREEMPT_DYNAMIC_UNDEFINED;
