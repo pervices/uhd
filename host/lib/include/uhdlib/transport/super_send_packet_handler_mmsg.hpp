@@ -610,7 +610,7 @@ private:
             // Send packets without tsf since they don't have a set time
             // Also ignore send time in blocking fc mode since it doesn't apply
             if(
-                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= ( _clock_sync->get_device_time().to_ticks(_TICK_RATE) + drop_lead ) ||
+                /* Packet is in the future*/ (int64_t)packet_header_infos[packets_sent].tsf >= ( _clock_sync->get_device_time().to_ticks(_TICK_RATE) + (int64_t)(drop_lead * _TICK_RATE) ) ||
                 /* Packet is start of burst */ packet_header_infos[packets_sent].sob ||
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
