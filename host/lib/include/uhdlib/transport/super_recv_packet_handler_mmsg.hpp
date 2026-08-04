@@ -56,6 +56,8 @@ public:
 
     /*!
      * Make a new packet handler for receive
+     * \param product_name_c Product name in capital letters, used for log messages only.
+     * \param channels Channel indices included in this streamer.
      * \param recv_sockets sockets to receive data packets on. Must be bound to the desired IP/port already. This close will handle all other setup and closing the socket
      * \param dst_ip destination IP address of the packets to be received
      * \param max_sample_bytes_per_packet the number of transport channels
@@ -63,10 +65,35 @@ public:
      * \param cpu_format datatype of samples on the host system
      * \param wire_format datatype of samples in the packets
      * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
+     * \param rx_channel_in_use Shared channel-in-use flags for rate/overrun checks.
      * \param device_total_rx_channels Total number of rx channels on the device, used to determine how many threads to use for receiving
+     * \param iface Interface used to access the device server.
+     * \param cmd_issuers Stream command issuer for each channel.
+     * \param channel_locks Advisory lock file descriptors for if a channels is owned by a streamer.
+     * \param streaming_locks Advisory lock file descriptors for if a channel is actively streaming.
      */
-    recv_packet_handler_mmsg(const std::vector<size_t>& channels, const std::vector<int>& recv_sockets, const std::vector<std::string>& dst_ip, const size_t max_sample_bytes_per_packet, const size_t header_size, const size_t trailer_size, const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian, size_t device_total_rx_channels, std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers, std::vector<int> streaming_locks);
+    recv_packet_handler_mmsg(
+        const std::string product_name_c,
+        const std::vector<size_t>& channels,
+        const std::vector<int>& recv_sockets,
+        const std::vector<std::string>& dst_ip,
+        const size_t max_sample_bytes_per_packet,
+        const size_t header_size,
+        const size_t trailer_size,
+        const std::string& cpu_format,
+        const std::string& wire_format,
+        bool wire_little_endian,
+        std::shared_ptr<std::vector<bool>> rx_channel_in_use,
+        size_t device_total_rx_channels,
+        pv_iface::sptr iface,
+        std::vector<uhd::usrp::stream_cmd_issuer> cmd_issuers,
+        std::vector<int> channel_locks,
+        std::vector<int> streaming_locks
+    );
 
+    /**
+     * @brief Deactivates rx channels and free advisory locks
+     */
     ~recv_packet_handler_mmsg(void);
 
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
@@ -347,14 +374,22 @@ protected:
     size_t _NUM_CHANNELS;
     size_t _MAX_SAMPLE_BYTES_PER_PACKET;
     size_t _BYTES_PER_SAMPLE;
-    size_t _CPU_BYTES_PER_SAMPLE;
-
-    virtual void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) = 0;
-
-    // Channel IDs used by streamer. Used to properly index _streaming_locks which has locks for every channel, not just the ones for this streamer
-    std::vector<size_t> _channels;
 
 private:
+    size_t _CPU_BYTES_PER_SAMPLE;
+
+    /**
+     * @brief Unpack a received VRT IF packet header.
+     *
+     * @param packet_buff Raw packet buffer containing the header.
+     * @param if_packet_info The struct to unpack the header into
+     */
+    void if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info);
+
+    // Physical channel number of channels used by streamer
+    // Used to translate between the index of the channel within the streamer to it's global index
+    std::vector<size_t> _channels;
+
     // Desired recv buffer size
     static constexpr int DEFAULT_RECV_BUFFER_SIZE = 500000000;
     // Maximum number of packets to recv (should be able to fit in the half the real buffer)
@@ -364,6 +399,31 @@ private:
 
     // Sends stream commands the device, manages the corresponding sockets
     std::vector<uhd::usrp::stream_cmd_issuer> _stream_cmd_issuers;
+
+    /** @brief Product name in all capitals, used for user-facing messages only. */
+    const std::string _product_name_c;
+
+    /**
+     * @brief Shared flags indicating which RX channels are currently in use
+     *
+     * It relies on the device channel index, not the streamer channel index
+     */
+    std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
+
+    /**
+     * @brief Advisory lock file descriptors indicating a streamer exists for a channel.
+     *
+     * It relies on the device channel index, not the streamer channel index
+     */
+    std::vector<int> _channel_locks;
+
+    /**
+     * @brief Shared pointer to the interface used to access the device server.
+     *
+     * Use server-side property paths with pv_iface get/set functions rather than
+     * property-tree mappings.
+     */
+    pv_iface::sptr _iface;
 
     // Lockfiles to indicate the channel is currently actively streaming to prevent issues like changing the rate in the middle of a stream
     std::vector<int> _streaming_locks;
@@ -503,7 +563,7 @@ private:
 /**
  * @brief Receive packet streamer shared by Per Vices devices.
  *
- * Used by Crimson TNG, Cyan NRNT, Chestnut, and other Per Vices devices.
+ * Thin rx_streamer adapter over recv_packet_handler_mmsg, which does all of the actual work.
  */
 class recv_packet_streamer_mmsg : public recv_packet_handler_mmsg, public rx_streamer
 {
@@ -513,7 +573,7 @@ public:
      * @brief Construct a receive packet streamer for Per Vices devices.
      *
      * @param product_name_c Product name in capital letters, used for log messages only.
-     * @param channels Channel indices included in this streamer.
+     * @param channels Physical channel numbers to use in this streamer.
      * @param recv_sockets UDP socket file descriptors used to receive packets.
      * @param dst_ip Destination IP addresses for each channel.
      * @param max_sample_bytes_per_packet Maximum sample payload size per packet, in bytes.
@@ -522,9 +582,9 @@ public:
      * @param cpu_format Format string specifying the format of samples to output (host).
      * @param wire_format Format string specifying the format of incoming samples (over the write).
      * @param wire_little_endian Whether wire-format samples are little-endian.
-     * @param rx_channel_in_use Shared channel-in-use flags for rate/overrun checks.
+     * @param rx_channel_in_use Shared channel-in-use flags for SFP bandwidth limit checks.
      * @param device_total_rx_channels Total number of RX channels on the device.
-     * @param iface Interface used to access the device server.
+     * @param iface Interface used to talk to the device server.
      * @param cmd_issuers Stream command issuer for each channel.
      * @param channel_locks Advisory lock file descriptors for if a channels is owned by a streamer.
      * @param streaming_locks Advisory lock file descriptors for if a channel is actively streaming.
@@ -548,13 +608,7 @@ public:
         std::vector<int> streaming_locks
     );
 
-    /**
-     * @brief Deactivates rx channels and free advisory locks
-     */
-    virtual ~recv_packet_streamer_mmsg();
-
-    //Consider merging recv_packet_streamer_mmsg and recv_packet_handler_mmsg
-    //This is here to implement a virtual function from rx_streamer
+    // This is here to implement a virtual function from rx_streamer
     UHD_INLINE size_t recv(const rx_streamer::buffs_type& buffs,
                            const size_t nsamps_per_buff,
                            uhd::rx_metadata_t& metadata,
@@ -581,40 +635,5 @@ public:
     }
 
     void post_input_action(const std::shared_ptr<uhd::rfnoc::action_info>&, const size_t) override;
-
-    /**
-     * @brief Unpack a received VRT IF packet header.
-     *
-     * @param packet_buff Raw packet buffer containing the header.
-     * @param if_packet_info The struct to unpack the header into
-     */
-    void if_hdr_unpack(const uint32_t* packet_buff, uhd::transport::vrt::if_packet_info_t& if_packet_info) override;
-
-protected:
-
-    /** @brief Product name in all capitals, used for user-facing messages only. */
-    const std::string _product_name_c;
-
-    /**
-     * @brief Shared flags indicating which RX channels are currently in use
-     *
-     * It relies on the device channel index, not the streamer channel index
-     */
-    std::shared_ptr<std::vector<bool>> _rx_streamer_channel_in_use;
-
-    /**
-     * @brief Advisory lock file descriptors indicating a streamer exists for a channel.
-     *
-     * It relies on the device channel index, not the streamer channel index
-     */
-    std::vector<int> _channel_locks;
-
-    /**
-     * @brief Shared pointer to the interface used to access the device server.
-     *
-     * Use server-side property paths with pv_iface get/set functions rather than
-     * property-tree mappings.
-     */
-    pv_iface::sptr _iface;
 };
 }}}
