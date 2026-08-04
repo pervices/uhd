@@ -4,3 +4,4 @@ debian
 *.pyc
 .DS_Store
 build*/
+.claude/
