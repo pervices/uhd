@@ -22,7 +22,6 @@
 #include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
 
 #include <uhdlib/usrp/common/pv_iface.hpp>
-#include <uhdlib/usrp/pv_device/pv_device_recv_packet_streamer.hpp>
 #include <uhdlib/usrp/pv_device/pv_device_send_packet_streamer.hpp>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
 

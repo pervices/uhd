@@ -118,7 +118,7 @@ void cyan_nrnt_impl::rx_rate_check(size_t ch, double rate_samples) {
 void cyan_nrnt_impl::update_rx_samp_rate(const size_t chan, const double rate ){
 
     // Get the streamer corresponding to the channel
-    std::shared_ptr<pv_device_recv_packet_streamer> my_streamer = _mbc.rx_streamers[chan].lock();
+    std::shared_ptr<sph::recv_packet_streamer_mmsg> my_streamer = _mbc.rx_streamers[chan].lock();
     // if shared_ptr is false then no streamer is using this ch
     if (!my_streamer) return;
 
@@ -378,7 +378,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<pv_device_recv_packet_streamer> my_streamer = std::shared_ptr<pv_device_recv_packet_streamer>(new pv_device_recv_packet_streamer(CYAN_NRNT_DEBUG_NAME_C, args.channels, recv_sockets, dst_ip, data_len, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers, rx_channel_lock_fd, rx_streaming_lock_fd));
+    std::shared_ptr<sph::recv_packet_streamer_mmsg> my_streamer = std::shared_ptr<sph::recv_packet_streamer_mmsg>(new sph::recv_packet_streamer_mmsg(CYAN_NRNT_DEBUG_NAME_C, args.channels, recv_sockets, dst_ip, data_len, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers, rx_channel_lock_fd, rx_streaming_lock_fd));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){

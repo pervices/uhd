@@ -8,6 +8,5 @@
 # This file included, use CMake directory variables
 ########################################################################
 LIBUHD_APPEND_SOURCES(
-    ${CMAKE_CURRENT_SOURCE_DIR}/pv_device_recv_packet_streamer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pv_device_send_packet_streamer.cpp
 )
