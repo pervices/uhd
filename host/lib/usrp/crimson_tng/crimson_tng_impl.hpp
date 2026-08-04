@@ -152,7 +152,7 @@ private:
 private:
 
     std::thread _pps_thread;
-    // Control variables for _pps_thread. Always use std::atomic_fence writing/before reading
+    // Control variables for _pps_thread
     bool _pps_thread_needed;
     // TODO: replace _pps_thread_running with checks to the thread object
     std::atomic<bool> _pps_thread_running;
