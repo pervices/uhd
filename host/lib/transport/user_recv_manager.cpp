@@ -72,7 +72,9 @@ void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet
     uint64_t call_buffer_tail = access_call_buffer_tail(ch).load(std::memory_order_relaxed);
     uint64_t call_buffer_head = access_call_buffer_head(ch).load(std::memory_order_relaxed);
 
-    if(call_buffer_tail < call_buffer_head) {
+    // Check if a buffer is available
+    // Not actually likely, [[likely]] is used here to prioritize the case where it is true
+    if(call_buffer_tail < call_buffer_head) [[likely]] {
         // Acquire fence to ensure call_buffer_tail and call_buffer_head are up to date
         std::atomic_thread_fence(std::memory_order_acquire);
 
