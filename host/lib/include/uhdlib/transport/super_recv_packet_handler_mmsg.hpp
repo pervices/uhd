@@ -21,7 +21,7 @@
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #include <sys/file.h>
 #ifdef HAVE_LIBURING
-    #include <uhd/transport/io_uring_recv_manager.hpp>
+    #include <uhdlib/transport/io_uring_recv_manager.hpp>
 #else
     #include <uhdlib/transport/user_recv_manager.hpp>
 #endif
