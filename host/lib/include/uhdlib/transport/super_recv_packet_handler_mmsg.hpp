@@ -26,7 +26,10 @@
     #include <uhdlib/transport/user_recv_manager.hpp>
 #endif
 
-#define MIN_MTU 9000
+static constexpr int_fast32_t MIN_MTU = 9000;
+
+// Cache line size on AMD64 CPUs
+static constexpr size_t CACHE_LINE_SIZE = 64;
 
 namespace uhd { namespace transport { namespace sph {
 
@@ -41,7 +44,10 @@ namespace uhd { namespace transport { namespace sph {
  * The channel group shares a common sample rate.
  * All channels are received in unison in recv().
  **********************************************************************/
-class recv_packet_handler_mmsg
+// alignas ensures every instance starts on its own cache line; the standard
+// also requires sizeof() to be padded to a multiple of the alignment, so
+// instances never share a cache line with adjacent heap allocations either.
+class alignas(CACHE_LINE_SIZE) recv_packet_handler_mmsg
 {
 public:
 
