@@ -17,6 +17,8 @@
 #include <uhd/utils/tasks.hpp>
 #include <uhdlib/utils/system_time.hpp>
 
+#include <atomic>
+
 // Manages sending streaming commands
 #include <uhdlib/usrp/common/stream_cmd_issuer.hpp>
 #include <sys/file.h>
@@ -468,13 +470,17 @@ private:
 
     // Low priority thread to print D to indicate and overflow
     std::thread overflow_messenger;
-    // No synchronization is used for the count to avoid any side effects in the main recv loop
-    uint64_t oflows_to_print = 0;
-    bool stop_overflow_loop = false;
+    // Only ever written by the recv() thread (single writer), read by send_overflow_messages_loop.
+    // Relaxed is sufficient since printing is not time sensitive, it just needs to eventually become visible.
+    std::atomic<uint64_t> oflows_to_print{0};
+    // Only ever written by the destructor thread (single writer), read by send_overflow_messages_loop.
+    // Relaxed is sufficient since shutdown isn't time sensitive, it just needs to eventually become visible.
+    std::atomic<bool> stop_overflow_loop{false};
 
     UHD_INLINE void print_overflow_message() {
         // Warn user that an overflow occured
-        oflows_to_print++;
+        // Plain load + store (not fetch_add) since this is the only writer, avoids the cost of a locked RMW instruction
+        oflows_to_print.store(oflows_to_print.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
     }
 
     static void send_overflow_messages_loop(recv_packet_handler_mmsg* self);

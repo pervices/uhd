@@ -31,7 +31,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#include <immintrin.h>
+#include <atomic>
 
 #include <uhdlib/utils/preemption_check.hpp>
 
@@ -133,7 +133,7 @@ recv_packet_handler_mmsg:: recv_packet_handler_mmsg(const std::vector<size_t>& c
 
 recv_packet_handler_mmsg::~recv_packet_handler_mmsg(void)
 {
-    stop_overflow_loop = true;
+    stop_overflow_loop.store(true, std::memory_order_relaxed);
 
     async_recv_manager::auto_unmake(recv_manager);
     // recv_manager must be deleted before closing sockets
@@ -264,11 +264,8 @@ void recv_packet_handler_mmsg::send_overflow_messages_loop(recv_packet_handler_m
     // Number of oflows already printed
     uint64_t oflows_printed = 0;
 
-    while(!(self->stop_overflow_loop)) {
-        // Load fence to ensure getting oflows_printed from other threads doesn't get optimized out
-        _mm_lfence();
-
-        uint64_t oflows_to_print = self->oflows_to_print - oflows_printed;
+    while(!(self->stop_overflow_loop.load(std::memory_order_relaxed))) {
+        uint64_t oflows_to_print = self->oflows_to_print.load(std::memory_order_relaxed) - oflows_printed;
         // Print a D for every recv command that's had an overflow since the last iteration of this loop
         if(oflows_to_print) {
             // Only print up to 50 Ds at a time, skip any extra since more will just clog up the logs
