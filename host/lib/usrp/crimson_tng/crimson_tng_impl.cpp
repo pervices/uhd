@@ -1325,6 +1325,9 @@ crimson_tng_impl::~crimson_tng_impl(void)
         close(rx_channel_lock_fd[n]);
         close(rx_streaming_lock_fd[n]);
     }
+
+    ping_check("sfpa", "10.10.10.2");
+    ping_check("sfpb", "10.10.11.2");
 }
 
 std::string crimson_tng_impl::get_tx_sfp( size_t chan ) {
