@@ -82,16 +82,20 @@ private:
 
     // Stores have many call buffers have been written to for each channel
     // Format: count, padding to next cache line, repeat for every channel
+    // std::atomic_ref is used to ensure that access respects std::atomic_fence
+    // Use std::memory_order_relaxed when accessing so avoid overhead between fences
     uint8_t* const _call_buffer_heads;
-    inline __attribute__((always_inline)) uint64_t* access_call_buffer_head(size_t ch, size_t ch_offset = 0) {
-        return (uint64_t*) (_call_buffer_heads + ((ch + ch_offset) * CACHE_LINE_SIZE));
+    inline __attribute__((always_inline)) std::atomic_ref<uint64_t> access_call_buffer_head(size_t ch, size_t ch_offset = 0) {
+        return std::atomic_ref<uint64_t>(*(uint64_t*) (_call_buffer_heads + ((ch + ch_offset) * CACHE_LINE_SIZE)));
     }
 
     // Stores have many call buffers have been marked as clear by the consumer thread
     // Format: count, padding to next cache line, repeat for every channel
+    // std::atomic_ref is used to ensure that access respects std::atomic_fence
+    // Use std::memory_order_relaxed when accessing so avoid overhead between fences
     uint8_t* const _call_buffer_tails;
-    inline __attribute__((always_inline)) uint64_t* access_call_buffer_tail(size_t ch, size_t ch_offset = 0) {
-        return (uint64_t*) (_call_buffer_tails + ((ch + ch_offset) * CACHE_LINE_SIZE));
+    inline __attribute__((always_inline)) std::atomic_ref<uint64_t> access_call_buffer_tail(size_t ch, size_t ch_offset = 0) {
+        return std::atomic_ref<uint64_t>(*(uint64_t*) (_call_buffer_tails + ((ch + ch_offset) * CACHE_LINE_SIZE)));
     }
 
     // Stores the number of packets in a call buffer
@@ -104,9 +108,8 @@ private:
 
     std::vector<std::thread> recv_loops;
 
-    // Flag to to the recv loop when to exit
-    // Use fences when setting this to ensure it is synced across threads
-    uint8_t stop_flag = 0;
+    // Flag to tell the recv loop to exit.
+    std::atomic<bool> stop_flag{false};
 
     // Number of packets consumed in the current call buffer
     uint8_t* const _num_packets_consumed_current_buffer;
@@ -157,17 +160,19 @@ public:
         uint64_t* num_packets_consumed = access_num_packets_consumed_current_buffer(ch);
         (*num_packets_consumed)++;
 
-        size_t b = (*access_call_buffer_tail(ch)) & (NUM_CALL_BUFFERS - 1);
+        uint64_t tail_val = access_call_buffer_tail(ch).load(std::memory_order_relaxed);
+        size_t b = tail_val & (NUM_CALL_BUFFERS - 1);
         uint64_t* packet_in_call_buffer_ptr = access_packets_in_call_buffer(ch, 0, b);
 
         // Move to the next buffer if a packets have been consumed
         if(*num_packets_consumed >= *packet_in_call_buffer_ptr) {
             *packet_in_call_buffer_ptr = 0;
-            (*access_call_buffer_tail(ch))++;
             *num_packets_consumed = 0;
 
-            // Fence to ensure the writes to the call buffer tail get passed to other threads
+            // Release fence to ensure packets were copied from the buffer
+            // And that the count for the number of packets in the buffer has been updated
             std::atomic_thread_fence(std::memory_order_release);
+            access_call_buffer_tail(ch).store(tail_val + 1, std::memory_order_relaxed);
         }
     }
 

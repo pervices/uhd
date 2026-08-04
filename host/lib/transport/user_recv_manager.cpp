@@ -53,10 +53,8 @@ _num_packets_consumed_current_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _
 
 user_recv_manager::~user_recv_manager()
 {
-    // Tell recv loop to exit
-    stop_flag = 1;
-    // Fence to make sure the flag is updated in other threads
-    std::atomic_thread_fence(std::memory_order_release);
+    // Tell recv loop to exit, relaxed alone is sufficient because of join
+    stop_flag.store(true, std::memory_order_relaxed);
 
     for(size_t n = 0; n < recv_loops.size(); n++) {
         recv_loops[n].join();
@@ -71,10 +69,14 @@ user_recv_manager::~user_recv_manager()
 }
 
 void user_recv_manager::get_next_async_packet_info(const size_t ch, async_packet_info* info) {
-    uint64_t* call_buffer_tail = access_call_buffer_tail(ch);
+    uint64_t call_buffer_tail = access_call_buffer_tail(ch).load(std::memory_order_relaxed);
+    uint64_t call_buffer_head = access_call_buffer_head(ch).load(std::memory_order_relaxed);
 
-    if(*call_buffer_tail < *access_call_buffer_head(ch)) {
-        size_t b = *call_buffer_tail & (NUM_CALL_BUFFERS - 1);
+    if(call_buffer_tail < call_buffer_head) {
+        // Acquire fence to ensure call_buffer_tail and call_buffer_head are up to date
+        std::atomic_thread_fence(std::memory_order_acquire);
+
+        size_t b = call_buffer_tail & (NUM_CALL_BUFFERS - 1);
         size_t p = *access_num_packets_consumed_current_buffer(ch);
 
         info->length = *access_packet_length(ch, 0, call_to_consolidated(b, p));
@@ -141,18 +143,20 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
         UHD_LOG_WARNING("USER_RECV_MANAGER", "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno)));
     }
 
-    while(!self->stop_flag) [[likely]] {
+    while(!self->stop_flag.load(std::memory_order_relaxed)) [[likely]] {
         for(size_t ch = 0; ch < ch_this_thread; ch++) {
-            uint64_t* call_buffer_head = self->access_call_buffer_head(ch, ch_offset);
+            uint64_t head_val = self->access_call_buffer_head(ch, ch_offset).load(std::memory_order_relaxed);
 
             // The call buffer currently in use
-            uint64_t b = *call_buffer_head & (NUM_CALL_BUFFERS - 1);
+            uint64_t b = head_val & (NUM_CALL_BUFFERS - 1);
 
-            // Load fence to make sure getting the call buffer head and stop flags don't get optimized out
+            uint64_t tail_val = self->access_call_buffer_tail(ch, ch_offset).load(std::memory_order_relaxed);
+
+            // Acquire fence to ensure an updated tail_val (set by advance_packet) is used
             std::atomic_thread_fence(std::memory_order_acquire);
 
             // Check if the next call buffer in the ring buffer of call buffers is free
-            if(*call_buffer_head >= *self->access_call_buffer_tail(ch, ch_offset) + NUM_CALL_BUFFERS) [[unlikely]] {
+            if(head_val >= tail_val + NUM_CALL_BUFFERS) [[unlikely]] {
                 if(!self->slow_consumer_warning_printed) [[unlikely]] {
                     UHD_LOG_WARNING("USER_RECV_MANAGER", "Sample consumer thread to slow. Reducing time between and/or increase the samples requested between recv calls");
                     self->slow_consumer_warning_printed = true;
@@ -181,11 +185,13 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
                 *self->access_packet_length(ch, ch_offset, call_to_consolidated(b, p)) = self->access_mmsghdr(ch, ch_offset, b, p)->msg_len;
             }
 
-            // Store fence to ensure the above writes are completed before the call buffer is marked as ready
+            // Release fence to ensure the above writes are completed before the call buffer is
+            // marked as ready. Must come before the store it's releasing.
             std::atomic_thread_fence(std::memory_order_release);
 
-            // Advance to the next call buffer
-            (*call_buffer_head)++;
+            // Advance to the next call buffer.
+            // Plain load-then-store (not fetch_add) since this counter has exactly one writer
+            self->access_call_buffer_head(ch, ch_offset).store(head_val + 1, std::memory_order_relaxed);
         }
     }
 }
