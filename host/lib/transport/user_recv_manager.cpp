@@ -56,7 +56,7 @@ user_recv_manager::~user_recv_manager()
     // Tell recv loop to exit
     stop_flag = 1;
     // Fence to make sure the flag is updated in other threads
-    _mm_sfence();
+    std::atomic_thread_fence(std::memory_order_release);
 
     for(size_t n = 0; n < recv_loops.size(); n++) {
         recv_loops[n].join();
@@ -149,7 +149,7 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
             uint64_t b = *call_buffer_head & (NUM_CALL_BUFFERS - 1);
 
             // Load fence to make sure getting the call buffer head and stop flags don't get optimized out
-            _mm_lfence();
+            std::atomic_thread_fence(std::memory_order_acquire);
 
             // Check if the next call buffer in the ring buffer of call buffers is free
             if(*call_buffer_head >= *self->access_call_buffer_tail(ch, ch_offset) + NUM_CALL_BUFFERS) [[unlikely]] {
@@ -182,7 +182,7 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
             }
 
             // Store fence to ensure the above writes are completed before the call buffer is marked as ready
-            _mm_sfence();
+            std::atomic_thread_fence(std::memory_order_release);
 
             // Advance to the next call buffer
             (*call_buffer_head)++;

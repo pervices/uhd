@@ -9,7 +9,7 @@
 #include <iostream>
 #include <uhd/utils/log.hpp>
 
-#include <immintrin.h>
+#include <atomic>
 
 #include <uhdlib/transport/async_recv_manager.hpp>
 
@@ -167,7 +167,7 @@ public:
             *num_packets_consumed = 0;
 
             // Fence to ensure the writes to the call buffer tail get passed to other threads
-            _mm_sfence();
+            std::atomic_thread_fence(std::memory_order_release);
         }
     }
 
