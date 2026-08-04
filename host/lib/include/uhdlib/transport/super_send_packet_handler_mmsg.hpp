@@ -568,6 +568,7 @@ private:
         timeout_time.tv_sec = timeout_time.tv_sec + timeout_s + carry;
 
         // Time at the end of the loop, used for checking timeouts
+        // Make sure it is set before calling continue within the loop
         struct timespec current_time;
 
         // Packets and samples sent for this call of this function
@@ -595,6 +596,9 @@ private:
              * It may help by keeping sendmmsg related values in cache
              */
             if(packets_to_send_now < 0) {
+                // Update time for the timeout check
+                clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+
                 continue;
             }
 
