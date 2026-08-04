@@ -313,8 +313,8 @@ public:
         size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
         if(actual_nsamps_to_send == 0) {
-            // If a start of burst command has no packets, cache timestamp and keep until next call
-            if(metadata.start_of_burst) {
+            // If a start of burst command has no packets, and is not also an end of burstcache timestamp and keep until next call
+            if(metadata.start_of_burst && !metadata.end_of_burst) {
                 cached_sob = true;
                 sob_time_cache = metadata.time_spec;
                 return 0;
