@@ -10,8 +10,6 @@
 #include <liburing.h>
 #include <uhd/utils/log.hpp>
 
-#include <immintrin.h>
-
 #include <uhdlib/transport/async_recv_manager.hpp>
 
 namespace uhd { namespace transport {
