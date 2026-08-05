@@ -10,7 +10,6 @@
 #include <uhdlib/utils/system_time.hpp>
 #include <algorithm>
 #include <sys/mman.h>
-#include <sys/syscall.h>
 #include <sys/resource.h>
 #include <atomic>
 
@@ -124,25 +123,24 @@ void user_recv_manager::recv_loop(user_recv_manager* self, const std::vector<int
 
     // Enables use of a realtime schedueler which will prevent this program from being interrupted and causes it to be bound to a core, but will result in it's core being fully utilized
     uhd::set_thread_priority_safe(1, true);
-    // Sets the affinity to the current core
-    uhd::set_thread_affinity_active_core();
+    // Pin this thread to a distinct core (round-robin across the process's
+    // allowed CPU set) instead of whatever core it happens to be on right
+    // now, to avoid colliding with other hot-path threads starting up
+    // around the same time.
+    int cpu = uhd::set_thread_affinity_round_robin();
 
-    // Set the thread and socket's affinity to the current core, improves speed and reliability
-    unsigned int cpu;
-    // Syscall used because getcpu is does not exist on Oracle
-    int r = syscall(SYS_getcpu, &cpu, nullptr);
-    if(!r) {
+    // Steer this socket's NIC RX processing to the same core the thread is
+    // pinned to, improves speed and reliability
+    if (cpu >= 0) {
+        unsigned int cpu_u = (unsigned int) cpu;
         for(uint_fast32_t ch = 0; ch < ch_this_thread; ch++) {
-            std::vector<size_t> target_cpu(1, cpu);
-            set_thread_affinity(target_cpu);
-
-            r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu, sizeof(cpu));
+            int r = setsockopt(sockets[ch], SOL_SOCKET, SO_INCOMING_CPU, &cpu_u, sizeof(cpu_u));
             if(r) {
                 UHD_LOG_WARNING("USER_RECV_MANAGER", "Unable to set socket affinity. Error code: " + std::string(strerror(errno)));
             }
         }
     } else {
-        UHD_LOG_WARNING("USER_RECV_MANAGER", "getcpu failed, unable to set receive socket affinity to current core. Performance may be impacted. Error code: " + std::string(strerror(errno)));
+        UHD_LOG_WARNING("USER_RECV_MANAGER", "Unable to determine assigned core, unable to set receive socket affinity. Performance may be impacted.");
     }
 
     while(!self->stop_flag.load(std::memory_order_relaxed)) [[likely]] {

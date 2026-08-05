@@ -74,6 +74,20 @@ UHD_API void set_thread_affinity(const std::vector<size_t>& cpu_affinity_list);
 UHD_API void set_thread_affinity_active_core();
 
 /*!
+ * Set the affinity of the current thread to a CPU chosen by round-robin
+ * assignment across the process's allowed CPU set.
+ *
+ * Unlike set_thread_affinity_active_core(), which pins to whatever core
+ * getcpu() happens to report at call time (no coordination between
+ * threads, so concurrently-starting threads can collide on the same
+ * core), this hands out a distinct core to each caller in turn, cycling
+ * through the CPUs the process is actually allowed to run on.
+ *
+ * \return the CPU number the thread was pinned to, or -1 on failure
+ */
+UHD_API int set_thread_affinity_round_robin();
+
+/*!
  * Get the core the thread is currently running on
  */
 UHD_API int get_cpu();
