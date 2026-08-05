@@ -97,8 +97,9 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     int error = io_uring_queue_init_params(NUM_SQ_URING_ENTRIES, ring, &uring_params);
 
     if(error) {
-        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Error when initializing io_uring: " + std::string(strerror(-error)));
-        throw uhd::system_error("io_uring error");
+        std::string message = "Error when initializing io_uring. io_uring_queue_init_params failed with: " + std::string(strerror(-error));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
+        throw uhd::system_error(message);
     }
 
     // Initializes the ring buffer containing the location to write to
@@ -109,8 +110,9 @@ void io_uring_recv_manager::uring_init(size_t ch) {
     *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, _bgid_storage[ch], 0, &ret);
 
     if(ret) {
-        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", "Error when setting up io_uring: " + std::string(strerror(-ret)));
-        throw uhd::system_error("io_uring_setup_buf_ring");
+        std::string message = "Error when setting up io_uring. io_uring_setup_buf_ring failed with: " + std::string(strerror(-ret));
+        UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
+        throw uhd::system_error(message);
     }
 
     for(uint32_t p = 0; p < PACKET_BUFFER_SIZE; p++) {
