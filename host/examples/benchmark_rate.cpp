@@ -88,7 +88,7 @@ void benchmark_rx_rate(uhd::usrp::multi_usrp::sptr usrp,
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
-        uhd::set_thread_affinity_active_core();
+        uhd::set_thread_affinity_round_robin();
     }
 
     // print pre-test summary
@@ -230,7 +230,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
 {
     if (elevate_priority) {
         uhd::set_thread_priority_safe();
-        uhd::set_thread_affinity_active_core();
+        uhd::set_thread_affinity_round_robin();
     }
 
     // print pre-test summary

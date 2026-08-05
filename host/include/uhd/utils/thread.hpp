@@ -70,12 +70,28 @@ UHD_API void set_thread_affinity(const std::vector<size_t>& cpu_affinity_list);
 
 /*!
  * Set the affinity of the current thread to the core it is currently running on
+ *
+ * \deprecated Use set_thread_affinity_round_robin() instead, which avoids
+ *             concurrently-starting threads colliding on the same core.
  */
-UHD_API void set_thread_affinity_active_core();
+UHD_API [[deprecated("use set_thread_affinity_round_robin() instead")]] void
+set_thread_affinity_active_core();
 
 /*!
  * Get the core the thread is currently running on
  */
 UHD_API int get_cpu();
+
+/*!
+ * Set the affinity of the current thread to a CPU chosen by round-robin
+ * assignment across the process's allowed CPU set.
+ *
+ * This function is thread safe
+ *
+ * \return the CPU number the thread was pinned to
+ * \throws uhd::os_error if the process's allowed CPU set cannot be
+ *         determined
+ */
+UHD_API int set_thread_affinity_round_robin();
 
 } // namespace uhd

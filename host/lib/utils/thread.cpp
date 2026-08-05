@@ -9,6 +9,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/thread.hpp>
+#include <atomic>
 #include <vector>
 
 #if defined(HAVE_PTHREAD_SETSCHEDPARAM) || defined(HAVE_PTHREAD_SETNAME)
@@ -179,6 +180,10 @@ void uhd::set_thread_priority_non_realtime(float priority) {
  * Pthread API to set affinity
  **********************************************************************/
 #ifdef HAVE_PTHREAD_SETAFFINITY_NP
+#include <sched.h>
+#include <cstring>
+#include <cerrno>
+
 void uhd::set_thread_affinity(const std::vector<size_t>& cpu_affinity_list)
 {
     if (cpu_affinity_list.empty()) {
@@ -203,12 +208,59 @@ void uhd::set_thread_affinity(const std::vector<size_t>& cpu_affinity_list)
 
 
 void uhd::set_thread_affinity_active_core() {
+    UHD_LOG_INFO("UHD",
+        "set_thread_affinity_active_core is deprecated "
+        "due to the possibility of threads ending up on the same core affecting performance. "
+        " Use set_thread_affinity_round_robin instead.");
     int cpu = get_cpu();
     if(cpu < 0) {
         UHD_LOG_ERROR("UHD", "Unable to set affinity to current core due to being unable to check the current core");
     }
     std::vector<size_t> target_cpu(1, (size_t) cpu);
     uhd::set_thread_affinity(target_cpu);
+}
+
+int uhd::set_thread_affinity_round_robin() {
+    // The index within the allowed_cpu list 
+    static std::atomic<size_t> next_index{0};
+
+    // Magic statics are initialized when the function is first run in a
+    // thread safe way.
+    // Note that only initialization is thread safe, future writes are not.
+    // This is const so future writes don't matter.
+    static const std::vector<size_t> allowed_cpus = [] {
+        std::vector<size_t> cpus;
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) != 0) {
+            UHD_LOG_ERROR("UHD",
+                "Unable to query process CPU affinity for round-robin thread "
+                "placement: " + std::string(strerror(errno)));
+            // Failed to get the process's affinity mask
+            return cpus;
+        }
+        // Convert the affinity mask to a list of cores.
+        for (int cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+            if (CPU_ISSET(cpu, &mask)) {
+                cpus.push_back((size_t) cpu);
+            }
+        }
+        return cpus;
+    }();
+
+    if (allowed_cpus.empty()) {
+        throw uhd::os_error("No allowed CPUs found; unable to set round-robin thread affinity");
+    }
+
+    // Atomic increment the index of the core to use, and return the original value
+    size_t index = next_index.fetch_add(1, std::memory_order_relaxed);
+    int cpu = (int) allowed_cpus[index % allowed_cpus.size()];
+
+    uhd::set_thread_affinity(std::vector<size_t>(1, (size_t) cpu));
+
+    UHD_LOG_DEBUG("UHD", "Round-robin pinned thread to CPU " + std::to_string(cpu));
+
+    return cpu;
 }
 
 
