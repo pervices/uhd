@@ -200,7 +200,7 @@ void send_packet_handler_mmsg::expand_send_buffer_info(size_t new_size) {
 }
 
 int send_packet_handler_mmsg::check_fc_npackets(const size_t ch_i) {
-    if(BOOST_LIKELY(!use_blocking_fc)) {
+    if(!use_blocking_fc) [[likely]] {
 
         // Get the buffer level on the unit
         uhd::time_spec_t device_time = _clock_sync->get_device_time();
