@@ -595,12 +595,14 @@ private:
             /* TODO: see if setting packets_to_send_now to 0 and no continue helps
              * It may help by keeping sendmmsg related values in cache
              */
-            // if(packets_to_send_now < 0) {
-            //     // Update time for the timeout check
-            //     clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+            if(packets_to_send_now < 0) {
+                // Update time for the timeout check
+                // clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
 
-            //     continue;
-            // }
+                // continue;
+
+                packets_to_send_now = 0;
+            }
 
             size_t adjusted_packets_to_send;
             bool fake_one_packet;
