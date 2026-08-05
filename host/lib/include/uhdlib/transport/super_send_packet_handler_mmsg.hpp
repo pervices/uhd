@@ -597,12 +597,17 @@ private:
              */
             if(packets_to_send_now < 0) {
                 // Update time for the timeout check
-                clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
+                // clock_gettime(CLOCK_MONOTONIC_COARSE, &current_time);
 
-                continue;
+                // continue;
+
+                packets_to_send_now = 0;
             }
 
-            ssize_t packets_sent_now;
+            size_t adjusted_packets_to_send;
+            bool fake_one_packet;
+
+            ssize_t packets_sent_now = 0;
 
             // Perform send if
             // Packets are in the future (drop normal packets that would arrive to late)
@@ -615,26 +620,31 @@ private:
                 /* Packet is end of burst*/ packet_header_infos[packets_sent].eob ||
                 /* Packet does not have a timestamp*/ !packet_header_infos[packets_sent].has_tsf ||
                 /* Blocking flow control is in use */ use_blocking_fc
-            ) {
-                packets_sent_now = 0;
-
-                for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                    // Send packets
-                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
-
-                    // Record if an error occured
-                    // The performance impact of proper error handling is to large
-                    // Instead cache the first time an error occured for later
-                    if(packets_sent_now < 0 && sendmmsg_errno == 0) [[unlikely]] {
-                        sendmmsg_errno = errno;
-                        clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
-                    }
-                }
+            ) [[likely]] {
+                adjusted_packets_to_send = packets_to_send_now;
+                fake_one_packet = false;
 
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
             // TODO: find a better way that avoid confusion from silently dropping packets
             } else {
-                // If packets and in the past, pretend the first packet of the set was sent
+                adjusted_packets_to_send = 0;
+                fake_one_packet = true;
+            }
+
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                // Send packets
+                packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], adjusted_packets_to_send, MSG_CONFIRM);
+
+                // Record if an error occured
+                // The performance impact of proper error handling is to large
+                // Instead cache the first time an error occured for later
+                if(packets_sent_now < 0 && sendmmsg_errno == 0) [[unlikely]] {
+                    sendmmsg_errno = errno;
+                    clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
+                }
+            }
+
+            if(fake_one_packet) [[unlikely]] {
                 packets_sent_now = 1;
             }
 
