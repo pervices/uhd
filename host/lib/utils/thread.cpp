@@ -9,6 +9,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhd/utils/thread.hpp>
+#include <atomic>
 #include <vector>
 
 #if defined(HAVE_PTHREAD_SETSCHEDPARAM) || defined(HAVE_PTHREAD_SETNAME)
@@ -179,6 +180,10 @@ void uhd::set_thread_priority_non_realtime(float priority) {
  * Pthread API to set affinity
  **********************************************************************/
 #ifdef HAVE_PTHREAD_SETAFFINITY_NP
+#include <sched.h>
+#include <cstring>
+#include <cerrno>
+
 void uhd::set_thread_affinity(const std::vector<size_t>& cpu_affinity_list)
 {
     if (cpu_affinity_list.empty()) {
@@ -209,6 +214,46 @@ void uhd::set_thread_affinity_active_core() {
     }
     std::vector<size_t> target_cpu(1, (size_t) cpu);
     uhd::set_thread_affinity(target_cpu);
+}
+
+int uhd::set_thread_affinity_round_robin() {
+    static std::atomic<size_t> next_index{0};
+
+    // Function-local statics are initialized in a thread-safe manner
+    // exactly once ("magic statics"); after construction this is
+    // read-only, so concurrent reads from multiple threads are race-free.
+    static const std::vector<size_t> allowed_cpus = [] {
+        std::vector<size_t> cpus;
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) != 0) {
+            UHD_LOG_ERROR("UHD",
+                "Unable to query process CPU affinity for round-robin thread "
+                "placement: " + std::string(strerror(errno)));
+            return cpus;
+        }
+        for (int cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+            if (CPU_ISSET(cpu, &mask)) {
+                cpus.push_back((size_t) cpu);
+            }
+        }
+        return cpus;
+    }();
+
+    if (allowed_cpus.empty()) {
+        UHD_LOG_ERROR("UHD",
+            "No allowed CPUs found; unable to set round-robin thread affinity");
+        return -1;
+    }
+
+    size_t index = next_index.fetch_add(1, std::memory_order_relaxed);
+    int cpu = (int) allowed_cpus[index % allowed_cpus.size()];
+
+    uhd::set_thread_affinity(std::vector<size_t>(1, (size_t) cpu));
+
+    UHD_LOG_DEBUG("UHD", "Round-robin pinned thread to CPU " + std::to_string(cpu));
+
+    return cpu;
 }
 
 
