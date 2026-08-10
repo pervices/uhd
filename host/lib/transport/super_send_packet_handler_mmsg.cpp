@@ -41,6 +41,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _async_msg_fifo(async_msg_fifo),
     _streaming_locks(streaming_locks)
 {
+    UHD_LOG_INFO("SEND_PACKET_HANDLER", "Constructor");
     // Checks and warns the user if the preemption mode is suboptimal
     check_preemption("SEND_PACKET_HANDLER");
 
