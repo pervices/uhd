@@ -1,7 +1,6 @@
 // Copyright 2023-2024 Per Vices Corporation
 
 #include <uhdlib/transport/buffer_tracker.hpp>
-#include <iostream>
 
 namespace uhd { namespace transport {
 

@@ -7,11 +7,9 @@
 //
 
 #include <uhdlib/transport/super_recv_packet_handler_mmsg.hpp>
-#include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/log.hpp>
 #include <uhdlib/utils/network_config.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -23,15 +21,11 @@
 #include <arpa/inet.h>
 #include <ifaddrs.h>
 
-#include <error.h>
 #include <uhd/exception.hpp>
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-#include <sys/mman.h>
 #include <fcntl.h>
-
-#include <atomic>
 
 #include <uhdlib/utils/preemption_check.hpp>
 

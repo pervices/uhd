@@ -11,20 +11,14 @@
 #include <uhd/convert.hpp>
 #include <uhd/exception.hpp>
 #include <uhd/stream.hpp>
-#include <uhd/utils/thread.hpp>
 #include <uhd/types/metadata.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
-#include <uhd/transport/zero_copy.hpp>
 
 #include <uhdlib/usrp/common/clock_sync.hpp>
 #include <uhdlib/transport/buffer_tracker.hpp>
 #include <uhd/utils/log.hpp>
-#include <uhdlib/utils/system_time.hpp>
 #include <uhdlib/utils/performance_mode.hpp>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
-
-// Standard library
-#include <format>
 
 // Linux API
 #include <sys/socket.h>

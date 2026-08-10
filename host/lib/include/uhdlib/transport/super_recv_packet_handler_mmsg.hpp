@@ -14,7 +14,6 @@
 #include <uhd/stream.hpp>
 #include <uhd/transport/vrt_if_packet.hpp>
 #include <uhd/types/metadata.hpp>
-#include <uhd/utils/tasks.hpp>
 #include <uhdlib/utils/system_time.hpp>
 
 #include <atomic>

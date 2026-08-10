@@ -5,15 +5,7 @@
 //
 
 #include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
-#include <uhd/utils/tasks.hpp>
-#include <uhd/utils/byteswap.hpp>
-#include <boost/function.hpp>
-#include <iostream>
 #include <vector>
-#include <chrono>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 
 // Smart pointers
 #include <memory>

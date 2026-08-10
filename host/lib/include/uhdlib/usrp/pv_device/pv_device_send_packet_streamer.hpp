@@ -9,6 +9,7 @@
 #pragma once
 
 #include <uhdlib/transport/super_send_packet_handler_mmsg.hpp>
+#include <uhd/transport/zero_copy.hpp>
 
 #include <uhdlib/usrp/common/pv_iface.hpp>
 #include <uhdlib/utils/pv_tx_async_msg_queue.hpp>
