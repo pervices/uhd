@@ -2996,6 +2996,7 @@ multi_usrp::sptr make_rfnoc_device(
 
 multi_usrp::sptr multi_usrp::make(const device_addr_t& dev_addr)
 {
+    UHD_LOG_INFO("LOG TEST HEADER", "LOG TEST BODY");
     UHD_LOGGER_TRACE("MULTI_USRP")
         << "multi_usrp::make with args " << dev_addr.to_pp_string();
 
