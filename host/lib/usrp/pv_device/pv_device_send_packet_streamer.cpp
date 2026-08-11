@@ -26,6 +26,16 @@ using namespace uhd;
 using namespace uhd::usrp;
 using namespace uhd::transport;
 
+static void tmp_ping_check(std::string ip) {
+    char cmd[128];
+    snprintf(cmd, 128, "ping -c 1 -W 1 %s  > /dev/null 2>&1", ip.c_str());
+    int check = system(cmd);
+
+    if(!check) {
+        UHD_LOG_ERROR("tmp_ping_check", "Ping failed for: " + ip);
+    }
+}
+
 pv_device_send_packet_streamer::pv_device_send_packet_streamer(
     const std::string product_name_c,
     const std::vector<size_t>& channels,
@@ -104,8 +114,16 @@ pv_device_send_packet_streamer::~pv_device_send_packet_streamer() {
 }
 
 void pv_device_send_packet_streamer::teardown() {
+    UHD_LOG_INFO("ping_check", "A10");
+    tmp_ping_check("10.10.10.2");
+    tmp_ping_check("10.10.11.2");
+
     // Stop buffer monitor thread before polling for the buffer to be empty because they use the same socket
     stop_buffer_monitor_thread();
+
+    UHD_LOG_INFO("ping_check", "A20");
+    tmp_ping_check("10.10.10.2");
+    tmp_ping_check("10.10.11.2");
 
     // Waits for all samples sent to be consumed before destructing, times out after 30s
     uhd::time_spec_t timeout_time = uhd::get_system_time() + 30;
@@ -129,6 +147,10 @@ void pv_device_send_packet_streamer::teardown() {
         usleep(10);
     }
 
+    UHD_LOG_INFO("ping_check", "A30");
+    tmp_ping_check("10.10.10.2");
+    tmp_ping_check("10.10.11.2");
+
     _eprops.clear();
 
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -141,6 +163,10 @@ void pv_device_send_packet_streamer::teardown() {
         std::string uflow = _iface->get_string("tx/" + channel_name + "/qa/uflow");
         std::cout << "CH " << std::string( 1, 'A' + _channels[n] ) << ": Overflow Count: " << oflow << ", Underflow Count: " << uflow << "\n";
     }
+
+    UHD_LOG_INFO("ping_check", "A40");
+    tmp_ping_check("10.10.10.2");
+    tmp_ping_check("10.10.11.2");
 
     // Check for SFP FIFO buffer overflows if tracking was enabled for this streamer
     if (_sfp_oflow_start != uint16_t(-1)) {
@@ -167,6 +193,10 @@ void pv_device_send_packet_streamer::teardown() {
         }
     }
 
+    UHD_LOG_INFO("ping_check", "A50");
+    tmp_ping_check("10.10.10.2");
+    tmp_ping_check("10.10.11.2");
+
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         // Deactivates the channel. Mutes rf, puts the dsp in reset, and turns on the outward facing LED on the board
         // Does not actually turn off board
@@ -176,6 +206,10 @@ void pv_device_send_packet_streamer::teardown() {
         // Release channel locks
         flock(_channel_locks[_channels[n]], LOCK_UN);
     }
+
+    UHD_LOG_INFO("ping_check", "A60");
+    tmp_ping_check("10.10.10.2");
+    tmp_ping_check("10.10.11.2");
 }
 
 //send fucntion called by external programs
