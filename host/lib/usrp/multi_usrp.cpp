@@ -2999,11 +2999,21 @@ multi_usrp::sptr multi_usrp::make(const device_addr_t& dev_addr)
     UHD_LOGGER_TRACE("MULTI_USRP")
         << "multi_usrp::make with args " << dev_addr.to_pp_string();
 
-    device::sptr dev = device::make(dev_addr, device::USRP);
+    // TEMPORARY: for the SFP-unresponsive-in-Docker investigation, default to the
+    // management IP of the Crimson under test when no addr is given, so callers that
+    // pass no args (e.g. benchmark_rate invoked without --args) skip UDP broadcast
+    // discovery instead of re-discovering the device on every call. Revert once the
+    // investigation is done.
+    device_addr_t effective_addr = dev_addr;
+    if (!effective_addr.has_key("addr")) {
+        effective_addr["addr"] = "192.168.10.2";
+    }
+
+    device::sptr dev = device::make(effective_addr, device::USRP);
 
     auto rfnoc_dev = std::dynamic_pointer_cast<rfnoc::detail::rfnoc_device>(dev);
     if (rfnoc_dev) {
-        return rfnoc::detail::make_rfnoc_device(rfnoc_dev, dev_addr);
+        return rfnoc::detail::make_rfnoc_device(rfnoc_dev, effective_addr);
     }
     return std::make_shared<multi_usrp_impl>(dev);
 }
