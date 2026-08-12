@@ -10,6 +10,12 @@ if [ "$1" = "configure" ]; then
  if [ -x "`which sysctl 2>/dev/null`" ]; then
    sysctl -p /etc/sysctl.d/uhd-usrp2.conf || echo "Warning: Could not update sysctl settings for network devices."
  fi
+ # preempt-monitor.service mirrors /sys/kernel/debug/sched/preempt to
+ # /run/sched_preempt_status so UHD can check the preemption mode without
+ # needing debugfs access. preempt-monitor.path keeps it up to date if the
+ # setting changes after boot.
+ systemctl daemon-reload
+ systemctl enable --now preempt-monitor.service preempt-monitor.path
 fi
 
 #DEBHELPER#
