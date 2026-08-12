@@ -1,0 +1,10 @@
+#! /bin/sh
+
+set -e
+if [ "$1" = "remove" ]; then
+ systemctl disable --now preempt-monitor.service preempt-monitor.path || true
+fi
+
+#DEBHELPER#
+
+exit 0
