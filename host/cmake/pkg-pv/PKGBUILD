@@ -83,4 +83,6 @@ package() {
     cd "$srcdir/$_gitname/host/build"
     make DESTDIR="$pkgdir" install
     install -Dm644 "../utils/uhd-usrp.rules" "$pkgdir/usr/lib/udev/rules.d/10-uhd-usrp.rules"
+    install -Dm644 "../cmake/common_packaging/preempt-monitor.service" "$pkgdir/usr/lib/systemd/system/preempt-monitor.service"
+    install -Dm644 "../cmake/common_packaging/preempt-monitor.path" "$pkgdir/usr/lib/systemd/system/preempt-monitor.path"
 }
