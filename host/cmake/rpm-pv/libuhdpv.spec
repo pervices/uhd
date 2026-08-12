@@ -137,6 +137,13 @@ popd
 install -Dpm 0755 tools/usrp_x3xx_fpga_jtag_programmer.sh %{buildroot}%{_bindir}/usrp_x3xx_fpga_jtag_programmer.sh
 #install -Dpm 0755 tools/uhd_dump/chdr_log %%{buildroot}%%{_bindir}/chdr_log
 
+# preempt-monitor mirrors /sys/kernel/debug/sched/preempt to
+# /run/sched_preempt_status so UHD can check the preemption mode without
+# needing debugfs access. preempt-monitor.path keeps it up to date if the
+# setting changes after boot.
+install -Dpm 0644 host/cmake/common_packaging/preempt-monitor.service %{buildroot}%{_unitdir}/preempt-monitor.service
+install -Dpm 0644 host/cmake/common_packaging/preempt-monitor.path %{buildroot}%{_unitdir}/preempt-monitor.path
+
 %if %{with wireshark}
 # wireshark dissectors
 pushd tools/dissectors
@@ -160,6 +167,14 @@ exit 0
 %post
 sysctl net.core.rmem_max=500000000
 sysctl net.core.wmem_max=500000000
+systemctl daemon-reload
+systemctl enable --now preempt-monitor.service preempt-monitor.path
+exit 0
+
+%preun
+if [ $1 -eq 0 ]; then
+  systemctl disable --now preempt-monitor.service preempt-monitor.path || true
+fi
 exit 0
 
 %files
