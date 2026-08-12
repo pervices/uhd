@@ -1,3 +1,13 @@
+uhdpv (4.10.0.6-0ubuntu1) ubuntu_release; urgency=low
+
+  * Performance improvements
+  * Disabling compilation for devices not supported in this fork
+  * Changing internal thread affinities to a round robin system from binding to their current core
+  * Adding set_thread_affinity_round_robin to allow users to set their core using said round robin system
+  * Deprecated set_thread_affinity_active_core
+
+ -- Per Vices <packages@pervices.com>  Wed, 12 Aug 2026 14:32:36 -0400
+
 uhdpv (4.10.0.5-0ubuntu1) ubuntu_release; urgency=low
 
   * Remove dependency: boost::filesystem
