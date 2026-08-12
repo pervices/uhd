@@ -25,13 +25,15 @@ uhd::preempt_mode_t uhd::check_preemption(std::string log_header) {
 
     // Unable to check preemption mode
     if(file == NULL) {
-        std::string instruction_link = "https://support.pervices.com/how-to/pvht-11-performancetuning/#9-preemption";
-
         UHD_LOG_WARNING(log_header,
             "Unable to check preemption setting. Preemption modes other than non, voluntary, and lazy may cause performance issues."
-            "UHD attempts to check \"" + mirror_path + "\" and \"" + debug_fs_path + "\" to get the current preemption setting.\n"
-                "\tRecommended action: create a systemd process to mirror \"" + debug_fs_path + "\" (from debugfs) to \"" + mirror_path + "\". Instructions are available at: " + instruction_link + "\n"
-                "\tAlternative action: remount debugfs to allow give read access: \"sudo mount -o remount,mode=0755 -t debugfs none /sys/kernel/debug/\" ."
+            "UHD attempts to check \"" + mirror_path + "\" and falls back to \"" + debug_fs_path + "\" to get the current preemption setting.\n"
+                "\tVerify debugfs is mounted at /sys/kernel/debug . This is the default on most distros\n"
+                "\tIf UHD was installed through Per Vices packages:\n"
+                    "\t\tVerify the systemd units preempt-monitor.path and preempt-monitor.service are working properly.\n"
+                "\tIf UHD was compiled manually:\n"
+                    "\t\tInstall and enable the systemd units: https://github.com/pervices/uhd/raw/refs/heads/master/host/cmake/common_packaging/preempt-monitor.path and https://github.com/pervices/uhd/raw/refs/heads/master/host/cmake/common_packaging/preempt-monitor.service\n"
+                "\tAlternative (unsecure) action: mount/remount debugfs to allow give read access: \"sudo mount -o remount,mode=0755 -t debugfs none /sys/kernel/debug/\" . remount is required to update permissions."
         );
 
         return PREEMPT_DYNAMIC_UNDEFINED;
