@@ -1,0 +1,15 @@
+#! /bin/sh
+
+set -e
+if [ "$1" = "configure" ]; then
+ # preempt-monitor.service mirrors /sys/kernel/debug/sched/preempt to
+ # /run/sched_preempt_status so UHD can check the preemption mode without
+ # needing debugfs access. preempt-monitor.path keeps it up to date if the
+ # setting changes after boot.
+ systemctl daemon-reload
+ systemctl enable --now preempt-monitor.service preempt-monitor.path
+fi
+
+#DEBHELPER#
+
+exit 0

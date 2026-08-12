@@ -1,2 +1,4 @@
+host/cmake/common_packaging/preempt-monitor.service /usr/lib/systemd/system/
+host/cmake/common_packaging/preempt-monitor.path /usr/lib/systemd/system/
 usr/lib/*/*.so.*
 usr/share/uhd
