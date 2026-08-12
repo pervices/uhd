@@ -10,34 +10,33 @@
 #include <string.h>
 
 uhd::preempt_mode_t uhd::check_preemption(std::string log_header) {
-    std::string path = "/sys/kernel/debug/sched/preempt";
-
+    // The paths to use to check preemption mode
+    std::string debug_fs_path = "/sys/kernel/debug/sched/preempt";
+    std::string mirror_path = "/run/sched_preempt_status";
     FILE *file;
 
-    file = fopen(path.c_str(), "r");
 
-    std::string debugfs_mount = "To mount debugfs run \"sudo mount -t debugfs none /sys/kernel/debug/\"";
-    std::string update_debugfs_permissions = "To set the permission of debugfs to allow non root users to read preemption setting run \"sudo mount -o remount,mode=0755 -t debugfs none /sys/kernel/debug/\". \"remount\" is required due to a bug affecting most kernel 6. versions.";
-    std::string read_preempt = "To check current preemption setting run \"cat " + path + "\". It must be set to none or voluntary for optimal performance.";
-    // Discussion of the kernel bug requiring remount: https://bugzilla.kernel.org/show_bug.cgi?id=220406
-    std::string set_preempt = "To change preemption you must echo none or voluntary (for kernels < 6.13) or lazy (for kernels >= 6.13) to " + path + " as root (sudo will not work).";
-
-    // Unable to check preempt setting
+    file = fopen(mirror_path.c_str(), "r");
+    // The user has not created a process to mirror debug_fs_path to mirror_path
+    // Fallback to attempting to read debugfs directly
     if(file == NULL) {
-        // Insufficient permission
-        if(errno == EACCES) {
-            UHD_LOG_WARNING(log_header, "Insufficient permission to check preemption setting.\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+        file = fopen(debug_fs_path.c_str(), "r");
+    }
 
-            return PREEMPT_DYNAMIC_UNDEFINED;
-            // File missing (probably because debugfs isn't mounted)
-        } else if (errno == ENOENT) {
-            UHD_LOG_WARNING(log_header, "debugfs is not mounted or not mounted in it's usual location, unable to check preemption setting.\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
-            return PREEMPT_DYNAMIC_UNDEFINED;
-            // Unexpected error when attempting to open file
-        } else {
-            UHD_LOG_WARNING(log_header, "Preemption check failed with error code: " + std::to_string(errno) + ": " + std::string(strerror(errno)) + "\n\t" + debugfs_mount + "\n\t" + update_debugfs_permissions + "\n\t" + read_preempt + "\n\t" + set_preempt);
+    // Unable to check preemption mode
+    if(file == NULL) {
+        UHD_LOG_WARNING(log_header,
+            "Unable to check preemption setting. Preemption modes other than none, voluntary, and lazy may cause performance issues.\n"
+            "UHD attempts to check \"" + mirror_path + "\" and falls back to \"" + debug_fs_path + "\" to get the current preemption setting.\n"
+                "\tVerify debugfs is mounted at /sys/kernel/debug . This is the default on most distros\n"
+                "\tIf UHD was installed through Per Vices packages:\n"
+                    "\t\tVerify the systemd units preempt-monitor.path and preempt-monitor.service are working properly.\n"
+                "\tIf UHD was compiled manually:\n"
+                    "\t\tInstall and enable the systemd units: https://github.com/pervices/uhd/raw/refs/heads/master/host/cmake/common_packaging/preempt-monitor.path and https://github.com/pervices/uhd/raw/refs/heads/master/host/cmake/common_packaging/preempt-monitor.service\n"
+                "\tAlternative (unsecure) action: mount/remount debugfs to give read access: \"sudo mount -o remount,mode=0755 -t debugfs none /sys/kernel/debug/\" . Remount is required to update permissions."
+        );
+
         return PREEMPT_DYNAMIC_UNDEFINED;
-        }
     }
 
     char buffer[25];
@@ -70,13 +69,25 @@ uhd::preempt_mode_t uhd::check_preemption(std::string log_header) {
 
     } else if(mode == PREEMPT_DYNAMIC_FULL) {
         // Warn the user they are using a suboptimal preemption mode
-        UHD_LOG_WARNING(log_header, "Preemption is currently set to full, this will cause unreliable performance.\n\t" + read_preempt + "\n\t" + set_preempt);
+        UHD_LOG_WARNING(log_header,
+            "Preemption is currently set to full; this will cause unreliable performance.\n"
+                "\tTo set the preemption mode permanently follow the instructions at: https://support.pervices.com/how-to/pvht-11-performancetuning/#setting-default-preemption-mode .\n"
+                "\tTo set the preemption mode temporarily mount debugfs to /sys/kernel/debug/ (if not already done by default) "
+                "and echo none (kernel < 7.0) or lazy (kernel >= 7.0) to /sys/kernel/debug/sched/preempt as root.\n"
+                "\tChanging the preemption mode must be done as root. sudo alone will not work."
+        );
         return mode;
 
     } else /*PREEMPT_DYNAMIC_UNDEFINED*/ {
         // Warn the user we were unable to detect a preemption mode
-        // This should never happen if a new mode is added
-        UHD_LOG_WARNING(log_header, "Unrecognized preemption mode, this will cause unreliable performance.\n\t" + read_preempt + "\n\t" + set_preempt);
+        // This should never happen unless a new mode is added
+        UHD_LOG_WARNING(log_header,
+            "Unrecognized preemption mode; this may cause unreliable performance.\n"
+                "\tTo set the preemption mode permanently follow the instructions at: https://support.pervices.com/how-to/pvht-11-performancetuning/#setting-default-preemption-mode .\n"
+                "\tTo set the preemption mode temporarily mount debugfs to /sys/kernel/debug/ (if not already done by default) "
+                "and echo none (kernel < 7.0) or lazy (kernel >= 7.0) to /sys/kernel/debug/sched/preempt as root.\n"
+                "\tChanging the preemption mode must be done as root. sudo alone will not work."
+        );
         return PREEMPT_DYNAMIC_UNDEFINED;
     }
 }
