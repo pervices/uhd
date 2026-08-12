@@ -1,0 +1,13 @@
+# Instructions on the website specificy the path of this file within the repo.
+# Ensure those instructions are updated if this file is moved.
+
+[Unit]
+Description=Monitor sched_preempt file for changes.
+
+[Path]
+# Triggers updating preemption status when modifi
+PathChanged=/sys/kernel/debug/sched/preempt
+Unit=preempt-monitor.service
+
+[Install]
+WantedBy=multi-user.target

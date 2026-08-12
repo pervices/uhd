@@ -1,0 +1,15 @@
+# Instructions on the website specificy the path of this file within the repo.
+# Ensure those instructions are updated if this file is moved.
+
+[Unit]
+Description=Copy sched_preempt status to a safe readable file
+
+[Service]
+Type=oneshot
+# Copy the preemption mode from debugfs to /run/sched_preempt_status
+# Note that debugfs must be mounted to /sys/kernel/debug/ for this to work
+ExecStart=/bin/sh -c 'cat /sys/kernel/debug/sched/preempt > /run/sched_preempt_status && chmod 644 /run/sched_preempt_status'
+
+# Triggers copying the status on boot
+[Install]
+WantedBy=multi-user.target
