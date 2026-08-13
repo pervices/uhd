@@ -70,6 +70,7 @@ if [[ -e "${DEBIAN_LINK}" && ! -L "${DEBIAN_LINK}" ]]; then
     exit 1
 fi
 ln -sfn "${SCRIPT_DIR}" "${DEBIAN_LINK}"
+echo "debian -> $(readlink -f "${DEBIAN_LINK}")"
 
 if [[ "${INSTALL_DEPS}" -eq 1 ]]; then
     # debian-pv/rules pins gcc-13/g++-13. That's Ubuntu 24.04's default
