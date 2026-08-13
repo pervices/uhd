@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+#
+# Fast, minimal-dependency local compile of UHD for Oracle Linux 9.
+#
+# This is a developer convenience script only -- it is NOT the release
+# packaging pipeline. It does not build an .rpm, does not create a source
+# tarball, and skips everything in libuhdpv.spec that exists only to
+# produce a shippable package (doxygen docs, wireshark dissectors, the
+# octave/dpdk extras, man page tooling, systemd unit installation, etc).
+# It installs only what's needed to configure and compile the same
+# Per Vice-enabled device set with the same cmake flags as the spec, so
+# you can iterate on the code quickly.
+#
+# For a real release build, use libuhdpv.spec with rpmbuild instead.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+BUILD_DIR="${REPO_ROOT}/host/build-local"
+
+JOBS="$(nproc)"
+INSTALL_DEPS=0
+DO_INSTALL=0
+CLEAN=0
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [options]
+
+Fast, minimal-dependency local compile of UHD (libuhdpv) for Oracle Linux 9.
+Not the release RPM build -- this only produces build output, no .rpm.
+
+Options:
+  -d, --install-deps   Install the minimal build dependencies via dnf (sudo)
+  -i, --install        Run 'make install' after building (sudo)
+  -c, --clean          Remove the local build directory first
+  -j, --jobs N         Parallel build jobs (default: nproc = ${JOBS})
+  -h, --help           Show this help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d|--install-deps) INSTALL_DEPS=1; shift ;;
+        -i|--install) DO_INSTALL=1; shift ;;
+        -c|--clean) CLEAN=1; shift ;;
+        -j|--jobs) JOBS="$2"; shift 2 ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
+    esac
+done
+
+if [[ -r /etc/os-release ]]; then
+    . /etc/os-release
+    if [[ "${ID:-}" != "ol" || "${VERSION_ID%%.*}" != "9" ]]; then
+        echo "Warning: this script targets Oracle Linux 9 (detected: ${PRETTY_NAME:-unknown}). Continuing anyway." >&2
+    fi
+fi
+
+# Trimmed down from libuhdpv.spec's BuildRequires: this drops everything
+# that's only needed to build the *release* package rather than to compile
+# the code -- doxygen/docutils (ENABLE_DOXYGEN=OFF below), wireshark-devel
+# and libpcap-devel (dissectors, not built here), octave and dpdk (both
+# disabled below), vim-common (firmware tooling, not built here), and
+# libusb1-devel (ENABLE_USB=OFF below, so no USB device backends are built).
+DEPS=(
+    gcc-toolset-13
+    cmake
+    git
+    make
+    pkgconfig
+    boost1.78-python3-devel
+    ncurses-devel
+    python3.11
+    python3.11-devel
+    python3.11-mako
+    python3.11-cheetah
+    python3.11-numpy
+    python3.11-setuptools
+)
+
+if [[ "${INSTALL_DEPS}" -eq 1 ]]; then
+    echo "Installing minimal build dependencies:"
+    printf '  %s\n' "${DEPS[@]}"
+    sudo dnf install -y "${DEPS[@]}"
+fi
+
+if [[ "${CLEAN}" -eq 1 ]]; then
+    rm -rf "${BUILD_DIR}"
+fi
+mkdir -p "${BUILD_DIR}"
+
+if [[ -f /opt/rh/gcc-toolset-13/enable ]]; then
+    # shellcheck disable=SC1091
+    source /opt/rh/gcc-toolset-13/enable
+fi
+
+PYTHON_BIN="/usr/bin/python3.11"
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+    PYTHON_BIN="$(command -v python3)"
+fi
+
+# Same device/feature set and flags as the %build section of libuhdpv.spec,
+# minus everything that only matters for packaging (DESTDIR install,
+# man pages, doxygen, wireshark dissectors, etc).
+cd "${BUILD_DIR}"
+cmake \
+    -DCMAKE_INSTALL_PREFIX="/usr" \
+    -DPKG_LIB_DIR="/usr/lib/uhd" \
+    -DPYTHON_EXECUTABLE="${PYTHON_BIN}" \
+    -DENABLE_EXAMPLES=ON \
+    -DENABLE_UTILS=ON \
+    -DENABLE_DPDK=OFF \
+    -DENABLE_TESTS=OFF \
+    -DENABLE_N300=OFF \
+    -DENABLE_E320=OFF \
+    -DENABLE_USRP1=OFF \
+    -DENABLE_USRP2=ON \
+    -DENABLE_B200=OFF \
+    -DENABLE_B100=OFF \
+    -DENABLE_X300=OFF \
+    -DENABLE_CRIMSON_TNG=ON \
+    -DENABLE_CYAN_NRNT=ON \
+    -DENABLE_CHESTNUT=ON \
+    -DENABLE_X400=OFF \
+    -DENABLE_MPMD=ON \
+    -DENABLE_SIM=ON \
+    -DENABLE_N320=OFF \
+    -DENABLE_E300=OFF \
+    -DENABLE_OCTOCLOCK=OFF \
+    -DENABLE_DOXYGEN=OFF \
+    -DENABLE_USB=OFF \
+    -DENABLE_LIBURING=OFF \
+    -DENABLE_PYMOD_UTILS=OFF \
+    -DENABLE_PYTHON_API=ON \
+    -DENABLE_STATIC_LIBS=OFF \
+    "${REPO_ROOT}/host"
+
+make -j"${JOBS}"
+
+if [[ "${DO_INSTALL}" -eq 1 ]]; then
+    sudo make install
+fi
+
+echo ""
+echo "Build complete: ${BUILD_DIR}"
