@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Fast, minimal-dependency local compile of UHD for Oracle Linux 9.
+# Fast, minimal-dependency local compile of UHD for Oracle Linux 8.
 #
 # This is a developer convenience script only -- it is NOT the release
 # packaging pipeline. It does not build an .rpm, does not create a source
@@ -28,7 +28,7 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [options]
 
-Fast, minimal-dependency local compile of UHD (libuhdpv) for Oracle Linux 9.
+Fast, minimal-dependency local compile of UHD (libuhdpv) for Oracle Linux 8.
 Not the release RPM build -- this only produces build output, no .rpm.
 
 Options:
@@ -53,8 +53,8 @@ done
 
 if [[ -r /etc/os-release ]]; then
     . /etc/os-release
-    if [[ "${ID:-}" != "ol" || "${VERSION_ID%%.*}" != "9" ]]; then
-        echo "Warning: this script targets Oracle Linux 9 (detected: ${PRETTY_NAME:-unknown}). Continuing anyway." >&2
+    if [[ "${ID:-}" != "ol" || "${VERSION_ID%%.*}" != "8" ]]; then
+        echo "Warning: this script targets Oracle Linux 8 (detected: ${PRETTY_NAME:-unknown}). Continuing anyway." >&2
     fi
 fi
 
