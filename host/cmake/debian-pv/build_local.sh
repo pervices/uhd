@@ -12,12 +12,16 @@
 # Nothing is installed with `make install`. The only thing this script
 # ever installs is done through a package manager: build dependencies via
 # `apt-get build-dep`, and (with --install) the built .debs via `apt`.
+#
+# Builds from a disposable copy of debian-pv (see below re: the
+# "ubuntu_release" distribution placeholder) -- debian-pv/changelog and
+# friends are never modified.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-DEBIAN_LINK="${REPO_ROOT}/debian"
+DEBIAN_DIR="${REPO_ROOT}/debian"
 
 JOBS="$(nproc)"
 INSTALL_DEPS=0
@@ -63,14 +67,25 @@ esac
 
 # debhelper expects debian/ at the top of the source tree (rules uses
 # --sourcedirectory=host --builddirectory=build to point at the real
-# sources). debian is gitignored for exactly this: point it at the
-# packaging we actually want to build.
-if [[ -e "${DEBIAN_LINK}" && ! -L "${DEBIAN_LINK}" ]]; then
-    echo "Error: ${DEBIAN_LINK} exists and isn't a symlink; refusing to overwrite it." >&2
+# sources). debian is gitignored for exactly this: give it the packaging
+# we actually want to build.
+#
+# This is a real copy, not a symlink to debian-pv, because changelog needs
+# a patch to build at all: every entry's distribution field is the literal
+# string "ubuntu_release", which dpkg's changelog parser rejects outright
+# (the distribution field only allows [-+0-9a-z.], no underscore -- see
+# Dpkg::Changelog::Entry::Debian). That's presumably a placeholder your
+# release CI substitutes with a real codename before packaging for real;
+# for a local, non-release build we just use the standard "UNRELEASED"
+# convention instead. Patching a copy keeps debian-pv/changelog itself
+# untouched.
+if [[ -e "${DEBIAN_DIR}" && ! -L "${DEBIAN_DIR}" ]]; then
+    echo "Error: ${DEBIAN_DIR} exists and isn't managed by this script; refusing to remove it." >&2
     exit 1
 fi
-ln -sfn "${SCRIPT_DIR}" "${DEBIAN_LINK}"
-echo "debian -> $(readlink -f "${DEBIAN_LINK}")"
+rm -rf "${DEBIAN_DIR}"
+cp -r "${SCRIPT_DIR}" "${DEBIAN_DIR}"
+sed -i 's/ubuntu_release/UNRELEASED/g' "${DEBIAN_DIR}/changelog"
 
 if [[ "${INSTALL_DEPS}" -eq 1 ]]; then
     # debian-pv/rules pins gcc-13/g++-13. That's Ubuntu 24.04's default
