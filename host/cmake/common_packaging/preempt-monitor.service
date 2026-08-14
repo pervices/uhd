@@ -7,17 +7,18 @@ Description=Copy sched_preempt status to a safe readable file
 [Service]
 Type=oneshot
 # Copy the preemption mode from debugfs to /run/sched_preempt_status.
-# Three cases, since this service is enabled unconditionally by the
-# package postinst and must not fail on kernels/systems where the
-# debugfs file isn't available:
-#  - debugfs isn't mounted at /sys/kernel/debug at all: we can't tell
-#    whether the kernel supports the preemption setting or not, so just
-#    say debugfs needs to be mounted to check.
-#  - debugfs is mounted but sched/preempt doesn't exist under it: the
-#    kernel doesn't have the dynamic preemption feature (e.g. Ubuntu
-#    20.04's default kernel).
-#  - sched/preempt is readable: copy its contents through as before.
-ExecStart=/bin/sh -c 'if ! grep -q " /sys/kernel/debug debugfs" /proc/mounts; then echo "debugfs not mounted at /sys/kernel/debug . It is required to check the current preemption mode." > /run/sched_preempt_status; elif [ -r /sys/kernel/debug/sched/preempt ]; then cat /sys/kernel/debug/sched/preempt > /run/sched_preempt_status; else echo "Preemption setting not supported by kernel." > /run/sched_preempt_status; fi; chmod 644 /run/sched_preempt_status'
+# if (debugfs is not mounted) -> inform the user it is not mounted.
+# elif /sys/kernel/debug/sched/preempt -> requirements are met, copy the preemption mode to /run/sched_preempt_status.
+# else -> The kernel does not support adjusting preemption mode.
+ExecStart=/bin/sh -c '\
+if ! grep -q " /sys/kernel/debug debugfs" /proc/mounts; then \
+    echo "debugfs not mounted at /sys/kernel/debug . It is required to check the current preemption mode." > /run/sched_preempt_status; \
+elif [ -r /sys/kernel/debug/sched/preempt ]; then \
+    cat /sys/kernel/debug/sched/preempt > /run/sched_preempt_status; \
+else \
+    echo "Preemption setting not supported by kernel." > /run/sched_preempt_status; \
+fi; \
+chmod 644 /run/sched_preempt_status'
 
 # Triggers copying the status on boot
 [Install]
