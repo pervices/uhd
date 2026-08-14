@@ -87,9 +87,9 @@ static void freq_error_check(
     // Technically this is different behaviour than upstream, but if someone encounters this they are doing something wrong
     if(diff > error_threshold) {
         std::string message = std::format(
-                   "Extreme difference between target and actual when setting %s center frequency:\n"
-                   "Target center frequency: %f MHz\n"
-                   "Actual center frequency: %f MHz\n",
+                   "Extreme difference between target and actual when setting {} center frequency:\n"
+                   "Target center frequency: {} MHz\n"
+                   "Actual center frequency: {} MHz\n",
                    xx, (target_freq / 1e6), (actual_freq / 1e6));
         UHD_LOG_ERROR("MULTI_USRP", message)
         throw uhd::runtime_error(message);
