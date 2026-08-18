@@ -303,6 +303,8 @@ public:
                 remainder = 1 / frac;
             }
 
+            std::cout << "fundamental_period: " << fundamental_period << std::endl;
+
             return (size_t) fundamental_period;
         }
     }
