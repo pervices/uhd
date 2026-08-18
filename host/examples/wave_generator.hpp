@@ -205,32 +205,105 @@ public:
             // Const only has 1 value so it's fundamental period is 1
             return 1;
         } else {
-            double period;
-            if(_wave_freq != 0) {
-                period = _sample_rate/_wave_freq;
-            } else {
-                period = 1;
+            // Wave freq of 0 behaves like CONST
+            if(_wave_freq == 0) {
+                return 1;
             }
-            double full_period;
-            double frac_period = std::modf(period, &full_period);
-            // Length of the period of the sampled signal, to take into account mismatch between period and sample rate
-            size_t fundamental_period;
 
-            // If there is no fractional part of the period we can use the period as the super period
-            // Also if the fractional part is very close to 0 treat it as close enough
-            if(frac_period < 0.000000001) {
-                fundamental_period = period;
-            } else {
-                double extra_cycles;
-                if(frac_period < 0.5) {
-                    extra_cycles = 1.0/frac_period;
-                } else {
-                    extra_cycles = 1.0/(1.0-frac_period);
+            // The exact number of samples per cycle of the wave
+            double period = _sample_rate / _wave_freq;
+
+            // The fundamental period (in samples) is the numerator of period expressed as a
+            // fraction in lowest terms. Find it via a continued fraction expansion of period,
+            // which generates successively better rational approximations (convergents).
+            // If the true next convergent's numerator would exceed the 1e9 cap, consider the best
+            // semiconvergent (mediant) that still fits. A semiconvergent with a small partial
+            // quotient can be a *worse* approximation than the previous full convergent, so the two
+            // are compared directly (by how close candidate_lut_length*wave_freq/sample_rate lands to an integer number
+            // of cycles) rather than assuming the larger numerator always wins.
+            constexpr int64_t max_fundamental_period = 1000000000;
+
+            // Distance from candidate_lut_length*wave_freq/sample_rate (i.e. candidate_lut_length/period) to the nearest integer number of
+            // cycles: 0 means no discontinuity at the lookup table wrap point, 0.5 is the worst case
+            auto phase_error = [period](int64_t candidate_lut_length) {
+                double cycles = (double) candidate_lut_length / period;
+                double whole;
+                double frac = std::fabs(std::modf(cycles, &whole));
+                return std::min(frac, 1.0 - frac);
+            };
+
+            double remainder = period;
+            // The two most recently accepted convergents, expressed as numerator/denominator pairs.
+            // Seeded with the conventional 0th "convergent" 1/0 (a placeholder meaning "no cycles yet")
+            // so the very first iteration is handled by the same logic as every later one.
+            int64_t prev_convergent_numerator = 1, prev_prev_convergent_numerator = 0;
+            int64_t prev_convergent_denominator = 0, prev_prev_convergent_denominator = 1;
+            // Safe fallback if not even a single cycle fits under the cap (e.g. wave_freq > sample_rate)
+            int64_t fundamental_period = 1;
+
+            // Limits the number of iterations to avoid an infinite loop due to floating point rounding
+            for(size_t iteration = 0; iteration < 64; iteration++) {
+                double whole;
+                double frac = std::modf(remainder, &whole);
+                // The integer part of this step of the continued fraction expansion of period
+                int64_t partial_quotient = (int64_t) whole;
+
+                // Largest partial quotient <= partial_quotient for which
+                // partial_quotient*prev_convergent_numerator + prev_prev_convergent_numerator still
+                // fits under the cap. Using the full partial_quotient gives the true next convergent;
+                // using less gives the best semiconvergent achievable under the cap. Computed via
+                // division before any multiplication so the multiplication below can never overflow,
+                // even when partial_quotient itself is huge.
+                int64_t largest_partial_quotient_under_cap = partial_quotient;
+                if(prev_convergent_numerator > 0) {
+                    int64_t max_partial_quotient_for_cap =
+                        (max_fundamental_period - prev_prev_convergent_numerator) / prev_convergent_numerator;
+                    if(max_partial_quotient_for_cap < largest_partial_quotient_under_cap) {
+                        largest_partial_quotient_under_cap = max_partial_quotient_for_cap;
+                    }
                 }
 
-                fundamental_period = (size_t) ::round(period * extra_cycles);
+                if(largest_partial_quotient_under_cap < 1) {
+                    // Not even one more cycle fits under the cap; keep the last accepted convergent
+                    break;
+                }
+
+                int64_t candidate_numerator =
+                    largest_partial_quotient_under_cap * prev_convergent_numerator + prev_prev_convergent_numerator;
+                int64_t candidate_denominator =
+                    largest_partial_quotient_under_cap * prev_convergent_denominator + prev_prev_convergent_denominator;
+
+                if(largest_partial_quotient_under_cap < partial_quotient) {
+                    // True next convergent would have overflowed the cap. Only switch to the
+                    // semiconvergent if it's actually a better approximation than the previous
+                    // full convergent; otherwise keep fundamental_period as it already is.
+                    double err_semi = phase_error(candidate_numerator);
+                    double err_prev = (prev_convergent_denominator == 0)
+                        ? std::numeric_limits<double>::infinity()
+                        : phase_error(prev_convergent_numerator);
+                    if(err_semi < err_prev) {
+                        fundamental_period = candidate_numerator;
+                    }
+                    break;
+                }
+
+                fundamental_period = candidate_numerator;
+
+                // frac is essentially 0: period is (to floating point precision) exactly
+                // candidate_numerator/candidate_denominator
+                if(frac < 0.000000001) {
+                    break;
+                }
+
+                prev_prev_convergent_numerator = prev_convergent_numerator;
+                prev_convergent_numerator = candidate_numerator;
+                prev_prev_convergent_denominator = prev_convergent_denominator;
+                prev_convergent_denominator = candidate_denominator;
+
+                remainder = 1 / frac;
             }
-            return fundamental_period;
+
+            return (size_t) fundamental_period;
         }
     }
 
