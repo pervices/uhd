@@ -234,6 +234,9 @@ public:
 
                 fundamental_period = (size_t) ::round(full_period * extra_cycles);
             }
+            std::cout << "fundamental_period: " << fundamental_period << std::endl;
+            std::cout << "period: " << period << std::endl;
+            std::cout << "fundamental_period/period: " << fundamental_period/period << std::endl;
             return fundamental_period;
         }
     }
