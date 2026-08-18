@@ -232,7 +232,7 @@ public:
                     extra_cycles = 1.0/(1.0-frac_period);
                 }
 
-                fundamental_period = (size_t) ::round(period * extra_cycles);
+                fundamental_period = (size_t) ::round(full_period * extra_cycles);
             }
             return fundamental_period;
         }
