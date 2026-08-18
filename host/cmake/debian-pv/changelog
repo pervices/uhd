@@ -1,3 +1,11 @@
+uhdpv (4.10.0.7-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fix warning message for mismatches between the target and actual frequency
+  * Improve error message for unlocked lo
+  * Fix discontinuity in tx_waveforms
+
+ -- Per Vices <packages@pervices.com>  Tue, 18 Aug 2026 17:44:12 -0400
+
 uhdpv (4.10.0.6-0ubuntu1) ubuntu_release; urgency=low
 
   * Performance improvements
