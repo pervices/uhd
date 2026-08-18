@@ -1571,7 +1571,13 @@ tune_result_t crimson_tng_impl::tune_xx_subdev_and_dsp( const double xx_sign, pr
     const double actual_rf_freq = rf_fe_subtree->access<double>("freq/value").get();
 
     if(actual_rf_freq == 0 && target_rf_freq != 0) {
-        UHD_LOG_ERROR(product_name_c, "Error when attempting to set lo on channel " + std::string(1, chan + 'A') + ". The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
+        std::string xx_sign_s;
+        if(xx_sign == TX_SIGN) {
+            xx_sign_s = "TX";
+        } else {
+            xx_sign_s = "RX";
+        }
+        UHD_LOG_ERROR(product_name_c, "Error when attempting to set lo on " + xx_sign_s + " channel " + std::string(1, chan + 'A') + ". The PLL is likely unlocked. Rerun the update package without nolut. If this error persists contact support");
     }
 
     //------------------------------------------------------------------
