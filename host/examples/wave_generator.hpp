@@ -219,7 +219,11 @@ public:
             // If there is no fractional part of the period we can use the period as the super period
             // Also if the fractional part is very close to 0 treat it as close enough
             if(frac_period < 0.000000001) {
+                // Round down a fundamental period close enough to the next whole number
                 fundamental_period = period;
+            } else if(frac_period > 1 - 0.000000001) {
+                // Round up a fundamental period close to the next whole number
+                fundamental_period = period + 1;
             } else {
                 double extra_cycles;
                 if(frac_period < 0.5) {
