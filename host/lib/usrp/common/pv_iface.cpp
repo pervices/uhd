@@ -47,19 +47,14 @@ pv_iface::pv_iface(const std::vector<std::string>& addrs, const uint16_t udp_por
     // Initialize the UDP connection with the server
     udp_transport = udp_simple::make_connected(addrs[0], std::to_string(udp_port));
 
-    // Get the management port used to ask for a TCP connection
-    int tcp_port;
-    try {
-        // Update the property in their respective impl.cpp files if this is changed
-        tcp_port = get_int("system/tcp_management_port");
-    } catch(const uhd::lookup_error& e) {
-        // The server is from before TCP was added, skip creating the connection
+    int tcp_port = get_int("system/tcp_management_port");
+
+    // get_int returns 0 on failure
+    // The server is old and does not support TCP
+    // Fall back to UDP
+    if(tcp_port == 0) {
         tcp_connection = nullptr;
         return;
-    }
-
-    if(tcp_port < 0 || tcp_port > 65535) {
-        throw std::invalid_argument("Invalid tcp management IP: " + std::to_string(tcp_port));
     }
 
     tcp_connection = new tcp_simple(addrs[0], (uint16_t) tcp_port);
