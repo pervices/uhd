@@ -278,6 +278,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/system_time.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tasks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/thread.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tuning_checks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pv_tx_async_msg_queue.cpp
 )
 
