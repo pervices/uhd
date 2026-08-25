@@ -140,12 +140,21 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
         interface_numa_nodes.push_back(get_numa_node_for_iface(iface));
     }
 
+    // Return value for a successful check
+    // See @return for it's meaning
+    int result = 0;
+    
     for(size_t n = 0; n < interface_numa_nodes.size(); n++) {
         if(numa_node != interface_numa_nodes[n]) {
             UHD_LOG_WARNING("CHECK_NUMA", "The tests thread is allowed to run on NUMA node " +
                 std::to_string(numa_node) + " but it using a socket using interface " + network_interfaces[n] +
                 " which is connect to NUMA node " + std::to_string(interface_numa_nodes[n]) + "."
             );
+
+            // The interfaces for not match
+            result = 1;
         }
     }
+
+    return result;
 }
