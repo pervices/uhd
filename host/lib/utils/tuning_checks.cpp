@@ -11,6 +11,7 @@
 #include <uhdlib/utils/network_config.hpp>
 
 #include <numa.h>
+#include <algorithm>
 #include <cerrno>
 #include <cstring>
 #include <fstream>
@@ -130,7 +131,11 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
         network_interfaces.push_back(interface);
     }
 
-    // TODO: remove duplicates from network_interfaces
+    // Remove duplicate network interfaces since multiple sockets can use the same interface
+    std::sort(network_interfaces.begin(), network_interfaces.end());
+    network_interfaces.erase(
+        std::unique(network_interfaces.begin(), network_interfaces.end()),
+        network_interfaces.end());
 
     // Get the NUMA node of each interface
     std::vector<int> interface_numa_nodes;
