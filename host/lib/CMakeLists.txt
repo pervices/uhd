@@ -61,6 +61,9 @@ message(STATUS "")
 # Dependencies
 find_package(LIBUSB)
 find_package(DPDK)
+find_package(NUMA REQUIRED)
+include_directories(${NUMA_INCLUDE_DIRS})
+LIBUHD_APPEND_LIBS(${NUMA_LIBRARIES})
 LIBUHD_REGISTER_COMPONENT("USB" ENABLE_USB ON "ENABLE_LIBUHD;LIBUSB_FOUND" OFF OFF)
 
 # Devices
