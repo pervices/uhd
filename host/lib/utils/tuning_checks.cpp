@@ -13,12 +13,43 @@
 #include <numa.h>
 #include <cerrno>
 #include <cstring>
+#include <fstream>
 #include <string>
 #include <vector>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+
+// Gets the NUMA node a network interface is attached to by reading it from sysfs.
+// libnuma has no API for this since it's a PCI/device concept, not a CPU/memory one.
+static int get_numa_node_for_iface(std::string iface) {
+    std::ifstream file("/sys/class/net/" + iface + "/device/numa_node");
+    if(!file) [[unlikely]] {
+        // No "device" symlink for this interface. Expected for interfaces with no
+        // determinable NUMA affinity (e.g. loopback/virtual interfaces, USB NICs,
+        // devices behind a non-NUMA-aware bus, or passthrough NICs in a VM), not
+        // just an error case.
+        // TODO: -1 means no known NUMA affinity for this interface. The comparison
+        // logic being added for the following TODOs needs to treat -1 as "no
+        // restriction" rather than a mismatch, mirroring how dpdk_common.cpp treats
+        // DPDK's SOCKET_ID_ANY.
+        UHD_LOG_WARNING("CHECK_NUMA", "Unable to determine NUMA node for interface " + iface);
+        return -1;
+    }
+
+    std::string numa_node_str;
+    std::getline(file, numa_node_str);
+
+    try {
+        // The file may itself contain -1 for devices with no determinable NUMA
+        // affinity. See TODO above.
+        return std::stoi(numa_node_str);
+    } catch(const std::exception&) {
+        UHD_LOG_WARNING("CHECK_NUMA", "Unable to parse NUMA node for interface " + iface + " from value: " + numa_node_str);
+        return -1;
+    }
+}
 
 int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len) {
 
@@ -99,9 +130,22 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
         network_interfaces.push_back(interface);
     }
 
-    // TODO: get the numa node of said interfaces
+    // TODO: remove duplicates from network_interfaces
 
-    // TODO: warn the user and return 1 if the interfaces are on different nodes
+    // Get the NUMA node of each interface
+    std::vector<int> interface_numa_nodes;
+    interface_numa_nodes.reserve(network_interfaces.size());
 
-    // TODO: check if mask's node matches that of the sockets
+    for(const std::string& iface : network_interfaces) {
+        interface_numa_nodes.push_back(get_numa_node_for_iface(iface));
+    }
+
+    for(size_t n = 0; n < interface_numa_nodes.size(); n++) {
+        if(numa_node != interface_numa_nodes[n]) {
+            UHD_LOG_WARNING("CHECK_NUMA", "The tests thread is allowed to run on NUMA node " +
+                std::to_string(numa_node) + " but it using a socket using interface " + network_interfaces[n] +
+                " which is connect to NUMA node " + std::to_string(interface_numa_nodes[n]) + "."
+            );
+        }
+    }
 }
