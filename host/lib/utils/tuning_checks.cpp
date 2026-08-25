@@ -16,6 +16,19 @@
 
 int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len) {
 
+    // Check if the kernel supports NUMA
+    if(numa_available() == -1) [[unlikely]] {
+        // TODO: add a parameter to take a context specific error message
+        // TODO: decide which level of message to make this message
+        UHD_LOG_WARNING("CHECK_NUMA", "The kernel is not configured with support for NUMA. Automatic checks for optimal NUMA configuartion will not work.");
+        return -1;
+    }
+
+    // This system only has one NUMA node, and incorrect configuration is impossible
+    if(numa_num_configured_nodes() == 1) {
+        return 0;
+    }
+
     // The numa node allowed by affinity_mask
     int numa_node = -1;
 
@@ -48,10 +61,12 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
     }
 
     // TODO: get the network interfaces of socket_fd
+    std::vector<std::string> network_interfaces;
+
 
     // TODO: get the numa node of said interfaces
 
-    // TODO: warn the user and return 0 if the interfaces are on different nodes
+    // TODO: warn the user and return 1 if the interfaces are on different nodes
 
     // TODO: check if mask's node matches that of the sockets
 }
