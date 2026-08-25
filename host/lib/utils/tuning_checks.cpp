@@ -16,7 +16,6 @@
 #include <climits>
 #include <cstring>
 #include <fstream>
-#include <string>
 #include <vector>
 
 #include <arpa/inet.h>
@@ -29,7 +28,7 @@ static constexpr int MASK_SPANS_MULTIPLE_NODES = INT_MIN;
 // Get the NUMA node allowed by the mask
 // Return -errno of numa_node_of_cpu if unable to get the node
 // Return MASK_SPANS_MULTIPLE_NODES if the mask spans multiple nodes
-static int mask_to_numa_node(const cpu_set_t affinity_mask) {
+static int mask_to_numa_node(const cpu_set_t affinity_mask, std::string message_prefix) {
 
     // The NUMA node used by every CPU allowed by the mask
     int candidate_numa_node = -1;
@@ -44,7 +43,7 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask) {
         int cpu_numa_node = numa_node_of_cpu(cpu);
         if(cpu_numa_node < 0) [[unlikely]] {
             int error_code = errno;
-            std::string get_numa_error_message = "Unable to get NUMA node for CPU " + std::to_string(cpu) + ". numa_node_of_cpu failed with error code: " + std::string(strerror(error_code));
+            std::string get_numa_error_message = message_prefix + "Unable to get NUMA node for CPU " + std::to_string(cpu) + ". numa_node_of_cpu failed with error code: " + std::string(strerror(error_code));
 
             // TODO: add a parameter to take a context specific error message
             UHD_LOG_WARNING("CHECK_NUMA", get_numa_error_message);
@@ -57,7 +56,7 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask) {
         }
         // Check if later CPUs have the same NUMA node
         else if(candidate_numa_node != cpu_numa_node) {
-            UHD_LOG_WARNING("CHECK_NUMA", "The affinity mask of the tested thread can run on multiple NUMA nodes");
+            UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "The affinity mask of the tested thread can run on multiple NUMA nodes");
             return MASK_SPANS_MULTIPLE_NODES;
         }
     }
@@ -67,7 +66,7 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask) {
 
 // Gets the NUMA node a network interface is attached to by reading it from sysfs.
 // libnuma has no API for this since it's a PCI/device concept, not a CPU/memory one.
-static int get_numa_node_for_iface(std::string iface) {
+static int get_numa_node_for_iface(std::string iface, std::string message_prefix) {
     std::ifstream file("/sys/class/net/" + iface + "/device/numa_node");
     if(!file) [[unlikely]] {
         // No "device" symlink for this interface. Expected for interfaces with no
@@ -78,7 +77,7 @@ static int get_numa_node_for_iface(std::string iface) {
         // logic being added for the following TODOs needs to treat -1 as "no
         // restriction" rather than a mismatch, mirroring how dpdk_common.cpp treats
         // DPDK's SOCKET_ID_ANY.
-        UHD_LOG_WARNING("CHECK_NUMA", "Unable to determine NUMA node for interface " + iface);
+        UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "Unable to determine NUMA node for interface " + iface);
         return -1;
     }
 
@@ -90,18 +89,22 @@ static int get_numa_node_for_iface(std::string iface) {
         // affinity. See TODO above.
         return std::stoi(numa_node_str);
     } catch(const std::exception&) {
-        UHD_LOG_WARNING("CHECK_NUMA", "Unable to parse NUMA node for interface " + iface + " from value: " + numa_node_str);
+        UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "Unable to parse NUMA node for interface " + iface + " from value: " + numa_node_str);
         return -1;
     }
 }
 
-int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len) {
+int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len, std::string message_prefix) {
+    // Add a space after the message prefix if one was provided.
+    if(message_prefix != "") {
+        message_prefix+=" ";
+    }
 
     // Check if the kernel supports NUMA
     if(numa_available() == -1) [[unlikely]] {
         // TODO: add a parameter to take a context specific error message
         // TODO: decide which level of message to make this message
-        UHD_LOG_WARNING("CHECK_NUMA", "The kernel is not configured with support for NUMA. Automatic checks for optimal NUMA configuartion will not work.");
+        UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "The kernel is not configured with support for NUMA. Automatic checks for optimal NUMA configuartion will not work.");
         return -1;
     }
 
@@ -111,7 +114,7 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
     }
 
     // Find NUMA node allowed by affinity_mask
-    int numa_node = mask_to_numa_node(affinity_mask);
+    int numa_node = mask_to_numa_node(affinity_mask, message_prefix);
 
     if(numa_node == MASK_SPANS_MULTIPLE_NODES) {
         // The mask spans multiple nodes, return a positive value
@@ -134,18 +137,16 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
         struct sockaddr_in local_addr;
         socklen_t addr_len = sizeof(local_addr);
         if(getsockname(socket_fd[n], (struct sockaddr*)&local_addr, &addr_len) < 0) [[unlikely]] {
-            std::string get_sockname_error_message = "Unable to get local address for socket " + std::to_string(socket_fd[n]) + ". getsockname failed with error code: " + std::string(strerror(errno));
+            std::string get_sockname_error_message = message_prefix + "Unable to get local address for socket " + std::to_string(socket_fd[n]) + ". getsockname failed with error code: " + std::string(strerror(errno));
 
-            // TODO: add a parameter to take a context specific error message
             UHD_LOG_WARNING("CHECK_NUMA", get_sockname_error_message);
             throw uhd::system_error(get_sockname_error_message);
         }
 
         char ip_buff[INET_ADDRSTRLEN];
         if(inet_ntop(AF_INET, &local_addr.sin_addr, ip_buff, INET_ADDRSTRLEN) == nullptr) [[unlikely]] {
-            std::string inet_ntop_error_message = "Unable to convert address for socket " + std::to_string(socket_fd[n]) + " to a string. inet_ntop failed with error code: " + std::string(strerror(errno));
+            std::string inet_ntop_error_message = message_prefix + "Unable to convert address for socket " + std::to_string(socket_fd[n]) + " to a string. inet_ntop failed with error code: " + std::string(strerror(errno));
 
-            // TODO: add a parameter to take a context specific error message
             UHD_LOG_WARNING("CHECK_NUMA", inet_ntop_error_message);
             throw uhd::system_error(inet_ntop_error_message);
         }
@@ -168,7 +169,7 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
     interface_numa_nodes.reserve(network_interfaces.size());
 
     for(const std::string& iface : network_interfaces) {
-        interface_numa_nodes.push_back(get_numa_node_for_iface(iface));
+        interface_numa_nodes.push_back(get_numa_node_for_iface(iface, message_prefix));
     }
 
     // Return value for a successful check
@@ -177,7 +178,7 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
     
     for(size_t n = 0; n < interface_numa_nodes.size(); n++) {
         if(numa_node != interface_numa_nodes[n]) {
-            UHD_LOG_WARNING("CHECK_NUMA", "The tests thread is allowed to run on NUMA node " +
+            UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "The tests thread is allowed to run on NUMA node " +
                 std::to_string(numa_node) + " but it using a socket using interface " + network_interfaces[n] +
                 " which is connect to NUMA node " + std::to_string(interface_numa_nodes[n]) + "."
             );
