@@ -13,6 +13,7 @@
 #include <numa.h>
 #include <algorithm>
 #include <cerrno>
+#include <climits>
 #include <cstring>
 #include <fstream>
 #include <string>
@@ -21,6 +22,48 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+
+// Return code used by mask_to_numa_node to indicate that the mask spans multiple nodes
+static constexpr int MASK_SPANS_MULTIPLE_NODES = INT_MIN;
+
+// Get the NUMA node allowed by the mask
+// Return -errno of numa_node_of_cpu if unable to get the node
+// Return MASK_SPANS_MULTIPLE_NODES if the mask spans multiple nodes
+static int mask_to_numa_node(const cpu_set_t affinity_mask) {
+
+    // The NUMA node used by every CPU allowed by the mask
+    int candidate_numa_node = -1;
+
+    for(int cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+        // Skip CPUs not allowed by the mask
+        if(!CPU_ISSET(cpu, &affinity_mask)) {
+            continue;
+        }
+
+        // Get the numa node of the CPU
+        int cpu_numa_node = numa_node_of_cpu(cpu);
+        if(cpu_numa_node < 0) [[unlikely]] {
+            int error_code = errno;
+            std::string get_numa_error_message = "Unable to get NUMA node for CPU " + std::to_string(cpu) + ". numa_node_of_cpu failed with error code: " + std::string(strerror(error_code));
+
+            // TODO: add a parameter to take a context specific error message
+            UHD_LOG_WARNING("CHECK_NUMA", get_numa_error_message);
+            return -errno;
+        }
+
+        // Record the NUMA node the of the first CPU in the mask
+        if(candidate_numa_node == -1) {
+            candidate_numa_node = cpu_numa_node;
+        }
+        // Check if later CPUs have the same NUMA node
+        else if(candidate_numa_node != cpu_numa_node) {
+            UHD_LOG_WARNING("CHECK_NUMA", "The affinity mask of the tested thread can run on multiple NUMA nodes");
+            return MASK_SPANS_MULTIPLE_NODES;
+        }
+    }
+
+    return candidate_numa_node;
+}
 
 // Gets the NUMA node a network interface is attached to by reading it from sysfs.
 // libnuma has no API for this since it's a PCI/device concept, not a CPU/memory one.
@@ -67,36 +110,19 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
         return 0;
     }
 
-    // The numa node allowed by affinity_mask
-    int numa_node = -1;
+    // Find NUMA node allowed by affinity_mask
+    int numa_node = mask_to_numa_node(affinity_mask);
 
-    for(int cpu = 0; cpu < CPU_SETSIZE; cpu++) {
-        // Skip CPUs not allowed by the mask
-        if(!CPU_ISSET(cpu, &affinity_mask)) {
-            continue;
-        }
-
-        // Get the numa node of the CPU
-        int cpu_numa_node = numa_node_of_cpu(cpu);
-        if(cpu_numa_node < 0) [[unlikely]] {
-            std::string get_numa_error_message = "Unable to get NUMA node for CPU " + std::to_string(cpu) + ". numa_node_of_cpu failed with error code: " + std::string(strerror(errno));
-
-            // TODO: add a parameter to take a context specific error message
-            UHD_LOG_WARNING("CHECK_NUMA", get_numa_error_message);
-            throw uhd::system_error(get_numa_error_message);
-        }
-
-        // Record the NUMA node the of the first CPU in the mask
-        if(numa_node == -1) {
-            numa_node = cpu_numa_node;
-        }
-        // Check if later CPUs have the same NUMA node
-        else if(cpu_numa_node != numa_node) {
-            // TODO: add a parameter to take a context specific error message
-            UHD_LOG_WARNING("CHECK_NUMA", "The affinity mask of the tested thread can run on multiple NUMA nodes");
-            return -1;
-        }
+    if(numa_node == MASK_SPANS_MULTIPLE_NODES) {
+        // The mask spans multiple nodes, return a positive value
+        return 1;
+    } else if(numa_node < 0) {
+        // Unable to get the NUMA node enabled by the mask
+        // Return a negative value to indicate a failure with the test itself
+        return -1;
     }
+
+
 
     // Get the network interface used by each socket
     std::vector<std::string> network_interfaces;
