@@ -18,7 +18,7 @@ namespace uhd {
  * Prints a warning if the mask will allow a thread to run on a different NUMA node than the sockets.
  *
  * @param affinity_mask The mask indicating which cores the thread being checked can use.
- * @param socket_fd An array of file descriptors for the sockets to check.
+ * @param socket_fd An array of file descriptors for the sockets to check. They must be AF_INET sockets.
  * @param socket_fd_len The number of elements in socket_fd.
  *
  * @throws system_error Unable to get the NUMA node for the provided sockets.
