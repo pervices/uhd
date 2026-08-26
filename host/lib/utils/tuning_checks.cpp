@@ -64,6 +64,34 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask, std::string message_
     return candidate_numa_node;
 }
 
+static std::string get_interface_for_socket(int socket) {
+    // Gets the local address the socket is bound to (either explicitly via bind(),
+    // or implicitly assigned by the kernel when connect() selected a route)
+    struct sockaddr_in local_addr;
+    socklen_t addr_len = sizeof(local_addr);
+    if(getsockname(socket, (struct sockaddr*)&local_addr, &addr_len) < 0) [[unlikely]] {
+        std::string get_sockname_error_message = message_prefix + "Unable to get local address for socket " + std::to_string(socket_fd[n]) + ". getsockname failed with error code: " + std::string(strerror(errno));
+
+        UHD_LOG_WARNING("CHECK_NUMA", get_sockname_error_message);
+        return "";
+    }
+
+    char ip_buff[INET_ADDRSTRLEN];
+    if(inet_ntop(AF_INET, &local_addr.sin_addr, ip_buff, INET_ADDRSTRLEN) == nullptr) [[unlikely]] {
+        std::string inet_ntop_error_message = message_prefix + "Unable to convert address for socket " + std::to_string(socket_fd[n]) + " to a string. inet_ntop failed with error code: " + std::string(strerror(errno));
+
+        UHD_LOG_WARNING("CHECK_NUMA", inet_ntop_error_message);
+        return "";
+    }
+
+    // Get the device used by the ip.
+    try {
+        return uhd::get_dev_from_ipv4(std::string(ip_buff));
+    } catch (...) {
+        return "";
+    }
+}
+
 // Gets the NUMA node a network interface is attached to by reading it from sysfs.
 // libnuma has no API for this since it's a PCI/device concept, not a CPU/memory one.
 static int get_numa_node_for_iface(std::string iface, std::string message_prefix) {
@@ -128,34 +156,18 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
 
 
     // Get the network interface used by each socket
-    std::vector<std::string> network_interfaces;
+    std::vector<std::string> network_interfaces();
     network_interfaces.reserve(socket_fd_len);
 
     for(size_t n = 0; n < socket_fd_len; n++) {
-        // Gets the local address the socket is bound to (either explicitly via bind(),
-        // or implicitly assigned by the kernel when connect() selected a route)
-        struct sockaddr_in local_addr;
-        socklen_t addr_len = sizeof(local_addr);
-        if(getsockname(socket_fd[n], (struct sockaddr*)&local_addr, &addr_len) < 0) [[unlikely]] {
-            std::string get_sockname_error_message = message_prefix + "Unable to get local address for socket " + std::to_string(socket_fd[n]) + ". getsockname failed with error code: " + std::string(strerror(errno));
+        std::string interface = get_interface_for_socket(socket_fd[n]);
 
-            UHD_LOG_WARNING("CHECK_NUMA", get_sockname_error_message);
-            throw uhd::system_error(get_sockname_error_message);
+        if(interface != "") [[likely]] {
+            network_interfaces.push_back(interface);
+        } else {
+            UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "Unable to get the interface use by a socket. Skipping check for optimal NUMA/ thread affinity combination.");
+            return -1;
         }
-
-        char ip_buff[INET_ADDRSTRLEN];
-        if(inet_ntop(AF_INET, &local_addr.sin_addr, ip_buff, INET_ADDRSTRLEN) == nullptr) [[unlikely]] {
-            std::string inet_ntop_error_message = message_prefix + "Unable to convert address for socket " + std::to_string(socket_fd[n]) + " to a string. inet_ntop failed with error code: " + std::string(strerror(errno));
-
-            UHD_LOG_WARNING("CHECK_NUMA", inet_ntop_error_message);
-            throw uhd::system_error(inet_ntop_error_message);
-        }
-
-        // Get the device used by the ip.
-        // get_dev_from_ipv4 will throw errors if it fails
-        std::string interface = uhd::get_dev_from_ipv4(std::string(ip_buff));
-
-        network_interfaces.push_back(interface);
     }
 
     // Remove duplicate network interfaces since multiple sockets can use the same interface
@@ -183,7 +195,7 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
                 " which is connect to NUMA node " + std::to_string(interface_numa_nodes[n]) + "."
             );
 
-            // The interfaces for not match
+            // The interfaces for not match, return a positive value
             result = 1;
         }
     }
