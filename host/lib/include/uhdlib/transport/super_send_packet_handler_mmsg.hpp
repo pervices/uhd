@@ -409,6 +409,8 @@ public:
 
 private:
 
+    int sendmmsg_completed = 0;
+
     UHD_INLINE size_t send_multiple_packets(
         const uhd::tx_streamer::buffs_type &sample_buffs,
         const size_t nsamps_to_send,
@@ -614,7 +616,12 @@ private:
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                     // Send packets
-                    packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
+                    if(sendmmsg_completed & 0x1) {
+                        // Debug: skip every other sendmmsg
+                        packets_sent_now = packets_to_send_now;
+                    } else {
+                        packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
+                    }
 
                     // Record if an error occured
                     // The performance impact of proper error handling is to large
@@ -623,6 +630,10 @@ private:
                         sendmmsg_errno = errno;
                         clock_gettime(CLOCK_MONOTONIC_COARSE, &sendmmsg_failure_time);
                     }
+                }
+                
+                if(packets_to_send_now != 0) {
+                    sendmmsg_completed += 1;
                 }
 
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
