@@ -493,6 +493,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             md.start_of_burst = false;
             md.has_time_spec = false;
         }
+        
+        // DEBUG: sleep for 5s after the last data packet but before EOB to cause underflows
+        // This will break multiple burst streaming
+        sleep(5);
+
         //send a mini EOB packet
         md.end_of_burst = true;
         tx_stream->send("", 0, md);
