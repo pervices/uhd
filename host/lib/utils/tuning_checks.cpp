@@ -45,8 +45,7 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask, std::string message_
             int error_code = errno;
             std::string get_numa_error_message = message_prefix + "Unable to get NUMA node for CPU " + std::to_string(cpu) + ". numa_node_of_cpu failed with error code: " + std::string(strerror(error_code));
 
-            // TODO: add a parameter to take a context specific error message
-            UHD_LOG_WARNING("CHECK_NUMA", get_numa_error_message);
+            UHD_LOG_WARNING("NUMA", get_numa_error_message);
             return -errno;
         }
 
@@ -56,7 +55,7 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask, std::string message_
         }
         // Check if later CPUs have the same NUMA node
         else if(candidate_numa_node != cpu_numa_node) {
-            UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "The affinity mask of the tested thread can run on multiple NUMA nodes");
+            UHD_LOG_WARNING("NUMA", message_prefix + "The affinity mask of the tested thread can run on multiple NUMA nodes");
             return MASK_SPANS_MULTIPLE_NODES;
         }
     }
@@ -64,30 +63,37 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask, std::string message_
     return candidate_numa_node;
 }
 
-static std::string get_interface_for_socket(int socket) {
-    // Gets the local address the socket is bound to (either explicitly via bind(),
-    // or implicitly assigned by the kernel when connect() selected a route)
+// The the network interface used by the socket
+static std::string get_interface_for_socket(int socket, std::string message_prefix) {
+
+    // Gets the local address the socket is bound to
+    // The address can either explicitly bound via bind(),
+    // or implicitly assigned by the kernel by connect()
     struct sockaddr_in local_addr;
     socklen_t addr_len = sizeof(local_addr);
     if(getsockname(socket, (struct sockaddr*)&local_addr, &addr_len) < 0) [[unlikely]] {
-        std::string get_sockname_error_message = message_prefix + "Unable to get local address for socket " + std::to_string(socket_fd[n]) + ". getsockname failed with error code: " + std::string(strerror(errno));
+        std::string get_sockname_error_message = message_prefix + "Unable to get local address for socket " + std::to_string(socket) + ". getsockname failed with error code: " + std::string(strerror(errno));
 
-        UHD_LOG_WARNING("CHECK_NUMA", get_sockname_error_message);
+        UHD_LOG_WARNING("NUMA", get_sockname_error_message);
         return "";
     }
 
+    // Convert the address to a human readable address for use by get_dev_from_ipv4
+    // If a variant of get_dev_from_ipv4 that takes the binary address is added this step can be skipped
     char ip_buff[INET_ADDRSTRLEN];
     if(inet_ntop(AF_INET, &local_addr.sin_addr, ip_buff, INET_ADDRSTRLEN) == nullptr) [[unlikely]] {
-        std::string inet_ntop_error_message = message_prefix + "Unable to convert address for socket " + std::to_string(socket_fd[n]) + " to a string. inet_ntop failed with error code: " + std::string(strerror(errno));
+        std::string inet_ntop_error_message = message_prefix + "Unable to convert address for socket " + std::to_string(socket) + " to a string. inet_ntop failed with error code: " + std::string(strerror(errno));
 
-        UHD_LOG_WARNING("CHECK_NUMA", inet_ntop_error_message);
+        UHD_LOG_WARNING("NUMA", inet_ntop_error_message);
         return "";
     }
 
-    // Get the device used by the ip.
     try {
+        // Get the device used by the ip.
         return uhd::get_dev_from_ipv4(std::string(ip_buff));
     } catch (...) {
+        // Catch errors that may be thrown by get_dev_from_ipv4
+        // get_dev_from_ipv4 has it's own error messages so no need for one here
         return "";
     }
 }
@@ -105,7 +111,7 @@ static int get_numa_node_for_iface(std::string iface, std::string message_prefix
         // logic being added for the following TODOs needs to treat -1 as "no
         // restriction" rather than a mismatch, mirroring how dpdk_common.cpp treats
         // DPDK's SOCKET_ID_ANY.
-        UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "Unable to determine NUMA node for interface " + iface);
+        UHD_LOG_WARNING("NUMA", message_prefix + "Unable to determine NUMA node for interface " + iface);
         return -1;
     }
 
@@ -117,12 +123,12 @@ static int get_numa_node_for_iface(std::string iface, std::string message_prefix
         // affinity. See TODO above.
         return std::stoi(numa_node_str);
     } catch(const std::exception&) {
-        UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "Unable to parse NUMA node for interface " + iface + " from value: " + numa_node_str);
+        UHD_LOG_WARNING("NUMA", message_prefix + "Unable to parse NUMA node for interface " + iface + " from value: " + numa_node_str);
         return -1;
     }
 }
 
-int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len, std::string message_prefix) {
+int uhd::check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len, std::string message_prefix) {
     // Add a space after the message prefix if one was provided.
     if(message_prefix != "") {
         message_prefix+=" ";
@@ -132,7 +138,7 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
     if(numa_available() == -1) [[unlikely]] {
         // TODO: add a parameter to take a context specific error message
         // TODO: decide which level of message to make this message
-        UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "The kernel is not configured with support for NUMA. Automatic checks for optimal NUMA configuartion will not work.");
+        UHD_LOG_WARNING("NUMA", message_prefix + "The kernel is not configured with support for NUMA. Automatic checks for optimal NUMA configuartion will not work.");
         return -1;
     }
 
@@ -156,16 +162,16 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
 
 
     // Get the network interface used by each socket
-    std::vector<std::string> network_interfaces();
+    std::vector<std::string> network_interfaces;
     network_interfaces.reserve(socket_fd_len);
 
     for(size_t n = 0; n < socket_fd_len; n++) {
-        std::string interface = get_interface_for_socket(socket_fd[n]);
+        std::string interface = get_interface_for_socket(socket_fd[n], message_prefix);
 
         if(interface != "") [[likely]] {
             network_interfaces.push_back(interface);
         } else {
-            UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "Unable to get the interface use by a socket. Skipping check for optimal NUMA/ thread affinity combination.");
+            UHD_LOG_WARNING("NUMA", message_prefix + "Unable to get the interface use by a socket. Skipping check for optimal NUMA/ thread affinity combination.");
             return -1;
         }
     }
@@ -184,13 +190,13 @@ int uhd::check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
         interface_numa_nodes.push_back(get_numa_node_for_iface(iface, message_prefix));
     }
 
-    // Return value for a successful check
-    // See @return for it's meaning
+    // Return 0 for a successful check
     int result = 0;
     
+    // Check if the NUMA node allowed by the affinity mask matches every network interface
     for(size_t n = 0; n < interface_numa_nodes.size(); n++) {
         if(numa_node != interface_numa_nodes[n]) {
-            UHD_LOG_WARNING("CHECK_NUMA", message_prefix + "The tests thread is allowed to run on NUMA node " +
+            UHD_LOG_WARNING("NUMA", message_prefix + "The tests thread is allowed to run on NUMA node " +
                 std::to_string(numa_node) + " but it using a socket using interface " + network_interfaces[n] +
                 " which is connect to NUMA node " + std::to_string(interface_numa_nodes[n]) + "."
             );

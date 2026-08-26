@@ -14,6 +14,8 @@ namespace uhd {
 
 // A collection of functions for checking if the program is tuned properly
 
+// _safe indicates the function doesn't throw an exception.
+// _safe is included in case we want to add a version that throw exceptions in the future.
 /**
  * Check if the provided affinity mask will keep the network sockets on the correct NUMA node.
  * Prints a warning if the mask will allow a thread to run on a different NUMA node than the sockets.
@@ -25,6 +27,6 @@ namespace uhd {
  *
  * @return Return 0 if affinity_mask will keep a thread on the correct NUMA node for socket_fd. Return a positive value if the NUMA node of the sockets does not match the affinity mask or the mask spans multiple nodes. Return a negative value if the check itself failed.
  */
-int check_numa(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len, std::string message_prefix = "");
+int check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len, std::string message_prefix = "");
 
 }; /* namespace uhd */
