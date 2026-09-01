@@ -2,9 +2,12 @@ Source: uhdpv
 Section: science
 Priority: optional
 Maintainer: Per Vices <packages@pervices.com>
+# The compiler is pinned per release in debian/rules (noble and older -> gcc-13,
+# resolute -> gcc-15). The alternatives below are listed newest-first so each
+# release resolves to the version its rules stanza expects.
 Build-Depends: cmake,
-               gcc-13,
-               g++-13,
+               gcc-15 | gcc-13,
+               g++-15 | g++-13,
                git,
                debhelper (>= 9),
                libboost-date-time-dev,

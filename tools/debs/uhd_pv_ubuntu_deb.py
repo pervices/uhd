@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tarfile
 
-supported_ubuntu_releases = ["focal", "jammy", "noble"]
+supported_ubuntu_releases = ["focal", "jammy", "noble", "resolute"]
 # Command to create compressed source code to ship with the package
 # The command must result in a deterministic checksum for any given commit
 # tar.xz adds the tar.xz format, git archive creates the source code tarball
