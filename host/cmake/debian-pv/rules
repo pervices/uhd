@@ -3,12 +3,19 @@ include /usr/share/dpkg/pkg-info.mk
 DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
 export DEB_HOST_MULTIARCH
 UHD_CUSTOM_VERSION=""
+DEB_DISTRIBUTION := $(shell dpkg-parsechangelog -S Distribution)
+# focal/jammy ship a pre-C++20 default compiler; the fork needs gcc >= 13
+# (CMAKE_CXX_STANDARD 20 + std::format). noble (gcc-13) and resolute (gcc-15)
+# build fine with the default, and forcing gcc-13 on resolute breaks linking.
+ifneq (,$(filter $(DEB_DISTRIBUTION),focal jammy))
+DEB_COMPILER_OPTION := -DCMAKE_C_COMPILER=/usr/bin/gcc-13 -DCMAKE_CXX_COMPILER=/usr/bin/g++-13
+else
+DEB_COMPILER_OPTION :=
+endif
 DEB_NEON_SIMD_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = armhf ]; then echo "-DNEON_SIMD_ENABLE=OFF" ; else echo "" ; fi)
 DEB_MIPSEL_PYTHON_API_OPTION=$(shell if [ $(DEB_BUILD_ARCH) = mipsel ]; then echo "-DENABLE_PYTHON_API=OFF" ; else echo "" ; fi)
 DEB_UHD_CUSTOM_VERSION=$(shell if [ -n $(UHD_CUSTOM_VERSION) ]; then echo "-DUHD_VERSION=$(UHD_CUSTOM_VERSION)"; else echo ""; fi)
 DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)" \
-                                        -DCMAKE_C_COMPILER="/usr/bin/gcc-13" \
-                                        -DCMAKE_CXX_COMPILER="/usr/bin/g++-13" \
                                         -DENABLE_EXAMPLES=ON \
                                         -DENABLE_UTILS=ON \
                                         -DENABLE_DPDK=OFF \
@@ -44,7 +51,7 @@ DEB_UHD_PACKAGE_CONFIGURATION=$(shell echo '-DLIB_SUFFIX="/$(DEB_HOST_MULTIARCH)
 
 override_dh_auto_configure:
 # Allow manual setting of UHD version CMake variable through UHD_CUSTOM_VERSION
-	dh_auto_configure -- $(DEB_UHD_CUSTOM_VERSION) $(DEB_UHD_PACKAGE_CONFIGURATION)
+	dh_auto_configure -- $(DEB_UHD_CUSTOM_VERSION) $(DEB_COMPILER_OPTION) $(DEB_UHD_PACKAGE_CONFIGURATION)
 
 # The test suite for this package is busted on powerpc.
 override_dh_auto_test:
