@@ -1,6 +1,7 @@
 //
 // Copyright 2011-2013 Ettus Research LLC
 // Copyright 2018 Ettus Research, a National Instruments Company
+// Copyright 2026 Per Vices Corporation
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
@@ -49,7 +50,7 @@ static inline void handle_overflow_nop(void) {}
 class recv_packet_handler
 {
 public:
-    typedef std::function<managed_recv_buffer::sptr(double, int*)> get_buff_type;
+    typedef std::function<managed_recv_buffer::sptr(double)> get_buff_type;
     typedef std::function<void(const size_t)> handle_flowctrl_type;
     typedef std::function<void(const uint32_t*)> handle_flowctrl_ack_type;
     typedef std::function<void(const stream_cmd_t&)> issue_stream_cmd_type;
@@ -129,11 +130,10 @@ public:
      * \param get_buff the getter function
      */
     void set_xport_chan_get_buff(
-        const size_t xport_chan, const get_buff_type& get_buff, const bool flush = true)
+        const size_t xport_chan, const get_buff_type& get_buff, const bool flush = false)
     {
         if (flush) {
-            int error_code = 0;
-            while (get_buff(0.0, &error_code)) {
+            while (get_buff(0.0)) {
             };
         }
         _props.at(xport_chan).get_buff = get_buff;
@@ -277,13 +277,10 @@ public:
         return accum_num_samps;
     }
 
-protected:
-    double _samp_rate;
-
 private:
     vrt_unpacker_type _vrt_unpacker;
     size_t _header_offset_words32;
-    double _tick_rate;
+    double _tick_rate, _samp_rate;
     bool _queue_error_for_next_call;
     size_t _alignment_failure_threshold;
     rx_metadata_t _queue_metadata;
@@ -381,8 +378,7 @@ private:
         PACKET_TIMESTAMP_ERROR,
         PACKET_INLINE_MESSAGE,
         PACKET_TIMEOUT_ERROR,
-        PACKET_SEQUENCE_ERROR,
-        PACKET_EINTR
+        PACKET_SEQUENCE_ERROR
     };
 
 #ifdef ERROR_INJECT_DROPPED_PACKETS
@@ -404,17 +400,9 @@ private:
         per_buffer_info_type& info      = curr_buffer_info;
         while (1) {
             // get a single packet from the transport layer
-
-            int get_buff_error_code = 0;
-            buff = _props[index].get_buff(timeout, &get_buff_error_code);
-            if (buff.get() == nullptr) {
-                if(get_buff_error_code == EINTR) {
-                    return PACKET_EINTR;
-                } else {
-                    return PACKET_TIMEOUT_ERROR;
-                }
-            } else {
-            }
+            buff = _props[index].get_buff(timeout);
+            if (buff.get() == nullptr)
+                return PACKET_TIMEOUT_ERROR;
 
 #ifdef ERROR_INJECT_DROPPED_PACKETS
             if (++recvd_packets > 1000) {
@@ -479,8 +467,7 @@ private:
             (info.ifpi.link_type == vrt::if_packet_info_t::LINK_TYPE_NONE) ? 0xf : 0xfff;
         const size_t expected_packet_count = _props[index].packet_count;
         _props[index].packet_count         = (info.ifpi.packet_count + 1) & seq_mask;
-        // Skip checking sequence number if timestamp is 0
-        if (expected_packet_count != info.ifpi.packet_count && !(info.time == 0 && info.ifpi.packet_count == 0)) {
+        if (expected_packet_count != info.ifpi.packet_count) {
             // UHD_LOGGER_INFO("STREAMER") << "expected: " << expected_packet_count << "
             // got: " << info.ifpi.packet_count;
             if (_props[index].handle_flowctrl) {
@@ -494,8 +481,7 @@ private:
 #endif
 
         // 3) check for out of order timestamps
-        // Skip check if timestamp and sequence number are 0 (timestamp and sequence number get reset when streaming on a trigger)
-        if (info.ifpi.has_tsf && prev_buffer_info.time > info.time && !(info.time == 0 && info.ifpi.packet_count == 0)) {
+        if (info.ifpi.has_tsf and prev_buffer_info.time > info.time) {
             return PACKET_TIMESTAMP_ERROR;
         }
 
@@ -583,7 +569,6 @@ private:
      * Handle all of the edge cases like inline messages and errors.
      * The logic will throw out older packets until it finds a match.
      ******************************************************************/
-    size_t oflow_count_this_line = 0;
     UHD_INLINE void get_aligned_buffs(double timeout)
     {
         get_prev_buffer_info()
@@ -679,14 +664,6 @@ private:
                     curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_TIMEOUT;
                     return;
 
-                case PACKET_EINTR:
-                    std::swap(curr_info, next_info); // save progress from curr -> next
-                    if (_props[index].handle_flowctrl) {
-                        _props[index].handle_flowctrl(next_info[index].ifpi.packet_count);
-                    }
-                    curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_EINTR;
-                    return;
-
                 case PACKET_SEQUENCE_ERROR:
                     alignment_check(index, curr_info);
                     std::swap(curr_info, next_info); // save progress from curr -> next
@@ -699,13 +676,7 @@ private:
                             _samp_rate);
                     curr_info.metadata.out_of_sequence = true;
                     curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-                    if(oflow_count_this_line < 25) {
-                        UHD_LOG_FASTPATH("D");
-                        oflow_count_this_line++;
-                    } else {
-                        UHD_LOG_FASTPATH("D\n");
-                        oflow_count_this_line = 0;
-                    }
+                    UHD_LOG_FASTPATH("D");
                     return;
             }
 
@@ -715,8 +686,9 @@ private:
                     << std::format(
                            "The receive packet handler failed to time-align packets.\n"
                            "{} received packets were processed by the handler.\n"
-                           "However, a timestamp match could not be determined.\n\n",
-                           iterations);
+                           "However, a timestamp match could not be determined.\n",
+                           iterations)
+                    << std::endl;
                 std::swap(curr_info, next_info); // save progress from curr -> next
                 curr_info.metadata.error_code = rx_metadata_t::ERROR_CODE_ALIGNMENT;
                 _props[index].handle_overflow();
