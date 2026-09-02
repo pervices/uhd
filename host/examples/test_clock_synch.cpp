@@ -137,7 +137,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
             num_matches++;
     }
 
-    std::cout << std::format("\nNumber of matches: {}/{}\n", num_matches, num_tests) << std::endl;
+    std::cout << std::format("\nNumber of matches: {}/{}\n", num_matches, num_tests);
 
     return EXIT_SUCCESS;
 }

@@ -13,7 +13,6 @@
 #include <uhd/exception.hpp>
 #include <boost/program_options.hpp>
 #include <format>
-#include <boost/lexical_cast.hpp>
 #include <iostream>
 #include <fstream>
 #include <csignal>
