@@ -1055,7 +1055,7 @@ void magnesium_radio_control_impl::_remap_band_limits(
     RFNOC_LOG_DEBUG("Using user specified frequency band limits");
     boost::split(band_map_split, band_map, boost::is_any_of(";"));
     if (band_map_split.size() != dflt_band_size) {
-        throw uhd::runtime_error((
+        throw uhd::runtime_error(
             std::format(
                 "size {} of given frequency band map doesn't match the required size: {}",
             band_map_split.size(), dflt_band_size));
