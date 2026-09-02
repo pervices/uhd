@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_one_channel_normal)
     handler.set_tick_rate(TICK_RATE);
     handler.set_samp_rate(SAMP_RATE);
     handler.set_xport_chan_get_buff(
-        0, [&xport](double timeout, int*) { return xport.get_recv_buff(timeout); });
+        0, [&xport](double timeout) { return xport.get_recv_buff(timeout); });
     handler.set_converter(id);
 
     // check the received packets
@@ -160,7 +160,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_one_channel_sequence_error)
     handler.set_tick_rate(TICK_RATE);
     handler.set_samp_rate(SAMP_RATE);
     handler.set_xport_chan_get_buff(
-        0, [&xport](double timeout, int*) { return xport.get_recv_buff(timeout); });
+        0, [&xport](double timeout) { return xport.get_recv_buff(timeout); });
     handler.set_converter(id);
 
     // check the received packets
@@ -257,7 +257,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_one_channel_inline_message)
     handler.set_tick_rate(TICK_RATE);
     handler.set_samp_rate(SAMP_RATE);
     handler.set_xport_chan_get_buff(
-        0, [&xport](double timeout, int*) { return xport.get_recv_buff(timeout); });
+        0, [&xport](double timeout) { return xport.get_recv_buff(timeout); });
     handler.set_converter(id);
 
     // create an overflow handler
@@ -358,7 +358,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_multi_channel_normal)
     for (size_t ch = 0; ch < NCHANNELS; ch++) {
         mock_zero_copy::sptr xport = xports[ch];
         handler.set_xport_chan_get_buff(
-            ch, [xport](double timeout, int*) { return xport->get_recv_buff(timeout); });
+            ch, [xport](double timeout) { return xport->get_recv_buff(timeout); });
     }
     handler.set_converter(id);
 
@@ -457,7 +457,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_multi_channel_sequence_error)
     for (size_t ch = 0; ch < NCHANNELS; ch++) {
         mock_zero_copy::sptr xport = xports[ch];
         handler.set_xport_chan_get_buff(
-            ch, [xport](double timeout, int*) { return xport->get_recv_buff(timeout); });
+            ch, [xport](double timeout) { return xport->get_recv_buff(timeout); });
     }
     handler.set_converter(id);
 
@@ -565,7 +565,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_multi_channel_time_error)
     for (size_t ch = 0; ch < NCHANNELS; ch++) {
         mock_zero_copy::sptr xport = xports[ch];
         handler.set_xport_chan_get_buff(
-            ch, [xport](double timeout, int*) { return xport->get_recv_buff(timeout); });
+            ch, [xport](double timeout) { return xport->get_recv_buff(timeout); });
     }
     handler.set_converter(id);
 
@@ -667,7 +667,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_multi_channel_exception)
     for (size_t ch = 0; ch < NCHANNELS; ch++) {
         mock_zero_copy::sptr xport = xports[ch];
         handler.set_xport_chan_get_buff(
-            ch, [xport](double timeout, int*) { return xport->get_recv_buff(timeout); });
+            ch, [xport](double timeout) { return xport->get_recv_buff(timeout); });
     }
     handler.set_converter(id);
 
@@ -742,7 +742,7 @@ BOOST_AUTO_TEST_CASE(test_sph_recv_multi_channel_fragment)
     for (size_t ch = 0; ch < NCHANNELS; ch++) {
         mock_zero_copy::sptr xport = xports[ch];
         handler.set_xport_chan_get_buff(
-            ch, [xport](double timeout, int*) { return xport->get_recv_buff(timeout); });
+            ch, [xport](double timeout) { return xport->get_recv_buff(timeout); });
     }
     handler.set_converter(id);
 
