@@ -1,3 +1,10 @@
+uhdpv (4.10.0.8-0ubuntu1) ubuntu_release; urgency=low
+
+  * Fixing UDP fallback for management port
+  * Adding support for Ubuntu 26
+
+ -- Per Vices <packages@pervices.com>  Thu, 03 Sep 2026 17:09:42 -0400
+
 uhdpv (4.10.0.7-0ubuntu1) ubuntu_release; urgency=low
 
   * Fix warning message for mismatches between the target and actual frequency
