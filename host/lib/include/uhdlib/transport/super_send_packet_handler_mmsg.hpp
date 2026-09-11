@@ -450,7 +450,7 @@ private:
                 // Sets the timestamp to follow from the previous send
                 packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
             }
-            if(metadata_.start_of_burst) {
+            if(n == 0 && metadata_.start_of_burst) {
                 if(!metadata_.has_time_spec) {
                     printf("SOB without time spec\n");
                 }
