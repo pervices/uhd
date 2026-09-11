@@ -406,9 +406,10 @@ public:
      * - set_clock_source()
      * - set_sync_source()
      *
-     * \param source a string representing the time source
-     * \param mboard which motherboard to set the config
-     * \throws if \p source is an invalid option
+    * \param source a string representing the time source
+    * \param mboard which motherboard to set the config
+    * \throws std::invalid_argument if \p source is an invalid option
+    * \throws std::runtime_error if \p source is valid but not currently working
      */
     virtual void set_time_source(
         const std::string& source, const size_t mboard = ALL_MBOARDS) = 0;
