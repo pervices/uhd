@@ -309,6 +309,7 @@ public:
         if(actual_nsamps_to_send == 0) {
             // If a start of burst command has no packets, and is not also an end of burstcache timestamp and keep until next call
             if(metadata.start_of_burst && !metadata.end_of_burst) {
+                printf("No samples to send, caching SOB\n");
                 cached_sob = true;
                 sob_time_cache = metadata.time_spec;
                 return 0;
@@ -696,7 +697,7 @@ private:
             }
             // Add sob to cache to be used on the next attempt
             cached_sob = true;
-            printf("Caching sob\n");
+            printf("No samples sent, caching SOB\n");
             sob_time_cache = metadata_.time_spec;
         }
 
