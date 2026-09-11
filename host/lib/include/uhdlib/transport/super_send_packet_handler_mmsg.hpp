@@ -451,7 +451,12 @@ private:
                 packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
             }
             if(metadata_.start_of_burst) {
-                printf("Post modification has SOB for time spec for: %lu\n", packet_header_infos[n].tsf);
+                if(!metadata_.has_time_spec) {
+                    printf("SOB without time spec\n");
+                }
+                uhd::time_spec_t header_prep_time = _clock_sync->get_device_time();
+                printf("Post modification has SOB for time spec for: %lf send near: %lf\n", metadata_.time_spec.get_real_secs(), header_prep_time.get_real_secs());
+
             }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
