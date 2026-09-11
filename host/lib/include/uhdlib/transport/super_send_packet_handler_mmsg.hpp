@@ -450,6 +450,9 @@ private:
                 // Sets the timestamp to follow from the previous send
                 packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
             }
+            if(metadata_.start_of_burst) {
+                printf("Post modification has SOB for time spec for: %lu\n", packet_header_infos[n].tsf);
+            }
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
@@ -688,6 +691,7 @@ private:
             }
             // Add sob to cache to be used on the next attempt
             cached_sob = true;
+            printf("Caching sob\n");
             sob_time_cache = metadata_.time_spec;
         }
 
