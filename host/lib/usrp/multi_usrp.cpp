@@ -522,6 +522,42 @@ public:
     {
         if (mboard != ALL_MBOARDS) {
             _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").set(source);
+            std::string actual = _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").get();
+
+            if(actual == source) {
+                // Success, no further action required
+                return;
+            }
+            else if(actual == "internal" && source == "external") {
+                UHD_LOG_ERROR("MULTI_USRP", "External PSS not detected, fall back to internal PPS triggered."
+                    "Catch std::runtime_error if you are okay with falling back to internal PPS");
+                throw std::runtime_error("External PPS not detected");
+            }
+            else if(actual.starts_with("Invalid time source")) {
+
+                // Get the list of valid sources and convert it to a string from a vector of strings
+                std::vector<std::string> sources_list = get_time_sources(mboard);
+                std::string sources_string;
+                if(sources_list.size() > 0) {
+                    sources_string = sources_list[0];
+                }
+                for(size_t i = 1; i < sources_list.size(); i++) {
+                    sources_string += ", " + sources_list[i];
+                }
+
+                UHD_LOG_ERROR("MULTI_USRP",
+                    std::format("Invalid time source provided: \"{}\"\n"
+                        "Valid time sources are: {}",
+                        source, sources_string
+                    )
+                );
+
+                throw std::invalid_argument("Invalid time source provided: " + source);
+
+            } else {
+                UHD_LOG_ERROR("MULTI_USRP", "Unknown error when setting PPS source")
+                throw std::runtime_error("Unknown error when setting PPS source");
+            }
             return;
         }
         for (size_t m = 0; m < get_num_mboards(); m++) {
