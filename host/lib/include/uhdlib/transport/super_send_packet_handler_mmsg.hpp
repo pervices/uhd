@@ -67,6 +67,11 @@ private:
     static constexpr uint_fast8_t MAX_CHANNELS = 16;
 
     /**
+     * The time between now and the automatic start time for bursts without time specs
+     */
+    static constexpr double SEND_NOW_DELAY = 0.0002;
+
+    /**
      * Start of non-pointer variables that are constant during streaming.
      * They must be on a separate cache line from variables that are changed by other threads.
      */
@@ -310,7 +315,17 @@ public:
             // If a start of burst command has no packets, and is not also an end of burstcache timestamp and keep until next call
             if(metadata.start_of_burst && !metadata.end_of_burst) {
                 cached_sob = true;
-                sob_time_cache = metadata.time_spec;
+                // If the SOB to cache has a timespec, cache it so it can be applied later
+                if(metadata.has_time_spec) {
+                    printf("Caching SOB with time spec\n");
+                    sob_time_cache = metadata.time_spec;
+                }
+                // If no time spec was provided (or the provided time spec was 0)
+                // set the time spec to -1 to indicate that it should be auto applied when used
+                else {
+                    printf("Caching SOB without time spec\n");
+                    sob_time_cache = -1.0;
+                }
                 return 0;
             } else if(metadata.end_of_burst) {
                 send_eob_packet(metadata, timeout);
@@ -327,12 +342,23 @@ public:
         }
 
         uhd::tx_metadata_t modified_metadata = metadata;
-        if(cached_sob) {
+        if(cached_sob) [[unlikely]] {
             cached_sob = false;
             modified_metadata.start_of_burst = true;
-            modified_metadata.has_time_spec = true;
+            // -1 indicates no time spec was provided with the cached SOB request
+            modified_metadata.has_time_spec = sob_time_cache != -1.0;
+            modified_metadata.time_spec = sob_time_cache;
             modified_metadata.time_spec = sob_time_cache;
         }
+
+        // Automatically apply start time if none was provided
+        // NOTE: must be after the cached_sob was applied
+        if(modified_metadata.start_of_burst && !modified_metadata.has_time_spec ) {
+            printf("Applying automatic SOB time\n");
+            modified_metadata.has_time_spec = true;
+            modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
+        }
+
         // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
         bool eob_requested = false;
         if(modified_metadata.end_of_burst) {
