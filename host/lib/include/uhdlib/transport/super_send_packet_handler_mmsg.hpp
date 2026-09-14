@@ -343,15 +343,19 @@ public:
         if(cached_sob) [[unlikely]] {
             cached_sob = false;
             modified_metadata.start_of_burst = true;
-            modified_metadata.has_time_spec = true;
-            if(sob_time_cache != -1.0) [[likely]] {
-                printf("Using cached sob time\n");
-                modified_metadata.time_spec = sob_time_cache;
-            } else {
-                printf("Using automatic time\n");
-                modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
-            }
+            // -1 indicates no time spec was provided with the cached SOB request
+            modified_metadata.has_time_spec = sob_time_cache != -1.0;
+            modified_metadata.time_spec = sob_time_cache;
+            modified_metadata.time_spec = sob_time_cache;
         }
+
+        // TODO: figure out if a time spec of 0 should be treated as automatic
+        // Automatically apply start time if none was provided
+        // NOTE: must be after the cached_sob was applied
+        if(metadata.start_of_burst && (metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec )) {
+            modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
+        }
+
         // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
         bool eob_requested = false;
         if(modified_metadata.end_of_burst) {
