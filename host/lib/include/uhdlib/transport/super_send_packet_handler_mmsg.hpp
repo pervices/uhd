@@ -315,13 +315,15 @@ public:
             // If a start of burst command has no packets, and is not also an end of burstcache timestamp and keep until next call
             if(metadata.start_of_burst && !metadata.end_of_burst) {
                 cached_sob = true;
-                // If the SOB to cache has a timespec, cahce it so it can be applied later
-                if(metadata.has_time_spec && metadata.time_spec > 0.0) {
+                // If the SOB to cache has a timespec, cache it so it can be applied later
+                if(metadata.has_time_spec) {
+                    printf("Caching SOB with time spec\n");
                     sob_time_cache = metadata.time_spec;
                 }
                 // If no time spec was provided (or the provided time spec was 0)
                 // set the time spec to -1 to indicate that it should be auto applied when used
                 else {
+                    printf("Caching SOB without time spec\n");
                     sob_time_cache = -1.0;
                 }
                 return 0;
@@ -352,6 +354,7 @@ public:
         // Automatically apply start time if none was provided
         // NOTE: must be after the cached_sob was applied
         if(modified_metadata.start_of_burst && !modified_metadata.has_time_spec ) {
+            printf("Applying automatic SOB time\n");
             modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
         }
 
