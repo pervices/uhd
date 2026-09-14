@@ -204,12 +204,13 @@ size_t pv_device_send_packet_streamer::send(
         }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
-            uhd::time_spec_t now = _clock_sync->get_device_time();
-            metadata.time_spec = now + _min_tx_delay;
-            metadata.has_time_spec = true;
+            // Assume metadata.time_spec.get_real_secs() == 0 means automatic time spec requested
+            // No action required if no time spec is provided. The parent's send handle automatic time stamps
+            metadata.has_time_spec = false;
         } else {
             double current_time = _clock_sync->get_device_time().get_real_secs();
             if (metadata.time_spec.get_real_secs() < current_time + _min_tx_delay && _first_call_to_send) {
+                // TODO: determine if _min_tx_delay can be switched to SEND_NOW_DELAY
                 UHD_LOGGER_WARNING(_product_name_c) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + _min_tx_delay);
                 metadata.time_spec = uhd::time_spec_t(current_time + _min_tx_delay);
             }
