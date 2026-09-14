@@ -349,10 +349,9 @@ public:
             modified_metadata.time_spec = sob_time_cache;
         }
 
-        // TODO: figure out if a time spec of 0 should be treated as automatic
         // Automatically apply start time if none was provided
         // NOTE: must be after the cached_sob was applied
-        if(metadata.start_of_burst && (metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec )) {
+        if(modified_metadata.start_of_burst && !modified_metadata.has_time_spec ) {
             modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
         }
 

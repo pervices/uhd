@@ -204,7 +204,9 @@ size_t pv_device_send_packet_streamer::send(
         }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
-            // No action, the parent send handles automatically applying start time when no timestamp was provided
+            // Assume metadata.time_spec.get_real_secs() == 0 means automatic time spec requested
+            // No action required if no time spec is provided. The parent's send handle automatic time stamps
+            metadata.has_time_spec = false;
         } else {
             double current_time = _clock_sync->get_device_time().get_real_secs();
             if (metadata.time_spec.get_real_secs() < current_time + _min_tx_delay && _first_call_to_send) {
