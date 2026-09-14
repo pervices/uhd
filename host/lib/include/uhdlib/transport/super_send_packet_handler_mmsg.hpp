@@ -355,6 +355,7 @@ public:
         // NOTE: must be after the cached_sob was applied
         if(modified_metadata.start_of_burst && !modified_metadata.has_time_spec ) {
             printf("Applying automatic SOB time\n");
+            modified_metadata.has_time_spec = true;
             modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
         }
 
