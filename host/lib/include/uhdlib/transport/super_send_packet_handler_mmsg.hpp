@@ -345,8 +345,10 @@ public:
             modified_metadata.start_of_burst = true;
             modified_metadata.has_time_spec = true;
             if(sob_time_cache != -1.0) [[likely]] {
+                printf("Using cached sob time\n");
                 modified_metadata.time_spec = sob_time_cache;
             } else {
+                printf("Using automatic time\n");
                 modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
             }
         }
