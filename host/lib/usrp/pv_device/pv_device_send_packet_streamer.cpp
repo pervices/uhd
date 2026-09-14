@@ -190,6 +190,10 @@ size_t pv_device_send_packet_streamer::send(
 
     uhd::tx_metadata_t metadata = metadata_;
 
+    if(metadata.start_of_burst) {
+        printf("Start of burst requested\n");
+    }
+
     if ( _first_call_to_send || metadata.start_of_burst ) {
         metadata.start_of_burst = true;
 
@@ -204,6 +208,7 @@ size_t pv_device_send_packet_streamer::send(
         }
 
         if ( metadata.time_spec.get_real_secs() == 0 || !metadata.has_time_spec ) {
+            printf("Auto detect start of burst time");
             uhd::time_spec_t now = _clock_sync->get_device_time();
             metadata.time_spec = now + _min_tx_delay;
             metadata.has_time_spec = true;
