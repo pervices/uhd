@@ -178,4 +178,4 @@ enum {
     HIGH_BAND = 2,
 };
 
-constexpr double CYAN_NRNT_MIN_TX_DELAY = 0.001;
+constexpr double CYAN_NRNT_MIN_TX_DELAY = 0.0002;
