@@ -69,7 +69,7 @@ private:
     /**
      * The time between now and the automatic start time for bursts without time specs
      */
-    static constexpr double SEND_NOW_DELAY = 0.0001;
+    static constexpr double SEND_NOW_DELAY = 0.0002;
 
     /**
      * Start of non-pointer variables that are constant during streaming.
