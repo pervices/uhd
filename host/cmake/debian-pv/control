@@ -2,12 +2,14 @@ Source: uhdpv
 Section: science
 Priority: optional
 Maintainer: Per Vices <packages@pervices.com>
-# The compiler is pinned per release in debian/rules (noble and older -> gcc-13,
-# resolute -> gcc-15). The alternatives below are listed newest-first so each
-# release resolves to the version its rules stanza expects.
+# debian/rules picks the newest versioned gcc-N/g++-N (N >= 13) available on
+# the build host. The alternatives below are listed newest-first so apt
+# prefers the newest available version satisfying that constraint.
+# Expand the list as newer gcc/g++ versions become available. Also update the list in rules and Dockerfile-ubuntu
+# Since gcc/g++ versions are different packages traditional version number constraints don't work
 Build-Depends: cmake,
-               gcc-15 | gcc-13,
-               g++-15 | g++-13,
+               gcc-16 | gcc-15 | gcc-14 | gcc-13,
+               g++-16 | g++-15 | g++-14 | g++-13,
                git,
                debhelper (>= 9),
                libboost-date-time-dev,
