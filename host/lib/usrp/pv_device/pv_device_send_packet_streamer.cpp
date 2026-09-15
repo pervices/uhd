@@ -211,8 +211,10 @@ size_t pv_device_send_packet_streamer::send(
             double current_time = _clock_sync->get_device_time().get_real_secs();
             if (metadata.time_spec.get_real_secs() < current_time + _min_tx_delay && _first_call_to_send) {
                 // TODO: determine if _min_tx_delay can be switched to SEND_NOW_DELAY
-                UHD_LOGGER_WARNING(_product_name_c) << "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to " + std::to_string(current_time + _min_tx_delay);
-                metadata.time_spec = uhd::time_spec_t(current_time + _min_tx_delay);
+                UHD_LOG_WARNING(_product_name_c, "Requested tx start time of " + std::to_string(metadata.time_spec.get_real_secs()) + " close to current device time of " + std::to_string(current_time) + ". Shifting start time to <device time> + " + std::to_string(_min_tx_delay) + "s.");
+                // Adjust the start time.
+                // Get a fresh device time since printing is slow and inconsistent
+                metadata.time_spec = uhd::time_spec_t(_clock_sync->get_device_time() + _min_tx_delay);
             }
         }
     }
