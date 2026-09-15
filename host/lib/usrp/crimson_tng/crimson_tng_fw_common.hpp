@@ -205,4 +205,4 @@ constexpr uint32_t CRIMSON_TNG_VITA_TLR =
 inline const uhd::fs_path CRIMSON_TNG_MB_PATH{"/mboards/0"};
 inline const uhd::fs_path CRIMSON_TNG_TIME_PATH{CRIMSON_TNG_MB_PATH / "time"};
 
-constexpr double CRIMSON_TNG_MIN_TX_DELAY = 0.001;
+constexpr double CRIMSON_TNG_MIN_TX_DELAY = 0.0002;
