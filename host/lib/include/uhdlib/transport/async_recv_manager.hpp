@@ -45,8 +45,6 @@ protected:
     static constexpr size_t SIMD_ALIGNMENT = 512;
 
     static constexpr size_t PAGE_SIZE = 4096;
-    // Hugepage size in Bytes assuming hugepages are 2048kB
-    static constexpr size_t HUGE_PAGE_SIZE = 2048 * 1024;
 
     // Number of channls managed by this streamer
     const uint_fast32_t _num_ch;
@@ -168,6 +166,22 @@ protected:
      */
     static void* allocate_buffer(size_t size);
 
-    void check_memlock_limit();
+private:
+    /**
+     * Gets the size of huge pages
+     * 
+     *
+     * @return The size of huge pages in bytes.
+     *
+     * @throws std::ios_base::failure Unable to read /proc/meminfo to get the size
+     * @throws std::runtime_error /proc/meminfo is missing the line containing huge page size.
+     *
+     */
+    static size_t get_huge_page_size();
+
+    /**
+     * Prints a warning if the memlock limit is insufficient to 
+     */
+    static void check_memlock_limit();
 };
 }}

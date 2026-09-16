@@ -3,6 +3,8 @@
 #include <uhdlib/transport/async_recv_manager.hpp>
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <unistd.h>
 #include <uhd/exception.hpp>
 #include <string.h>
@@ -31,10 +33,8 @@ _num_ch(recv_sockets.size()),
 _recv_sockets(recv_sockets),
 _header_size(header_size),
 _packet_data_size(max_sample_bytes_per_packet),
-
 _vita_header_offset(SIMD_ALIGNMENT - _header_size),
 _padded_individual_packet_size(/*Data portion padded to full page*/(std::ceil((_packet_data_size) / (double)SIMD_ALIGNMENT) * SIMD_ALIGNMENT) + /* Vita header + padding */ _header_size + _vita_header_offset),
-
 _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size))
 
 // Create buffer for flush complete flag in seperate cache lines
@@ -94,8 +94,26 @@ void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
         return hugeltb_buffer;
     // Fallback to not using huge pages
     } else {
+        std::optional<size_t> huge_page_size;
+        try {
+            huge_page_size = get_huge_page_size();
+        // Catch predictable error from get_huge_page_size
+        // Allow unexpected errors to persist
+        } catch (const std::ios_base::failure&) {
+        } catch (const std::runtime_error&) {
+        }
+
+        std::string huge_page_requirements;
+        // If we successfully checked the number of huge pages (using std::optional)
+        if(huge_page_size) {
+            huge_page_requirements = std::to_string((size_t) std::ceil((double)size / *huge_page_size)) + " huge pages";
+        } else {
+            huge_page_requirements = std::to_string(size) + " bytes of huge pages";
+        }
+
         // Recomend the user request twice and many huge pages as required in case some are used by other processes
-        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Failed to allocate buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the value of /proc/sys/vm/nr_hugepages, starting with " + std::to_string( 2 * (size_t)std::ceil(size/HUGE_PAGE_SIZE)) + " * number of channels. Reattempting without huge pages, which may harm performance.");
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Failed to allocate huge pages buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the number of huge pages (/proc/sys/vm/nr_hugepages). This rx streamer requires " + huge_page_requirements + ". huge pages. Falling back to regular pages.");
+        
         return allocate_buffer(size);
     }
 }
@@ -176,6 +194,39 @@ void async_recv_manager::auto_unmake( async_recv_manager* recv_manager ) {
 #endif
 }
 
+size_t async_recv_manager::get_huge_page_size() {
+
+    // Open the path containing memory info
+    const std::string path = "/proc/meminfo";
+    std::ifstream meminfo(path);
+    if (!meminfo.is_open()) {
+        UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Unable to read " + path + ". Huge page size cannot be checked.");
+        throw std::ios_base::failure("failed to open /proc/meminfo");
+    }
+
+
+    // Search for the line containing the size of huge pages
+    const std::string key = "Hugepagesize:";
+    for (std::string line; std::getline(meminfo, line); ) {
+        if (line.starts_with(key)) {
+            std::istringstream value_stream(line.substr(key.size()));
+            size_t huge_page_size_kb;
+
+            // Extract the size of huge pages, and if that succeeded
+            if (value_stream >> huge_page_size_kb) {
+                // Hugepagesize in /proc/meminfo is in kB
+                return huge_page_size_kb * 1024;
+            }
+
+            // Something went wrong when trying to parse the size of huge pages
+            break;
+        }
+    }
+
+    UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Failed to find Hugepagesize in " + path + ".");
+    throw std::runtime_error("Hugepagesize missing in: " + path);
+}
+
 void async_recv_manager::check_memlock_limit() {
     // The error message when we couldn't confirm the memlock limit. We will log an error but continue assuming the current limit is enough.
     std::string message_failed = "UHD will continue assuming the currently set memlock limit is enough. If it is not, io_uring may have memory allocation issues.\n"
@@ -192,7 +243,6 @@ void async_recv_manager::check_memlock_limit() {
     }
     
     // The memlock limit should be at least num_hugepages*hugepage_size.
-    // This class has a HUGE_PAGE_SIZE variable we can use, but we still need to get the number of hugepages.
     std::string path = "/proc/sys/vm/nr_hugepages";
     FILE *file;
     file = fopen(path.c_str(), "r");
@@ -214,17 +264,34 @@ void async_recv_manager::check_memlock_limit() {
         return;
     }
 
-    // Calculate the required memlock limit (num_hugepages*HUGE_PAGE_SIZE) in kB.
-    // HUGE_PAGE_SIZE is in Bytes so /1024 to convert to kB since memlock is typically represented in kB.
-    size_t required_memlock = num_hugepages * (HUGE_PAGE_SIZE/1024);
+    std::optional<size_t> huge_page_size;
+
+    try {
+        huge_page_size = get_huge_page_size();
+
+    // Catch predictable error from get_huge_page_size
+    // Allow unexpected errors to persist
+    } catch (const std::ios_base::failure&) {
+    } catch (const std::runtime_error&) {
+    }
+
     // Convert the current memlock limit to kB since that's how it's usually represented.
     size_t current_memlock = memlock_limit.rlim_cur / 1024;
-    
-    // If the current memlock limit is less than this, warn the user it may not be enough.
-    if (current_memlock < required_memlock) {
-        std::string message = "The current memlock limit (" + std::to_string(current_memlock) + "kB) is less than the amount required to use all hugepages (" + std::to_string(required_memlock) + "kB). This may cause memory allocation issues with io_uring.\n"
-            "\tUpdate the memlock limit temporarily with 'ulimit -l " + std::to_string(required_memlock) + "' or permanently by adding/updating a memlock entry in /etc/security/limits.conf or /etc/security/limits.d/*.conf.";
-        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", message);
+
+    // If the size of huge pages was obained successfully
+    if(huge_page_size) {
+        // Calculate the required memlock limit (num_hugepages*huge_page_size) in kB.
+        // get_huge_page_size() returns a value in Bytes so /1024 to convert to kB since memlock is typically represented in kB.
+        size_t required_memlock = num_hugepages * *huge_page_size /1024;
+        
+        // If the current memlock limit is less than this, warn the user it may not be enough.
+        if (current_memlock < required_memlock) {
+            std::string message = "The current memlock limit (" + std::to_string(current_memlock) + "kB) is less than the amount required to use all hugepages (" + std::to_string(required_memlock) + "kB). This may cause memory allocation issues with io_uring.\n"
+                "\tUpdate the memlock limit temporarily with 'ulimit -l " + std::to_string(required_memlock) + "' or permanently by adding/updating a memlock entry in /etc/security/limits.conf or /etc/security/limits.d/*.conf.";
+            UHD_LOG_WARNING("ASYNC_RECV_MANAGER", message);
+        }
+    } else {
+        UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Unable to get the size of huge pages which is used to check if the memlock limit is high enough. The limit should be large enough to contain " + std::to_string(num_hugepages) + " huge pages. An insufficient memlock limit may cause performance issues.");
     }
 }
 
