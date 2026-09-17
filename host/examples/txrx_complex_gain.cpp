@@ -776,18 +776,15 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     // ... TX streaming shall start at the chosen reference time
     const double tx_delay = 0;
 
-    // synchronously initialize USRP time across multiple motherboards to usrp_init_time
-    if (multi_usrp->get_num_mboards() == 1) {
-        // single USRP: no need to align to PPS
-        multi_usrp->set_time_now(uhd::time_spec_t(usrp_init_time));
-
-    } else if (pps == "external" or pps == "gpsdo") {
+    // synchronously initialize USRP time to usrp_init_time
+    // This is applied even with only 1 motherboard for syncing with other devices
+    if (pps == "external" or pps == "gpsdo") {
         multi_usrp->set_time_source(pps);
         multi_usrp->set_time_unknown_pps(uhd::time_spec_t(usrp_init_time));
 
     } else {
-        // multiple USRPs without external PPS
-        std::cout << "No external PPS available, using internal time." << std::endl;
+        std::cout << "No external PPS requested, using internal time." << std::endl;
+
         multi_usrp->set_time_now(uhd::time_spec_t(usrp_init_time));
     }
 

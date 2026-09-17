@@ -379,34 +379,33 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     if(pps != "bypass") {
         std::cout << "Setting device timestamp to 0..." << std::endl;
-        if (channel_nums.size() > 1)
-        {
-            // Sync times
-            if (pps == "mimo")
-            {
-                UHD_ASSERT_THROW(usrp->get_num_mboards() == 2);
 
-                //make mboard 1 a slave over the MIMO Cable
-                usrp->set_time_source("mimo", 1);
-
-                //set time on the master (mboard 0)
-                usrp->set_time_now(uhd::time_spec_t(0.0), 0);
-
-                //sleep a bit while the slave locks its time to the master
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-            else
-            {
-                if (pps == "internal" or pps == "external" or pps == "gpsdo")
-                    usrp->set_time_source(pps);
-                usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
-                std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
-            }
-        }
-        else
-        {
+        // Set time and PPS source
+        if (!vm.count("pps")) {
+            // No PPS requested, skip setting PPS and set time to or
             usrp->set_time_now(0.0);
+        } else if (pps == "mimo") {
+
+            UHD_ASSERT_THROW(usrp->get_num_mboards() == 2);
+
+            //make mboard 1 a slave over the MIMO Cable
+            usrp->set_time_source("mimo", 1);
+
+            //set time on the master (mboard 0)
+            usrp->set_time_now(uhd::time_spec_t(0.0), 0);
+
+            //sleep a bit while the slave locks its time to the master
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+        else {
+            // The PPS used to sync the clocks to the requested value
+            // As of UHDPV set_time_source 4.10.0.10 set_time_source checks if the PPS is valid
+            usrp->set_time_source(pps);
+            
+            usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
+            std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
+        }
+
     } else {
         std::cout << "Bypassing setting clock, this may interfere with start time" << std::endl;
     }

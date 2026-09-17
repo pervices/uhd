@@ -710,7 +710,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         usrp->get_time_now();
         // wait for the time to sync
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    } else if (rx_channel_nums.size() > 1 or tx_channel_nums.size() > 1) {
+    } else if (vm.count("pps")) {
         usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
     } else {
         usrp->set_time_now(0.0);
