@@ -531,9 +531,9 @@ public:
                 return;
             }
             else if(actual == "internal" && source == "external") {
-                UHD_LOG_ERROR("MULTI_USRP", "External PSS not detected, fall back to internal PPS triggered."
+                UHD_LOG_ERROR("MULTI_USRP", "External PSS not detected, fall back to internal PPS triggered. "
                     "Catch std::runtime_error if you are okay with falling back to internal PPS");
-                throw std::runtime_error("External PPS not detected");
+                throw std::runtime_error("External PPS not detected, intenrall fallback triggered");
             }
             else if(actual.starts_with("Invalid time source")) {
 
