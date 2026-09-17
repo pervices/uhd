@@ -521,8 +521,10 @@ public:
     void set_time_source(const std::string& source, const size_t mboard) override
     {
         if (mboard != ALL_MBOARDS) {
+            printf("Target source: $s\n", source.c_str());
             _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").set(source);
             std::string actual = _tree->access<std::string>(mb_root(mboard) / "time_source" / "value").get();
+            printf("Actual source: $s\n", actual.c_str());
 
             if(actual == source) {
                 // Success, no further action required
