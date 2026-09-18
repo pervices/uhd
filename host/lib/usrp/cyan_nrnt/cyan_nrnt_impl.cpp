@@ -82,8 +82,8 @@ static void do_samp_rate_warning_message(
 }
 
 // Constants for paths in UHD side state tree
-const fs_path tx_path   = CYAN_NRNT_MB_PATH / "tx";
-const fs_path rx_path   = CYAN_NRNT_MB_PATH / "rx";
+const fs_path tx_path   = PV_DEVICE_MB_PATH / "tx";
+const fs_path rx_path   = PV_DEVICE_MB_PATH / "rx";
 
 static std::string mb_root(const size_t mboard = 0) {
     return "/mboards/" + std::to_string(mboard);
@@ -171,8 +171,8 @@ void cyan_nrnt_impl::detect_pps( cyan_nrnt_impl *dev ) {
     int pps_detected;
 
     while (! dev->_pps_thread_should_exit.load(std::memory_order_relaxed)) {
-        dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").set(1);
-        pps_detected = dev->get_tree()->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").get();
+        dev->get_tree()->access<int>(PV_DEVICE_TIME_PATH / "pps_detected").set(1);
+        pps_detected = dev->get_tree()->access<int>(PV_DEVICE_TIME_PATH / "pps_detected").get();
 
         if (pps_detected == 0) {
             std::cout << "WARNING: PPS has not been detected in the past two seconds " << std::endl;
@@ -657,16 +657,16 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/get_max_buffer_level", "system/get_max_buffer_level", double, double);
-    max_buffer_level = (int64_t) (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/get_max_buffer_level").get());
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/get_max_buffer_level", "system/get_max_buffer_level", double, double);
+    max_buffer_level = (int64_t) (_tree->access<double>(PV_DEVICE_MB_PATH / "system/get_max_buffer_level").get());
     // The number to multiply get buffer level requests by to get the actual buffer level in number of samples
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/get_buffer_level_multiple", "system/get_buffer_level_multiple", double, double);
-    buffer_level_multiple = (int64_t) (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/get_buffer_level_multiple").get());
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/get_buffer_level_multiple", "system/get_buffer_level_multiple", double, double);
+    buffer_level_multiple = (int64_t) (_tree->access<double>(PV_DEVICE_MB_PATH / "system/get_buffer_level_multiple").get());
 
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_rx", "system/nsamps_multiple_rx", int, int);
-    nsamps_multiple_rx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_rx").get());
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/nsamps_multiple_rx", "system/nsamps_multiple_rx", int, int);
+    nsamps_multiple_rx = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/nsamps_multiple_rx").get());
 
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/nsamps_multiple_tx", "system/nsamps_multiple_tx", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/nsamps_multiple_tx", "system/nsamps_multiple_tx", int, int);
 
     if (not device_addr.has_key("send_buff_size")){
         //The buffer should be the size of the SRAM on the device,
@@ -674,11 +674,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         device_addr["send_buff_size"] = std::to_string( (size_t) (max_buffer_level * sizeof( std::complex<int16_t> ) * ((double)(MAX_ETHERNET_MTU+1)/(CYAN_NRNT_MAX_MTU-CYAN_NRNT_UDP_OVERHEAD))) );
     }
 
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/num_rx", "system/num_rx", int, int);
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/num_tx", "system/num_tx", int, int);
-    num_rx_channels = (size_t) (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/num_rx").get());
+    TREE_CREATE_RO(PV_DEVICE_MB_PATH / "system/num_rx", "system/num_rx", int, int);
+    TREE_CREATE_RO(PV_DEVICE_MB_PATH / "system/num_tx", "system/num_tx", int, int);
+    num_rx_channels = (size_t) (_tree->access<int>(PV_DEVICE_MB_PATH / "system/num_rx").get());
     is_num_rx_channels_set = true;
-    num_tx_channels = (size_t) (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/num_tx").get());
+    num_tx_channels = (size_t) (_tree->access<int>(PV_DEVICE_MB_PATH / "system/num_tx").get());
     is_num_tx_channels_set = true;
 
     // Create/open channel and streaming lockfiles for all available channels but do not handle locking here
@@ -785,25 +785,25 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         }
     }
 
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/max_rate", "system/max_rate", double, double);
-    max_sample_rate = (_tree->access<double>(CYAN_NRNT_MB_PATH / "system/max_rate").get());
+    TREE_CREATE_RO(PV_DEVICE_MB_PATH / "system/max_rate", "system/max_rate", double, double);
+    max_sample_rate = (_tree->access<double>(PV_DEVICE_MB_PATH / "system/max_rate").get());
 
     // NOTE: otw_rx is ever made changable during runtime ensure rx_stream_cmd_issuer is updated
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_rx", "system/otw_rx", int, int);
-    otw_rx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_rx").get());
+    TREE_CREATE_RO(PV_DEVICE_MB_PATH / "system/otw_rx", "system/otw_rx", int, int);
+    otw_rx = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/otw_rx").get());
     otw_rx_s = "sc" + std::to_string(otw_rx);
 
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/otw_tx", "system/otw_tx", int, int);
-    otw_tx = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/otw_tx").get());
+    TREE_CREATE_RO(PV_DEVICE_MB_PATH / "system/otw_tx", "system/otw_tx", int, int);
+    otw_tx = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/otw_tx").get());
     otw_tx_s = "sc" + std::to_string(otw_tx);
 
-    TREE_CREATE_RO(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G", "system/flags/USE_3G_AS_1G", int, int);
-    flag_use_3g_as_1g = (_tree->access<int>(CYAN_NRNT_MB_PATH / "system/flags/USE_3G_AS_1G").get());
+    TREE_CREATE_RO(PV_DEVICE_MB_PATH / "system/flags/USE_3G_AS_1G", "system/flags/USE_3G_AS_1G", int, int);
+    flag_use_3g_as_1g = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/flags/USE_3G_AS_1G").get());
 
     // The port used by TCP communications
     // This property is called during pv_iface initialization before being initialized here
     // When editing this property make sure the call in pv_iface is also updated
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "system/tcp_management_port", "system/tcp_management_port", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/tcp_management_port", "system/tcp_management_port", int, int);
 
     //Initializes the vectors contain caches of constant data
     is_tx_sfp_cached.resize(num_tx_channels, false);
@@ -823,12 +823,12 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     rx_channel_in_use = std::shared_ptr<std::vector<bool>>(new std::vector<bool>(num_rx_channels, false));
 
     static const std::vector<std::string> time_sources = boost::assign::list_of("internal")("external");
-    _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "time_source" / "options").set(time_sources);
+    _tree->create<std::vector<std::string> >(PV_DEVICE_MB_PATH / "time_source" / "options").set(time_sources);
 
     static const std::vector<double> external_freq_options = boost::assign::list_of(10e6);
-    _tree->create<std::vector<double> >(CYAN_NRNT_MB_PATH / "clock_source" / "external" / "freq" / "options");
+    _tree->create<std::vector<double> >(PV_DEVICE_MB_PATH / "clock_source" / "external" / "freq" / "options");
     static const std::vector<std::string> clock_source_options = boost::assign::list_of("internal")("external");
-    _tree->create<std::vector<std::string> >(CYAN_NRNT_MB_PATH / "clock_source" / "options").set(clock_source_options);
+    _tree->create<std::vector<std::string> >(PV_DEVICE_MB_PATH / "clock_source" / "options").set(clock_source_options);
 
     TREE_CREATE_ST("/name", std::string, CYAN_NRNT_DEBUG_NAME_S + " Device");
 
@@ -842,54 +842,54 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     std::iota(default_tx_map.begin(), default_tx_map.end(), 0);
 
 
-    _tree->create<std::vector<size_t> >(CYAN_NRNT_MB_PATH / "rx_chan_dsp_mapping").set(default_rx_map);
-    _tree->create<std::vector<size_t> >(CYAN_NRNT_MB_PATH / "tx_chan_dsp_mapping").set(default_tx_map);
+    _tree->create<std::vector<size_t> >(PV_DEVICE_MB_PATH / "rx_chan_dsp_mapping").set(default_rx_map);
+    _tree->create<std::vector<size_t> >(PV_DEVICE_MB_PATH / "tx_chan_dsp_mapping").set(default_tx_map);
     // TODO: make rx_subdev_spec and tx_subdev_spec read only and remove their respective update functions
-    _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "rx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_rx_subdev_spec, this, ph::_1));
-    _tree->create<subdev_spec_t>(CYAN_NRNT_MB_PATH / "tx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_tx_subdev_spec, this, ph::_1));
+    _tree->create<subdev_spec_t>(PV_DEVICE_MB_PATH / "rx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_rx_subdev_spec, this, ph::_1));
+    _tree->create<subdev_spec_t>(PV_DEVICE_MB_PATH / "tx_subdev_spec").add_coerced_subscriber(std::bind(&cyan_nrnt_impl::update_tx_subdev_spec, this, ph::_1));
 
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "vendor", std::string, "Per Vices");
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "name",   std::string, "FPGA Board");
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "id",         "fpga/about/id",     std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "serial",     "fpga/about/serial", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "server_version", "fpga/about/server_ver", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fw_version", "fpga/about/fw_ver", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "hw_version", "fpga/about/hw_ver", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/backplane_pinout", "fpga/about/imgparam/backplane_pinout", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/ddr_used", "fpga/about/imgparam/ddr_used", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/hps_only", "fpga/about/imgparam/hps_only", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/num_rx", "fpga/about/imgparam/num_rx", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/num_tx", "fpga/about/imgparam/num_tx", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/rate", "fpga/about/imgparam/rate", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "imgparam/rtm", "fpga/about/imgparam/rtm", int, int);
-    TREE_CREATE_WO(CYAN_NRNT_MB_PATH / "blink", "fpga/board/led", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "temp", "fpga/board/temp", std::string, string);
+    TREE_CREATE_ST(PV_DEVICE_MB_PATH / "vendor", std::string, "Per Vices");
+    TREE_CREATE_ST(PV_DEVICE_MB_PATH / "name",   std::string, "FPGA Board");
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "id",         "fpga/about/id",     std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "serial",     "fpga/about/serial", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "server_version", "fpga/about/server_ver", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "fw_version", "fpga/about/fw_ver", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "hw_version", "fpga/about/hw_ver", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "imgparam/backplane_pinout", "fpga/about/imgparam/backplane_pinout", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "imgparam/ddr_used", "fpga/about/imgparam/ddr_used", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "imgparam/hps_only", "fpga/about/imgparam/hps_only", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "imgparam/num_rx", "fpga/about/imgparam/num_rx", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "imgparam/num_tx", "fpga/about/imgparam/num_tx", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "imgparam/rate", "fpga/about/imgparam/rate", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "imgparam/rtm", "fpga/about/imgparam/rtm", int, int);
+    TREE_CREATE_WO(PV_DEVICE_MB_PATH / "blink", "fpga/board/led", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "temp", "fpga/board/temp", std::string, string);
     // TODO: investigate/add comments to explain what user/regs does
     // Unlike the other properties, this access functions belong to this class
     // NOTE: ensure this property is not accessed after this is destructed
-    _tree->create<user_reg_t> (CYAN_NRNT_MB_PATH / "user/regs")
+    _tree->create<user_reg_t> (PV_DEVICE_MB_PATH / "user/regs")
         .add_desired_subscriber(std::bind(&cyan_nrnt_impl::set_user_reg, this, ("fpga/user/regs"), ph::_1));
 
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
 
     // String is used because this is a 64 bit number and won't fit in int
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "gps_time", "fpga/board/gps_time", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "gps_frac_time", "fpga/board/gps_frac_time", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "gps_time", "fpga/board/gps_time", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "gps_frac_time", "fpga/board/gps_frac_time", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "gps_sync_time", "fpga/board/gps_sync_time", int, int);
 
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "fpga/board/flow_control/sfpa_port", "fpga/board/flow_control/sfpa_port", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "fpga/board/flow_control/sfpb_port", "fpga/board/flow_control/sfpb_port", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "fpga/board/flow_control/sfpc_port", "fpga/board/flow_control/sfpc_port", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "fpga/board/flow_control/sfpd_port", "fpga/board/flow_control/sfpd_port", int, int);
 
-    TREE_CREATE_ST(CYAN_NRNT_TIME_PATH / "name", std::string, "Time Board");
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "id",         "time/about/id",     std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "serial",     "time/about/serial", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "fw_version", "time/about/fw_ver", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "sw_version", "time/about/sw_ver", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "eeprom", "time/about/eeprom", std::string, string);
+    TREE_CREATE_ST(PV_DEVICE_TIME_PATH / "name", std::string, "Time Board");
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "id",         "time/about/id",     std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "serial",     "time/about/serial", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "fw_version", "time/about/fw_ver", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "sw_version", "time/about/sw_ver", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "eeprom", "time/about/eeprom", std::string, string);
 
     TREE_CREATE_ST(rx_path / "name",   std::string, "RX Board");
     TREE_CREATE_ST(rx_path / "spec",   std::string, "4 RX RF chains, 322MHz BW and DC-6GHz each");
@@ -906,17 +906,17 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     TREE_CREATE_RW(tx_path / "sw_version", "tx_a/about/sw_ver", std::string, string);
 
     // Link max rate refers to ethernet link rate
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link_max_rate", "fpga/link/rate", double, double);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link_max_rate", "fpga/link/rate", double, double);
 
     // SFP settings
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "ip_addr",  "fpga/link/sfpa/ip_addr", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "ip_addr",  "fpga/link/sfpc/ip_addr", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpa" / "ip_addr",  "fpga/link/sfpa/ip_addr", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpa" / "pay_len", "fpga/link/sfpa/pay_len", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpb" / "ip_addr",     "fpga/link/sfpb/ip_addr", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpb" / "pay_len", "fpga/link/sfpb/pay_len", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpc" / "ip_addr",  "fpga/link/sfpc/ip_addr", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpc" / "pay_len", "fpga/link/sfpc/pay_len", int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpd" / "ip_addr",     "fpga/link/sfpd/ip_addr", std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "link" / "sfpd" / "pay_len", "fpga/link/sfpd/pay_len", int, int);
 
     // IP and UDP port used by clock sync and stream commands
     // This must use a separate socket since it is expecting a reply
@@ -926,9 +926,9 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     for (int i = 0; i < NUMBER_OF_XG_CONTROL_INTF; i++) {
         std::string xg_intf = std::string(1, char('a' + i));
-        int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        int sfp_port = _tree->access<int>( PV_DEVICE_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
 
-        std::string control_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        std::string control_ip = _tree->access<std::string>( PV_DEVICE_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
         std::string control_port = std::to_string( sfp_port );
         _basic_sfp_iface.push_back(udp_simple::make_connected( control_ip, control_port ));
 
@@ -959,21 +959,21 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     };
 
     // This is the master clock rate
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
+    TREE_CREATE_ST(PV_DEVICE_MB_PATH / "tick_rate", double, CYAN_NRNT_TICK_RATE);
 
     // TODO: see if time/clk/cmd is used anywhere, and if not remove it
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "cmd", "time/clk/cmd",      time_spec_t, time_spec);
     // This line will get time spec, the time diff port must be initialized first
     // Call set_time_initiated before setting time/clk/cur_time and set_time_finished after
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
-    TREE_CREATE_RW(CYAN_NRNT_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "now", "time/clk/cur_time", time_spec_t, time_spec);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "pps", "time/clk/pps",    time_spec_t, time_spec);
+    TREE_CREATE_RW(PV_DEVICE_TIME_PATH / "pps_detected", "time/clk/pps_detected",    int,         int);
     _pps_thread_needed = true;
     try {
         // Attempt to read pps_detected
         // If success the the pps monitoring loop should be run
         // If failure then pps monitoring is not implemented on the server and the loop should not be run
-        _tree->access<int>(CYAN_NRNT_TIME_PATH / "pps_detected").get();
+        _tree->access<int>(PV_DEVICE_TIME_PATH / "pps_detected").get();
     } catch(uhd::lookup_error &e) {
         _pps_thread_needed = false;
     }
@@ -986,22 +986,22 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     temp["name"]     = "FPGA Board";
     temp["vendor"]   = "Per Vices";
     temp["serial"]   = "";
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "eeprom", mboard_eeprom_t, temp);
+    TREE_CREATE_ST(PV_DEVICE_MB_PATH / "eeprom", mboard_eeprom_t, temp);
 
     // This property chooses internal or external time (usually pps) source
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "time_source"  / "value",  	"time/source/set_time_source",  	std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "time_source"  / "value",  	"time/source/set_time_source",  	std::string, string);
     // Sets whether to use internal or external clock source
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "time_source"  / "freq",  	    "time/source/freq_mhz",  	int, int);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "clock_source" / "value",      "time/source/ref",	std::string, string);
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "clock_source" / "external",	"time/source/ref",	std::string, string);
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "clock_source" / "external" / "value", double, CYAN_NRNT_EXT_CLK_RATE);
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "clock_source" / "output", bool, true);
-    TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "time_source"  / "output", bool, true);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "time_source"  / "freq",  	    "time/source/freq_mhz",  	int, int);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "clock_source" / "value",      "time/source/ref",	std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "clock_source" / "external",	"time/source/ref",	std::string, string);
+    TREE_CREATE_ST(PV_DEVICE_MB_PATH / "clock_source" / "external" / "value", double, CYAN_NRNT_EXT_CLK_RATE);
+    TREE_CREATE_ST(PV_DEVICE_MB_PATH / "clock_source" / "output", bool, true);
+    TREE_CREATE_ST(PV_DEVICE_MB_PATH / "time_source"  / "output", bool, true);
 
-    TREE_CREATE_RW(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
 
     // No GPSDO support on Crimson
-    // TREE_CREATE_ST(CYAN_NRNT_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
+    // TREE_CREATE_ST(PV_DEVICE_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
     // loop for all RX chains
     for( size_t dspno = 0; dspno < num_rx_channels; dspno++ ) {
@@ -1009,11 +1009,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         std::string num     = std::string(1, (char)(dspno + 'A'));
         std::string chan    = "Channel_" + num;
 
-        const fs_path rx_codec_path = CYAN_NRNT_MB_PATH / "rx_codecs" / num;
-        const fs_path rx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "rx_frontends" / chan;
-        const fs_path db_path       = CYAN_NRNT_MB_PATH / "dboards" / num;
-        const fs_path rx_dsp_path   = CYAN_NRNT_MB_PATH / "rx_dsps" / dspno;
-        const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / dspno;
+        const fs_path rx_codec_path = PV_DEVICE_MB_PATH / "rx_codecs" / num;
+        const fs_path rx_fe_path    = PV_DEVICE_MB_PATH / "dboards" / num / "rx_frontends" / chan;
+        const fs_path db_path       = PV_DEVICE_MB_PATH / "dboards" / num;
+        const fs_path rx_dsp_path   = PV_DEVICE_MB_PATH / "rx_dsps" / dspno;
+        const fs_path rx_link_path  = PV_DEVICE_MB_PATH / "rx_link" / dspno;
 
         static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
         _tree->create<std::vector<std::string> >(rx_fe_path / "antenna" / "options").set(antenna_options);
@@ -1142,11 +1142,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         std::string num     = std::string(1, (char)(dspno + 'A'));
         std::string chan    = "Channel_" + num;
 
-        const fs_path tx_codec_path = CYAN_NRNT_MB_PATH / "tx_codecs" / num;
-        const fs_path tx_fe_path    = CYAN_NRNT_MB_PATH / "dboards" / num / "tx_frontends" / chan;
-        const fs_path db_path       = CYAN_NRNT_MB_PATH / "dboards" / num;
-        const fs_path tx_dsp_path   = CYAN_NRNT_MB_PATH / "tx_dsps" / dspno;
-        const fs_path tx_link_path  = CYAN_NRNT_MB_PATH / "tx_link" / dspno;
+        const fs_path tx_codec_path = PV_DEVICE_MB_PATH / "tx_codecs" / num;
+        const fs_path tx_fe_path    = PV_DEVICE_MB_PATH / "dboards" / num / "tx_frontends" / chan;
+        const fs_path db_path       = PV_DEVICE_MB_PATH / "dboards" / num;
+        const fs_path tx_dsp_path   = PV_DEVICE_MB_PATH / "tx_dsps" / dspno;
+        const fs_path tx_link_path  = PV_DEVICE_MB_PATH / "tx_link" / dspno;
 
         static const std::vector<std::string> antenna_options = boost::assign::list_of("SMA")("None");
         _tree->create<std::vector<std::string> >(tx_fe_path / "antenna" / "options").set(antenna_options);
@@ -1257,13 +1257,13 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Creates socket for getting buffer level
         _mbc.fifo_ctrl_xports.push_back(
             udp_simple::make_connected(
-                _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr" ).get(),
-                std::to_string( _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
+                _tree->access<std::string>( PV_DEVICE_MB_PATH / "link" / sfp / "ip_addr" ).get(),
+                std::to_string( _tree->access<int>( PV_DEVICE_MB_PATH / "fpga" / "board" / "flow_control" / ( sfp + "_port" ) ).get() )
             )
         );
     }
 
-    const fs_path cm_path  = CYAN_NRNT_MB_PATH / "cm";
+    const fs_path cm_path  = PV_DEVICE_MB_PATH / "cm";
 
     // Common Mode
     TREE_CREATE_RW(cm_path / "chanmask-rx", "cm/chanmask-rx", int, int);
@@ -1316,8 +1316,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         std::string xg_intf = std::string(1, char('a' + cyan_nrnt_impl::get_rx_xg_intf(ch)));
 
         // Create the socket to use for rx stream commands
-        int sfp_port = _tree->access<int>( CYAN_NRNT_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
-        std::string time_diff_ip = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
+        int sfp_port = _tree->access<int>( PV_DEVICE_MB_PATH / "fpga/board/flow_control/sfp" + xg_intf + "_port" ).get();
+        std::string time_diff_ip = _tree->access<std::string>( PV_DEVICE_MB_PATH / "link" / "sfp" + xg_intf / "ip_addr" ).get();
         std::string time_diff_port = std::to_string( sfp_port );
         uhd::transport::udp_simple::sptr command_socket = udp_simple::make_connected( time_diff_ip, time_diff_port );
 
@@ -1348,7 +1348,7 @@ cyan_nrnt_impl::~cyan_nrnt_impl(void)
 //Note: these are relative to the sfp port
 //i.e. 0 for all channels in 9r7t since it has 1 channel per sfp port, 0 or 1 for 8r since it has 2 channels per sfp
 int cyan_nrnt_impl::get_rx_jesd_num(int channel) {
-    const fs_path rx_link_path  = CYAN_NRNT_MB_PATH / "rx_link" / channel;
+    const fs_path rx_link_path  = PV_DEVICE_MB_PATH / "rx_link" / channel;
     int jesd_num = _tree->access<int>( rx_link_path / "jesd_num" ).get();
     return jesd_num;
 }
@@ -1369,7 +1369,7 @@ std::string cyan_nrnt_impl::get_tx_sfp( size_t chan ) {
     if( is_tx_sfp_cached[chan] ) {
         return tx_sfp_cache[chan];
     } else {
-        const fs_path tx_link_path  = CYAN_NRNT_MB_PATH / "tx_link" / chan;
+        const fs_path tx_link_path  = PV_DEVICE_MB_PATH / "tx_link" / chan;
         tx_sfp_cache[chan] = _tree->access<std::string>( tx_link_path / "iface" ).get();
         is_tx_sfp_cached[chan] = true;
         return tx_sfp_cache[chan];
@@ -1400,7 +1400,7 @@ std::string cyan_nrnt_impl::get_tx_ip( size_t chan ) {
     } else {
         std::string sfp = get_tx_sfp(chan);
 
-        tx_ip_cache[chan] = _tree->access<std::string>( CYAN_NRNT_MB_PATH / "link" / sfp / "ip_addr").get();
+        tx_ip_cache[chan] = _tree->access<std::string>( PV_DEVICE_MB_PATH / "link" / sfp / "ip_addr").get();
         is_tx_ip_cached[chan] = true;
         return tx_ip_cache[chan];
     }
@@ -1414,7 +1414,7 @@ uint16_t cyan_nrnt_impl::get_tx_fc_port( size_t chan ) {
     if( is_tx_fc_cached[chan] ) {
         return tx_fc_cache[chan];
     } else {
-        const fs_path fc_port_path = CYAN_NRNT_MB_PATH / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
+        const fs_path fc_port_path = PV_DEVICE_MB_PATH / ("fpga/board/flow_control/" + get_tx_sfp(chan) + "_port");
 
         tx_fc_cache[chan] = (uint16_t) _tree->access<int>( fc_port_path ).get();
         is_tx_fc_cached[chan] = true;
@@ -1430,7 +1430,7 @@ uint16_t cyan_nrnt_impl::get_tx_udp_port( size_t chan ) {
     if( is_tx_udp_port_cached[chan] ) {
         return tx_udp_port_cache[chan];
     } else {
-        const fs_path prop_path = CYAN_NRNT_MB_PATH / "tx_link";
+        const fs_path prop_path = PV_DEVICE_MB_PATH / "tx_link";
 
         const std::string udp_port_str = _tree->access<std::string>(prop_path / std::to_string( chan ) / "port").get();
 
@@ -1954,7 +1954,7 @@ bool cyan_nrnt_impl::ping_check(std::string sfp, std::string ip) {
 
 double cyan_nrnt_impl::get_link_rate() {
     if(link_rate_cache == 0) {
-        link_rate_cache = _tree->access<double>(CYAN_NRNT_MB_PATH / "link_max_rate").get();
+        link_rate_cache = _tree->access<double>(PV_DEVICE_MB_PATH / "link_max_rate").get();
         return link_rate_cache;
     } else {
         return link_rate_cache;
