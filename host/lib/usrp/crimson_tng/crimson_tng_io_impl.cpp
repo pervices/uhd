@@ -287,7 +287,7 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         }
 
         // Verify if the source of rx packets can pinged
-        std::string src_ip = _tree->access<std::string>( CRIMSON_TNG_MB_PATH / "link" / sfp / "ip_addr").get();
+        std::string src_ip = _tree->access<std::string>( PV_DEVICE_MB_PATH / "link" / sfp / "ip_addr").get();
 
         if(!ping_check(sfp, src_ip)) {
             UHD_LOG_ERROR(product_name_c, "Unable to ping " + src_ip + " on " + sfp + ". RX channel " + std::to_string(args.channels[n]) + " will not work");
@@ -349,10 +349,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
         std::string num     = std::string(1, (char)(chan + 'A'));
-        const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
-        const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
-        const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
-        const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
+        const fs_path rx_path   = PV_DEVICE_MB_PATH / "rx";
+        const fs_path rx_fe_path    = PV_DEVICE_MB_PATH / "dboards" / num / "rx_frontends" / ch;
+        const fs_path rx_link_path  = PV_DEVICE_MB_PATH / "rx_link" / chan;
+        const fs_path rx_dsp_path   = PV_DEVICE_MB_PATH / "rx_dsps" / chan;
 
         // stop streaming
         _tree->access<std::string>(rx_path / chan / "stream").set("0");
@@ -397,10 +397,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
 
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
         std::string num     = std::string(1, (char)(chan + 'A'));
-        const fs_path rx_path   = CRIMSON_TNG_MB_PATH / "rx";
-        const fs_path rx_fe_path    = CRIMSON_TNG_MB_PATH / "dboards" / num / "rx_frontends" / ch;
-        const fs_path rx_link_path  = CRIMSON_TNG_MB_PATH / "rx_link" / chan;
-        const fs_path rx_dsp_path   = CRIMSON_TNG_MB_PATH / "rx_dsps" / chan;
+        const fs_path rx_path   = PV_DEVICE_MB_PATH / "rx";
+        const fs_path rx_fe_path    = PV_DEVICE_MB_PATH / "dboards" / num / "rx_frontends" / ch;
+        const fs_path rx_link_path  = PV_DEVICE_MB_PATH / "rx_link" / chan;
+        const fs_path rx_dsp_path   = PV_DEVICE_MB_PATH / "rx_dsps" / chan;
 
         _tree->access<std::string>(rx_path / chan / "stream").set("0");
         // vita enable
@@ -570,8 +570,8 @@ tx_streamer::sptr crimson_tng_impl::get_tx_stream(const uhd::stream_args_t &args
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
         size_t chan = args.channels[ chan_i ];
         const std::string ch    = "Channel_" + std::string( 1, 'A' + chan );
-        const fs_path tx_path   = CRIMSON_TNG_MB_PATH / "tx";
-        const fs_path tx_link_path  = CRIMSON_TNG_MB_PATH / "tx_link" / chan;
+        const fs_path tx_path   = PV_DEVICE_MB_PATH / "tx";
+        const fs_path tx_link_path  = PV_DEVICE_MB_PATH / "tx_link" / chan;
 
         // power on the channel
         _tree->access<std::string>(tx_path / chan / "pwr").set("1");

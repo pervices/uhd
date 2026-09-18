@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <uhdlib/usrp/pv_device/pv_device_fw_common.hpp>
 #include <stdint.h>
 #include <string>
 #include <uhd/property_tree.hpp>
@@ -157,12 +158,6 @@ constexpr double CYAN_NRNT_MID_MAX_LO         = 5600000000;
 // remain plain (non-constexpr) constants.
 inline const std::string CYAN_NRNT_DEBUG_NAME_S = "Cyan NrNt";
 inline const std::string CYAN_NRNT_DEBUG_NAME_C = "CYAN_NRNT";
-
-// fs_path is not a literal type (its constructors are defined out-of-line and it derives from
-// std::string), so it cannot be a constexpr. These remain plain (non-constexpr) constants, kept
-// as objects (rather than functions) so all existing "CYAN_NRNT_MB_PATH / ..." usages still work.
-inline const uhd::fs_path CYAN_NRNT_MB_PATH{"/mboards/0"};
-inline const uhd::fs_path CYAN_NRNT_TIME_PATH{CYAN_NRNT_MB_PATH / "time"};
 
 // max_sample_rate / CYAN_NRNT_MAX_DSP_RATE_FACTOR = maximum rate the NCO operates at
 constexpr double CYAN_NRNT_MAX_DSP_RATE_FACTOR = 4.0;
