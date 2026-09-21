@@ -19,6 +19,8 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/safe_call.hpp>
 #include <inttypes.h>
+#include <cstdlib>
+#include <sstream>
 #include <uhdlib/usrp/common/pv_iface.hpp>
 
 #define PV_IFACE_DEBUG_NAME_C "PV_IFACE"
@@ -298,12 +300,30 @@ sensor_value_t pv_iface::get_sensor_value(std::string req) {
 
         return sensor_value_t( "pps_detected", sensor_good, "locked", "unlocked" );
     } else if(req.find("temp") != std::string::npos) {
+        // The string portion of temperature properties is inconsistent
+        // To enable working with all of them extract the numerical reading (in C) and ignore everything else
         double sensor_value = 0.0;
+        bool found_value    = false;
 
-        // Reply is formatted as "temp +x degc"
-        if(sscanf(reply.c_str(), "%*s %lf", &sensor_value) != 1) {
+        std::istringstream token_stream(reply);
+        std::string token;
+        // Cycle through sequences of whitespace delimited characters
+        while(token_stream >> token) {
+            char* end = nullptr;
+            double candidate = std::strtod(token.c_str(), &end);
+
+            // Only accept tokens (whitespace delimited sets of character) that were fully consumed
+            if(end == token.c_str() + token.size()) {
+                // Cyan rfe boards return 2 temperature values. Use the higher of the 2 values
+                if(!found_value || candidate > sensor_value) {
+                    sensor_value = candidate;
+                }
+                found_value = true;
+            }
+        }
+
+        if(!found_value) {
             UHD_LOG_ERROR(PV_IFACE_DEBUG_NAME_C, "Failed to parse temperature reply \"" + reply + "\" from device for property \"" + req + "\"");
-            sensor_value = 0;
         }
 
         return sensor_value_t( "temp", sensor_value, "C" );
