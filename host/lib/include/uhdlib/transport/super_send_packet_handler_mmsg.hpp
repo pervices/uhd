@@ -211,7 +211,7 @@ private:
          * \param vrt_header_size size of the vrt header
          * \param cache_size number of bytes in the sample cache
          */
-        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate);
+        ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const double rate);
 
         // Resizes and clears the buffers to match packet_helper_buffer_size
         void resize_and_clear(size_t new_size);

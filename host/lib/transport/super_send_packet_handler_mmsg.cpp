@@ -48,7 +48,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     std::copy(channels.begin(), channels.end(), _channels);
 
 
-    ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _DEVICE_TARGET_NSAMPS, _sample_rate));
+    ch_send_buffer_info_group = std::vector<ch_send_buffer_info>(_NUM_CHANNELS, ch_send_buffer_info(0, HEADER_SIZE, _bytes_per_sample * (_DEVICE_PACKET_NSAMP_MULTIPLE - 1), _sample_rate));
 
     // Creates and binds to sockets
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
@@ -161,10 +161,10 @@ void send_packet_handler_mmsg::lock_channel_streaming(size_t channel_num) {
     }
 }
 
-send_packet_handler_mmsg::ch_send_buffer_info::ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const int64_t device_target_nsamps, const double rate)
+send_packet_handler_mmsg::ch_send_buffer_info::ch_send_buffer_info(const size_t size, const size_t vrt_header_size, const size_t cache_size, const double rate)
 : _vrt_header_size(vrt_header_size),
 sample_cache(std::vector<int8_t>(cache_size)),
-buffer_level_manager(device_target_nsamps, rate)
+buffer_level_manager(rate)
 {
     resize_and_clear(size);
 }
