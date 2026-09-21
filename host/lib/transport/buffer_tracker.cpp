@@ -11,11 +11,6 @@ void buffer_tracker::set_sample_rate( const double rate ) {
     nominal_sample_rate = rate;
 }
 
-// Returns true if waiting for start time
-bool buffer_tracker::start_of_burst_pending( const uhd::time_spec_t & now ) {
-    return now < first_sob_time;
-}
-
 // Sets the time when this burst ends
 void buffer_tracker::set_start_of_burst_time( const uhd::time_spec_t & sob ) {
     blank_period_stop.push_back(sob);
@@ -91,9 +86,8 @@ void buffer_tracker::update( const uint64_t samples_sent ) {
     total_samples_sent += samples_sent;
 }
 
-buffer_tracker::buffer_tracker( const int64_t targer_buffer_level, const double rate )
+buffer_tracker::buffer_tracker( const double rate )
 :
-nominal_buffer_level( targer_buffer_level ),
 nominal_sample_rate( rate ),
 blanked_time(0.0)
 {

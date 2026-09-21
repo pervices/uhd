@@ -12,20 +12,8 @@ class buffer_tracker {
 
 public:
 
-#ifdef DEBUG_PRIMING
-    // Only print error message if there are two consecutive buffer levels of 0 when priming
-    bool failure_to_prime_antirace = false;
-    // Samples were in the buffer, therefore samples should be getting accepted
-    bool buffer_samples_confirmed = false;
-    bool priming_message_printed = false;
-#endif
+    void set_sample_rate( const double rate );
 
-    // Target buffer level
-	const int64_t nominal_buffer_level;
-
-	void set_sample_rate( const double rate );
-
-	bool start_of_burst_pending( const uhd::time_spec_t & now );
     void set_start_of_burst_time( const uhd::time_spec_t & sob );
     // Removes the last sob added to the list
     void pop_back_start_of_burst_time();
@@ -37,10 +25,9 @@ public:
 
     void update( const uint64_t nsamples_sent );
 
-    buffer_tracker( const int64_t targer_buffer_level, const double rate );
+    buffer_tracker( const double rate );
 
 private:
-    bool sob_reset = false;
     double nominal_sample_rate = 0;
 
     // Total number of samples sent, will roll over
