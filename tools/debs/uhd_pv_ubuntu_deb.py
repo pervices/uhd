@@ -24,9 +24,9 @@ import tarfile
 supported_ubuntu_releases = ["focal", "jammy", "noble", "resolute"]
 # Command to create compressed source code to ship with the package
 # The command must result in a deterministic checksum for any given commit
-# tar.xz adds the tar.xz format, git archive creates the source code tarball
-prep_command = ["git", "config", "tar.tar.xz.command", "xz -c"]
-archive_command =  "git archive --format=tar.xz -o {}/uhdpv_{}.orig.tar.xz HEAD"
+# bzip2 is used instead of xz because xz/liblzma's different encoder versions produce different results
+prep_command = ["git", "config", "tar.tar.bz2.command", "bzip2 -c"]
+archive_command =  "git archive --format=tar.bz2 -o {}/uhdpv_{}.orig.tar.bz2 HEAD"
 debuild_command = "debuild -S -i -sa"
 debuild_nosign = " -uc -us"
 
@@ -112,7 +112,7 @@ def main(args):
     # Print the m5sum of the compressed source.
     # The md5sum of the source must match across all distros.
     # This will make it easier to check if the md5sum is wrong
-    archive_path = pathlib.Path(args.buildpath, "uhdpv_{}.orig.tar.xz".format(uhd_version))
+    archive_path = pathlib.Path(args.buildpath, "uhdpv_{}.orig.tar.bz2".format(uhd_version))
     try:
         with open(archive_path, "rb") as archive_file:
             archive_md5 = hashlib.md5(archive_file.read()).hexdigest()
@@ -128,7 +128,7 @@ def main(args):
         args.buildpath, "uhdpv-{}".format(uhd_version))
     if uhd_deb_build_path.exists():
         shutil.rmtree(uhd_deb_build_path)
-    with tarfile.open(args.buildpath + "/uhdpv_{}.orig.tar.xz".format(uhd_version), "r:xz") as uhd_archive:
+    with tarfile.open(args.buildpath + "/uhdpv_{}.orig.tar.bz2".format(uhd_version), "r:bz2") as uhd_archive:
         uhd_archive.extractall(path=uhd_deb_build_path)
 
     # Copy debian build files to build folder
