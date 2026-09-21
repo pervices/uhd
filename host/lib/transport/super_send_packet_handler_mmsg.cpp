@@ -292,6 +292,140 @@ int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
     throw uhd::system_error("SEND: no interface with subnet matching ip " + ip + " found");
 }
 
+size_t send_packet_handler_mmsg::send(
+    const uhd::tx_streamer::buffs_type &sample_buffs,
+    const size_t nsamps_to_send,
+    const uhd::tx_metadata_t &metadata,
+    const double timeout
+) {
+    // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
+    const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
+
+    size_t previous_nsamps_in_cache = nsamps_in_cache;
+
+    // FPGAs can sometimes only receive multiples of a set number of samples
+    size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
+    size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
+
+    if(actual_nsamps_to_send == 0) {
+        // If a start of burst command has no packets, and is not also an end of burstcache timestamp and keep until next call
+        if(metadata.start_of_burst && !metadata.end_of_burst) {
+            cached_sob = true;
+            // If the SOB to cache has a timespec, cache it so it can be applied later
+            if(metadata.has_time_spec) {
+                sob_time_cache = metadata.time_spec;
+            }
+            // If no time spec was provided (or the provided time spec was 0)
+            // set the time spec to -1 to indicate that it should be auto applied when used
+            else {
+                sob_time_cache = -1.0;
+            }
+            return 0;
+        } else if(metadata.end_of_burst) {
+            send_eob_packet(metadata, timeout);
+            return 0;
+        } else {
+            return 0;
+        }
+    }
+
+    // Lets the user know if the last burst dropped samples due to packet length multiple requirements
+    if(dropped_nsamps_in_cache) {
+        UHD_LOGGER_WARNING("SUPER_SEND_PACKET_HANDLER_MMSG") << "bursts must be a multiple of " << _DEVICE_PACKET_NSAMP_MULTIPLE << " samples. Dropping " << dropped_nsamps_in_cache << " samples to comply";
+        dropped_nsamps_in_cache = 0;
+    }
+
+    uhd::tx_metadata_t modified_metadata = metadata;
+    if(cached_sob) [[unlikely]] {
+        cached_sob = false;
+        modified_metadata.start_of_burst = true;
+        // -1 indicates no time spec was provided with the cached SOB request
+        modified_metadata.has_time_spec = sob_time_cache != -1.0;
+        modified_metadata.time_spec = sob_time_cache;
+        modified_metadata.time_spec = sob_time_cache;
+    }
+
+    // Automatically apply start time if none was provided
+    // NOTE: must be after the cached_sob was applied
+    if(modified_metadata.start_of_burst && !modified_metadata.has_time_spec ) {
+        modified_metadata.has_time_spec = true;
+        modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
+    }
+
+    // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
+    bool eob_requested = false;
+    if(modified_metadata.end_of_burst) {
+        modified_metadata.end_of_burst = false;
+        eob_requested = true;
+    }
+
+    // Create and sends packets
+    size_t actual_samples_sent = send_multiple_packets(*send_buffer, actual_nsamps_to_send, modified_metadata, timeout);
+
+    // Sends the eob if requested
+    if(eob_requested) {
+        modified_metadata.end_of_burst = true;
+        send_eob_packet(metadata, timeout);
+    }
+
+    // Actual number of samples to cache
+    size_t actual_nsamples_to_cache;
+    // Number of samples from the cache that were sent
+    size_t cached_samples_sent;
+    // NUmber of samples from that cache that are to be kept for the next run that were present from the previous run
+    size_t cached_samples_to_retain;
+
+    // Copies samples that won't fit as a multiple of _DEVICE_PACKET_NSAMP_MULTIPLE to the cache
+    if(actual_samples_sent == 0) {
+        // No samples sent, therefore none should be added to the buffer
+        actual_nsamples_to_cache = 0;
+        // No samples sent, therefore no cached samples were consumed
+        cached_samples_sent = 0;
+        // No samples sent, therefore all samples in cache kept
+        cached_samples_to_retain = previous_nsamps_in_cache;
+
+    } else if(actual_samples_sent < previous_nsamps_in_cache) {
+        actual_nsamples_to_cache = 0;
+        cached_samples_sent = actual_samples_sent;
+        cached_samples_to_retain = previous_nsamps_in_cache - cached_samples_sent;
+
+        // If fewer samples were sent than were in the cache move the remaining samples to front of the cache
+        for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+            memmove(ch_send_buffer_info_group[ch_i].sample_cache.data(), ch_send_buffer_info_group[ch_i].sample_cache.data() + actual_samples_sent, cached_samples_to_retain * _bytes_per_sample);
+        }
+    } else if(actual_samples_sent < actual_nsamps_to_send) {
+        // If not the samples meant to actually be sent were sent, clear the cache and do not cache any samples
+        // The sample cache is meant to handle the case where the send was successful, but the number of samples the user requested isn't a multiple of the required amount
+        // Since in this case the send didn't send all the intended samples anyway, we don't need to bother with the cache
+        actual_nsamples_to_cache = 0;
+        cached_samples_sent = previous_nsamps_in_cache;
+        cached_samples_to_retain = 0;
+    }
+    else if(actual_samples_sent == actual_nsamps_to_send) {
+        actual_nsamples_to_cache = desired_nsamps_to_cache;
+        cached_samples_sent = previous_nsamps_in_cache;
+        cached_samples_to_retain = 0;
+        // Since send was fully successful, copy samples that couldn't be sent this send due to limitations on packet sizing to the cache
+        if(desired_nsamps_to_cache > 0) {
+            for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                memcpy(ch_send_buffer_info_group[ch_i].sample_cache.data(), (uint8_t*)((*send_buffer)[ch_i]) + ((actual_samples_sent - cached_samples_sent) * _bytes_per_sample), actual_nsamples_to_cache * _bytes_per_sample);
+            }
+        }
+    } else {
+        fprintf(stderr, "ERROR, more samples sent than intended. This should be impossible, contact support\n");
+        // Reaching here should be impossible, these values don't matter
+        actual_nsamples_to_cache = 0;
+        cached_samples_sent = 0;
+        cached_samples_to_retain = 0;
+    }
+
+    // Update number of samples in cache count
+    nsamps_in_cache = previous_nsamps_in_cache - cached_samples_sent + actual_nsamples_to_cache;
+
+    // Return number of samples actually sent
+    return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
+}
+
 void send_packet_handler_mmsg::setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {
     // No converter required, scatter gather will be used
     if(cpu_format == wire_format && wire_little_endian) {
