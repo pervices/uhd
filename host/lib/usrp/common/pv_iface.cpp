@@ -286,6 +286,7 @@ sensor_value_t pv_iface::get_sensor_value(std::string req) {
     }
 
     // Determines the sensor name based on the path
+    // The name field of each sensor_value_t should be unique within a board, but similar across them
     if(req.find("lmk_lockdetect") != std::string::npos) {
         bool sensor_good = (reply.find("unlocked") == std::string::npos) && (reply.find("bad") == std::string::npos);
 
