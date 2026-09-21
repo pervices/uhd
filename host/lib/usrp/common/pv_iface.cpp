@@ -297,6 +297,16 @@ sensor_value_t pv_iface::get_sensor_value(std::string req) {
         bool sensor_good = "1" == reply.substr(0, reply.find_last_not_of("\n"));
 
         return sensor_value_t( "pps_detected", sensor_good, "locked", "unlocked" );
+    } else if(req.find("temp") != std::string::npos) {
+        double sensor_value = 0.0;
+
+        // Reply is formatted as "temp +x degc"
+        if(sscanf(reply.c_str(), "%*s %lf", &sensor_value) != 1) {
+            UHD_LOG_ERROR(PV_IFACE_DEBUG_NAME_C, "Failed to parse temperature reply \"" + reply + "\" from device for property \"" + req + "\"");
+            sensor_value = 0;
+        }
+
+        return sensor_value_t( "temp", sensor_value, "C" );
     } else {
         UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
         return sensor_value_t( req, false, "good", "bad" );

@@ -841,6 +841,11 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "sw_version", "fpga/about/sw_ver", std::string, string);
     TREE_CREATE_WO(PV_DEVICE_MB_PATH / "blink", "fpga/board/led", int, int);
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "temp", "fpga/board/temp", std::string, string);
+
+    // Alias of PV_DEVICE_MB_PATH / "temp" to work with get_mboard_sensor_names/get_mboard_sensor
+    // Digital board (FPGA) temperature
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "sensors" / "temp", "fpga/board/temp", sensor_value_t, sensor_value);
+
     // TODO: investigate/add comments to explain what user/regs does
     // Unlike the other properties, this access functions belong to this class
     // NOTE: ensure this property is not accessed after this is destructed
