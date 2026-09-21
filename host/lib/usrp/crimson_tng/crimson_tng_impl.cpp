@@ -1076,6 +1076,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         // Rx rf pll lock detect
         TREE_CREATE_RW(rx_fe_path / "sensors" / "rfpll_lock", "rx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
 
+        // Rx temperature
+        TREE_CREATE_RW(rx_fe_path / "sensors" / "temp", "rx_"+lc_num+"/board/temp", sensor_value_t, sensor_value );
+
         // these are phony properties for Crimson
         TREE_CREATE_ST(db_path / "rx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
         TREE_CREATE_ST(db_path / "gdb_eeprom", dboard_eeprom_t, dboard_eeprom_t());
@@ -1201,6 +1204,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
         // Tx rf pll lock detect
         TREE_CREATE_RW(tx_fe_path / "sensors" / "rfpll_lock", "tx_"+lc_num+"/status/rfpll_lock", sensor_value_t, sensor_value );
+
+        // Tx temperature
+        TREE_CREATE_RW(tx_fe_path / "sensors" / "temp", "tx_"+lc_num+"/board/temp", sensor_value_t, sensor_value );
 
         // these are phony properties for Crimson
         TREE_CREATE_ST(db_path / "tx_eeprom",  dboard_eeprom_t, dboard_eeprom_t());
