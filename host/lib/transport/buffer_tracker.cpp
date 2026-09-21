@@ -86,6 +86,19 @@ void buffer_tracker::update( const uint64_t samples_sent ) {
     total_samples_sent += samples_sent;
 }
 
+
+void buffer_tracker::recovery_prep( const uhd::time_spec_t & next_packet ) {
+    // Clear the buffer tracker for repriming
+    total_samples_sent = 0;
+    first_sob_set = false;
+    blank_period_start = { uhd::time_spec_t(0.0) };
+    blank_period_stop.clear();
+    uhd::time_spec_t blanked_time = uhd::time_spec_t(0.0);
+
+    // Apply the new pseudo start of burst time
+    set_start_of_burst_time(next_packet);
+}
+
 buffer_tracker::buffer_tracker( const double rate )
 :
 nominal_sample_rate( rate ),

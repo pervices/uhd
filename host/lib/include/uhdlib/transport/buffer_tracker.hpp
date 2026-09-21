@@ -15,6 +15,7 @@ public:
     void set_sample_rate( const double rate );
 
     void set_start_of_burst_time( const uhd::time_spec_t & sob );
+    
     // Removes the last sob added to the list
     void pop_back_start_of_burst_time();
     void set_end_of_burst_time( const uhd::time_spec_t & sob );
@@ -24,6 +25,16 @@ public:
     int64_t get_buffer_level( const uhd::time_spec_t & now );
 
     void update( const uint64_t nsamples_sent );
+
+    /**
+     * Prepare to recover from an underflow.
+     *
+     * Clear the current tracking and start a new pseudo start of burst at next_packet.
+     * This is only to be used when the user does not provide a time stamp
+     *
+     * @param next_time The time to send the next packet
+     */
+    void recovery_prep( const uhd::time_spec_t & next_packet );
 
     buffer_tracker( const double rate );
 
