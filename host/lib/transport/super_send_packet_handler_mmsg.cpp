@@ -39,7 +39,8 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _intermediate_send_buffer_pointers(_NUM_CHANNELS),
     _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
     _async_msg_fifo(async_msg_fifo),
-    _streaming_locks(streaming_locks)
+    _streaming_locks(streaming_locks),
+    _reprime_threshold((int64_t)(device_buffer_size * 0.1))
 {
     // Checks and warns the user if the preemption mode is suboptimal
     check_preemption("SEND_PACKET_HANDLER");
@@ -210,6 +211,10 @@ int send_packet_handler_mmsg::check_fc_npackets(const size_t ch_i) {
 
 void send_packet_handler_mmsg::send_eob_packet(const uhd::tx_metadata_t &metadata, double timeout) {
 
+    // Clear the flag indicating that a time was specified for this burst
+    // since the burst is over
+    specified_time = false;
+
     // How many dummy samples to send in the eob
     constexpr size_t dummy_samples_in_eob = 1;
 
@@ -310,6 +315,9 @@ size_t send_packet_handler_mmsg::send(
     // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
     const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
 
+    // If the user ever specified a time enable dropping late packets to help with phase
+    specified_time = metadata.has_time_spec || specified_time;
+
     size_t previous_nsamps_in_cache = nsamps_in_cache;
 
     // FPGAs can sometimes only receive multiples of a set number of samples
@@ -356,9 +364,38 @@ size_t send_packet_handler_mmsg::send(
 
     // Automatically apply start time if none was provided
     // NOTE: must be after the cached_sob was applied
-    if(modified_metadata.start_of_burst && !modified_metadata.has_time_spec ) {
+    if(modified_metadata.start_of_burst && !modified_metadata.has_time_spec ) [[unlikely]] {
         modified_metadata.has_time_spec = true;
         modified_metadata.time_spec = _clock_sync->get_device_time() + SEND_NOW_DELAY;
+
+    // Reprime if the buffer goes to low and the user did not specify a timestamp.
+    // This causes a phase shift with respect to everything outside the streamer.
+    // Said phase shift is acceptable in order to match upstream's behaviour and since it is probably okay to phase shift if the user didn't specify a time
+    //
+    // The user has not specified times
+    // This is not an end of burst with no samples
+    // The system is not in trigger mode where timestamps are ignored (!use_blocking_fc)
+    // (Implcitly from else) this is not a start of burst
+    } else if(!specified_time && !(modified_metadata.end_of_burst && actual_nsamps_to_send == 0) && !use_blocking_fc) [[unlikely]] {
+        // Get prediced buffer level
+        uhd::time_spec_t device_time = _clock_sync->get_device_time();
+        // buffer_level_manager will be the same for all channels within a streamer so we can just check the first
+        int64_t buffer_level = ch_send_buffer_info_group[0].buffer_level_manager.get_buffer_level(device_time);
+
+        // If we are not mid reprime and the buffer level is below the target threshold
+        if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < _reprime_threshold) [[likely]] {
+
+            // Time to start a new pseudo burst to recover
+            // Reprime to 90% of the target buffer level
+            uhd::time_spec_t reprime_time = device_time + ((_DEVICE_TARGET_NSAMPS * 0.9) / _sample_rate);
+            // Update the buffer tracker to manage the new time
+            for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+                ch_send_buffer_info_i.buffer_level_manager.recovery_prep(reprime_time);
+            }
+            // Apply the start time for the new pseudo burst
+            modified_metadata.has_time_spec = true;
+            modified_metadata.time_spec = reprime_time;
+        }
     }
 
     // FPGA cannot handle eob request and samples. Samples must be sent before end of burst
