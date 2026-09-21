@@ -283,17 +283,23 @@ sensor_value_t pv_iface::get_sensor_value(std::string req) {
         }
     }
 
-    // Result good if reply does not contain unlocked or bad
-    bool sensor_good = (reply.find("unlocked") == std::string::npos) && (reply.find("bad") == std::string::npos);
-
     // Determines the sensor name based on the path
     if(req.find("lmk_lockdetect") != std::string::npos) {
+        bool sensor_good = (reply.find("unlocked") == std::string::npos) && (reply.find("bad") == std::string::npos);
+
         return sensor_value_t( "Reference", sensor_good, "locked", "unlocked" );
     } else if(req.find("rfpll_lock") != std::string::npos) {
+        bool sensor_good = (reply.find("unlocked") == std::string::npos) && (reply.find("bad") == std::string::npos);
+
         return sensor_value_t( "rfpll", sensor_good, "locked", "unlocked" );
+    } else if(req.find("pps_detected") != std::string::npos) {
+        // Check if pps_detected is 1, exlcluding trailing newline
+        bool sensor_good = "1" == reply.substr(0, reply.find_last_not_of("\n"));
+
+        return sensor_value_t( "pps_detected", sensor_good, "locked", "unlocked" );
     } else {
         UHD_LOGGER_WARNING(PV_IFACE_DEBUG_NAME_C) << "sensor implementation not validated: " << req;
-        return sensor_value_t( req, sensor_good, "good", "bad" );
+        return sensor_value_t( req, false, "good", "bad" );
     }
 }
 void pv_iface::set_sensor_value(const std::string pre, sensor_value_t data) {

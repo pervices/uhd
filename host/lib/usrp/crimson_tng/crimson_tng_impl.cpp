@@ -981,6 +981,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
 
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "sensors" / "ref_locked", "time/status/lmk_lockdetect", sensor_value_t, sensor_value );
 
+    // Alias of PV_DEVICE_TIME_PATH / "pps_detected" that returns pps_detected as a sensor value
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "sensors" / "pps_detected", "time/clk/pps_detected", sensor_value_t, sensor_value );
+
     // No GPSDO support on Crimson
     // TREE_CREATE_ST(PV_DEVICE_MB_PATH / "sensors" / "ref_locked", sensor_value_t, sensor_value_t("NA", "0", "NA"));
 
