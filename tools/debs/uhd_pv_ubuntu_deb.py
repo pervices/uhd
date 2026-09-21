@@ -11,6 +11,7 @@
 # See here for more on pbuilder: https://wiki.ubuntu.com/PbuilderHowto
 
 import argparse
+import hashlib
 import os
 import pathlib
 import re
@@ -107,6 +108,19 @@ def main(args):
     if result.returncode:
         print("Compressing source failed")
         sys.exit(result.returncode)
+
+    # Print the m5sum of the compressed source.
+    # The md5sum of the source must match across all distros.
+    # This will make it easier to check if the md5sum is wrong
+    archive_path = pathlib.Path(args.buildpath, "uhdpv_{}.orig.tar.xz".format(uhd_version))
+    try:
+        with open(archive_path, "rb") as archive_file:
+            archive_md5 = hashlib.md5(archive_file.read()).hexdigest()
+        print("md5sum of {}: {}".format(archive_path, archive_md5))
+    except FileNotFoundError:
+        print("ERROR: compressed source not found. Unable to verify md5sum")
+        # Propogate error
+        raise
 
     # Extract UHD source to build folder
     print("Extracting UHD source to build folder...")
