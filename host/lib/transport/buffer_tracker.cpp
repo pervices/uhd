@@ -90,7 +90,7 @@ void buffer_tracker::recovery_prep( const uhd::time_spec_t & next_packet ) {
     first_sob_set = false;
     blank_period_start = { uhd::time_spec_t(0.0) };
     blank_period_stop.clear();
-    uhd::time_spec_t blanked_time = uhd::time_spec_t(0.0);
+    blanked_time = uhd::time_spec_t(0.0);
 
     // Apply the new pseudo start of burst time
     set_start_of_burst_time(next_packet);
