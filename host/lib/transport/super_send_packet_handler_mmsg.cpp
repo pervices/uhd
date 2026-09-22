@@ -256,37 +256,27 @@ int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
     //Start of linked list containing interface info
     struct ifaddrs *ifaces = nullptr;
 
+    // Converts the target IP to a network-order 32 bit integer
+    struct in_addr sdr_ip_addr;
+    if(inet_pton(AF_INET, ip.c_str(), &sdr_ip_addr) != 1) {
+        throw uhd::runtime_error("inet_pton error when converting " +ip);
+    }
+    uint32_t sdr_ip = sdr_ip_addr.s_addr;
+
     // Gets a linked list of all interfaces
     getifaddrs(&ifaces);
     for(ifaddrs *iface = ifaces; iface != NULL; iface = iface->ifa_next) {
 
-        // Verifies this interface has a broadcast address
-        if(iface->ifa_broadaddr != nullptr) {
-            // Verifies said broadcast address is IPV4
-            if(iface->ifa_broadaddr->sa_family == AF_INET) {
-                // Converts broadcast address to human readable format
-                char broadcast_buffer[INET_ADDRSTRLEN] = {0, };
-                auto ret = inet_ntop(AF_INET,  &((struct sockaddr_in*)(iface->ifa_broadaddr))->sin_addr, broadcast_buffer, INET_ADDRSTRLEN);
-                if(ret == nullptr) {
-                    throw uhd::runtime_error("error when converting ip address format");
-                }
+        // Verifies this interface has an address and netmask assigned
+        if(iface->ifa_addr != nullptr && iface->ifa_netmask != nullptr) {
+            // Verifies the address and netmask are IPV4
+            if(iface->ifa_addr->sa_family == AF_INET && iface->ifa_netmask->sa_family == AF_INET) {
+                // Get the ip and netmask of the network interface in network byte order
+                uint32_t interface_ip = ((struct sockaddr_in*)(iface->ifa_addr))->sin_addr.s_addr;
+                uint32_t netmask = ((struct sockaddr_in*)(iface->ifa_netmask))->sin_addr.s_addr;
 
-                // Converts IP address to byte array
-                uint8_t interface_ip[4];
-                sscanf(broadcast_buffer, "%hhu.%hhu.%hhu.%hhu", &interface_ip[0], &interface_ip[1], &interface_ip[2], &interface_ip[3]);
-                uint8_t device_ip[4];
-                sscanf(ip.c_str(), "%hhu.%hhu.%hhu.%hhu", &device_ip[0], &device_ip[1], &device_ip[2], &device_ip[3]);
-
-                // Checks if the interface subnet matches the Crimson ip to be checked
-                bool ip_matches = true;
-                for(int n = 0; n < 4; n++) {
-                    // Checks if the IPs match or the interface is 255 (which corresponds to any)
-                    if(interface_ip[n] != device_ip[n] && interface_ip[n] != 255) {
-                        ip_matches = false;
-                        break;
-                    }
-                }
-                if(!ip_matches) {
+                // Checks if the sdr's ip is within this interface's subnet.
+                if((interface_ip & netmask) != (sdr_ip & netmask)) {
                     continue;
                 }
 
@@ -303,7 +293,7 @@ int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
         }
     }
     freeifaddrs(ifaces);
-    
+
     throw uhd::system_error("SEND: no interface with subnet matching ip " + ip + " found");
 }
 
