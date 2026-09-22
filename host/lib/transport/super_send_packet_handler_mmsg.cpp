@@ -374,8 +374,9 @@ size_t send_packet_handler_mmsg::send(
     //
     // The user has not specified times
     // This is not an end of burst with no samples
+    // The system is not in trigger mode where timestamps are ignored (!se_blocking_fc)
     // (Implcitly from else) this is not a start of burst
-    } else if(!specified_time && !(modified_metadata.end_of_burst && actual_nsamps_to_send == 0)) [[unlikely]] {
+    } else if(!specified_time && !(modified_metadata.end_of_burst && actual_nsamps_to_send == 0) && !use_blocking_fc) [[unlikely]] {
         // Get prediced buffer level
         uhd::time_spec_t device_time = _clock_sync->get_device_time();
         // buffer_level_manager will be the same for all channels within a streamer so we can just check the first
@@ -386,7 +387,8 @@ size_t send_packet_handler_mmsg::send(
             printf("buffer_level: %li\n", buffer_level);
 
             // Time to start a new pseudo burst to recover
-            uhd::time_spec_t reprime_time = device_time + SEND_NOW_DELAY;
+            // Reprime to 90% of the target buffer level
+            uhd::time_spec_t reprime_time = device_time + ((_DEVICE_TARGET_NSAMPS * 0.9) / _sample_rate);
             // Update the buffer tracker to manage the new time
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.recovery_prep(reprime_time);
