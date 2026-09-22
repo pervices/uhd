@@ -16,6 +16,7 @@ void buffer_tracker::set_start_of_burst_time( const uhd::time_spec_t & sob ) {
     blank_period_stop.push_back(sob);
 
     first_sob_set = true;
+    lastest_sob = sob;
 }
 
 // Sets the time when this burst ends
@@ -97,7 +98,7 @@ void buffer_tracker::recovery_prep( const uhd::time_spec_t & next_packet ) {
 }
 
 uhd::time_spec_t buffer_tracker::peek_last_sob() {
-    return blank_period_stop.back();
+    return lastest_sob;
 }
 
 buffer_tracker::buffer_tracker( const double rate )

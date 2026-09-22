@@ -62,5 +62,8 @@ private:
     // When a blank period is in the past, removed it from the list of blank periods and add the samples skipped to here
     uhd::time_spec_t blanked_time = uhd::time_spec_t(0.0);
 
+    // The most recent sob received
+    uhd::time_spec_t lastest_sob = uhd::time_spec_t(0.0);
+
 };
 }}
