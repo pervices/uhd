@@ -36,6 +36,13 @@ public:
      */
     void recovery_prep( const uhd::time_spec_t & next_packet );
 
+    /**
+     * Get the time of the last start of burst received
+     *
+     * @return The time of the last start of burst received
+     */
+    uhd::time_spec_t peek_last_sob();
+
     buffer_tracker( const double rate );
 
 private:
@@ -45,10 +52,8 @@ private:
     uint64_t total_samples_sent = 0;
     // How much the target buffer level is being over/undershot by
 
-    // Time when the unit begins transmitting (start of burst)
-    // Used as a reference point for basing other calculations off of
+    // At least one start of burst has been recorded
     bool first_sob_set = false;
-    uhd::time_spec_t first_sob_time;
 
     // Stores times start and end times of periods where no samples are sent
     std::vector<uhd::time_spec_t> blank_period_start = {uhd::time_spec_t(0.0)};
