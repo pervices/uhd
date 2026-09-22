@@ -41,15 +41,13 @@ void buffer_tracker::pop_back_end_of_burst_time() {
 // Gets the predicted buffer level at the time requested
 int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
 
-    // For debugging
-    // if(blank_period_start.size() > blank_period_stop.size() && !buffer_mistmatch_printed) {
-    //     printf("more blank period stops than starts\n");
-    //     buffer_mistmatch_printed = true;
-    // }
-
-    // Finds blank periods in the past
     int64_t blank_periods_to_remove = 0;
-    for(uint64_t n = 0; (n < blank_period_stop.size()) && (blank_period_stop[n] < now); n++) {
+    for(uint64_t n = 0; (n < blank_period_stop.size()); n++) {
+        // Don't process blank periods in the future
+        if(blank_period_stop[n] >= now) {
+            break;
+        }
+
         // Add past blank periods to the blanked time total
         blanked_time+= (blank_period_stop[n] - blank_period_start[n]);
         blank_periods_to_remove++;
@@ -62,8 +60,10 @@ int64_t buffer_tracker::get_buffer_level( const uhd::time_spec_t & now ) {
 
     // How much time has been spent in the current blank period
     uhd::time_spec_t partial_blank_period;
-    if(blank_period_start.size() > 0 && now > blank_period_start[0]) {
-        partial_blank_period = now - blank_period_start[0];
+    if(blank_period_start.size() > 0) {
+        if(now > blank_period_start[0]) {
+            partial_blank_period = now - blank_period_start[0];
+        }
     } else {
         // There are no blank periods waiting
         partial_blank_period = uhd::time_spec_t(0.0);
