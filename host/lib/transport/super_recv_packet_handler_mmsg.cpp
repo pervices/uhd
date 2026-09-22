@@ -287,6 +287,7 @@ int recv_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
                     }
                 }
                 if(!ip_matches) {
+                    printf("%s does not contain %s\n", iface->ifa_name, ip.c_str());
                     continue;
                 }
 
@@ -300,6 +301,8 @@ int recv_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
                 freeifaddrs(ifaces);
                 return ifr.ifr_mtu;
             }
+        } else {
+            printf("%s has no broadcast address\n", iface->ifa_name);
         }
     }
     freeifaddrs(ifaces);
