@@ -269,12 +269,7 @@ private:
     // This is for compatibility with Ettus, even though it means phase may shift
     bool specified_time = false;
 
-    // Flag used when repriming to know if reprime_time has been set
-    bool reprime_started = false;
-    // The time of the next pseudo start of burst when recovering from empty buffers with automatic start time
-    uhd::time_spec_t reprime_time = uhd::time_spec_t(0.0);
     // The minimum buffer level below which we reprime if
-    // TODO: set reprime threshold
     const int64_t _reprime_threshold;
 
 public:
