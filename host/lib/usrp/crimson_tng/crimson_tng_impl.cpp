@@ -34,8 +34,29 @@
 
 #include <uhdlib/transport/udp_common.hpp>
 
+#include <execinfo.h>
+#include <csignal>
+#include <unistd.h>
+#include <mutex>
+
 namespace link_crimson {
     const char *mtu_ref = "9000";
+}
+
+namespace {
+    // Debug-only crash handler: prints a backtrace to stderr on SIGSEGV, then
+    // restores the default handler and re-raises so a core file is still
+    // produced (requires `ulimit -c unlimited`).
+    void uhd_segfault_handler(int sig) {
+        void* frames[64];
+        int n = backtrace(frames, 64);
+        const char msg[] = "\n=== UHD caught SIGSEGV, backtrace ===\n";
+        ssize_t r = write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        (void)r;
+        backtrace_symbols_fd(frames, n, STDERR_FILENO);
+        std::signal(sig, SIG_DFL);
+        raise(sig);
+    }
 }
 
 using namespace uhd;
@@ -561,6 +582,9 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     _pps_thread_should_exit( false ),
     _command_time( 0.0 )
 {
+    static std::once_flag segv_handler_flag;
+    std::call_once(segv_handler_flag, [] { std::signal(SIGSEGV, uhd_segfault_handler); });
+
     _type = device::CRIMSON_TNG;
     device_addr = _device_addr;
 

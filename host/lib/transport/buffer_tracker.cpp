@@ -1,6 +1,7 @@
 // Copyright 2023-2024 Per Vices Corporation
 
 #include <uhdlib/transport/buffer_tracker.hpp>
+#include <uhd/exception.hpp>
 
 namespace uhd { namespace transport {
 
@@ -21,6 +22,7 @@ void buffer_tracker::set_start_of_burst_time( const uhd::time_spec_t & sob ) {
 
 // Sets the time when this burst ends
 void buffer_tracker::pop_back_start_of_burst_time() {
+    UHD_ASSERT_THROW(!blank_period_stop.empty());
     blank_period_stop.pop_back();
 }
 
@@ -35,7 +37,8 @@ void buffer_tracker::set_end_of_burst_time( const uhd::time_spec_t & eob ) {
 }
 // Sets the time when this burst ends
 void buffer_tracker::pop_back_end_of_burst_time() {
-    return blank_period_start.pop_back();
+    UHD_ASSERT_THROW(!blank_period_start.empty());
+    blank_period_start.pop_back();
 }
 
 // Gets the predicted buffer level at the time requested

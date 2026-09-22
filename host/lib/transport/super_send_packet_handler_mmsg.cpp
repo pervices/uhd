@@ -312,6 +312,8 @@ size_t send_packet_handler_mmsg::send(
     const uhd::tx_metadata_t &metadata,
     const double timeout
 ) {
+    UHD_ASSERT_THROW(sample_buffs.size() >= _NUM_CHANNELS);
+
     // If no converter is required data will be written directly into buffs, otherwise it is written to an intermediate buffer
     const uhd::tx_streamer::buffs_type *send_buffer = (converter_used) ? prepare_intermediate_buffers_and_convert(sample_buffs, nsamps_to_send) : &sample_buffs;
 
