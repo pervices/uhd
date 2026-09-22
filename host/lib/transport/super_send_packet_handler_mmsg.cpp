@@ -298,7 +298,8 @@ int send_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
         }
     }
     freeifaddrs(ifaces);
-    throw uhd::system_error("No interface with subnet matching ip found");
+    
+    throw uhd::system_error("SEND: no interface with subnet matching ip " + ip + " found");
 }
 
 void send_packet_handler_mmsg::setup_converter(const std::string& cpu_format, const std::string& wire_format, bool wire_little_endian) {

@@ -303,7 +303,8 @@ int recv_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
         }
     }
     freeifaddrs(ifaces);
-    throw uhd::system_error("No interface with subnet matching ip found");
+
+    throw uhd::system_error("RECV: no interface with subnet matching ip " + ip + " found");
 }
 
 void recv_packet_handler_mmsg::send_overflow_messages_loop(recv_packet_handler_mmsg* self) {
