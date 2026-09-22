@@ -291,6 +291,8 @@ int recv_packet_handler_mmsg::get_mtu(int socket_fd, std::string ip) {
                     continue;
                 }
 
+                printf("%s has %s\n", iface->ifa_name, ip.c_str());
+
                 struct ifreq ifr;
                 ifr.ifr_addr.sa_family = AF_INET;//address family = IPV4
                 strncpy(ifr.ifr_name, iface->ifa_name, sizeof(ifr.ifr_name));//interface name of MTU to get
