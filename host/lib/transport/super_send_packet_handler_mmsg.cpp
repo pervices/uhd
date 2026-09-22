@@ -383,6 +383,8 @@ size_t send_packet_handler_mmsg::send(
 
         // If we are not mid reprime and the buffer level is below the target threshold
         if((reprime_time < device_time || !reprime_started) && buffer_level  < _reprime_threshold) [[likely]] {
+            UHD_LOG_ERROR("SEND", "Reprime triggered");
+            // Indicates repriming has happened at least once (reprime_time is meaningful)
             reprime_started = true;
 
             // Time to start a new pseudo burst to recover
