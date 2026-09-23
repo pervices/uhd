@@ -104,13 +104,14 @@ void io_uring_recv_manager::uring_init(size_t ch) {
 
     // Initializes the ring buffer containing the location to write to
     struct io_uring_buf_ring** buffer_ring = access_io_uring_buf_rings(ch, 0);
-    int ret = 0;
+    int err = 0;
 
     // Create ring buffe to store locations to store packets
-    *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, _bgid_storage[ch], 0, &ret);
+    *buffer_ring = io_uring_setup_buf_ring(ring, PACKET_BUFFER_SIZE, _bgid_storage[ch], 0, &err);
 
-    if(ret) {
-        std::string message = "Error when setting up io_uring. io_uring_setup_buf_ring failed with: " + std::string(strerror(-ret));
+    // On error io_uring_setup_buf_ring sets *buffer_ring to NULL and err to negative error code
+    if(*buffer_ring == NULL) {
+        std::string message = "Error when setting up io_uring. io_uring_setup_buf_ring failed with: " + std::string(strerror(-err));
         UHD_LOG_ERROR("IO_URING_RECV_MANAGER", message);
         throw uhd::system_error(message);
     }
