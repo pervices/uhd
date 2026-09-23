@@ -37,7 +37,6 @@ recv_packet_handler_mmsg:: recv_packet_handler_mmsg(
     const std::vector<int>& recv_sockets,
     const std::vector<std::string>& dst_ip,
     const size_t max_sample_bytes_per_packet,
-    const size_t header_size,
     const size_t trailer_size,
     const std::string& cpu_format,
     const std::string& wire_format,
@@ -53,7 +52,6 @@ recv_packet_handler_mmsg:: recv_packet_handler_mmsg(
     _NUM_CHANNELS(recv_sockets.size()),
     _MAX_SAMPLE_BYTES_PER_PACKET(max_sample_bytes_per_packet),
     _channels(channels),
-    _HEADER_SIZE(header_size),
     _TRAILER_SIZE(trailer_size),
     _stream_cmd_issuers(cmd_issuers),
     _product_name_c(product_name_c),
@@ -141,7 +139,7 @@ recv_packet_handler_mmsg:: recv_packet_handler_mmsg(
     check_if_only_using_governor();
 
     // Create manager for receive threads and access to buffer recv data
-    recv_manager = async_recv_manager::auto_make(device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+    recv_manager = async_recv_manager::auto_make(device_total_rx_channels, recv_sockets, HEADER_SIZE, max_sample_bytes_per_packet);
 
     overflow_messenger = std::thread(send_overflow_messages_loop, this);
 
@@ -357,9 +355,9 @@ void recv_packet_handler_mmsg::check_rx_ring_buffer_size(std::string ip) {
 }
 
 void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
-    alignas(uint32_t) uint8_t modified_header[_HEADER_SIZE];
+    alignas(uint32_t) uint8_t modified_header[HEADER_SIZE];
 
-    memcpy(modified_header, packet_buff, _HEADER_SIZE);
+    memcpy(modified_header, packet_buff, HEADER_SIZE);
 
     // Set has_tlr (has trailer) falg to false
     // Our trailers are all 0 and get dropped during the network stage
@@ -389,7 +387,6 @@ recv_packet_streamer_mmsg::recv_packet_streamer_mmsg(
     const std::vector<int>& recv_sockets,
     const std::vector<std::string>& dst_ip,
     const size_t max_sample_bytes_per_packet,
-    const size_t header_size,
     const size_t trailer_size,
     const std::string& cpu_format,
     const std::string& wire_format,
@@ -401,7 +398,7 @@ recv_packet_streamer_mmsg::recv_packet_streamer_mmsg(
     std::vector<int> channel_locks,
     std::vector<int> streaming_locks
 )
-    : recv_packet_handler_mmsg(product_name_c, channels, recv_sockets, dst_ip, max_sample_bytes_per_packet, header_size, trailer_size, cpu_format, wire_format, wire_little_endian, rx_channel_in_use, device_total_rx_channels, iface, cmd_issuers, channel_locks, streaming_locks)
+    : recv_packet_handler_mmsg(product_name_c, channels, recv_sockets, dst_ip, max_sample_bytes_per_packet, trailer_size, cpu_format, wire_format, wire_little_endian, rx_channel_in_use, device_total_rx_channels, iface, cmd_issuers, channel_locks, streaming_locks)
 {
 }
 

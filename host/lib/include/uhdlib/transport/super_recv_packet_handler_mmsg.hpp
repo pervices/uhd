@@ -39,6 +39,9 @@ namespace uhd { namespace transport { namespace sph {
     // Experimentally verified that this needs to be at least 6
     const int RX_SO_PRIORITY = 6;
 
+    // Size of the VRT header in bytes. Fixed across all Per Vices devices.
+    constexpr size_t HEADER_SIZE = 16;
+
 /***********************************************************************
  * Super receive packet handler
  *
@@ -60,7 +63,6 @@ public:
      * \param recv_sockets sockets to receive data packets on. Must be bound to the desired IP/port already. This close will handle all other setup and closing the socket
      * \param dst_ip destination IP address of the packets to be received
      * \param max_sample_bytes_per_packet the number of transport channels
-     * \param header_size the number of transport channels
      * \param cpu_format datatype of samples on the host system
      * \param wire_format datatype of samples in the packets
      * \param wire_little_endian true if the device is configured to send little endian data. If cpu_format == wire_format and wire_little_endian no converter is required, boosting performance
@@ -77,7 +79,6 @@ public:
         const std::vector<int>& recv_sockets,
         const std::vector<std::string>& dst_ip,
         const size_t max_sample_bytes_per_packet,
-        const size_t header_size,
         const size_t trailer_size,
         const std::string& cpu_format,
         const std::string& wire_format,
@@ -205,8 +206,8 @@ public:
                 vita_md[ch].num_packet_words32 = (next_packet[ch].length + _TRAILER_SIZE) / sizeof(uint32_t);
 
                 // Check if the packet is smaller than the header size, which should be impossible
-                if(next_packet[ch].length < (int64_t) _HEADER_SIZE) [[unlikely]] {
-                    std::string message = "Packet length of " + std::to_string(next_packet[ch].length) + " on channel " + std::to_string(ch) + " less than the expected Vita header size of " + std::to_string(_HEADER_SIZE);
+                if(next_packet[ch].length < (int64_t) HEADER_SIZE) [[unlikely]] {
+                    std::string message = "Packet length of " + std::to_string(next_packet[ch].length) + " on channel " + std::to_string(ch) + " less than the expected Vita header size of " + std::to_string(HEADER_SIZE);
                     UHD_LOG_ERROR("RECV_PACKET_HANDLER", message);
                     throw std::runtime_error(message);
                 }
@@ -394,8 +395,6 @@ private:
 
     // Desired recv buffer size
     static constexpr int DEFAULT_RECV_BUFFER_SIZE = 500000000;
-    // Maximum number of packets to recv (should be able to fit in the half the real buffer)
-    const size_t _HEADER_SIZE;
     // Trailer is not needed for anything so receive will discard it
     const size_t _TRAILER_SIZE;
 
@@ -579,7 +578,6 @@ public:
      * @param recv_sockets UDP socket file descriptors used to receive packets.
      * @param dst_ip Destination IP addresses for each channel.
      * @param max_sample_bytes_per_packet Maximum sample payload size per packet, in bytes.
-     * @param header_size VRT header size, in bytes.
      * @param trailer_size VRT trailer size, in bytes.
      * @param cpu_format Format string specifying the format of samples to output (host).
      * @param wire_format Format string specifying the format of incoming samples (over the write).
@@ -597,7 +595,6 @@ public:
         const std::vector<int>& recv_sockets,
         const std::vector<std::string>& dst_ip,
         const size_t max_sample_bytes_per_packet,
-        const size_t header_size,
         const size_t trailer_size,
         const std::string& cpu_format,
         const std::string& wire_format,
