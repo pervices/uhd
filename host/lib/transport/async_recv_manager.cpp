@@ -16,6 +16,11 @@
 #include <sys/resource.h>
 #include <atomic>
 
+#include <iostream>
+#include <csignal>
+#include <cstring>
+#include <unistd.h>
+
 // Include all children for use by autoselect
 #include <uhdlib/transport/user_recv_manager.hpp>
 #ifdef HAVE_LIBURING
@@ -26,6 +31,16 @@
 #endif
 
 namespace uhd { namespace transport {
+
+static void segfault_handler(int signal, siginfo_t* si, void* arg) {
+    // Note: std::cout is not strictly async-signal-safe, but used here for demonstration.
+    // In production, use write() to avoid deadlocks during a crash.
+    std::cerr << "\n[CRASH] Caught SIGSEGV! Interrupted at memory address: " 
+              << si->si_addr << std::endl;
+    
+    // Terminate the program cleanly or force a core dump
+    _exit(signal); 
+}
 
 async_recv_manager::async_recv_manager( const size_t device_total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet )
 :
@@ -39,6 +54,17 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
 
 // Create buffer for flush complete flag in seperate cache lines
 {
+    // Set up the sigaction structure
+    struct sigaction sa;
+    std::memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = segfault_handler;
+    sa.sa_flags = SA_SIGINFO; // Crucial: Tells the OS to populate the siginfo_t struct
+
+    // Register the handler for Segmentation Faults
+    sigaction(SIGSEGV, &sa, NULL);
+
+    printf("_all_ch_packet_buffers: %p\n", _all_ch_packet_buffers);
+
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Unsupported number of channels, constants must be updated");
         throw assertion_error("Unsupported number of channels");
@@ -87,6 +113,7 @@ async_recv_manager::~async_recv_manager()
 }
 
 void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
+    printf("allocate_hugetlb_buffer_with_fallback: %lu\n", size);
     // Allocate buffer using huge pages (MAP_HUGETLB)
     void* hugeltb_buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     // If it worked return buffer
