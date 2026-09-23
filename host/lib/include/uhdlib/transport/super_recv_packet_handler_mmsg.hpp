@@ -95,9 +95,6 @@ public:
      */
     ~recv_packet_handler_mmsg(void);
 
-
-    uint32_t* tmp = nullptr;
-
     UHD_INLINE size_t recv(const uhd::rx_streamer::buffs_type& buffs,
                            const size_t nsamps_per_buff,
                            uhd::rx_metadata_t& metadata,
