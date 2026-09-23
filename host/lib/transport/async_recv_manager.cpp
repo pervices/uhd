@@ -51,6 +51,8 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
     check_memlock_limit();
 #endif
 
+    printf("_all_ch_packet_buffers: %p\n", _all_ch_packet_buffers);
+
     // Set entire buffer to 0 to avoid issues with lazy allocation
     memset(_all_ch_packet_buffers, 0, _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
 
