@@ -1,3 +1,12 @@
+uhdpv (4.10.0.11-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding rfe and mboard temperature sensors, and pps detection of get_x_sensor_names
+  * Fixing non deterministic compressed source (Ubuntu packaging)
+  * When the user does not specify a tx start time send late samples now instead of dropping late sample (match upstream behaviour)
+  * Fix mtu check for network interfaces without a broadcast address set
+
+ -- Per Vices <packages@pervices.com>  Wed, 23 Sep 2026 18:36:00 -0400
+
 uhdpv (4.10.0.10-0ubuntu1) ubuntu_release; urgency=low
 
   * Reducing minimum elay between tx start of burst and it's target time
