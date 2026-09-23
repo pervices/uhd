@@ -19,6 +19,9 @@ struct async_packet_info {
     uint8_t* samples;
 };
 
+inline uint8_t* tmp_all_ch_packet_buffers;
+inline size_t tmp_all_ch_packet_buffers_length;
+
 // Creates and manages receive threads
 // Threads continuously receive data and store it in a buffer for latter use
 // provider thread(s) refers to the thread(s) receiving data and storing it in the buffer

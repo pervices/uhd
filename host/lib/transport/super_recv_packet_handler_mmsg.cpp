@@ -357,6 +357,10 @@ void recv_packet_handler_mmsg::check_rx_ring_buffer_size(std::string ip) {
 }
 
 void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
+    printf("packet_buff: %p\n", packet_buff);
+    printf("uhd::transport::tmp_all_ch_packet_buffers: %p\n", uhd::transport::tmp_all_ch_packet_buffers);
+    printf("tmp_all_ch_packet_buffers_length: %lu\n", tmp_all_ch_packet_buffers_length);
+
     vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
 }
 
