@@ -214,6 +214,9 @@ public:
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                if(next_packet[ch].vita_header == NULL) {
+                    printf("vita header ptr is null\n");
+                }
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
