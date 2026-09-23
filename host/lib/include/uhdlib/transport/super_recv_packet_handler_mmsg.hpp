@@ -172,6 +172,10 @@ public:
                     // If this channel doesn't have data
                     if(ch_not_ready & ch_not_ready_mask) {
                         recv_manager->get_next_async_packet_info(ch, &next_packet[ch]);
+                        printf("next_packet[ch].vita_header: %p\n", next_packet[ch].vita_header);
+                        printf("uhd::transport::tmp_all_ch_packet_buffers: %p\n", uhd::transport::tmp_all_ch_packet_buffers);
+                        printf("tmp_all_ch_packet_buffers_length: %lu\n", tmp_all_ch_packet_buffers_length);
+
 
                         // If length is non 0, and vita_header and samples are not nullptr
                         // All of these should be true or none
