@@ -370,7 +370,7 @@ void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::i
     modified_header[2] = (vita_length >> 8) & 0xff;
     modified_header[3] = vita_length & 0xff;
 
-    vrt::if_hdr_unpack_be(modified_header, if_packet_info);
+    vrt::if_hdr_unpack_be((uint32_t*)modified_header, if_packet_info);
 }
 
 recv_packet_streamer_mmsg::recv_packet_streamer_mmsg(
