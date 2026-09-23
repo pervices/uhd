@@ -40,9 +40,6 @@ constexpr int CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES = 8192;
 // Maximum number of bytes used to store sample data when receiving when unable to get it from the server
 constexpr int CYAN_NRNT_FALLBACK_MAX_NBYTES = 8880;
 
-// Size of the vrt header in bytes
-constexpr int CYAN_NRNT_HEADER_SIZE = 16;
-
 // Size of the vrt trailer in bytes
 constexpr int CYAN_NRNT_TRAILER_SIZE = 0;
 

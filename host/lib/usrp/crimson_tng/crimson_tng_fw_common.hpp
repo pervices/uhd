@@ -69,9 +69,6 @@ constexpr int CRIMSON_TNG_MAX_SEND_SAMPLE_BYTES = 8920;
 // 60 bit ipv4 header, 8 bit UDP header
 constexpr int CRIMSON_TNG_UDP_OVERHEAD = 68;
 
-// Size of the vrt header in bytes
-constexpr int CRIMSON_TNG_HEADER_SIZE = 16;
-
 // Size of the vrt trailer in bytes
 constexpr int CRIMSON_TNG_TRAILER_SIZE = 4;
 
