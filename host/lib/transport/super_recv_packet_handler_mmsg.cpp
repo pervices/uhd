@@ -367,7 +367,7 @@ void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::i
 
     std::cout << "1 vita_length: " << vita_length << std::endl;
 
-    vita_length = vita_length - TRAILER_SIZE;
+    vita_length = vita_length - _TRAILER_SIZE;
 
     std::cout << "2 vita_length: " << vita_length << std::endl;
 
