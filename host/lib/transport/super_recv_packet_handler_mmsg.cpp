@@ -359,7 +359,11 @@ void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::i
 
     memcpy(modified_header, packet_buff, _HEADER_SIZE);
 
-    printf("modified_header: %hhu\n", modified_header);
+    printf("_HEADER_SIZE: %lu\n", _HEADER_SIZE);
+    printf("modified_header[0]: %hhu\n", modified_header[0]);
+    printf("modified_header[1]: %hhu\n", modified_header[1]);
+    printf("modified_header[2]: %hhu\n", modified_header[2]);
+    printf("modified_header[3]: %hhu\n", modified_header[3]);
 
     vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
 }
