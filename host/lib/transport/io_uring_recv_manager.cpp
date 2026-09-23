@@ -209,6 +209,11 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 
         info->length = cqe_ptr->res;
         info->vita_header = access_packet_vita_header(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
+        if(info->vita_header >= _all_ch_packet_buffers + (_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size)) {
+            printf("Invalid vita header location\n");
+            printf("info->vita_header - _all_ch_packet_buffers: %p\n", info->vita_header - _all_ch_packet_buffers);
+            printf("_num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size: %p\n", _num_ch * PACKET_BUFFER_SIZE * _padded_individual_packet_size);
+        }
         info->samples = access_packet_samples(ch, 0, _num_packets_consumed[ch] & PACKET_BUFFER_MASK);
 
     // All buffers are used (should be unreachable)
