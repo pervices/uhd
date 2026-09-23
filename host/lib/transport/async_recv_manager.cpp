@@ -39,6 +39,8 @@ _all_ch_packet_buffers((uint8_t*) allocate_hugetlb_buffer_with_fallback(_num_ch 
 
 // Create buffer for flush complete flag in seperate cache lines
 {
+    tmp_all_ch_packet_buffers = const_cast<uint8_t*>(_all_ch_packet_buffers);
+    
     if(device_total_rx_channels > MAX_CHANNELS) {
         UHD_LOG_ERROR("ASYNC_RECV_MANAGER", "Unsupported number of channels, constants must be updated");
         throw assertion_error("Unsupported number of channels");
@@ -87,6 +89,7 @@ async_recv_manager::~async_recv_manager()
 }
 
 void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
+    tmp_all_ch_packet_buffers_length = size;
     // Allocate buffer using huge pages (MAP_HUGETLB)
     void* hugeltb_buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     // If it worked return buffer
