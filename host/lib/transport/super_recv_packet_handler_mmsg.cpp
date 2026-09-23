@@ -355,19 +355,19 @@ void recv_packet_handler_mmsg::check_rx_ring_buffer_size(std::string ip) {
 }
 
 void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
-    alignas(uint32_t) uint8_t modified_header[_HEADER_SIZE];
+    alignas(uint32_t) uint8_t modified_header[HEADER_SIZE];
 
-    memcpy(modified_header, packet_buff, _HEADER_SIZE);
+    memcpy(modified_header, packet_buff, HEADER_SIZE);
 
     // Set has_tlr (has trailer) falg to false
     // Our trailers are all 0 and get dropped during the network stage
     modified_header[0] = modified_header[0] & 0b11111011;
 
-    uint_fast16_t vita_length = ( uint_fast16_t(modified_header[2]) << 0) + modified_header[3];
+    uint_fast16_t vita_length = ( uint_fast16_t(modified_header[2]) << 8) + modified_header[3];
 
     std::cout << "1 vita_length: " << vita_length << std::endl;
 
-    vita_length = vita_length - _TRAILER_SIZE;
+    vita_length = vita_length - TRAILER_SIZE;
 
     std::cout << "2 vita_length: " << vita_length << std::endl;
 
@@ -375,7 +375,7 @@ void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::i
     modified_header[3] = vita_length & 0xff;
 
     // TMP check length
-    uint_fast16_t tmp = ( uint_fast16_t(modified_header[2]) << 0) + modified_header[3];
+    uint_fast16_t tmp = ( uint_fast16_t(modified_header[2]) << 8) + modified_header[3];
     std::cout << "tmp: " << tmp << std::endl;
 
     vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
