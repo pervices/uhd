@@ -265,13 +265,13 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     // Get vita payload length length (header + data, not including triler)
     for(size_t n = 0; n < args.channels.size(); n++) {
         std::string sfp = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/iface" ).get();
-        _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).set(CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES + CYAN_NRNT_HEADER_SIZE);
+        _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).set(CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES + sph::HEADER_SIZE);
         int payload_len = _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).get();
         if(data_len == 0) {
-            data_len = payload_len - CYAN_NRNT_HEADER_SIZE;
+            data_len = payload_len - sph::HEADER_SIZE;
         }
         // If unable to get length, fallback to hard coded version for variant
-        if(data_len + CYAN_NRNT_HEADER_SIZE != payload_len && data_len !=0) {
+        if(data_len + sph::HEADER_SIZE != payload_len && data_len !=0) {
             throw uhd::value_error("Payload length mismatch between channels");
         }
 
@@ -378,7 +378,7 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
 
     // Creates streamer
     // must be done after setting stream to 0 in the state tree so flush works correctly
-    std::shared_ptr<sph::recv_packet_streamer_mmsg> my_streamer = std::shared_ptr<sph::recv_packet_streamer_mmsg>(new sph::recv_packet_streamer_mmsg(CYAN_NRNT_DEBUG_NAME_C, args.channels, recv_sockets, dst_ip, data_len, CYAN_NRNT_HEADER_SIZE, CYAN_NRNT_TRAILER_SIZE, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers, rx_channel_lock_fd, rx_streaming_lock_fd));
+    std::shared_ptr<sph::recv_packet_streamer_mmsg> my_streamer = std::shared_ptr<sph::recv_packet_streamer_mmsg>(new sph::recv_packet_streamer_mmsg(CYAN_NRNT_DEBUG_NAME_C, args.channels, recv_sockets, dst_ip, data_len, CYAN_NRNT_TRAILER_SIZE, args.cpu_format, args.otw_format, little_endian_supported, rx_channel_in_use, num_rx_channels, _mbc.iface, issuers, rx_channel_lock_fd, rx_streaming_lock_fd));
 
     //bind callbacks for the handler
     for (size_t chan_i = 0; chan_i < args.channels.size(); chan_i++){
