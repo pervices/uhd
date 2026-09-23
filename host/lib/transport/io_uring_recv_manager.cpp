@@ -179,7 +179,8 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
     for(size_t chan = 0; chan < _num_ch; chan++) {
         if (_rearm_recv[chan] || io_uring_unarmed) {
             size_t available_buffers = PACKET_BUFFER_SIZE - _cached_buff_consumed[chan];
-            // Make sure there are enough buffers available before rearming to avoid further ENOBUFS errors
+            // Make sure there are enough buffers available (arbitrarily chose 25%);
+            // before rearming to avoid further ENOBUFS errors
             if (available_buffers >= PACKET_BUFFER_SIZE/4) {
                 arm_recv_multishot(chan, _recv_sockets[chan]);
                 _rearm_recv[chan] = false;
