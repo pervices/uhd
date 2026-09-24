@@ -265,13 +265,13 @@ rx_streamer::sptr cyan_nrnt_impl::get_rx_stream(const uhd::stream_args_t &args_)
     // Get vita payload length length (header + data, not including triler)
     for(size_t n = 0; n < args.channels.size(); n++) {
         std::string sfp = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/iface" ).get();
-        _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).set(CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES + sph::HEADER_SIZE);
+        _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).set(CYAN_NRNT_TARGET_RECV_SAMPLE_BYTES + (int) sph::HEADER_SIZE);
         int payload_len = _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).get();
         if(data_len == 0) {
-            data_len = payload_len - sph::HEADER_SIZE;
+            data_len = payload_len - (int) sph::HEADER_SIZE;
         }
         // If unable to get length, fallback to hard coded version for variant
-        if(data_len + sph::HEADER_SIZE != payload_len && data_len !=0) {
+        if(data_len + (int) sph::HEADER_SIZE != payload_len && data_len !=0) {
             throw uhd::value_error("Payload length mismatch between channels");
         }
 

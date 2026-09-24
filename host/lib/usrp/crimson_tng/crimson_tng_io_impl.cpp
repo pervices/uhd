@@ -279,10 +279,10 @@ rx_streamer::sptr crimson_tng_impl::get_rx_stream(const uhd::stream_args_t &args
         std::string sfp = _tree->access<std::string>( rx_link_root(args.channels[n]) + "/iface" ).get();
         int payload_len = _tree->access<int>( "/mboards/0/link/" + sfp + "/pay_len" ).get();
         if(data_len == 0) {
-            data_len = payload_len - sph::HEADER_SIZE;
+            data_len = payload_len - (int) sph::HEADER_SIZE;
         }
         // If unable to get length, fallback to hard coded version for variant
-        if(data_len + sph::HEADER_SIZE != payload_len && data_len !=0) {
+        if(data_len + (int) sph::HEADER_SIZE != payload_len && data_len !=0) {
             throw uhd::value_error("Payload length mismatch between channels");
         }
 
