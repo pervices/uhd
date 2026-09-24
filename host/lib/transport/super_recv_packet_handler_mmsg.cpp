@@ -366,7 +366,8 @@ void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::i
     // Subtract the trailer from the length
     // The header is big endian regardless of whether the data is
     uint_fast16_t vita_length = ( uint_fast16_t(modified_header[2]) << 8) + modified_header[3];
-    vita_length = vita_length - _TRAILER_SIZE;
+    // vita_length is in 32 bit words, _TRAILER_SIZE is in bytes
+    vita_length = vita_length - _TRAILER_SIZE / 4;
     modified_header[2] = (vita_length >> 8) & 0xff;
     modified_header[3] = vita_length & 0xff;
 
