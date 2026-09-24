@@ -200,8 +200,6 @@ private:
         std::vector<const void*> sample_data_start_for_packet;
 
         // Calculates the predicted buffer level
-        // TODO: move buffer manager to super_send_packet_handler_mmsg
-        // It will be identical for every channel within a streamer
         buffer_tracker buffer_level_manager;
 
         // Buffer used to store data before converting from wire format to CPU format. Unused if wire and CPU format match
@@ -261,16 +259,9 @@ public:
  ******************************************************************/
 private:
     // Used to cache start of burst from a send that sent no data so it can be added to the next iteration
+    // TODO: verify we should be caching. It seems wierd that we cache it from a failed attempt instead of the user keeping the flag in their next send
     bool cached_sob = false;
     uhd::time_spec_t sob_time_cache;
-
-    // Record if the user specified a start time for this burst
-    // If the user does not specify and we know the packet will arrive late we adjust the time
-    // This is for compatibility with Ettus, even though it means phase may shift
-    bool specified_time = false;
-
-    // The minimum buffer level below which we reprime if
-    const int64_t _reprime_threshold;
 
 public:
 

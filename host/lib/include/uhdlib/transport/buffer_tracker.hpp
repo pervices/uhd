@@ -15,7 +15,6 @@ public:
     void set_sample_rate( const double rate );
 
     void set_start_of_burst_time( const uhd::time_spec_t & sob );
-    
     // Removes the last sob added to the list
     void pop_back_start_of_burst_time();
     void set_end_of_burst_time( const uhd::time_spec_t & sob );
@@ -26,23 +25,6 @@ public:
 
     void update( const uint64_t nsamples_sent );
 
-    /**
-     * Prepare to recover from an underflow.
-     *
-     * Clear the current tracking and start a new pseudo start of burst at next_packet.
-     * This is only to be used when the user does not provide a time stamp
-     *
-     * @param next_time The time to send the next packet
-     */
-    void recovery_prep( const uhd::time_spec_t & next_packet );
-
-    /**
-     * Get the time of the last start of burst received
-     *
-     * @return The time of the last start of burst received
-     */
-    uhd::time_spec_t peek_last_sob();
-
     buffer_tracker( const double rate );
 
 private:
@@ -52,8 +34,10 @@ private:
     uint64_t total_samples_sent = 0;
     // How much the target buffer level is being over/undershot by
 
-    // At least one start of burst has been recorded
+    // Time when the unit begins transmitting (start of burst)
+    // Used as a reference point for basing other calculations off of
     bool first_sob_set = false;
+    uhd::time_spec_t first_sob_time;
 
     // Stores times start and end times of periods where no samples are sent
     std::vector<uhd::time_spec_t> blank_period_start = {uhd::time_spec_t(0.0)};
@@ -61,9 +45,6 @@ private:
     // Time skipped by past blank periods
     // When a blank period is in the past, removed it from the list of blank periods and add the samples skipped to here
     uhd::time_spec_t blanked_time = uhd::time_spec_t(0.0);
-
-    // The most recent sob received
-    uhd::time_spec_t lastest_sob = uhd::time_spec_t(0.0);
 
 };
 }}
