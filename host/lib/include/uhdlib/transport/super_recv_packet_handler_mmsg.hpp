@@ -203,7 +203,7 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (next_packet[ch].length + _TRAILER_SIZE) / sizeof(uint32_t);
+                vita_md[ch].num_packet_words32 = (next_packet[ch].length) / sizeof(uint32_t);
 
                 // Check if the packet is smaller than the header size, which should be impossible
                 if(next_packet[ch].length < (int64_t) HEADER_SIZE) [[unlikely]] {
