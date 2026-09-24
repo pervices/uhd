@@ -278,6 +278,7 @@ void benchmark_tx_rate(uhd::usrp::multi_usrp::sptr usrp,
             num_tx_samps += num_tx_samps_sent_now;
             if (num_tx_samps_sent_now == 0) {
                 num_timeouts_tx++;
+                UHD_LOGGER_ERROR("BENCHMARK_RATE") << " (num_tx_samps sent so far: " << num_tx_samps.load() << ")\n";
                 if ((num_timeouts_tx % 10000) == 1) {
                     UHD_LOGGER_ERROR("BENCHMARK_RATE") << "[" << NOW() << "] Tx timeouts: " << num_timeouts_tx.load()
                               << std::endl;
