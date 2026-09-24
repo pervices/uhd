@@ -355,7 +355,23 @@ void recv_packet_handler_mmsg::check_rx_ring_buffer_size(std::string ip) {
 }
 
 void recv_packet_handler_mmsg::if_hdr_unpack(const uint32_t* packet_buff, vrt::if_packet_info_t& if_packet_info) {
-    vrt::if_hdr_unpack_be(packet_buff, if_packet_info);
+    alignas(uint32_t) uint8_t modified_header[HEADER_SIZE];
+
+    memcpy(modified_header, packet_buff, HEADER_SIZE);
+
+    // Set has_tlr (has trailer) flag to false
+    // Our trailers are all 0 and get dropped during the network stage
+    modified_header[0] = modified_header[0] & 0b11111011;
+
+    // Subtract the trailer from the length
+    // The header is big endian regardless of whether the data is
+    uint_fast16_t vita_length = ( uint_fast16_t(modified_header[2]) << 8) + modified_header[3];
+    // vita_length is in 32 bit words, _TRAILER_SIZE is in bytes
+    vita_length = vita_length - _TRAILER_SIZE / 4;
+    modified_header[2] = (vita_length >> 8) & 0xff;
+    modified_header[3] = vita_length & 0xff;
+
+    vrt::if_hdr_unpack_be((uint32_t*)modified_header, if_packet_info);
 }
 
 recv_packet_streamer_mmsg::recv_packet_streamer_mmsg(
