@@ -191,6 +191,7 @@ public:
             if(ch_not_ready) [[unlikely]] {
                 if(samples_received) {
                     // Does not set timeout error when any samples were received
+                    printf("1 samples_received: %lu\n", samples_received);
                     return samples_received;
                 } else {
                     // Set timeout if no other error occured and no samples received and no other error code present
