@@ -203,7 +203,7 @@ public:
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Maximum size the packet length field in Vita packet could be ( + _TRAILER_SIZE since we drop the trailer)
-                vita_md[ch].num_packet_words32 = (next_packet[ch].length + _TRAILER_SIZE) / sizeof(uint32_t);
+                vita_md[ch].num_packet_words32 = (next_packet[ch].length) / sizeof(uint32_t);
 
                 // Check if the packet is smaller than the header size, which should be impossible
                 if(next_packet[ch].length < (int64_t) HEADER_SIZE) [[unlikely]] {
@@ -282,6 +282,7 @@ public:
             }
 
             size_t packet_sample_bytes = vita_md[0].num_payload_bytes;
+            printf("packet_sample_bytes: %lu\n", packet_sample_bytes);
             // Number of samples to copy to return to the user in this packet
             size_t samples_to_consume = 0;
             // Number of samples in the packet that don't fit in the user's buffer and need to be cached until the next recv
