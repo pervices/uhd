@@ -379,7 +379,7 @@ size_t send_packet_handler_mmsg::send(
             printf("Reprime triggered\n");
             // Time to start a new pseudo burst to recover
             // Reprime to 90% of the target buffer level
-            uhd::time_spec_t reprime_time = device_time + ((_DEVICE_TARGET_NSAMPS * 0.9) / _sample_rate);
+            uhd::time_spec_t reprime_time = device_time + SEND_NOW_DELAY;
             // Update the buffer tracker to manage the new time
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.recovery_prep(reprime_time);
