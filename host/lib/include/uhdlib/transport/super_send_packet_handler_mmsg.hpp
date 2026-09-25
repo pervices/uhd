@@ -276,6 +276,10 @@ private:
     //TODO: switch from repriming based on predicted buffer level to if underflows were detected once the FPGA is fixed
     int64_t _reprime_threshold = 0;
 
+    // Set once a specified time spec has been found to be earlier than the automatic (follow-on) time
+    // Used so we only log this once instead of spamming the log
+    bool logged_time_spec_rewind = false;
+
 public:
 
     void set_samp_rate(const double rate);
@@ -343,6 +347,17 @@ private:
             }
         }
 
+        // Error detection for if the caller requests a time that is earlier than the time the next packet should be sent at
+        bool invalid_timestamp = false;
+        if(metadata_.has_time_spec && metadata_.time_spec < next_send_time) [[unlikely]] {
+            invalid_timestamp = true;
+            // Only from the message once
+            if(!logged_time_spec_rewind) {
+                UHD_LOG_ERROR("SEND_PACKET_HANDLER", "Packets with a timestamp of " + std::to_string(metadata_.time_spec.get_real_secs()) + " were requested but the next packet in the burst should be later than it at: " + std::to_string(next_send_time.get_real_secs()) + ". It will be ignored." );
+            }
+            logged_time_spec_rewind = true;
+        }
+
         for(int n = 0; n < num_packets; n++) {
             packet_header_infos[n].packet_type = vrt::if_packet_info_t::PACKET_TYPE_DATA;
             packet_header_infos[n].packet_count = (next_sequence_number + n) & 0xf;
@@ -352,9 +367,10 @@ private:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
-            if(metadata_.has_time_spec) {
+            if(metadata_.has_time_spec && !invalid_timestamp) {
                 // Sets the timestamp based on what's specified by the user
                 packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
+
             } else {
                 // Sets the timestamp to follow from the previous send
                 packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
