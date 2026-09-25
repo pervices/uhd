@@ -375,7 +375,7 @@ size_t send_packet_handler_mmsg::send(
     // This is not an end of burst with no samples
     // The system is not in trigger mode where timestamps are ignored (!use_blocking_fc)
     // (Implcitly from else) this is not a start of burst
-    } else if(!specified_time && !(modified_metadata.end_of_burst && actual_nsamps_to_send == 0) && !use_blocking_fc) [[unlikely]] {
+    } else if(!specified_time && !(modified_metadata.end_of_burst && actual_nsamps_to_send == 0) && !use_blocking_fc) {
         // Get prediced buffer level
         uhd::time_spec_t device_time = _clock_sync->get_device_time();
         // buffer_level_manager will be the same for all channels within a streamer so we can just check the first
