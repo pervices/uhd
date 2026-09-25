@@ -375,13 +375,12 @@ size_t send_packet_handler_mmsg::send(
         int64_t buffer_level = ch_send_buffer_info_group[0].buffer_level_manager.get_buffer_level(device_time);
 
         // If we are not mid reprime and the buffer level is below the target threshold
-        if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < _reprime_threshold) [[likely]] {
-
-            printf("Reprime triggered after: %lu\n", samples_since_last_reprime);
+        if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < 6000 /*_reprime_threshold*/) [[likely]] {
+            // printf("Reprime triggered after: %lu\n", samples_since_last_reprime);
             samples_since_last_reprime = 0;
             // Time to start a new pseudo burst to recover
             // Reprime to 90% of the target buffer level
-            uhd::time_spec_t reprime_time = device_time + SEND_NOW_DELAY;
+            uhd::time_spec_t reprime_time = _clock_sync->get_device_time() /* device_time */ + SEND_NOW_DELAY;
             // Update the buffer tracker to manage the new time
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.recovery_prep(reprime_time);
