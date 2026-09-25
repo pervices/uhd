@@ -271,6 +271,7 @@ private:
 
     // The minimum buffer level below which we reprime if
     const int64_t _reprime_threshold;
+    size_t samples_since_last_reprime = 0;
 
 public:
 
