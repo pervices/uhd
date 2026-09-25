@@ -2375,6 +2375,40 @@ public:
         (void) root;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
+
+    /*******************************************************************
+     * Per Vices-specific methods
+     ******************************************************************/
+
+    /*! Set the LO power level for the USRP device.
+     *
+     * Verifies the value was set and prints a warning if the set value
+     * does not match what was requested.
+     *
+     * \param lo_power The power level to set the LO to
+     * \param name The name of the LO stage to update
+     * \param chan the channel index 0 to N-1
+     */
+    virtual void set_tx_lo_power(
+        int lo_power,
+        const std::string &name = ALL_LOS,
+        const size_t chan = 0
+    ) = 0;
+
+    /*! Set the LO power level for the USRP device.
+     *
+     * Verifies the value was set and prints a warning if the set value
+     * does not match what was requested.
+     *
+     * \param name The name of the LO stage to query
+     * \param chan the channel index 0 to N-1
+     * \return The configured LO power level
+     * \throws If we failed to get the power level value
+     */
+    virtual int get_tx_lo_power(
+        const std::string &name = ALL_LOS,
+        const size_t chan = 0
+    ) = 0;
 };
 
 }} // namespace uhd::usrp
