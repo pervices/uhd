@@ -283,6 +283,15 @@ private:
     // The 3 largest samples_since_last_reprime values seen at trigger time, descending (index 0 = largest)
     size_t reprime_samples_highest[3] = {0, 0, 0};
 
+    // Debug: tracks, per reprime cycle, how many samples were sent between the reprime
+    // and check_fc_npackets() first returning <= 0 (i.e. flow control clamping sends to a stop)
+    // Set false on each reprime trigger, set true once recorded so we only record once per cycle
+    bool fc_zero_recorded_this_cycle = false;
+    // The 3 smallest such sample counts seen, ascending (index 0 = smallest)
+    size_t fc_zero_samples_lowest[3] = {SIZE_MAX, SIZE_MAX, SIZE_MAX};
+    // The 3 largest such sample counts seen, descending (index 0 = largest)
+    size_t fc_zero_samples_highest[3] = {0, 0, 0};
+
 public:
 
     void set_samp_rate(const double rate);
@@ -493,6 +502,32 @@ private:
                 int packet_to_send_ch_i = check_fc_npackets(ch_i);
                 if(packets_to_send_now > packet_to_send_ch_i) {
                     packets_to_send_now = packet_to_send_ch_i;
+                }
+            }
+
+            // Debug: record how many samples were sent since the last reprime the first time
+            // check_fc_npackets() clamps us to <= 0 (flow control stops admitting new sends)
+            if(packets_to_send_now <= 0 && !fc_zero_recorded_this_cycle) {
+                fc_zero_recorded_this_cycle = true;
+                // Track the 3 smallest such counts seen (ascending)
+                for(size_t i = 0; i < 3; i++) {
+                    if(samples_since_last_reprime < fc_zero_samples_lowest[i]) {
+                        for(size_t j = 2; j > i; j--) {
+                            fc_zero_samples_lowest[j] = fc_zero_samples_lowest[j - 1];
+                        }
+                        fc_zero_samples_lowest[i] = samples_since_last_reprime;
+                        break;
+                    }
+                }
+                // Track the 3 largest such counts seen (descending)
+                for(size_t i = 0; i < 3; i++) {
+                    if(samples_since_last_reprime > fc_zero_samples_highest[i]) {
+                        for(size_t j = 2; j > i; j--) {
+                            fc_zero_samples_highest[j] = fc_zero_samples_highest[j - 1];
+                        }
+                        fc_zero_samples_highest[i] = samples_since_last_reprime;
+                        break;
+                    }
                 }
             }
 

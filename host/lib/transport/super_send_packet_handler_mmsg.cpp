@@ -127,6 +127,8 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
     printf("Reprime count: %lu\n", reprime_count);
     printf("Reprime samples lowest: %zu, %zu, %zu\n", reprime_samples_lowest[0], reprime_samples_lowest[1], reprime_samples_lowest[2]);
     printf("Reprime samples highest: %zu, %zu, %zu\n", reprime_samples_highest[0], reprime_samples_highest[1], reprime_samples_highest[2]);
+    printf("Samples sent before check_fc_npackets <= 0, lowest: %zu, %zu, %zu\n", fc_zero_samples_lowest[0], fc_zero_samples_lowest[1], fc_zero_samples_lowest[2]);
+    printf("Samples sent before check_fc_npackets <= 0, highest: %zu, %zu, %zu\n", fc_zero_samples_highest[0], fc_zero_samples_highest[1], fc_zero_samples_highest[2]);
     fflush(stdout);
 }
 
@@ -403,6 +405,7 @@ size_t send_packet_handler_mmsg::send(
                 }
             }
             samples_since_last_reprime = 0;
+            fc_zero_recorded_this_cycle = false;
             // Time to start a new pseudo burst to recover
             // Reprime to 90% of the target buffer level
             uhd::time_spec_t reprime_time = _clock_sync->get_device_time() /* device_time */ + SEND_NOW_DELAY;
