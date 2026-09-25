@@ -23,6 +23,8 @@
 // Linux API
 #include <sys/socket.h>
 
+#include <cstdint>
+
 
 #define MIN_MTU 9000
 
@@ -272,6 +274,14 @@ private:
     // The minimum buffer level below which we reprime if
     const int64_t _reprime_threshold;
     size_t samples_since_last_reprime = 0;
+
+    // Debug: reprime statistics, printed in the destructor
+    // Total number of times a reprime was triggered
+    uint64_t reprime_count = 0;
+    // The 3 smallest samples_since_last_reprime values seen at trigger time, ascending (index 0 = smallest)
+    size_t reprime_samples_lowest[3] = {SIZE_MAX, SIZE_MAX, SIZE_MAX};
+    // The 3 largest samples_since_last_reprime values seen at trigger time, descending (index 0 = largest)
+    size_t reprime_samples_highest[3] = {0, 0, 0};
 
 public:
 

@@ -123,6 +123,11 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
 
         UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::string(nsec_s));
     }
+
+    printf("Reprime count: %lu\n", reprime_count);
+    printf("Reprime samples lowest: %zu, %zu, %zu\n", reprime_samples_lowest[0], reprime_samples_lowest[1], reprime_samples_lowest[2]);
+    printf("Reprime samples highest: %zu, %zu, %zu\n", reprime_samples_highest[0], reprime_samples_highest[1], reprime_samples_highest[2]);
+    fflush(stdout);
 }
 
 void send_packet_handler_mmsg::set_samp_rate(const double rate) {
@@ -376,8 +381,27 @@ size_t send_packet_handler_mmsg::send(
 
         // If we are not mid reprime and the buffer level is below the target threshold
         if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < 100000 /*_reprime_threshold*/) [[unlikely]] {
-            printf("Reprime triggered after: %lu\n", samples_since_last_reprime);
-            fflush(stdout);
+            reprime_count++;
+            // Track the 3 smallest samples_since_last_reprime values seen (ascending)
+            for(size_t i = 0; i < 3; i++) {
+                if(samples_since_last_reprime < reprime_samples_lowest[i]) {
+                    for(size_t j = 2; j > i; j--) {
+                        reprime_samples_lowest[j] = reprime_samples_lowest[j - 1];
+                    }
+                    reprime_samples_lowest[i] = samples_since_last_reprime;
+                    break;
+                }
+            }
+            // Track the 3 largest samples_since_last_reprime values seen (descending)
+            for(size_t i = 0; i < 3; i++) {
+                if(samples_since_last_reprime > reprime_samples_highest[i]) {
+                    for(size_t j = 2; j > i; j--) {
+                        reprime_samples_highest[j] = reprime_samples_highest[j - 1];
+                    }
+                    reprime_samples_highest[i] = samples_since_last_reprime;
+                    break;
+                }
+            }
             samples_since_last_reprime = 0;
             // Time to start a new pseudo burst to recover
             // Reprime to 90% of the target buffer level
