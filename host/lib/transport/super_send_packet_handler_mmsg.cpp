@@ -376,7 +376,8 @@ size_t send_packet_handler_mmsg::send(
 
         // If we are not mid reprime and the buffer level is below the target threshold
         if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < 6000 /*_reprime_threshold*/) [[likely]] {
-            // printf("Reprime triggered after: %lu\n", samples_since_last_reprime);
+            printf("Reprime triggered after: %lu\n", samples_since_last_reprime);
+            fflush(stdout);
             samples_since_last_reprime = 0;
             // Time to start a new pseudo burst to recover
             // Reprime to 90% of the target buffer level
