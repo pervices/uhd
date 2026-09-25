@@ -272,7 +272,9 @@ private:
     bool specified_time = false;
 
     // The minimum buffer level below which we reprime if
-    const int64_t _reprime_threshold;
+    // Set whenever the sample rate is set (see set_samp_rate), since it depends on sample rate
+    //TODO: switch from repriming based on predicted buffer level to if underflows were detected once the FPGA is fixed
+    int64_t _reprime_threshold = 0;
 
 public:
 

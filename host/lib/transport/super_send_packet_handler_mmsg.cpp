@@ -39,8 +39,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _intermediate_send_buffer_pointers(_NUM_CHANNELS),
     _intermediate_send_buffer_wrapper(_intermediate_send_buffer_pointers.data(), _NUM_CHANNELS),
     _async_msg_fifo(async_msg_fifo),
-    _streaming_locks(streaming_locks),
-    _reprime_threshold((int64_t)(device_buffer_size * 0.1))
+    _streaming_locks(streaming_locks)
 {
     // Checks and warns the user if the preemption mode is suboptimal
     check_preemption("SEND_PACKET_HANDLER");
@@ -133,6 +132,11 @@ void send_packet_handler_mmsg::set_samp_rate(const double rate) {
     // Drop packets if they are within the lower of 20% of a buffer of being late and 40us
     // 40e-6 was chosen since it is extremely rare for packets to be over 35e-6 seconds late based on clock sync predictions
     drop_lead = std::min(0.2 * _DEVICE_BUFFER_SIZE / _sample_rate, 40e-6);
+
+    // A packet sent at get_device_time will arrive with an accuracy of within 40e-6 seconds (it's precision is better).
+    // Therefore a packet sent more than 50e-6 seconds before it is needed will always arrive in time.
+    //TODO: switch from repriming based on predicted buffer level to if underflows were detected once the FPGA is fixed
+    _reprime_threshold = (int64_t)(_sample_rate * 50e-6);
 }
 
 void send_packet_handler_mmsg::enable_blocking_fc(int64_t blocking_setpoint) {
