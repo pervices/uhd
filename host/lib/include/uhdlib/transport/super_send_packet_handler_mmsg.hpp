@@ -371,6 +371,14 @@ private:
             if(metadata_.has_time_spec) {
                 // Sets the timestamp based on what's specified by the user
                 packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
+
+                // Debug: the specified time must never be earlier than where the stream would have
+                // naturally continued to, since that would mean we're telling the device to rewind time
+                long long follow_on_tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
+                if((long long)packet_header_infos[n].tsf < follow_on_tsf) {
+                    fprintf(stderr, "Specified time spec tsf (%lld) is earlier than the natural continuation tsf (%lld)\n", (long long)packet_header_infos[n].tsf, follow_on_tsf);
+                    throw uhd::runtime_error("Specified time spec is earlier than the natural continuation time of the stream");
+                }
             } else {
                 // Sets the timestamp to follow from the previous send
                 packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
