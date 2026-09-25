@@ -67,7 +67,9 @@ private:
     static constexpr uint_fast8_t MAX_CHANNELS = 16;
 
     /**
-     * The time between now and the automatic start time for bursts without time specs
+     * The time between now and the automatic start time for bursts without time specs.
+     * It is the minimum amount of time between get_device_time and the start of a burst
+     * we can start sending and not have an immediate underflow
      */
     static constexpr double SEND_NOW_DELAY = 0.0002;
 

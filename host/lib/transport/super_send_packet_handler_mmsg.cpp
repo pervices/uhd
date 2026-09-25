@@ -377,8 +377,9 @@ size_t send_packet_handler_mmsg::send(
         if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < _reprime_threshold) [[likely]] {
 
             // Time to start a new pseudo burst to recover
-            // Reprime to 90% of the target buffer level
-            uhd::time_spec_t reprime_time = device_time + ((_DEVICE_TARGET_NSAMPS * 0.9) / _sample_rate);
+            // It should usually be now + SEND_NOW_DELAY
+            // It must not be earlier than when the FPGA is expecting the next packet to arrive
+            uhd::time_spec_t reprime_time = std::max(device_time + SEND_NOW_DELAY, next_send_time);
             // Update the buffer tracker to manage the new time
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.recovery_prep(reprime_time);
