@@ -375,7 +375,7 @@ size_t send_packet_handler_mmsg::send(
         int64_t buffer_level = ch_send_buffer_info_group[0].buffer_level_manager.get_buffer_level(device_time);
 
         // If we are not mid reprime and the buffer level is below the target threshold
-        if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < 6000 /*_reprime_threshold*/) [[likely]] {
+        if( device_time > ch_send_buffer_info_group[0].buffer_level_manager.peek_last_sob() && buffer_level  < 100000 /*_reprime_threshold*/) [[unlikely]] {
             printf("Reprime triggered after: %lu\n", samples_since_last_reprime);
             fflush(stdout);
             samples_since_last_reprime = 0;
