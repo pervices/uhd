@@ -42,7 +42,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     _streaming_locks(streaming_locks),
     _reprime_threshold((int64_t)(device_buffer_size * 0.1))
 {
-    printf("_DEVICE_PACKET_NSAMP_MULTIPLE: %lu\n", _DEVICE_PACKET_NSAMP_MULTIPLE);
+    printf("_max_samples_per_packet: %li\n", _max_samples_per_packet);
     // Checks and warns the user if the preemption mode is suboptimal
     check_preemption("SEND_PACKET_HANDLER");
 
