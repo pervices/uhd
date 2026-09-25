@@ -410,7 +410,6 @@ size_t send_packet_handler_mmsg::send(
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.recovery_prep(reprime_time);
             }
-            modified_metadata.start_of_burst = true;
             // Apply the start time for the new pseudo burst
             modified_metadata.has_time_spec = true;
             modified_metadata.time_spec = reprime_time;
