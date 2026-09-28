@@ -55,7 +55,7 @@ static int mask_to_numa_node(const cpu_set_t affinity_mask, std::string message_
         }
         // Check if later CPUs have the same NUMA node
         else if(candidate_numa_node != cpu_numa_node) {
-            UHD_LOG_WARNING("NUMA", message_prefix + "The affinity mask of the tested thread can run on multiple NUMA nodes");
+            UHD_LOG_WARNING("NUMA", message_prefix + "The affinity mask of the tested thread can run on multiple NUMA nodes. Performance may be unreliable.");
             return MASK_SPANS_MULTIPLE_NODES;
         }
     }
