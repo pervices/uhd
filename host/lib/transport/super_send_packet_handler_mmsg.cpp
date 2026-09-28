@@ -237,7 +237,7 @@ void send_packet_handler_mmsg::send_eob_packet(const uhd::tx_metadata_t &metadat
     eob_md.start_of_burst = false;
     // Sets the eof time so buffer tracking can account for time between sob and eob
     for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-        ch_send_buffer_info_i.buffer_level_manager.set_end_of_burst_time(next_send_time);
+        ch_send_buffer_info_i.buffer_level_manager.set_end_of_burst_time(uhd::time_spec_t::from_ticks(last_time_spec_samples + samples_since_timestamp, _sample_rate));
     }
 
     // Record amount of samples dropped so that user may be informed of it if they start a new stream
@@ -383,7 +383,7 @@ size_t send_packet_handler_mmsg::send(
             // Time to start a new pseudo burst to recover
             // It should usually be now + SEND_NOW_DELAY
             // It must not be earlier than when the FPGA is expecting the next packet to arrive
-            uhd::time_spec_t reprime_time = std::max(device_time + SEND_NOW_DELAY, next_send_time);
+            uhd::time_spec_t reprime_time = std::max(device_time + SEND_NOW_DELAY, uhd::time_spec_t::from_ticks(last_time_spec_samples + samples_since_timestamp, _sample_rate));
             // Update the buffer tracker to manage the new time
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.recovery_prep(reprime_time);
