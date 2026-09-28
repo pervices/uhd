@@ -197,7 +197,7 @@ size_t pv_device_send_packet_streamer::send(
         if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) != -1) {
             uhd::check_numa_safe(mask, send_sockets, _NUM_CHANNELS);
         } else {
-            UHD_LOG_WARNING("_product_name_c", "Unable to get current thread affinity for checking if the sending thread is optimized for the NUMA layout.");
+            UHD_LOG_WARNING("_product_name_c", "Unable to get current thread affinity of tx thread caller thread. Ensure the affinity of the caller thread matches numa nodes if applicable.");
         }
     }
 
