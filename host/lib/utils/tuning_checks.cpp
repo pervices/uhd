@@ -136,8 +136,6 @@ int uhd::check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t 
 
     // Check if the kernel supports NUMA
     if(numa_available() == -1) [[unlikely]] {
-        // TODO: add a parameter to take a context specific error message
-        // TODO: decide which level of message to make this message
         UHD_LOG_WARNING("NUMA", message_prefix + "The kernel is not configured with support for NUMA. Automatic checks for optimal NUMA configuartion will not work.");
         return -1;
     }
@@ -158,8 +156,6 @@ int uhd::check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t 
         // Return a negative value to indicate a failure with the test itself
         return -1;
     }
-
-
 
     // Get the network interface used by each socket
     std::vector<std::string> network_interfaces;

@@ -25,7 +25,7 @@ namespace uhd {
  * @param socket_fd_len The number of elements in socket_fd.
  * @param message_prefix A message to prepend to log/print messages for clarity about who is calling this check.
  *
- * @return Return 0 if affinity_mask will keep a thread on the correct NUMA node for socket_fd. Return a positive value if the NUMA node of the sockets does not match the affinity mask or the mask spans multiple nodes. Return a negative value if the check itself failed.
+ * @return Return 0 if affinity_mask will keep a thread on the correct NUMA node for socket_fd or if the system only has 1 NUMA node (not applicable). Return a positive value if the NUMA node of the sockets does not match the affinity mask or the mask spans multiple nodes. Return a negative value if the check itself failed.
  */
 int check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len, std::string message_prefix = "");
 
