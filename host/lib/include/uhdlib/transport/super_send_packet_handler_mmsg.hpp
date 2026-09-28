@@ -145,9 +145,9 @@ protected:
      */
 
 private:
-    // The start time of the next batch of samples in ticks
     // The FPGA requires a timestampt always be present in packets. This is used to figureout the timestamp when not specified by the user
-    uhd::time_spec_t next_send_time = uhd::time_spec_t(0.0);
+    // The timestamp of the start of the next batch of samples
+    size_t next_time_spec_samples = 0;
 
     // Number of samples cached between sends to account for _DEVICE_PACKET_NSAMP_MULTIPLE restriction
     size_t nsamps_in_cache = 0;
@@ -349,21 +349,33 @@ private:
             }
         }
 
-        // Error detection for if the caller requests a time that is earlier than the time the next packet should be sent at
-        bool invalid_timestamp = false;
-        if(metadata_.has_time_spec && metadata_.time_spec < next_send_time) [[unlikely]] {
-            invalid_timestamp = true;
-            // Only from the message once
-            if(!logged_time_spec_rewind) {
-                // Get the fractional portion of the timestamp
-                // .substr(2) removes the leading 0.
-                const std::string requested_frac_secs = std::format("{:.10f}", metadata_.time_spec.get_frac_secs()).substr(2);
-                const std::string next_frac_secs = std::format("{:.10f}", next_send_time.get_frac_secs()).substr(2);
-                UHD_LOG_ERROR("SEND_PACKET_HANDLER", std::format("Packets with a timestamp of {}.{} were requested but the next packet in the burst should be later than it at: {}.{}. It will be ignored.",
-                    metadata_.time_spec.get_full_secs(), requested_frac_secs,
-                    next_send_time.get_full_secs(), next_frac_secs));
+        if(metadata_.has_time_spec) {
+            // Convert the time spec to samples/round to the nearest sample
+            size_t time_spec_samples = metadata_.time_spec.to_ticks(_sample_rate) - nsamps_in_cache;
+
+            // Error detection for if the caller requests a time that is earlier than the time the next packet should be sent at
+            // Skip applying the new timestamp if it is to early
+            if(time_spec_samples < next_time_spec_samples) [[unlikely]] {
+                // Only from the message once
+                if(!logged_time_spec_rewind) {
+                    // The timestamp of the next packet minus samples in the cache
+                    // samples in the cache are removed to adjust it to match where the user's timestamp should be
+                    uhd::time_spec_t next_send_time = time_spec_t::from_ticks(next_time_spec_samples - nsamps_in_cache, _sample_rate);
+
+                    // Get the fractional portion of the timestamp
+                    // .substr(2) removes the leading 0.
+                    const std::string requested_frac_secs = std::format("{:.10f}", metadata_.time_spec.get_frac_secs()).substr(2);
+                    const std::string next_frac_secs = std::format("{:.10f}", next_send_time.get_frac_secs()).substr(2);
+                    UHD_LOG_ERROR("SEND_PACKET_HANDLER", std::format("Packets with a timestamp of {}.{} were requested but the next packet in the burst should be later than it at: {}.{}. It will be ignored.",
+                        metadata_.time_spec.get_full_secs(), requested_frac_secs,
+                        next_send_time.get_full_secs(), next_frac_secs));
+                }
+                logged_time_spec_rewind = true;
+
+            // Update the record of the last time a time spec was provided if it is valid
+            } else {
+                next_time_spec_samples = time_spec_samples - nsamps_in_cache;
             }
-            logged_time_spec_rewind = true;
         }
 
         for(int n = 0; n < num_packets; n++) {
@@ -375,14 +387,7 @@ private:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
-            if(metadata_.has_time_spec && !invalid_timestamp) {
-                // Sets the timestamp based on what's specified by the user
-                packet_header_infos[n].tsf = (metadata_.time_spec + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
-
-            } else {
-                // Sets the timestamp to follow from the previous send
-                packet_header_infos[n].tsf = (next_send_time + time_spec_t::from_ticks(n * _max_samples_per_packet - nsamps_in_cache, _sample_rate)).to_ticks(_TICK_RATE);
-            }
+            packet_header_infos[n].tsf = time_spec_t::from_ticks(next_time_spec_samples + (n * _max_samples_per_packet) - nsamps_in_cache, _sample_rate).to_ticks(_TICK_RATE);
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
@@ -603,12 +608,8 @@ private:
             (current_time.tv_sec == timeout_time.tv_sec && current_time.tv_nsec < timeout_time.tv_nsec))
         );
 
-        // Updates the next timestamp to follow from the end of this send
-        if(metadata_.has_time_spec) {
-            next_send_time = metadata_.time_spec + time_spec_t::from_ticks(samples_sent, _sample_rate);
-        } else {
-            next_send_time = next_send_time + time_spec_t::from_ticks(samples_sent, _sample_rate);
-        }
+        // Records how many samples were sent for future timestamp calculations
+        next_time_spec_samples += samples_sent;
 
         // Increment the sequence number counter by the number of packets actually sent
         next_sequence_number = (next_sequence_number + packets_sent) & 0xf;
