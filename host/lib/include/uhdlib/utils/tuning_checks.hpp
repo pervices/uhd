@@ -29,4 +29,14 @@ namespace uhd {
  */
 int check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t socket_fd_len, std::string message_prefix = "");
 
+/**
+ * Check if NUMA is enabled on the system.
+ * 
+ * Prints a warning if numa cannot be checked
+ *
+ * @return Return true if multiple NUMA nodes exist. Returns false if there is either 1 NUMA node or the check for the number of numa nodes failed
+ */
+bool numa_relevant();
+
+
 }; /* namespace uhd */

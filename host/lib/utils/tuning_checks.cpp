@@ -204,3 +204,21 @@ int uhd::check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t 
 
     return result;
 }
+
+bool uhd::numa_relevant() {
+    // Check if the kernel supports NUMA
+    if(numa_available() == -1) [[unlikely]] {
+        UHD_LOG_WARNING("NUMA", "The kernel is not configured with support for NUMA. Automatic checks for optimal NUMA configuartion will not work.");
+
+        return false;
+    }
+
+    // This system only has one NUMA node, an incorrect configuration is impossible
+    if(numa_num_configured_nodes() == 1) {
+        return false;
+
+    // This system only has one NUMA node, an incorrect configuration is impossible
+    } else {
+        return true;
+    }
+}
