@@ -38,5 +38,13 @@ int check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
  */
 bool numa_relevant();
 
+/**
+ * Get the numa mask corresponding to the netowrk interface used by the specified socket
+ *
+ * @param socket_fd the socket to get the numa mask for
+ *
+ * @return A libnuma mask including the numa socket to use
+ */
+struct bitmask get_numa_mask_of_socket(int socket_fd);
 
 }; /* namespace uhd */
