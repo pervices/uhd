@@ -13,6 +13,7 @@
 #include <uhd/exception.hpp>
 #include <uhd/utils/byteswap.hpp>
 #include <uhd/utils/thread.hpp>
+#include <uhdlib/utils/tuning_checks.hpp>
 
 #include <uhdlib/utils/system_time.hpp>
 
@@ -189,6 +190,16 @@ size_t pv_device_send_packet_streamer::send(
     size_t r = 0;
 
     uhd::tx_metadata_t metadata = metadata_;
+
+    if(_first_call_to_send) {
+        cpu_set_t mask;
+        CPU_ZERO(&mask);
+        if (sched_getaffinity(0, sizeof(cpu_set_t), &mask) != -1) {
+            uhd::check_numa_safe(mask, send_sockets, _NUM_CHANNELS);
+        } else {
+            UHD_LOG_WARNING("_product_name_c", "Unable to get current thread affinity for checking if the sending thread is optimized for the NUMA layout.");
+        }
+    }
 
     if ( _first_call_to_send || metadata.start_of_burst ) {
         metadata.start_of_burst = true;

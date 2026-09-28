@@ -107,8 +107,11 @@ private:
      */
     double drop_lead = 0;
 
+protected:
     // Sockets used to send sample packets to the device
     int send_sockets[MAX_CHANNELS] = {};
+
+private:
 
     // Whether or not a conversion is required between CPU and wire formats
     bool converter_used;
