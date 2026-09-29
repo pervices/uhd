@@ -87,10 +87,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     size_t spb;
     double rate, freq, gain, power, wave_freq, bw, lo_offset;
     float ampl;
+    int lo_power;
 
     double first, last, increment;
 
     //setup the program options
+    po::options_description all_options;
     po::options_description desc("Allowed options");
     desc.add_options()
     ("help,h", "Show this help message and exit.")
@@ -176,9 +178,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     ("constant_time", "When set, device time gets set to 0, and first and last's exact values are used. Otherwise first and last are relative to the time when initialization finished. In both cases the device time is set to 0 during init unless pps is bypassed")
     ("random-spb", "Intended for internal debuging only. Randomize the number of samples sent per buffer to be 0:spb")
     ;
+
+    // Arguments that we accept but don't want to show the user in the help output
+    po::options_description hidden("Hidden options");
+    hidden.add_options()
+    ("lo-pwr", po::value<int>(&lo_power), "Tx LO power level for each channel. This options is only available if LO power is controllable through UHD.")
+    ;
+
+    all_options.add(desc).add(hidden);
     // clang-format on
     po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::store(po::parse_command_line(argc, argv, all_options), vm);
     // print the help message
     if (vm.count("help")) {
         std::cout << program_doc << std::endl;
@@ -353,6 +363,25 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         // set the antenna
         if (vm.count("ant"))
             usrp->set_tx_antenna(ant, channel);
+
+        // Set the Tx LO power level
+        if (vm.count("lo-pwr")) {
+            // If the device does not support setting LO power through UHD, get_tx_lo_names should be empty.
+            if (usrp->get_tx_lo_names(channel).empty()) {
+                UHD_LOGGER_ERROR("TX_WAVEFORMS") << "A value for --lo-pwr was given but this device does not support adjusting LO power level through UHD.";
+                throw uhd::runtime_error("Adjusting LO power level is unsupported on this device.");
+            }
+            
+            // Set for each LO. We only have one, but if there were multiple then we should either specify it by name
+            // or just set all LOs like it's currently doing.
+            for (const auto &lo_name: usrp->get_tx_lo_names()) {
+                std::cout << "Setting the Tx LO power level: " << lo_power << "..." << std::endl;
+                usrp->set_tx_lo_power(lo_power, lo_name, channel);
+                std::cout << "Actual Tx LO power level: "
+                    << usrp->get_tx_lo_power(lo_name, channel)
+                    << std::endl << std::endl;
+            }
+        }
     }
 
     //Check Ref and LO Lock detect
