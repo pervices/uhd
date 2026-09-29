@@ -108,6 +108,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
 }
 
 send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
+    fprintf(stderr, "send packet handler destructor reached\n");
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {
         int r = close(send_sockets[n]);
         if(r) {
@@ -121,6 +122,7 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
 
         UHD_LOG_ERROR("SEND_PACKET_HANDLER", "A sendmmsg command failed to send packets with error code " + std::string(strerror(sendmmsg_errno)) + " at time " + std::string(nsec_s));
     }
+    fprintf(stderr, "send packet handler destructor finished\n");
 }
 
 void send_packet_handler_mmsg::set_samp_rate(const double rate) {
