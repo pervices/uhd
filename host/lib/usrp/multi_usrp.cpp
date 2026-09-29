@@ -985,12 +985,10 @@ public:
      *************************************************************************/
     std::vector<std::string> get_rx_lo_names(size_t chan = 0) override
     {
+        (void) chan; // Reference chan here to avoid unused parameter warning.
         std::vector<std::string> lo_names;
-        if (_tree->exists(rx_rf_fe_root(chan) / "los")) {
-            for (const std::string& name : _tree->list(rx_rf_fe_root(chan) / "los")) {
-                lo_names.push_back(name);
-            }
-        }
+        // Upstream would return the list from the <rx_rf_fe_root>/los path if it exists, but for PV devices
+        // user-facing LO operations are not implemented, so just return the empty vector.
         return lo_names;
     }
 
@@ -1229,13 +1227,7 @@ public:
 
     std::vector<std::string> get_tx_lo_names(const size_t chan = 0) override
     {
-        std::vector<std::string> lo_names;
-        if (_tree->exists(tx_rf_fe_root(chan) / "los")) {
-            for (const std::string& name : _tree->list(tx_rf_fe_root(chan) / "los")) {
-                lo_names.push_back(name);
-            }
-        }
-        return lo_names;
+        return get_device()->get_tx_lo_names(chan);
     }
 
     void set_tx_lo_source(const std::string& src,
@@ -3010,6 +3002,46 @@ private:
             const std::string full = root + "/" + path;
             std::cout << full << std::endl;
             dump_tree(full);
+        }
+    }
+
+// Per Vices-specific functions. Adding to the end separately from the first public block
+// for compatibility and to make clear this was added by us, not upstream.
+public:
+
+    void set_tx_lo_power(int lo_power, const std::string &name=ALL_LOS, const size_t chan=0) override {
+        // Upstream functions check the "<tx_rf_fe_root>/los" path to see if LO API is enabled.
+        // To avoid enabling upstream, we just store the properties for each controllable LO under "tx_rf_fe_root/<LO_NAME>".
+        // Otherwise, follow similar flow to upstream LO API functions.
+        if (name == ALL_LOS) {
+            for (const auto& n: this->get_tx_lo_names(chan)) {
+                this->set_tx_lo_power(lo_power, n, chan);
+            }
+        } else {
+            // <LO_NAME> path only exists if the device supports LO control through the API
+            if (_tree->exists(tx_rf_fe_root(chan) / name)) {
+                _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").set(lo_power);
+                // Warn the user if the value from the device does not match what they tried to set but do not throw error.
+                // The device will clip the value if it is out of range, so just let the user know the actual value like we do with rate or frequency.
+                int actual_power = this->get_tx_lo_power(name, chan);
+                if (actual_power != lo_power) {
+                    UHD_LOGGER_WARNING("MULTI_USRP") << std::format(
+                        "The hardware does not support the requested LO power on channel {}:\n"
+                        "Target LO power: {}\n"
+                        "Actual LO power: {}\n",
+                        chan, lo_power, actual_power);
+                }
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
+            }
+        }
+    }
+
+    int get_tx_lo_power(const std::string &name=ALL_LOS, const size_t chan=0) override {
+        if (name == ALL_LOS) {
+            throw uhd::runtime_error("LO power must be retrieved for each stage individually");
+        } else {
+            return _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").get();
         }
     }
 };

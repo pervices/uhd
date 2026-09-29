@@ -220,6 +220,11 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
+    virtual std::vector<std::string> get_tx_lo_names(size_t chan = 0) {
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
     virtual void set_tx_gain(double gain, const std::string &name, size_t chan){
         (void) gain;
         (void) name;
