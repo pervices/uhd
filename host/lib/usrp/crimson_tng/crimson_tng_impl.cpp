@@ -1723,7 +1723,8 @@ std::vector<std::string> crimson_tng_impl::get_tx_lo_names(const size_t chan) {
     // Only Crimson RTM15+ implements this, so just return empty vector if anything else.
     // Upstream would have a path on the device tree for each API-controllable LO. 
     // Doing it this way allows us to implement LO API control based on RTM version.
-    if (rtm_ver >= 15) {
+    // TODO: Change back to RTM15+. Just using 12+ for testing
+    if (rtm_ver >= 12) {
         lo_names.push_back("HIGHBAND_LO");
     }
     
