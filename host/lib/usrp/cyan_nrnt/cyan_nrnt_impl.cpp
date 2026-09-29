@@ -1200,7 +1200,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // If we wanted to implement the LO API more closely to upstream, this would be moved to "tx_fe_path/los/<lo_name>/power".
         for (auto& lo_name: get_tx_lo_names(dspno)) {
             // Even though we use a different path, still include the <lo_name> so our LO API functions can check if it's implemented
-            TREE_CREATE_RW(tx_fe_path / lo_name / "lo_pwr", "tx_"+lc_num+"rf/freq/lo_pwr", int, int);
+            TREE_CREATE_RW(tx_fe_path / lo_name / "lo_pwr", "tx_"+lc_num+"/rf/freq/lo_pwr", int, int);
         }
 
         // TX bandwidth

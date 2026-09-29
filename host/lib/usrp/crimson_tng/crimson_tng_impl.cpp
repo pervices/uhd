@@ -1179,7 +1179,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         for (auto& lo_name: get_tx_lo_names(dspno)) {
             UHD_LOG_INFO("AAAAAAAAAAAAA", "LO NAME: " + lo_name);
             // Even though we use a different path, still include the <lo_name> so our LO API functions can check if it's implemented
-            TREE_CREATE_RW(tx_fe_path / lo_name / "lo_pwr", "tx_"+lc_num+"rf/freq/lo_pwr", int, int);
+            TREE_CREATE_RW(tx_fe_path / lo_name / "lo_pwr", "tx_"+lc_num+"/rf/freq/lo_pwr", int, int);
         }
 
         // TX bandwidth
@@ -1717,6 +1717,7 @@ std::vector<std::string> crimson_tng_impl::get_tx_lo_names(const size_t chan) {
     // Only Crimson RTM15+ implements this, so just return empty vector if anything else.
     // Upstream would have a path on the device tree for each API-controllable LO. 
     // Doing it this way allows us to implement LO API control based on RTM version.
+    // TODO: Change back to RTM15+. Just using 12+ for testing
     if (rtm_ver >= 12) {
         lo_names.push_back("HIGHBAND_LO");
     }
