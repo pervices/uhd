@@ -390,7 +390,7 @@ private:
             packet_header_infos[n].has_tlr = false; // No trailer
             packet_header_infos[n].has_tsi = false; // No integer timestamp
             packet_header_infos[n].has_tsf = true; // Always include a fractional timestamp (in ticks of _TICK_RATE)
-            packet_header_infos[n].tsf = time_spec_t::from_ticks(samples_since_timestamp + (n * _max_samples_per_packet) - nsamps_in_cache, _sample_rate).to_ticks(_TICK_RATE);
+            packet_header_infos[n].tsf = time_spec_t::from_ticks(last_time_spec_samples + samples_since_timestamp + (n * _max_samples_per_packet) - nsamps_in_cache, _sample_rate).to_ticks(_TICK_RATE);
             packet_header_infos[n].sob = (n == 0) && metadata_.start_of_burst;
             packet_header_infos[n].eob     = metadata_.end_of_burst;
             packet_header_infos[n].fc_ack  = false; // Is not a flow control packet
