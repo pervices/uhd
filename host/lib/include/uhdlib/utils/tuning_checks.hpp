@@ -32,19 +32,21 @@ int check_numa_safe(const cpu_set_t affinity_mask, int socket_fd[], size_t socke
 /**
  * Check if NUMA is enabled on the system.
  * 
- * Prints a warning if numa cannot be checked
+ * Prints a warning if numa cannot be checked.
  *
- * @return Return true if multiple NUMA nodes exist. Returns false if there is either 1 NUMA node or the check for the number of numa nodes failed
+ * @return Return true if multiple NUMA nodes exist. Returns false if there is either 1 NUMA node or the check for the number of numa nodes failed.
  */
 bool numa_relevant();
 
 /**
- * Get the numa mask corresponding to the netowrk interface used by the specified socket
+ * Add the numa node netowrk interface used by the specified socket to the mask.
  *
- * @param socket_fd the socket to get the numa mask for
+ * @param socket_fd The socket to get the numa mask for.
+ * @param node_mask The mask to OR the node used by the socket with/store the result.
  *
- * @return A libnuma mask including the numa socket to use
+ * @throw std::system_error Throw this error if the kernel does not support NUMA
+ * @throw TODO
  */
-struct bitmask get_numa_mask_of_socket(int socket_fd);
+void add_numa_mask_of_socket(int socket_fd, bitmask* node_mask);
 
 }; /* namespace uhd */

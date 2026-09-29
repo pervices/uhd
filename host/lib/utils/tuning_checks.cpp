@@ -222,3 +222,20 @@ bool uhd::numa_relevant() {
         return true;
     }
 }
+
+struct bitmask add_numa_mask_of_socket(int socket_fd, bitmask* node_mask) {
+    if(numa_available() == -1) {
+        throw std::system_error("NUMA not available on this kernel");
+    }
+
+    // TODO: add error detection and handling
+    std::string iface = get_interface_for_socket(socket_fd);
+
+    int node = get_numa_node_for_iface(iface, "");
+
+    if(node < 0 || node > numa_max_node()) {
+        throw std::runtime_error("TODO: finish error detection and handling");
+    }
+
+    numa_bitmask_setbit(mask, node);
+}
