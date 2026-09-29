@@ -44,8 +44,6 @@ protected:
     // Set for 512 for future AVX512 copying
     static constexpr size_t SIMD_ALIGNMENT = 512;
 
-    static constexpr size_t PAGE_SIZE = 4096;
-
     // Number of channls managed by this streamer
     const uint_fast32_t _num_ch;
 
