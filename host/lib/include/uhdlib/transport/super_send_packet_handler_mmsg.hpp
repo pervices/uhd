@@ -352,6 +352,7 @@ private:
 
         if(metadata_.has_time_spec) {
             // Convert the time spec to samples/round to the nearest sample
+            // minus the samples in the cache
             size_t time_spec_samples = metadata_.time_spec.to_ticks(_sample_rate) - nsamps_in_cache;
 
             // Error detection for if the caller requests a time that is earlier than the time the next packet should be sent at
@@ -375,7 +376,7 @@ private:
 
             // Update the record of the last time a time spec was provided if it is valid
             } else {
-                next_time_spec_samples = time_spec_samples - nsamps_in_cache;
+                next_time_spec_samples = time_spec_samples;
             }
         }
 
