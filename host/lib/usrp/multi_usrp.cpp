@@ -3033,20 +3033,11 @@ public:
 
     int get_tx_lo_power(const std::string &name=ALL_LOS, const size_t chan=0) override {
         if (name == ALL_LOS) {
-            for (const auto& n: this->get_tx_lo_names(chan)) {
-                this->get_tx_lo_power(n, chan);
-            }
+            throw uhd::runtime_error("LO frequency must be retrieved for each stage individually");
         } else {
-            try {
-                return _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").get();
-            } catch(std::exception &e) {
-                // Throw an error if we failed to get the power level
-                UHD_LOGGER_ERROR("MULTI_USRP") << "Failed to get tx/freq/lo_pwr property from device";
-                throw std::runtime_error("Unknown error when getting Tx LO power");
-            }
+            return _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").get();
         }
     }
-
 };
 
 multi_usrp::~multi_usrp(void)
