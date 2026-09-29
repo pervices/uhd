@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <sched.h>
 #include <string>
+#include <numa.h>
 
 namespace uhd {
 
@@ -59,6 +60,6 @@ void add_socket_numa(int socket_fd, bitmask* node_mask);
  * @throw TODO
  */
 void add_socket_numa(int socket_fd, bitmask* node_mask);
-void add_sockets_numa(int socket_fd[], size_t socket_fd_length, bitmask* node_mask);
+void add_sockets_numa(int socket_fd[], size_t socket_fd_len, bitmask* node_mask);
 
 }; /* namespace uhd */
