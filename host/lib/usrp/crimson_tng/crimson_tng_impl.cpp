@@ -1712,7 +1712,7 @@ std::vector<std::string> crimson_tng_impl::get_tx_lo_names(const size_t chan) {
     std::string server_version = _tree->access<std::string>(mb_root(0) + "/server_version").get();
     UHD_LOG_INFO("DEBUGGG", "VERSION OUTPUT: \n" + server_version);
     // Get the position of the start of the RTM number.
-    size_t rtm_start = server_version.find(server_version.find("RTM: ")) + std::string("RTM: ").length();
+    size_t rtm_start = server_version.find(server_version.find("RTM: "));
     UHD_LOG_INFO("DEBUGGG", rtm_start);
     std::string rtm_ver_str = server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start);
     UHD_LOG_INFO("DEBUGGG", "RTM VER STRING: " + rtm_ver_str);
