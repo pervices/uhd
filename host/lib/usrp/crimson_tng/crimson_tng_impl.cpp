@@ -1173,6 +1173,21 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         // Daughter Boards' Frontend Settings
         TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
+        // Setup LO power property only for LOs specified in get_tx_lo_names.
+        // Upstream would use "<tx_fe_path>/los" for the LO API, but we use a different path so other upstream LO functions are not enabled.
+        // If we wanted to implement the LO API more closely to upstream, this would be moved to "tx_fe_path/los/<lo_name>/power".
+        std::vector<std::string> lo_names = get_tx_lo_names(dspno);
+        // We currently only have 1 possible LO. If a new one is ever added, we must make sure it writes to the appropriate server property instead of just "rf/freq/lo_pwr".
+        // To make sure we don't forget to do this, throw an error if there is more than one from get_tx_lo_names so they don't all write to the same server property.
+        if (lo_names.size() > 1) {
+            throw uhd::runtime_error("Multiple LO names detected but only one is currently supported.");
+        }
+        // Create the property for each LO
+        for (auto& lo_name: lo_names) {
+            // Even though we use a different path, still include the <lo_name> so our LO API functions can check if it's implemented
+            TREE_CREATE_RW(tx_fe_path / lo_name / "lo_pwr", "tx_"+lc_num+"/rf/freq/lo_pwr", int, int);
+        }
+
         // TX bandwidth
         // NOTE: this is not true for quarter rate DACs
         TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CRIMSON_TNG_BW_FULL(_max_rate) );
@@ -1694,6 +1709,25 @@ double crimson_tng_impl::get_tx_freq(size_t chan) {
                 cur_lo_freq = _tree->access<double>(tx_rf_fe_root(chan) / "freq" / "value").get();
         }
         return cur_lo_freq + cur_dac_nco + cur_dsp_nco;
+}
+
+std::vector<std::string> crimson_tng_impl::get_tx_lo_names(const size_t chan) {
+    (void) chan; // Reference chan to prevent "unused parameter" warning but keep the param. to match upstream definition.
+    std::vector<std::string> lo_names;
+    // This is only implemented for Crimson RTM >= 15. Parse RTM version from server_version output.
+    std::string server_version = _tree->access<std::string>(mb_root(0) + "/server_version").get();
+    // Get the position of the start of the RTM number.
+    size_t rtm_start = server_version.find("RTM: ") + std::string("RTM: ").length();
+    int rtm_ver = std::stoi(server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start));
+
+    // Only Crimson RTM15+ implements this, so just return empty vector if anything else.
+    // Upstream would have a path on the device tree for each API-controllable LO. 
+    // Doing it this way allows us to implement LO API control based on RTM version.
+    if (rtm_ver >= 15) {
+        lo_names.push_back("HIGHBAND_LO");
+    }
+    
+    return lo_names;
 }
 
 void crimson_tng_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
