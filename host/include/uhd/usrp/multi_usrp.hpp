@@ -2393,7 +2393,12 @@ public:
         int lo_power,
         const std::string &name = ALL_LOS,
         const size_t chan = 0
-    ) = 0;
+    ) {
+        (void) lo_power;
+        (void) name;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    };
 
     /*! Set the LO power level for the USRP device.
      *
@@ -2408,7 +2413,11 @@ public:
     virtual int get_tx_lo_power(
         const std::string &name = ALL_LOS,
         const size_t chan = 0
-    ) = 0;
+    ) {
+        (void) name;
+        (void) chan;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    };
 };
 
 }} // namespace uhd::usrp

@@ -3009,7 +3009,7 @@ private:
 // for compatibility and to make clear this was added by us, not upstream.
 public:
 
-    void set_tx_lo_power(int lo_power, const std::string &name=ALL_LOS, const size_t chan=0) {
+    void set_tx_lo_power(int lo_power, const std::string &name=ALL_LOS, const size_t chan=0) override {
         // Upstream functions check the "<tx_rf_fe_root>/los" path to see if LO API is enabled.
         // To avoid enabling upstream, we just store the properties for each controllable LO under "tx_rf_fe_root/<LO_NAME>".
         // Otherwise, follow similar flow to upstream LO API functions.
@@ -3032,7 +3032,7 @@ public:
         }
     }
 
-    int get_tx_lo_power(const std::string &name=ALL_LOS, const size_t chan=0) {
+    int get_tx_lo_power(const std::string &name=ALL_LOS, const size_t chan=0) override {
         if (name == ALL_LOS) {
             throw uhd::runtime_error("LO frequency must be retrieved for each stage individually");
         } else {
