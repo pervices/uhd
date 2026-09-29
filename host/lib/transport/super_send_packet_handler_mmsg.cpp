@@ -312,6 +312,10 @@ size_t send_packet_handler_mmsg::send(
 
     // If the user ever specified a time enable dropping late packets to help with phase
     specified_time = metadata.has_time_spec || specified_time;
+    
+    if(metadata.has_time_spec) {
+        printf("Specified time\n");
+    }
 
     size_t previous_nsamps_in_cache = nsamps_in_cache;
 
