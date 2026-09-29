@@ -210,6 +210,9 @@ private:
     uhd::tune_result_t set_tx_freq(const uhd::tune_request_t &tune_request, size_t chan = 0);
     double get_tx_freq(size_t chan = 0);
 
+    // Get a list of possible Tx API-controllable LO stages
+    std::vector<std::string> get_tx_lo_names(const size_t chan = 0);
+
     std::vector<bool> is_tx_sfp_cached;
     std::vector<std::string> tx_sfp_cache;
     std::string get_tx_sfp( size_t chan );

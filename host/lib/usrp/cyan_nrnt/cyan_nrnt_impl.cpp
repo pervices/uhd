@@ -1195,6 +1195,14 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Daughter Boards' Frontend Settings
         TREE_CREATE_ST(tx_fe_path / "name",   std::string, "TX Board");
 
+        // Setup LO power property only for LOs specified in get_tx_lo_names.
+        // Upstream would use "<tx_fe_path>/los" for the LO API, but we use a different path so other upstream LO functions are not enabled.
+        // If we wanted to implement the LO API more closely to upstream, this would be moved to "tx_fe_path/los/<lo_name>/power".
+        for (auto& lo_name: get_tx_lo_names(dspno)) {
+            // Even though we use a different path, still include the <lo_name> so our LO API functions can check if it's implemented
+            TREE_CREATE_RW(tx_fe_path / lo_name / "lo_pwr", "tx_"+lc_num+"rf/freq/lo_pwr", int, int);
+        }
+
         // TX bandwidth
         TREE_CREATE_ST(tx_fe_path / "bandwidth" / "value", double, (double) CYAN_NRNT_BW_FULL(max_sample_rate) );
         TREE_CREATE_ST(tx_fe_path / "bandwidth" / "range", meta_range_t, meta_range_t( (double) CYAN_NRNT_BW_FULL(max_sample_rate), (double) CYAN_NRNT_BW_FULL(max_sample_rate) ) );
@@ -1801,6 +1809,13 @@ double cyan_nrnt_impl::get_tx_freq(size_t chan) {
         }
         return cur_lo_freq + cur_nco;
 }
+
+std::vector<std::string> cyan_nrnt_impl::get_tx_lo_names(const size_t chan) {
+    std::vector<std::string> lo_names;
+    // We do not have any API-controllable LOs on Cyan so just return an empty vector.
+    return lo_names;
+}
+
 void cyan_nrnt_impl::set_tx_gain(double gain, const std::string &name, size_t chan){
 
     if ( multi_usrp::ALL_CHANS != chan ) {
