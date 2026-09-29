@@ -466,6 +466,8 @@ size_t send_packet_handler_mmsg::send(
     // Update number of samples in cache count
     nsamps_in_cache = previous_nsamps_in_cache - cached_samples_sent + actual_nsamples_to_cache;
 
+    printf("actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache: %lu\n", actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache);
+
     // Return number of samples actually sent
     return actual_samples_sent - cached_samples_sent + actual_nsamples_to_cache;
 }
