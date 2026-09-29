@@ -19,10 +19,10 @@ user_recv_manager::user_recv_manager( const size_t device_total_rx_channels, con
 : async_recv_manager( device_total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet ),
 _mmsghdr_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(mmghdr_buffer_size())),
 _iovec_buffer((uint8_t*) allocate_hugetlb_buffer_with_fallback(iovec_buffer_size())),
-_call_buffer_heads((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
-_call_buffer_tails((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE)),
-_packets_in_call_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE)),
-_num_packets_consumed_current_buffer((uint8_t*) aligned_alloc(CACHE_LINE_SIZE, _num_ch * CACHE_LINE_SIZE))
+_call_buffer_heads((uint8_t*) allocate_buffer(_num_ch * CACHE_LINE_SIZE)),
+_call_buffer_tails((uint8_t*) allocate_buffer(_num_ch * CACHE_LINE_SIZE)),
+_packets_in_call_buffer((uint8_t*) allocate_buffer(_num_ch * NUM_CALL_BUFFERS * CACHE_LINE_SIZE)),
+_num_packets_consumed_current_buffer((uint8_t*) allocate_buffer(_num_ch * CACHE_LINE_SIZE))
 {
     // Clear buffers
     memset(_call_buffer_heads, 0, _num_ch * CACHE_LINE_SIZE);
@@ -201,7 +201,7 @@ user_recv_manager* user_recv_manager::make( const size_t total_rx_channels, cons
         // Give the manager it's own cache line to avoid false sharing
         size_t recv_manager_size = (size_t) ceil(sizeof(user_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
         // Use placement new to avoid false sharing
-        user_recv_manager* recv_manager = (user_recv_manager*) aligned_alloc(CACHE_LINE_SIZE, recv_manager_size);
+        user_recv_manager* recv_manager = (user_recv_manager*) allocate_buffer(recv_manager_size);
 
         new (recv_manager) user_recv_manager(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
 

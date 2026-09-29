@@ -249,7 +249,7 @@ io_uring_recv_manager* io_uring_recv_manager::make( const size_t total_rx_channe
         // Give the manager it's own cache line to avoid false sharing
         size_t recv_manager_size = (size_t) ceil(sizeof(io_uring_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
         // Use placement new to avoid false sharing
-        io_uring_recv_manager* recv_manager = (io_uring_recv_manager*) aligned_alloc(CACHE_LINE_SIZE, recv_manager_size);
+        io_uring_recv_manager* recv_manager = (io_uring_recv_manager*) allocate_buffer(recv_manager_size);
 
         new (recv_manager) io_uring_recv_manager(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
 
