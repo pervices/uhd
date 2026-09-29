@@ -28,7 +28,7 @@ send_packet_handler_mmsg::send_packet_handler_mmsg(const std::vector<size_t>& ch
     // Ensure max_samples_per_packet is a multiple of the number of samples allowed per packet
     :
     _DEVICE_TARGET_NSAMPS(device_target_nsamps),
-    _DEVICE_PACKET_NSAMP_MULTIPLE(device_packet_nsamp_multiple),
+    _DEVICE_PACKET_NSAMP_MULTIPLE((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
     _max_samples_per_packet((max_samples_per_packet / device_packet_nsamp_multiple) * device_packet_nsamp_multiple),
     _MAX_SAMPLE_BYTES_PER_PACKET(_max_samples_per_packet * _bytes_per_sample),
     _TICK_RATE(tick_rate),
