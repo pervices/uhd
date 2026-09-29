@@ -985,6 +985,7 @@ public:
      *************************************************************************/
     std::vector<std::string> get_rx_lo_names(size_t chan = 0) override
     {
+        (void) chan; // Reference chan here to avoid unused parameter warning.
         std::vector<std::string> lo_names;
         // Upstream would return the list from the <rx_rf_fe_root>/los path if it exists, but for PV devices
         // user-facing LO operations are not implemented, so just return the empty vector.
@@ -3008,7 +3009,7 @@ private:
 // for compatibility and to make clear this was added by us, not upstream.
 public:
 
-    void set_tx_lo_power(int lo_power, const std::string &name=ALL_LOS, const size_t chan=0) override {
+    void set_tx_lo_power(int lo_power, const std::string &name=ALL_LOS, const size_t chan=0) {
         // Upstream functions check the "<tx_rf_fe_root>/los" path to see if LO API is enabled.
         // To avoid enabling upstream, we just store the properties for each controllable LO under "tx_rf_fe_root/<LO_NAME>".
         // Otherwise, follow similar flow to upstream LO API functions.
@@ -3031,7 +3032,7 @@ public:
         }
     }
 
-    int get_tx_lo_power(const std::string &name=ALL_LOS, const size_t chan=0) override {
+    int get_tx_lo_power(const std::string &name=ALL_LOS, const size_t chan=0) {
         if (name == ALL_LOS) {
             throw uhd::runtime_error("LO frequency must be retrieved for each stage individually");
         } else {
