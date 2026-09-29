@@ -1711,7 +1711,7 @@ std::vector<std::string> crimson_tng_impl::get_tx_lo_names(const size_t chan) {
     // This is only implemented for Crimson RTM >= 15. Parse RTM version from server_version output.
     std::string server_version = _tree->access<std::string>(mb_root(0) + "/server_version").get();
     // Get the position of the start of the RTM number.
-    size_t rtm_start = server_version.find(server_version.find("RTM")) + std::string("RTM: ").length();
+    size_t rtm_start = server_version.find(server_version.find("RTM: ")) + std::string("RTM: ").length();
     std::string rtm_ver_str = server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start);
     UHD_LOG_INFO("DEBUGGG", "RTM VER STRING: " + rtm_ver_str);
     int rtm_ver = std::stoi(rtm_ver_str);
