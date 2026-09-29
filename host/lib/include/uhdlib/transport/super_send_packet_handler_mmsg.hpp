@@ -344,6 +344,7 @@ private:
 
         // Sets the start os burst time
         if(metadata_.start_of_burst) {
+            printf("Applying start of burst\n");
             for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                 ch_send_buffer_info_i.buffer_level_manager.set_start_of_burst_time(metadata_.time_spec);
             }
