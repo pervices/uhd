@@ -119,7 +119,8 @@ void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
 }
 
 void* async_recv_manager::allocate_buffer(size_t size) {
-    // MMAP is used instead of aligned_alloc since aligned_alloc may have caused inconsistent performance
+    // MMAP guarantees that a fresh page is used, unlike aligned_alloc which may reuse parts of existing pages.
+    // Re-using parts of existing pages may result in membind being bypassed.
     void* buffer = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if(buffer != MAP_FAILED) {
         return buffer;
