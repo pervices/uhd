@@ -321,7 +321,7 @@ size_t send_packet_handler_mmsg::send(
 
     // FPGAs can sometimes only receive multiples of a set number of samples
     size_t actual_nsamps_to_send = (((nsamps_in_cache + nsamps_to_send) / _DEVICE_PACKET_NSAMP_MULTIPLE) * _DEVICE_PACKET_NSAMP_MULTIPLE);
-    size_t desired_nsamps_to_cache = 0;//nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
+    size_t desired_nsamps_to_cache = nsamps_to_send + nsamps_in_cache - actual_nsamps_to_send;
 
     if(actual_nsamps_to_send == 0) {
         // If a start of burst command has no packets, and is not also an end of burstcache timestamp and keep until next call
