@@ -47,6 +47,18 @@ bool numa_relevant();
  * @throw std::system_error Throw this error if the kernel does not support NUMA
  * @throw TODO
  */
-void add_numa_mask_of_socket(int socket_fd, bitmask* node_mask);
+void add_socket_numa(int socket_fd, bitmask* node_mask);
+
+/**
+ * Add the numa node netowrk interface used by the specified socket to the mask.
+ *
+ * @param socket_fd The socket to get the numa mask for.
+ * @param node_mask The mask to OR the node used by the socket with/store the result.
+ *
+ * @throw std::system_error Throw this error if the kernel does not support NUMA
+ * @throw TODO
+ */
+void add_socket_numa(int socket_fd, bitmask* node_mask);
+void add_sockets_numa(int socket_fd[], size_t socket_fd_length, bitmask* node_mask);
 
 }; /* namespace uhd */

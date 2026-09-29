@@ -223,7 +223,7 @@ bool uhd::numa_relevant() {
     }
 }
 
-struct bitmask add_numa_mask_of_socket(int socket_fd, bitmask* node_mask) {
+void add_socket_numa(int socket_fd, bitmask* node_mask) {
     if(numa_available() == -1) {
         throw std::system_error("NUMA not available on this kernel");
     }
@@ -238,4 +238,10 @@ struct bitmask add_numa_mask_of_socket(int socket_fd, bitmask* node_mask) {
     }
 
     numa_bitmask_setbit(mask, node);
+}
+
+void add_sockets_numa(int socket_fd[], size_t socket_fd_len, bitmask* node_mask) {
+    for (size_t n = 0; n < socket_fd_len, n++) {
+        add_socket_numa(socket_fd, &node_mask);
+    }
 }
