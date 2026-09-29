@@ -3018,16 +3018,21 @@ public:
                 this->set_tx_lo_power(lo_power, n, chan);
             }
         } else {
-            _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").set(lo_power);
-            // Warn the user if the value from the device does not match what they tried to set but do not throw error.
-            // The device will clip the value if it is out of range, so just let the user know the actual value like we do with rate or frequency.
-            int actual_power = this->get_tx_lo_power(name, chan);
-            if (actual_power != lo_power) {
-                UHD_LOGGER_WARNING("MULTI_USRP") << std::format(
-                    "The hardware does not support the requested LO power on channel {}:\n"
-                    "Target LO power: {}\n"
-                    "Actual LO power: {}\n",
-                    chan, lo_power, actual_power);
+            // <LO_NAME> path only exists if the device supports LO control through the API
+            if (_tree->exists(tx_rf_fe_root(chan) / name)) {
+                _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").set(lo_power);
+                // Warn the user if the value from the device does not match what they tried to set but do not throw error.
+                // The device will clip the value if it is out of range, so just let the user know the actual value like we do with rate or frequency.
+                int actual_power = this->get_tx_lo_power(name, chan);
+                if (actual_power != lo_power) {
+                    UHD_LOGGER_WARNING("MULTI_USRP") << std::format(
+                        "The hardware does not support the requested LO power on channel {}:\n"
+                        "Target LO power: {}\n"
+                        "Actual LO power: {}\n",
+                        chan, lo_power, actual_power);
+                }
+            } else {
+                throw uhd::runtime_error("Could not find LO stage " + name);
             }
         }
     }
