@@ -3039,7 +3039,7 @@ public:
 
     int get_tx_lo_power(const std::string &name=ALL_LOS, const size_t chan=0) override {
         if (name == ALL_LOS) {
-            throw uhd::runtime_error("LO frequency must be retrieved for each stage individually");
+            throw uhd::runtime_error("LO power must be retrieved for each stage individually");
         } else {
             return _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").get();
         }

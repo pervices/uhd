@@ -372,11 +372,16 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 UHD_LOGGER_ERROR("TX_WAVEFORMS") << "A value for --lo-pwr was given but this device does not support adjusting LO power level through UHD.";
                 throw uhd::runtime_error("Adjusting LO power level is unsupported on this device.");
             }
-            std::cout << "Setting the Tx LO power level: " << lo_power << "..." << std::endl;
-            usrp->set_tx_lo_power(lo_power, uhd::usrp::multi_usrp::ALL_LOS, channel);
-            std::cout << "Actual Tx LO power level: " 
-                << usrp->get_tx_lo_power(uhd::usrp::multi_usrp::ALL_LOS, channel)
-                << std::endl << std::endl;
+            
+            // Set for each LO. We only have one, but if there were multiple then we should either specify it by name
+            // or just set all LOs like it's currently doing.
+            for (const auto &lo_name: usrp->get_tx_lo_names()) {
+                std::cout << "Setting the Tx LO power level: " << lo_power << "..." << std::endl;
+                usrp->set_tx_lo_power(lo_power, lo_name, channel);
+                std::cout << "Actual Tx LO power level: "
+                    << usrp->get_tx_lo_power(lo_name, channel)
+                    << std::endl << std::endl;
+            }
         }
     }
 
