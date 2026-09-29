@@ -1811,6 +1811,7 @@ double cyan_nrnt_impl::get_tx_freq(size_t chan) {
 }
 
 std::vector<std::string> cyan_nrnt_impl::get_tx_lo_names(const size_t chan) {
+    (void) chan; // Reference chan to prevent "unused parameter" warning but keep the param. to match upstream definition.
     std::vector<std::string> lo_names;
     // We do not have any API-controllable LOs on Cyan so just return an empty vector.
     return lo_names;
