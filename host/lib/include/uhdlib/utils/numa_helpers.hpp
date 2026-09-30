@@ -2,7 +2,7 @@
 #pragma once
 
 // libc
-#include <memory>
+#include <string>
 
 // libnuma
 #include <numa.h>
@@ -68,4 +68,25 @@ private:
     bool _active = false;
 };
 
-}
+/**
+ * Returns the NUMA node the given network interface's device is attached to,
+ * read from /sys/class/net/<iface>/device/numa_node.
+ *
+ * Assumes numa_available() has already been checked, since the result is
+ * validated against numa_max_node().
+ *
+ * @param iface The name of the network interface (e.g. "eth0").
+ *
+ * @return A valid NUMA node index. Never returns -1 or > numa_max_node().
+ *
+ * @throw std::system_error The NUMA node could not be determined. The error code is one of:
+ *                          - errc::no_such_file_or_directory: the interface doesn't exist,
+ *                            or it is virtual (lo, bridge, VLAN, tun) and has no device/.
+ *                          - errc::invalid_argument: the file doesn't contain an integer.
+ *                          - errc::no_message_available: the kernel reports no NUMA affinity
+ *                            (-1), or the value is out of range.
+ *                          - Any other errno value from a failed open() or read().
+ */
+int get_numa_node_for_iface(const std::string& iface);
+
+} // namespace uhd
