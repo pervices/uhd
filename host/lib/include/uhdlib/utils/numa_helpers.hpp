@@ -89,4 +89,20 @@ private:
  */
 int get_numa_node_for_iface(const std::string& iface);
 
+/**
+ * Sets nodes to the NUMA nodes used by the network interfaces the given sockets are bound to.
+ *
+ * Assumes numa_available() has already been checked. nodes is undefined if an error is thrown.
+ *
+ * @param sockets     The socket file descriptors to check.
+ * @param num_sockets The number of entries in sockets.
+ * @param nodes       The mask to fill. Create the mask using numa_allocate_nodemask.
+ *                    This function with ORs the nodes used by the sockets with the exisitng mask.
+ *                    You should usually clear the mask using numa_bitmask_clearall.
+ *
+ * @throw std::system_error An error occured while getting the node used by sockets..
+ * @throw std::invalid_argument nodes is null.
+ */
+void get_numa_nodes_for_sockets(const int sockets[], size_t num_sockets, bitmask* nodes);
+
 } // namespace uhd

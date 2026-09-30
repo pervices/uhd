@@ -3,6 +3,7 @@
 // UHD
 #include <uhdlib/utils/numa_helpers.hpp>
 #include <uhd/utils/log.hpp>
+#include <uhdlib/utils/network_config.hpp>
 
 // libnuma
 #include <numaif.h>
@@ -17,6 +18,7 @@
 #include <cctype>
 #include <charconv>
 #include <string_view>
+#include <stdexcept>
 
 namespace uhd {
 
@@ -189,6 +191,25 @@ int get_numa_node_for_iface(const std::string& iface) {
     } catch (const std::system_error& e) {
         // Catch any errors to print an error message specifying the interface then rethrow
         UHD_LOG_ERROR("NUMA", "Unable to determine NUMA node for interface " + iface + ": " + e.what());
+        throw;
+    }
+}
+
+void get_numa_nodes_for_sockets(const int sockets[], std::size_t num_sockets, bitmask* nodes) {
+    if (nodes == nullptr) [[unlikely]] {
+        throw std::invalid_argument("get_numa_nodes_for_sockets: nodes must not be null");
+    }
+
+    try {
+        for (std::size_t i = 0; i < num_sockets; i++) {
+            const std::string iface = get_interface_for_socket(sockets[i]);
+            // Throws if the node can't be determined, so every node set here is valid
+            const int node = get_numa_node_for_iface(iface);
+            numa_bitmask_setbit(nodes, static_cast<unsigned int>(node));
+        }
+    } catch (...) {
+        // Don't leave a partially filled mask behind on failure
+        numa_bitmask_clearall(nodes);
         throw;
     }
 }
