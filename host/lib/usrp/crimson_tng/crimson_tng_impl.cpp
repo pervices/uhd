@@ -1176,7 +1176,14 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         // Setup LO power property only for LOs specified in get_tx_lo_names.
         // Upstream would use "<tx_fe_path>/los" for the LO API, but we use a different path so other upstream LO functions are not enabled.
         // If we wanted to implement the LO API more closely to upstream, this would be moved to "tx_fe_path/los/<lo_name>/power".
-        for (auto& lo_name: get_tx_lo_names(dspno)) {
+        std::vector<std::string> lo_names = get_tx_lo_names(dspno);
+        // We currently only have 1 possible LO. If a new one is ever added, we must make sure it writes to the appropriate server property instead of just "rf/freq/lo_pwr".
+        // To make sure we don't forget to do this, throw an error if there is more than one from get_tx_lo_names so they don't all write to the same server property.
+        if (lo_names.size() > 1) {
+            throw uhd::runtime_error("Multiple LO names detected but only one is currently supported.");
+        }
+        // Create the property for each LO
+        for (auto& lo_name: lo_names) {
             // Even though we use a different path, still include the <lo_name> so our LO API functions can check if it's implemented
             TREE_CREATE_RW(tx_fe_path / lo_name / "lo_pwr", "tx_"+lc_num+"/rf/freq/lo_pwr", int, int);
         }
