@@ -267,6 +267,7 @@ LIBUHD_APPEND_SOURCES(
     ${CMAKE_CURRENT_SOURCE_DIR}/load_modules.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/log.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/network_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/numa_helpers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/paths.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/pathslib.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/performance_mode.cpp
