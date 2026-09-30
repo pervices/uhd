@@ -156,9 +156,6 @@ public:
 
         // Main receive loop
         while(samples_received < nsamps_per_buff) [[likely]] {
-            UHD_LOGGER_INFO("TOPOFLOOP")
-                << "SAMPLES_RECEIVED: " << samples_received
-                << "NSAMPS_PER_BUFF: " << nsamps_per_buff << std::endl;
             bool overflow_detected = false;
             bool realignment_required = false;
 
@@ -203,6 +200,10 @@ public:
                     return 0;
                 }
             }
+
+            UHD_LOGGER_INFO("TOPOFLOOP")
+                << "SAMPLES_RECEIVED: " << samples_received
+                << "\nNSAMPS_PER_BUFF: " << nsamps_per_buff << std::endl;
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Maximum size the packet length field in Vita packet could be ( without the trailer )
@@ -300,11 +301,10 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 UHD_LOGGER_INFO("AAAAAA")
                     << "CHANNEL: " << ch
-                    << "\nPACKET_SAMPLES: " << packet_sample_bytes / _BYTES_PER_SAMPLE
+                    << "\nPACKET_SAMPLES: " << vita_md[ch].num_payload_bytes / _BYTES_PER_SAMPLE
                     << "\nSAMPLES_TO_CONSUME: " << samples_to_consume
                     << "\nSAMPLES_TO_CACHE: " << samples_to_cache[ch]
-                    << "\nVITA PACKET COUNT: " << vita_md[ch].packet_count
-                    << "\nVITA TSF: " << vita_md[ch].tsf << std::endl;
+                    << "\nVITA PACKET COUNT: " << vita_md[ch].packet_count << std::endl;
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
