@@ -313,11 +313,18 @@ public:
                 // Number of samples in the packet that fit in the user's buffer
                 samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
                 samples_to_cache[ch] = samples_in_packet - samples_to_consume;
+
+                if(packet_sample_bytes != vita_md[ch].num_payload_bytes) {
+                    UHD_LOGGER_INFO("AAAA") << "TO CONSUME: " << samples_to_consume
+                    << "\nTO CACHE: " << samples_to_cache[ch] << std::endl;
+                }
+
                 // Copies data from provider buffer to the user's buffer,
                 convert_samples((void*) (((uint8_t*)buffs[ch]) + (samples_received * _CPU_BYTES_PER_SAMPLE)), next_packet[ch].samples, samples_to_consume);
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache[ch]) [[unlikely]] {
+                    UHD_LOGGER_INFO("AAA") << "CACHING SAMPLES: " << samples_to_cache[ch] << std::endl;
                     // Copy extra samples from the packet to the cache
                     memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
