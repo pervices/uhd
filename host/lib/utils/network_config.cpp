@@ -120,7 +120,7 @@ uint32_t uhd::get_rx_ring_buffer_max_size(std::string interface) {
 }
 
 // The the network interface used by the socket
-static std::string uhd::get_interface_for_socket(int socket) {
+std::string uhd::get_interface_for_socket(int socket) {
 
     // Gets the local address the socket is bound to
     // The address can either explicitly bound via bind(),
