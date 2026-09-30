@@ -156,6 +156,9 @@ public:
 
         // Main receive loop
         while(samples_received < nsamps_per_buff) [[likely]] {
+            UHD_LOGGER_INFO("TOPOFLOOP")
+                << "SAMPLES_RECEIVED: " << samples_received
+                << "NSAMPS_PER_BUFF: " << nsamps_per_buff << std::endl;
             bool overflow_detected = false;
             bool realignment_required = false;
 
@@ -204,6 +207,8 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Maximum size the packet length field in Vita packet could be ( without the trailer )
                 vita_md[ch].num_packet_words32 = (next_packet[ch].length) / sizeof(uint32_t);
+                UHD_LOGGER_INFO("NEXTLOOP")
+                    << "NEXT_LENGTH: " << next_packet[ch].length / sizeof(uint32_t) << std::endl;
 
                 // Check if the packet is smaller than the header size, which should be impossible
                 if(next_packet[ch].length < (int64_t) HEADER_SIZE) [[unlikely]] {
@@ -293,13 +298,15 @@ public:
             // Copies sample data from the provider buffer to the user buffer
             // NOTE: do not update variables stored between runs in this loop, since the results will need to be discarded if data was overwritten
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                UHD_LOGGER_INFO("AAAAAA")
+                    << "CHANNEL: " << ch
+                    << "\nPACKET_SAMPLES: " << packet_sample_bytes / _BYTES_PER_SAMPLE
+                    << "\nSAMPLES_TO_CONSUME: " << samples_to_consume
+                    << "\nSAMPLES_TO_CACHE: " << samples_to_cache
+                    << "\nVITA PACKET COUNT: " << vita_md[ch].packet_count
+                    << "\nVITA TSF: " << vita_md[ch].tsf << std::endl;
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
-                    UHD_LOGGER_INFO("AAAAAAA") 
-                        << "CHANNEL: " << ch
-                        << "\nPACKET_SAMPLE_BYTES: " << packet_sample_bytes 
-                        << "\nNUM_PAYLOAD_BYTES: " << vita_md[ch].num_payload_bytes
-                        << std::endl;
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
 
                     // Something is wrong with the packets if there is a mismatch in size and no other error has occured
@@ -313,18 +320,11 @@ public:
                 // Number of samples in the packet that fit in the user's buffer
                 samples_to_consume = std::min(samples_in_packet, nsamps_per_buff - samples_received);
                 samples_to_cache[ch] = samples_in_packet - samples_to_consume;
-
-                if(packet_sample_bytes != vita_md[ch].num_payload_bytes) {
-                    UHD_LOGGER_INFO("AAAA") << "TO CONSUME: " << samples_to_consume
-                    << "\nTO CACHE: " << samples_to_cache[ch] << std::endl;
-                }
-
                 // Copies data from provider buffer to the user's buffer,
                 convert_samples((void*) (((uint8_t*)buffs[ch]) + (samples_received * _CPU_BYTES_PER_SAMPLE)), next_packet[ch].samples, samples_to_consume);
 
                 // Not actually unlikely, flagged as unlikely since it is false when all samples per recv call is most optimal
                 if(samples_to_cache[ch]) [[unlikely]] {
-                    UHD_LOGGER_INFO("AAA") << "CACHING SAMPLES: " << samples_to_cache[ch] << std::endl;
                     // Copy extra samples from the packet to the cache
                     memcpy(_sample_cache[ch].data(), next_packet[ch].samples + (samples_to_consume * _BYTES_PER_SAMPLE), samples_to_cache[ch] * _BYTES_PER_SAMPLE);
                 }
