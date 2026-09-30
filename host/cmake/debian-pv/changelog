@@ -1,3 +1,10 @@
+uhdpv (4.10.0.12-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding tx lo power for Crimson RTM15 and later
+  * Fixing underflow recovery with unspecified tx start time for devices with large buffers (Cyan/Chestnut)
+
+ -- Per Vices <packages@pervices.com>  Wed, 30 Sep 2026 18:45:55 -0400
+
 uhdpv (4.10.0.11-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding rfe and mboard temperature sensors, and pps detection of get_x_sensor_names
