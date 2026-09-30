@@ -302,7 +302,7 @@ public:
                     << "CHANNEL: " << ch
                     << "\nPACKET_SAMPLES: " << packet_sample_bytes / _BYTES_PER_SAMPLE
                     << "\nSAMPLES_TO_CONSUME: " << samples_to_consume
-                    << "\nSAMPLES_TO_CACHE: " << samples_to_cache
+                    << "\nSAMPLES_TO_CACHE: " << samples_to_cache[ch]
                     << "\nVITA PACKET COUNT: " << vita_md[ch].packet_count
                     << "\nVITA TSF: " << vita_md[ch].tsf << std::endl;
                 // Error checking for if there is a mismatch in packet lengths
