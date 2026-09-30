@@ -82,7 +82,7 @@ constexpr int CRIMSON_TNG_SS_FIFOLVL_THRESHOLD = 107421875;
 // Crimson Buffer Size
 constexpr int CRIMSON_TNG_BUFF_SIZE = 65536;
 //Target buffer level percentage
-constexpr double CRIMSON_TNG_BUFF_PERCENT = 0.8;
+constexpr double CRIMSON_TNG_BUFF_PERCENT = 1.05;
 // conversion factor between the number sent by the udp fifo checks and the number of samples in the buffer
 constexpr int CRIMSON_TNG_BUFF_SCALE = 1;
 
