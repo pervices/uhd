@@ -118,3 +118,34 @@ uint32_t uhd::get_rx_ring_buffer_max_size(std::string interface) {
 
     return eth_info.rx_max_pending;
 }
+
+// The the network interface used by the socket
+static std::string uhd::get_interface_for_socket(int socket) {
+
+    // Gets the local address the socket is bound to
+    // The address can either explicitly bound via bind(),
+    // or implicitly assigned by the kernel during connect()
+    struct sockaddr_in local_addr;
+    socklen_t addr_len = sizeof(local_addr);
+    if(getsockname(socket, (struct sockaddr*)&local_addr, &addr_len) < 0) [[unlikely]] {
+        UHD_LOG_WARNING("NETWORK_CONFIG",  "Unable to get local address for socket. getsockname failed with error code: " + std::string(strerror(errno)));
+        return "";
+    }
+
+    // Convert the address to a human readable address for use by get_dev_from_ipv4
+    // If a variant of get_dev_from_ipv4 that takes the binary address is added this step can be skipped
+    char ip_buff[INET_ADDRSTRLEN];
+    if(inet_ntop(AF_INET, &local_addr.sin_addr, ip_buff, INET_ADDRSTRLEN) == nullptr) [[unlikely]] {
+        UHD_LOG_WARNING("NETWORK_CONFIG", "inet_ntop failed with error code: " + std::string(strerror(errno)));
+        return "";
+    }
+
+    try {
+        // Get the device used by the ip.
+        return uhd::get_dev_from_ipv4(std::string(ip_buff));
+    } catch (...) {
+        // Catch errors that may be thrown by get_dev_from_ipv4
+        // get_dev_from_ipv4 has it's own error messages so no need for one here
+        return "";
+    }
+}

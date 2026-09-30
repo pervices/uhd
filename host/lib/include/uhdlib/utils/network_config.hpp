@@ -27,4 +27,13 @@ namespace uhd {
      * @return The maximum size of the rx ring buffer
      */
     uint32_t get_rx_ring_buffer_max_size(std::string interface);
+
+    /**
+     * Gets the network interface used by the specified socket.
+     *
+     * @param socket The network socket to get the interface for. Must be ipv4.
+     *
+     * @return Return "" on failure. Return
+     */
+    std::string get_interface_for_socket(int socket);
 }
