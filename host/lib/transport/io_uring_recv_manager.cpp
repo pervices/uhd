@@ -2,12 +2,14 @@
 
 #include <uhdlib/transport/io_uring_recv_manager.hpp>
 
-#include <iostream>
-#include <unistd.h>
-#include <uhd/exception.hpp>
-#include <string.h>
+#include <uhdlib/utils/numa_helpers.hpp>
 #include <uhd/utils/thread.hpp>
 #include <uhdlib/utils/system_time.hpp>
+#include <uhd/exception.hpp>
+
+#include <iostream>
+#include <unistd.h>
+#include <string.h>
 #include <algorithm>
 #include <sys/mman.h>
 #include <sys/syscall.h>
@@ -246,6 +248,26 @@ void io_uring_recv_manager::get_next_async_packet_info(const size_t ch, async_pa
 }
 
 io_uring_recv_manager* io_uring_recv_manager::make( const size_t total_rx_channels, const std::vector<int>& recv_sockets, const size_t header_size, const size_t max_sample_bytes_per_packet ) {
+
+        bool use_numa = is_numa_relevant();
+
+        bitmask* nodes = nullptr;
+        scoped_numa_membind* numa_binder = nullptr;
+        if(use_numa) {
+            nodes = numa_allocate_nodemask();
+            try{
+                // Get the numa nodes used by the sockets
+                get_numa_nodes_for_sockets(recv_sockets.data(), total_rx_channels, &nodes);
+            } catch (...) {
+                use_numa = false;
+                goto END_OF_NUMA_START;
+            }
+            numa_binder = new scoped_numa_membind(&nodes);
+        }
+
+END_OF_NUMA_START
+
+
         // Give the manager it's own cache line to avoid false sharing
         size_t recv_manager_size = (size_t) ceil(sizeof(io_uring_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
         // Use placement new to avoid false sharing
