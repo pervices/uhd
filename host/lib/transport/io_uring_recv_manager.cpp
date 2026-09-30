@@ -255,18 +255,26 @@ io_uring_recv_manager* io_uring_recv_manager::make( const size_t total_rx_channe
         scoped_numa_membind* numa_binder = nullptr;
         if(use_numa) {
             nodes = numa_allocate_nodemask();
+            numa_bitmask_clearall(nodes);
+
             try{
                 // Get the numa nodes used by the sockets
-                get_numa_nodes_for_sockets(recv_sockets.data(), total_rx_channels, &nodes);
+                get_numa_nodes_for_sockets(recv_sockets.data(), recv_sockets.size(), &nodes);
+
+                try {
+                    // Binds memory allocated will it is active.
+                    // Be aware that thread created while this is active will inherit the bindings.
+                    numa_binder = new scoped_numa_membind(&nodes);
+                    if(!numa_binder->is_active()) {
+                        UHD_LOG_WARNING("IO_URING_RECV_MANAGER", "Unable to apply NUMA related memory binding. NUMA optimizations will not be applied.");
+                    }
+                } catch (...) {
+                    UHD_LOG_WARNING("IO_URING_RECV_MANAGER", "The kernel does not support NUMA. NUMA optimizations will not be applied.");
+                }
             } catch (...) {
-                use_numa = false;
-                goto END_OF_NUMA_START;
+                UHD_LOG_WARNING("IO_URING_RECV_MANAGER", "Unable to get network interface used by sockets. NUMA optimizations will not be applied.");
             }
-            numa_binder = new scoped_numa_membind(&nodes);
         }
-
-END_OF_NUMA_START
-
 
         // Give the manager it's own cache line to avoid false sharing
         size_t recv_manager_size = (size_t) ceil(sizeof(io_uring_recv_manager) / (double)CACHE_LINE_SIZE) * CACHE_LINE_SIZE;
@@ -274,6 +282,14 @@ END_OF_NUMA_START
         io_uring_recv_manager* recv_manager = (io_uring_recv_manager*) allocate_buffer(recv_manager_size);
 
         new (recv_manager) io_uring_recv_manager(total_rx_channels, recv_sockets, header_size, max_sample_bytes_per_packet);
+
+        if(nodes != nullptr) {
+            numa_free_nodemask(nodes);
+        }
+        // Ends binding
+        if(numa_binder != nullptr) {
+            delete numa_binder;
+        }
 
         return recv_manager;
 }
