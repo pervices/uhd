@@ -295,6 +295,11 @@ public:
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
                 // Error checking for if there is a mismatch in packet lengths
                 if(packet_sample_bytes != vita_md[ch].num_payload_bytes) [[unlikely]] {
+                    UHD_LOGGER_INFO("AAAAAAA") 
+                        << "CHANNEL: " << ch
+                        << "\nPACKET_SAMPLE_BYTES: " << packet_sample_bytes 
+                        << "\nNUM_PAYLOAD_BYTES: " << vita_md[ch].num_payload_bytes
+                        << std::endl;
                     packet_sample_bytes = std::min(packet_sample_bytes, vita_md[ch].num_payload_bytes);
 
                     // Something is wrong with the packets if there is a mismatch in size and no other error has occured
