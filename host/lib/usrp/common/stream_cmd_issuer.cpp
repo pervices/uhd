@@ -120,6 +120,9 @@ void stream_cmd_issuer::issue_stream_command( stream_cmd_t stream_cmd ) {
     // Conver the user provided struct to a packet
     uhd::usrp::stream_cmd_issuer::make_rx_stream_cmd_packet( stream_cmd, rx_stream_cmd );
 
+    std::cout << "STREAM COMMAND: "
+        << stream_cmd.num_samps << "," << stream_cmd.stream_now << "," << stream_cmd.time_spec.get_real_secs() << std::endl;
+
     command_socket->send( &clear_rx_stream_cmd_packet, sizeof( clear_rx_stream_cmd_packet ) );
     command_socket->send( &rx_stream_cmd, sizeof( rx_stream_cmd ) );
 }
