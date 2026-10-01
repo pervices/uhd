@@ -251,6 +251,7 @@ public:
                 // Detect and warn user of overflow error
                 if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                    std::cout << "OVERFLOWWW" << std::endl;
                     _overflow_occured = true;
                     overflow_detected = true;
                 }
