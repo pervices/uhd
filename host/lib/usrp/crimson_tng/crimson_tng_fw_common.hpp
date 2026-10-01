@@ -73,7 +73,7 @@ constexpr int CRIMSON_TNG_UDP_OVERHEAD = 68;
 constexpr int CRIMSON_TNG_TRAILER_SIZE = 4;
 
 // Packaets send to the unit must have a multiple of this many samples
-constexpr int CRIMSON_TNG_PACKET_NSAMP_MULTIPLE = 2;
+constexpr int CRIMSON_TNG_PACKET_NSAMP_MULTIPLE = 1;
 
 // Crimson Flowcontrol Update Per Second
 constexpr int CRIMSON_TNG_UPDATE_PER_SEC = 100;
