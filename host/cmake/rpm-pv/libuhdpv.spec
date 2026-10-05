@@ -14,8 +14,20 @@
 %global mfpu_neon -Dhave_mfpu_neon=0
 %endif
 %endif
+
+# RHEL/Oracle 9 uses it's baseline 3.9
+%if 0%{?rhel} == 9
+%global __python3 /usr/bin/python3.9
+%global python3_pkgversion 3.9
+%else
+# RHEL/Oracle 8 uses 3.11 because it's baseline version is to old for UHD
+%if 0%{?rhel} == 8
 %global __python3 /usr/bin/python3.11
 %global python3_pkgversion 3.11
+%else
+%{error:Unsupported distribution: only RHEL/Oracle Linux 8 and 9 are supported (rhel='%{?rhel}')}
+%endif
+%endif
 
 #Disable generation of the debug packages because as we haven't quite figured out
 #a way to package them that doesn't also cause rpm build issues.
@@ -75,6 +87,7 @@ pushd host/build
 %cmake %{?have_neon} \
     -DPKG_LIB_DIR="/usr/lib/uhd" \
     -DCMAKE_INSTALL_PREFIX="/usr" \
+    -DPYTHON_EXECUTABLE=%{__python3} \
     -DENABLE_EXAMPLES=ON \
     -DENABLE_UTILS=ON \
     -DENABLE_DPDK=OFF \
