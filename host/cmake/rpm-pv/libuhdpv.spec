@@ -14,8 +14,8 @@
 %global mfpu_neon -Dhave_mfpu_neon=0
 %endif
 %endif
-%global __python3 /usr/bin/python3.12
-%global python3_pkgversion 3.12
+%global __python3 /usr/bin/python3.11
+%global python3_pkgversion 3.11
 
 #Disable generation of the debug packages because as we haven't quite figured out
 #a way to package them that doesn't also cause rpm build issues.
