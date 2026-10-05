@@ -27,8 +27,10 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
                                                             //reload, chain, samps, stop
         (stream_cmd_t::STREAM_MODE_START_CONTINUOUS,   inst_t(true,  true,  false, false))
         (stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS,    inst_t(false, false, false, true))
-        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(false, false, true,  false))
-        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(false, true,  true,  false))
+        // (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(false, false, true,  false))
+        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE, inst_t(true,  true,  false, false))
+        // (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(false, true,  true,  false))
+        (stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_MORE, inst_t(true,  true,  false, false))
     ;
     static const uint8_t channel_bits = 16;
     static const uint64_t channel_mask = ( 1 << channel_bits ) - 1;
@@ -50,7 +52,7 @@ void stream_cmd_issuer::make_rx_stream_cmd_packet( const uhd::stream_cmd_t & cmd
     pkt.tv_sec = ts.get_full_secs();
     pkt.tv_psec = ts.get_frac_secs() * 1e12;
 
-    pkt.nsamples = inst_samps ? cmd.num_samps : 0;
+    pkt.nsamples = 0;//inst_samps ? cmd.num_samps : 0;
 
     // std::cout << "header: " << std::hex << std::setw( 16 ) << std::setfill('0') << pkt.header << std::endl;
     // std::cout << "tv_sec: " << std::dec << pkt.tv_sec << std::endl;
