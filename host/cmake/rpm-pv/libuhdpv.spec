@@ -34,6 +34,10 @@
 %global debug_package %{nil}
 %global real_name uhd
 
+# Run cmake in the current directory
+# Default behaviour on Oracle 8, applied to minimize changes needed for Oracle 9
+%global __cmake_in_source_build 1
+
 Name:           libuhdpv
 URL:            http://github.com/pervices/uhd
 Version:        libuhdpv_ver
