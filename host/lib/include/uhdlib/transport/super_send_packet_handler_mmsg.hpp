@@ -403,6 +403,13 @@ private:
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
+                UHD_LOGGER_INFO("PACK")
+                    << "CHANNEL " << ch_i
+                    << "\nPAYLOAD_WORDS: " << packet_header_infos[n].num_payload_words32
+                    << "\nPAYLOAD_BYTES: " << packet_header_infos[n].num_payload_bytes
+                    << "\nPACKET_COUNT: " << packet_header_infos[n].packet_count
+                    << "\n(SOB,EOB)" << packet_header_infos[n].sob << "," << packet_header_infos[n].eob
+                    << "\nTSF: " << packet_header_infos[n].tsf << std::endl;
                 if_hdr_pack(ch_send_buffer_info_group[ch_i].vrt_headers[n].data(), packet_header_infos[n]);
             }
         }
