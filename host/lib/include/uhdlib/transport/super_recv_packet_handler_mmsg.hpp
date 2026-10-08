@@ -223,6 +223,18 @@ public:
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
+                UHD_LOGGER_INFO("UNPACK")
+                    << "PAYLOAD_WORDS: " << vita_md[ch].num_payload_words32
+                    << "\nPAYLOAD_BYTES: " << vita_md[ch].num_payload_bytes
+                    << "\nHEADER_WORDS: " << vita_md[ch].num_header_words32
+                    << "\nPACKET_WORDS: " << vita_md[ch].num_packet_words32
+                    << "\nPACKET_COUNT: " << vita_md[ch].packet_count
+                    << "\n(SOB,EOB): " << vita_md[ch].sob << "," << vita_md[ch].eob
+                    << "\nSID: " << vita_md[ch].sid
+                    << "\nCID: " << vita_md[ch].cid
+                    << "\nTSI: " << vita_md[ch].tsi
+                    << "\nTSF: " << vita_md[ch].tsf
+                    << "\nTLR: " << vita_md[ch].tlr << std::endl;
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
