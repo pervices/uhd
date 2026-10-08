@@ -84,7 +84,11 @@ pushd host/build
 # Enable Per Vice's devices
 # Disable other devices since we do not support them with this fork
 # MPMD and SUM may not be needed but included just in case
+
+# RPM versions must not contain "-". UHD's git-describe version has dashes, which end up in
+# the auto-generated "pkgconfig(uhd)" Provides. DUNDERSCORE_UHD_VERSION replaces them with "_".
 %cmake %{?have_neon} \
+    -DUNDERSCORE_UHD_VERSION=ON \
     -DPKG_LIB_DIR="/usr/lib/uhd" \
     -DCMAKE_INSTALL_PREFIX="/usr" \
     -DPYTHON_EXECUTABLE=%{__python3} \
