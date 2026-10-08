@@ -224,7 +224,8 @@ public:
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
                 UHD_LOGGER_INFO("UNPACK")
-                    << "PAYLOAD_WORDS: " << vita_md[ch].num_payload_words32
+                    << "CHANNEL " << ch
+                    << "\nPAYLOAD_WORDS: " << vita_md[ch].num_payload_words32
                     << "\nPAYLOAD_BYTES: " << vita_md[ch].num_payload_bytes
                     << "\nHEADER_WORDS: " << vita_md[ch].num_header_words32
                     << "\nPACKET_WORDS: " << vita_md[ch].num_packet_words32
