@@ -298,10 +298,18 @@ void recv_packet_handler_mmsg::send_overflow_messages_loop(recv_packet_handler_m
     // Number of oflows already printed
     uint64_t oflows_printed = 0;
 
+    // Whether or not the message informing the user if an overflow occured in human readable form.
+    bool full_message_printed = false;
+
     while(!(self->stop_overflow_loop.load(std::memory_order_relaxed))) {
         uint64_t oflows_to_print = self->oflows_to_print.load(std::memory_order_relaxed) - oflows_printed;
         // Print a D for every recv command that's had an overflow since the last iteration of this loop
         if(oflows_to_print) {
+            if(!full_message_printed) {
+                // Print a more detailed message on the first overflow so the users knows what "D" means.
+                UHD_LOG_ERROR("RECV_PACKET_HANDLER", "RX overflow detected. This message will not be printed again by this streamer, instead \"D\" will be printed to indicate overflows");
+                full_message_printed = true;
+            }
             // Only print up to 50 Ds at a time, skip any extra since more will just clog up the logs
             std::string message(std::min(oflows_to_print, (uint64_t) 50), 'D');
             // Print without the normal UHD formatting to keep the output format the same as Ettus
