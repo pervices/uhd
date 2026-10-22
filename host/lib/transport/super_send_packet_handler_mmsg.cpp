@@ -115,6 +115,10 @@ send_packet_handler_mmsg::~send_packet_handler_mmsg(void){
         }
     }
 
+    if(dropped_packets) {
+        UHD_LOG_WARNING("SEND_PACKET_HANDLER", "Send fell behind and dropped packets to catch up while it was streaming.");
+    }
+
     if(sendmmsg_errno) {
         char nsec_s[42];
         snprintf(nsec_s, sizeof(nsec_s), "%ld.%.9ld", sendmmsg_failure_time.tv_sec, sendmmsg_failure_time.tv_nsec);
@@ -521,7 +525,7 @@ send_packet_streamer_mmsg::send_packet_streamer_mmsg(const std::vector<size_t>& 
 sph::send_packet_handler_mmsg(channels, max_samples_per_packet, device_buffer_size, dst_ips, dst_ports, device_target_nsamps, device_packet_nsamp_multiple, tick_rate, async_msg_fifo, cpu_format, wire_format, wire_little_endian, clock_sync_info, streaming_locks)
 {
 }
-    
+
 bool send_packet_streamer_mmsg::recv_async_msg(
     uhd::async_metadata_t &async_metadata, double timeout
 ){
