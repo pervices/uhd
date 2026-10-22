@@ -926,16 +926,16 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
     const bool tx_timeout_threshold_err = num_timeouts_tx > tx_timeout_threshold;
     const bool rx_timeout_threshold_err = num_timeouts_rx > rx_timeout_threshold;
     std::cout << std::format("\nBenchmark rate summary:\n"
-                               "  Num received samples:     {}\n"
-                               "  Num dropped samples:      {}\n" //-- don't need to check because num_seqrx_errors has the same purpsoe but on a packet level instead of samples
-                               "  Num overruns detected:    {}\n" //-- checked -- num_overruns
-                               "  Num transmitted samples:  {}\n"
-                               "  Num sequence errors (Tx): {}\n" //-- checked - num_seq_errors
-                               "  Num sequence errors (Rx): {}\n" //-- checked - num_seqrx_errors
-                               "  Num underruns detected:   {}\n" //-- checked - num_underruns
-                               "  Num late commands:        {}\n" //-- need to check -- late_cmd_threshold
-                               "  Num timeouts (Tx):        {}\n" //-- need to check
-                               "  Num timeouts (Rx):        {}\n\n", //-- need to check
+                               "  Num received samples (Rx):     {}\n"
+                               "  Num dropped samples (Rx):      {}\n" //-- don't need to check because num_seqrx_errors has the same purpsoe but on a packet level instead of samples
+                               "  Num overruns detected (Rx):    {}\n" //-- checked -- num_overruns
+                               "  Num transmitted samples (Tx):  {}\n"
+                               "  Num sequence errors (Tx):      {}\n" //-- checked - num_seq_errors
+                               "  Num sequence errors (Rx):      {}\n" //-- checked - num_seqrx_errors
+                               "  Num underruns detected:        {}\n" //-- checked - num_underruns
+                               "  Num late commands (Rx):        {}\n" //-- need to check -- late_cmd_threshold
+                               "  Num timeouts (Tx):             {}\n" //-- need to check
+                               "  Num timeouts (Rx):             {}\n\n", //-- need to check
                      num_rx_samps.load(), num_dropped_samps.load(), num_overruns.load(), num_tx_samps.load(),
                      num_seq_errors.load(), num_seqrx_errors.load(), num_underruns.load(),
                      num_late_commands.load(), num_timeouts_tx.load(), num_timeouts_rx.load());
