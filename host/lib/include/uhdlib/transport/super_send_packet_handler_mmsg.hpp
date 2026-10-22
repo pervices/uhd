@@ -282,6 +282,8 @@ private:
     // Used so we only log this once instead of spamming the log
     bool logged_time_spec_rewind = false;
 
+    bool dropped_packets = false;
+
 public:
 
     void set_samp_rate(const double rate);
@@ -567,6 +569,9 @@ private:
             // Drop packet to catch up. The dropped samples will be reported by the buffer level monitor
             // TODO: find a better way that avoid confusion from silently dropping packets
             } else {
+                // Set a flag to inform the user this happened on exit. Printing is done on exit to avoid performance impacts while streaming
+                dropped_packets = true;
+
                 // If packets and in the past, pretend the first packet of the set was sent
                 packets_sent_now = 1;
             }
