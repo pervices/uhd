@@ -53,6 +53,7 @@ UHD_INSTALL(FILES
     serial.hpp
     stream_cmd.hpp
     time_spec.hpp
+    trigger_options.hpp
     tune_request.hpp
     tune_result.hpp
     wb_iface.hpp

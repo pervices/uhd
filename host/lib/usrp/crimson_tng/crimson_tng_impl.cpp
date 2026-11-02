@@ -861,6 +861,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "sfpb/pay_len",  "fpga/link/sfpb/pay_len",  std::string, string);
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_override", "fpga/trigger/sma_override", int, int);
 
     // String is used because this is a 64 bit number and won't fit in int
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "gps_time", "fpga/board/gps_time", std::string, string);
