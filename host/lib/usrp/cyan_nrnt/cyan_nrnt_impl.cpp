@@ -624,7 +624,7 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     // Check if another program has a lock on the device already
     try {
-        // We use the time board serial number for a lockfile unique to this device. 
+        // We use the time board serial number for a lockfile unique to this device.
         // If we cannot be sure it's unique to the device then throw an error and do not lock to avoid interfering with other devices that may be connected.
         if (timeboard_serial.empty()) {
             throw uhd::runtime_error("Failed to get time board serial number.");
@@ -1760,7 +1760,7 @@ uhd::tune_result_t cyan_nrnt_impl::set_rx_freq(
 ) {
 
     if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
-        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
+        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C,
             "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
             "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");
     }
@@ -1790,7 +1790,7 @@ uhd::tune_result_t cyan_nrnt_impl::set_tx_freq(
 ) {
 
     if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
-        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C, 
+        UHD_LOG_WARNING(CYAN_NRNT_DEBUG_NAME_C,
             "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
             "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");
     }
@@ -1898,7 +1898,7 @@ void cyan_nrnt_impl::set_rx_rate(double rate, size_t chan) {
         } catch (uhd::runtime_error &err) {
             UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Failed to set rx rate for channel " + std::to_string(chan) + ". Is this channel already being streamed on?");
             throw err;
-        } 
+        }
         _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
         double actual_rate = get_rx_rate(chan);

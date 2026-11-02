@@ -238,7 +238,7 @@ if(ENABLE_SIM)
     set(PYUHD_FILES ${PYUHD_FILES} copy_mpm_packages)
 endif(ENABLE_SIM)
 
-# This copies the *.py and *.mako files of host/python/uhd into the build directory. 
+# This copies the *.py and *.mako files of host/python/uhd into the build directory.
 # We will use that as a staging ground for installing the final module to the system.
 # We make sure that we always have an up-to-date copy in here.
 add_custom_command(OUTPUT ${TIMESTAMP_FILE}

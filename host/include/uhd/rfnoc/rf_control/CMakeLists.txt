@@ -5,7 +5,7 @@
 #
 
 UHD_INSTALL(FILES
-    antenna_iface.hpp    
+    antenna_iface.hpp
     core_iface.hpp
     nameless_gain_mixin.hpp
     power_reference_iface.hpp

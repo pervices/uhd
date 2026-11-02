@@ -95,7 +95,7 @@ double disk_rate_check(const size_t sample_type_size,
         }
     } catch (std::system_error& err) {
         std::cerr << err_msg << std::endl;
-        
+
         std::filesystem::remove(temp_file);
 
         return 0;
@@ -628,7 +628,7 @@ int UHD_SAFE_MAIN(int argc, char* argv[])
         } else {
             tune_request = uhd::tune_request_t(freq);
         }
-        
+
         if (vm.count("int-n"))
             tune_request.args = uhd::device_addr_t("mode_n=integer");
         for (size_t chan : channel_list)

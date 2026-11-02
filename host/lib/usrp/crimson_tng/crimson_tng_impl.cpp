@@ -614,7 +614,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     timeboard_serial = timeboard_serial.substr(0, timeboard_serial.find('\n'));
     // Check if another program has a lock on the device already
     try {
-        // We use the time board serial number for a lockfile unique to this device. 
+        // We use the time board serial number for a lockfile unique to this device.
         // If we cannot be sure it's unique to the device then throw an error and do not lock to avoid interfering with other devices that may be connected.
         if (timeboard_serial.empty()) {
             throw uhd::runtime_error("Failed to get time board serial number.");
@@ -1653,7 +1653,7 @@ uhd::tune_result_t crimson_tng_impl::set_rx_freq(
 ) {
 
     if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
-        UHD_LOG_WARNING(product_name_c, 
+        UHD_LOG_WARNING(product_name_c,
             "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
             "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");
     }
@@ -1684,7 +1684,7 @@ uhd::tune_result_t crimson_tng_impl::set_tx_freq(
 ) {
 
     if (tune_request.rf_ch_freq != 0 || tune_request.rf_dp_freq != 0) {
-        UHD_LOG_WARNING(product_name_c, 
+        UHD_LOG_WARNING(product_name_c,
             "The use of rf_ch_freq or rf_dp_freq in tune requests is not implemented and will be ignored.\n"
             "Instead, the LO frequency will be calculated using the target_freq and lo_off parameters (rf_freq = target_freq + lo_off).");
     }
@@ -1721,12 +1721,12 @@ std::vector<std::string> crimson_tng_impl::get_tx_lo_names(const size_t chan) {
     int rtm_ver = std::stoi(server_version.substr(rtm_start, server_version.find('\n', rtm_start) - rtm_start));
 
     // Only Crimson RTM15+ implements this, so just return empty vector if anything else.
-    // Upstream would have a path on the device tree for each API-controllable LO. 
+    // Upstream would have a path on the device tree for each API-controllable LO.
     // Doing it this way allows us to implement LO API control based on RTM version.
     if (rtm_ver >= 15) {
         lo_names.push_back("HIGHBAND_LO");
     }
-    
+
     return lo_names;
 }
 
@@ -1902,7 +1902,7 @@ void crimson_tng_impl::set_rx_rate(double rate, size_t chan) {
         } catch (uhd::runtime_error &err) {
             UHD_LOG_ERROR(product_name_c, "Failed to set rx rate for channel " + std::to_string(chan) + ". Is this channel already being streamed on?");
             throw err;
-        } 
+        }
         _tree->access<double>(rx_dsp_root(chan) / "rate" / "value").set(rate);
 
         double actual_rate = get_rx_rate(chan);
@@ -1914,7 +1914,7 @@ void crimson_tng_impl::set_rx_rate(double rate, size_t chan) {
 
         // Unlock the channel
         flock(rx_streaming_lock_fd[chan], LOCK_UN);
-        
+
         return;
     }
     for (size_t c = 0; c < num_rx_channels; c++) {
@@ -1935,7 +1935,7 @@ void crimson_tng_impl::set_tx_rate(double rate, size_t chan) {
         } catch (uhd::runtime_error &err) {
             UHD_LOG_ERROR(product_name_c, "Failed to set tx rate for channel " + std::to_string(chan) + ". Is this channel already being streamed on?");
             throw err;
-        } 
+        }
 
         _tree->access<double>(tx_dsp_root(chan) / "rate" / "value").set(rate);
 

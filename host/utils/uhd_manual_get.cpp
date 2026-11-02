@@ -77,7 +77,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[])
     }
 
     uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
-  
+
     if (vm.count("dumpall")) {
         usrp->dump_tree("");
         return 0;

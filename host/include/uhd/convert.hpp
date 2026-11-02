@@ -40,7 +40,7 @@ public:
             (*this)(in, out, num);
     }
 
-        //   By default, converters do not bypass conversion and pack all the 
+        //   By default, converters do not bypass conversion and pack all the
         // data into a single buffer. But for increased performance, some converters
         // might try to bypass conversion (as the data has already been packed into the
         // input buffer) and use scatter gather to send VRT header and data.

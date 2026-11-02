@@ -170,7 +170,7 @@ public:
      * \param chan the channel index 0 to N-1
      * \return a tune result object
      */
-    
+
     virtual std::string get_tx_sfp(size_t chan ) {
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
@@ -178,7 +178,7 @@ public:
     /*! Gets the sfp port to use when interacting with that channel
      * \param chan the channel index 0 to N-1
      */
-    
+
     virtual std::string get_tx_ip(size_t chan ) {
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
@@ -186,7 +186,7 @@ public:
     /*! Gets the IP adress to send the main tx datastream to
      * \param chan the channel index 0 to N-1
      */
-    
+
     virtual uint16_t get_tx_fc_port(size_t chan ) {
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
@@ -239,7 +239,7 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
 
     }
-    
+
     /*!
      * Get the number of samples in the buffer per number reported in packets sent to fif udp port
      */
@@ -254,7 +254,7 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
 
     }
-    
+
     virtual double get_rx_gain(const std::string &name, size_t chan){
         (void) name;
         (void) chan;

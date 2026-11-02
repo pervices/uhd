@@ -92,10 +92,10 @@ if(Boost_VERBOSE OR Boost_DEBUG)
     endif(DEFINED Boost_USE_STATIC_LIBS)
 endif(Boost_VERBOSE OR Boost_DEBUG)
 
-# Deferred detecting Boost::unit_test_framework via 
+# Deferred detecting Boost::unit_test_framework via
 # UHD_BOOST_REQUIRED_COMPONENTS (in UHDBoost.cmake) so doing it now.
 if(NOT DEFINED Boost_USE_STATIC_LIBS OR Boost_USE_STATIC_LIBS)
-    # Using static linking for Boost dependencies, but 
+    # Using static linking for Boost dependencies, but
     # needing to link dynamically to Boost::unit_test_framework
     # - Win: Default - Boost_USE_STATIC_LIBS=ON
     # - Lin: Default - Boost_USE_STATIC_LIBS=OFF

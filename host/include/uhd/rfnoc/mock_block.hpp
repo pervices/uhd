@@ -70,8 +70,8 @@ public:
             return read_memory.at(addr);
         } catch (const std::out_of_range&) {
             std::stringstream ss;
-            ss << "No data defined for address: 0x" 
-                << std::setfill('0') << std::setw(4) << std::uppercase 
+            ss << "No data defined for address: 0x"
+                << std::setfill('0') << std::setw(4) << std::uppercase
                 << std::hex << addr;
             std::string result = ss.str();
             throw uhd::runtime_error(result);

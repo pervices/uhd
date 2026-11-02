@@ -83,7 +83,7 @@ struct ltc5594_lo_matching_t
 // from https://www.analog.com/media/en/technical-documentation/data-sheets/LTC5594.pdf
 // clang-format off
 static const std::vector<ltc5594_lo_matching_t> lo_matching_table = {
-// | min_band_freq | max_band_freq | band | cf1 | lf1 | cf2 | 
+// | min_band_freq | max_band_freq | band | cf1 | lf1 | cf2 |
     {       300e6,         339e6,       0,    31,    3,   31 },
     {       339e6,         398e6,       0,    21,    3,   24 },
     {       398e6,         419e6,       0,    14,    3,   23 },

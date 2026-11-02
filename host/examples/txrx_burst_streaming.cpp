@@ -355,7 +355,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             // The PPS used to sync the clocks to the requested value
             // As of UHDPV set_time_source 4.10.0.10 set_time_source checks if the PPS is valid
             usrp->set_time_source(pps);
-            
+
             usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
             std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
         }

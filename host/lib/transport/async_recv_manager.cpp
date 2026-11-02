@@ -113,7 +113,7 @@ void* async_recv_manager::allocate_hugetlb_buffer_with_fallback(size_t size) {
 
         // Recomend the user request twice and many huge pages as required in case some are used by other processes
         UHD_LOG_WARNING("ASYNC_RECV_MANAGER", "Failed to allocate huge pages buffer of size " + std::to_string(size) + " bytes using huge pages. Try increasing the number of huge pages (/proc/sys/vm/nr_hugepages). This rx streamer requires " + huge_page_requirements + ". huge pages. Falling back to regular pages.");
-        
+
         return allocate_buffer(size);
     }
 }
@@ -231,7 +231,7 @@ void async_recv_manager::check_memlock_limit() {
     // The error message when we couldn't confirm the memlock limit. We will log an error but continue assuming the current limit is enough.
     std::string message_failed = "UHD will continue assuming the currently set memlock limit is enough. If it is not, io_uring may have memory allocation issues.\n"
             "\tManually check/set the limit with 'ulimit -l'. The limit should be at least 'num_hugepages*hugepage_size'. The number of hugepages and their size can be checked with 'cat /proc/meminfo'.";
-    
+
     // Check the currently set memlock limit in Bytes
     struct rlimit memlock_limit;
     // If getrlimit fails, log an error but do not throw one since we will just continue assuming the limit is high enough.
@@ -241,7 +241,7 @@ void async_recv_manager::check_memlock_limit() {
         UHD_LOG_ERROR("ASYNC_RECV_MANAGER", message);
         return;
     }
-    
+
     // The memlock limit should be at least num_hugepages*hugepage_size.
     std::string path = "/proc/sys/vm/nr_hugepages";
     FILE *file;
@@ -283,7 +283,7 @@ void async_recv_manager::check_memlock_limit() {
         // Calculate the required memlock limit (num_hugepages*huge_page_size) in kB.
         // get_huge_page_size() returns a value in Bytes so /1024 to convert to kB since memlock is typically represented in kB.
         size_t required_memlock = num_hugepages * *huge_page_size /1024;
-        
+
         // If the current memlock limit is less than this, warn the user it may not be enough.
         if (current_memlock < required_memlock) {
             std::string message = "The current memlock limit (" + std::to_string(current_memlock) + "kB) is less than the amount required to use all hugepages (" + std::to_string(required_memlock) + "kB). This may cause memory allocation issues with io_uring.\n"

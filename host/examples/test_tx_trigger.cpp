@@ -351,7 +351,7 @@ public:
         //
         // Prime the FPGA FIFO buffer.
         //
-        
+
         uhd::tx_metadata_t md;
         md.end_of_burst = false;
         md.has_time_spec = true;
@@ -399,7 +399,7 @@ public:
             //
             // Print FIFO levels.
             //
-            
+
             for(const auto level : levels)
                 std::cout << level << "\t";
             std::cout << max - min << std::endl;
@@ -409,7 +409,7 @@ public:
             //
 
             usleep(1.0e6 / period);
-        }   
+        }
 
         md.end_of_burst = true;
         tx->send("", 0, md);
@@ -429,7 +429,7 @@ public:
     double period {0.0};
 
     double tx_rate {0.0};
-    
+
     double tx_center_freq {0.0};
 
     double tx_gain {0.0};
@@ -493,7 +493,7 @@ public:
             size_t chan = std::stoi(channel_strings[ch]);
             channels.push_back(chan);
         }
-        
+
     }
 };
 

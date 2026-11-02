@@ -169,7 +169,7 @@ protected:
 private:
     /**
      * Gets the size of huge pages
-     * 
+     *
      *
      * @return The size of huge pages in bytes.
      *
@@ -180,7 +180,7 @@ private:
     static size_t get_huge_page_size();
 
     /**
-     * Prints a warning if the memlock limit is insufficient to 
+     * Prints a warning if the memlock limit is insufficient to
      */
     static void check_memlock_limit();
 };

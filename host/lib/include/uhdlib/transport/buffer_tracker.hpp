@@ -15,7 +15,7 @@ public:
     void set_sample_rate( const double rate );
 
     void set_start_of_burst_time( const uhd::time_spec_t & sob );
-    
+
     // Removes the last sob added to the list
     void pop_back_start_of_burst_time();
     void set_end_of_burst_time( const uhd::time_spec_t & sob );

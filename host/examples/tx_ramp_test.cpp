@@ -147,7 +147,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         // The PPS used to sync the clocks to the requested value
         // As of UHDPV set_time_source 4.10.0.10 set_time_source checks if the PPS is valid
         usrp->set_time_source(pps);
-        
+
         usrp->set_time_unknown_pps(uhd::time_spec_t(0.0));
         std::this_thread::sleep_for(std::chrono::seconds(1)); //wait for pps sync pulse
     }
@@ -179,7 +179,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
     usrp->set_time_now(0.0);
-    
+
     // Set up metadata. We start streaming a bit in the future
     uhd::tx_metadata_t md;
     md.start_of_burst = true;

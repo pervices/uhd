@@ -381,7 +381,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<double> b_tx_freqs = parse_rf_settings(ab_num_channels, b_tx_freq_arg, "Mistmatch between number of tx channels on B and the number of frequencies specified");
     std::vector<double> b_rx_gains = parse_rf_settings(ba_num_channels, b_rx_gain_arg, "Mistmatch between number of rx channels on B and the number of gains specified");
     std::vector<double> b_tx_gains = parse_rf_settings(ab_num_channels, b_tx_gain_arg, "Mistmatch between number of tx channels on B and the number of gains specified");
-    
+
     // Sets rf frequencies, must be done before setting gain
     set_rx_freq(a_rx_freqs, a_rx_channel_nums, a_usrp);
     set_tx_freq(a_tx_freqs, a_tx_channel_nums, a_usrp);

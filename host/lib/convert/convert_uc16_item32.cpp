@@ -30,7 +30,7 @@ struct convert_uc16_item32_1_to_uc16_item32_be_1 : public converter
 
     void operator()(const input_type &inputs, const output_type &outputs, const size_t nsamps)
     {
-        // NOTE: If you need to copy, uncomment the following 
+        // NOTE: If you need to copy, uncomment the following
 
         (void) inputs;
         (void) outputs;

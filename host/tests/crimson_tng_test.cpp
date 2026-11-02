@@ -443,7 +443,7 @@ BOOST_AUTO_TEST_CASE(test_get_mboard_name){
 }
 
 // get_time_now()
-// get_time_last_pps()  
+// get_time_last_pps()
 // set_time_now()
 // set_time_next_pps()
 // set_time_unknown_pps()

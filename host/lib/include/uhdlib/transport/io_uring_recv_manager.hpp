@@ -95,7 +95,7 @@ public:
         // Increment where in the cache we are
         cached_cqe_consumed[ch]++;
 
-        // Increment number of buffers consumed 
+        // Increment number of buffers consumed
         _cached_buff_consumed[ch]++;
     }
 

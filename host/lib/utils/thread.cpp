@@ -221,7 +221,7 @@ void uhd::set_thread_affinity_active_core() {
 }
 
 int uhd::set_thread_affinity_round_robin() {
-    // The index within the allowed_cpu list 
+    // The index within the allowed_cpu list
     static std::atomic<size_t> next_index{0};
 
     // Magic statics are initialized when the function is first run in a
