@@ -2358,7 +2358,7 @@ public:
                         previous_trigger_dir, trigger_dir);
             }
         } else {
-            last_trigger_dir_set_by = tx;
+            last_trigger_dir_set_by = rx;
             previous_trigger_dir = trigger_dir;
         }
         _tree->access<std::string>("/mboards/0/trigger/sma_dir").set(trigger_dir);
