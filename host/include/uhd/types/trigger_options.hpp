@@ -28,7 +28,7 @@
  *    never change, even when fields are appended.
  */
 
-namespace uhd { namespace trigger {
+namespace uhd { namespace trigger_pv {
 
 /*!
  * How to apply a trigger configuration change

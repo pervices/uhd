@@ -41,6 +41,7 @@
 #include <uhd/usrp/dboard_iface.hpp>
 #include <uhd/usrp/subdev_spec.hpp>
 #include <uhd/utils/noncopyable.hpp>
+#include <uhd/types/trigger_options.hpp>
 #include <complex>
 #include <memory>
 #include <string>
@@ -2417,7 +2418,39 @@ public:
         (void) name;
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
-    };
+    }
+
+    /*! Configure triggered streaming for RX and TX channels in one operation.
+    *
+    * Values the hardware cannot apply exactly are adjusted, and the adjusted
+    * values are written back into \p global, \p rx and \p tx.
+    *
+    * \param op how to apply the change, or nullptr for defaults
+    * \param global settings that apply to every channel (updated with actual values)
+    * \param rx array of per-channel RX settings (updated with actual values)
+    * \param num_rx number of elements in \p rx; \p rx may be nullptr if 0
+    * \param tx array of per-channel TX settings (updated with actual values)
+    * \param num_tx number of elements in \p tx; \p tx may be nullptr if 0
+    * \return true if every value was applied exactly as requested,
+    *         false if any value was adjusted but was otherwise successful
+    * \throws on error; the structs are left unmodified
+    */
+    [[nodiscard("returns false if any requested value was adjusted")]]
+    virtual bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
+        uhd::trigger_pv::trigger_global_t& global,
+        uhd::trigger_pv::trigger_rx_t* rx,
+        size_t num_rx,
+        uhd::trigger_pv::trigger_tx_t* tx,
+        size_t num_tx)
+    {
+        (void) op;
+        (void) global;
+        (void) rx;
+        (void) num_rx;
+        (void) tx;
+        (void) num_tx;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
 };
 
 }} // namespace uhd::usrp
