@@ -55,7 +55,7 @@ constexpr int CYAN_NRNT_UDP_OVERHEAD = 68;
 constexpr int CYAN_NRNT_UPDATE_PER_SEC = 100;
 
 //how full UHD should try to keep the buffer
-constexpr double CYAN_NRNT_BUFF_PERCENT = 0.7;
+constexpr double CYAN_NRNT_BUFF_PERCENT = 0.35;
 
 // Cyan NrNt tx RF gain limits, this is definitely wrong
 // TODO: get this info from device
