@@ -2439,9 +2439,9 @@ public:
     virtual bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
         uhd::trigger_pv::trigger_global_t& global,
         uhd::trigger_pv::trigger_rx_t* rx,
-        size_t num_rx,
+        size_t rx_len,
         uhd::trigger_pv::trigger_tx_t* tx,
-        size_t num_tx)
+        size_t tx_len)
     {
         (void) op;
         (void) global;

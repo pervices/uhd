@@ -105,6 +105,10 @@ static void freq_error_check(
 }
 
 /***********************************************************************
+ * Trigger helper functions
+ **********************************************************************/
+
+/***********************************************************************
  * Gain helper functions
  **********************************************************************/
 static double get_gain_value(property_tree::sptr subtree){
@@ -3043,6 +3047,22 @@ public:
         } else {
             return _tree->access<int>(tx_rf_fe_root(chan) / name / "lo_pwr").get();
         }
+    }
+
+    bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
+        uhd::trigger_pv::trigger_global_t& global,
+        uhd::trigger_pv::trigger_rx_t* rx,
+        size_t rx_len,
+        uhd::trigger_pv::trigger_tx_t* tx,
+        size_t tx_len) {
+
+            if(op.setup_mode == setup_mode_t.disable) {
+                //
+                for(size_t n = 0; n < channels.size(); n++) {
+                    const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
+                    _tree->access<std::string>(root + "stream").set("0");
+                }
+            }
     }
 };
 
