@@ -42,8 +42,25 @@ struct trigger_op_t
     //! Set automatically to the caller's sizeof(trigger_op_t). Do not modify.
     uint32_t size = sizeof(trigger_op_t);
 
-    int32_t dummy1 = 0;
-    int32_t dummy2 = 0;
+    /*!
+     * Ignore all other arguments and attempt to return the device to it's
+     * default non trigger streaming state
+     */
+    bool restore_default;
+    /*!
+     * How to behave while setting up the trigger
+     * The default 'disable' disables trigger streaming while setup is occuring
+     */
+    setup_mode = dsiable
+    /*!
+     * How to handle failures while attempting to configure the trigger
+     */
+    failure_handling = disable_all;
+    //! OR together flags to enable more strict error checking.
+    enable_strict_errors = ~0;
+    //! OR together flags to disable warnings.
+    disable_warnings = 0;
+
     // --- end of v1: append new fields below this line only ---
 };
 
@@ -58,8 +75,22 @@ struct trigger_global_t
     //! Set automatically to the caller's sizeof(trigger_global_t). Do not modify.
     uint32_t size = sizeof(trigger_global_t);
 
-    int32_t dummy1 = 0;
-    int32_t dummy2 = 0;
+    /*!
+     * Set whether the global trigger pin is an input or output.
+     * Not applicable on devices with separate pins.
+     * When set to output it outputs it's internal PPS, TODO: confirm this
+     */
+    sma_direction = input;
+    /*!
+     * Set whether the global trigger is active high or active low.
+     */
+    sma_polarity = negative;
+    /*!
+     * Override the global trigger so that it acts as if the input is high.
+     * TODO: verify it does not affect the output
+     */
+    sma_override = off;
+
     // --- end of v1: append new fields below this line only ---
 };
 
@@ -70,6 +101,39 @@ struct trigger_rx_t
 {
     //! sizeof() of the first released version. Never change.
     static constexpr uint32_t min_size = 12;
+
+    /*!
+     * The number of samples to send per edge in edge triggered mode.
+     * 0 indicates stream indefinitely after the trigger was received.
+     * TODO: verify this does nothing in level mode
+     */
+    uint64_t edge_sample_num = 0;
+
+    /*!
+     * How many ticks to wait after an edge to avoid triggering again.
+     * It is mainly for debouncing.
+     * TODO: check behaviour if a second edge is received before the next one.
+     */
+    uint32_t edge_backoff = 0;
+
+    /*!
+     * Whether to trigger on level or edge on the global sma.
+     * Not applicable if trig_sel does not listen to the global sma
+     */
+    sma_mode = level;
+
+    /*!
+     * Which triggers to watch.
+     * Switches between none, global sma, per channel ufl, and all
+     */
+    trig_sel = 0;
+
+    /*!
+     * Whether to trigger on level or edge on the per channel ufl.
+     * Not applicable when trig_sel is not listening to the per channel ufl
+     */
+    ufl_mode = level;
+
 
     //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
     uint32_t size = sizeof(trigger_rx_t);
