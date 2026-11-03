@@ -26,15 +26,136 @@
  *    into a caller's possibly smaller object.
  *  - `min_size` is sizeof() of the first released version. It is frozen and must
  *    never change, even when fields are appended.
+ *  - Padding is written out explicitly as `reserved*` fields so the layout is
+ *    visible in the source. Reserved fields must be zero; the library rejects
+ *    non-zero values so they can be given a meaning later.
+ *
+ * ABI rules for every enum in this file:
+ *  - Each enum has a fixed underlying type, so its size never changes.
+ *  - Values are explicit. Never renumber or reuse a value; only add new ones.
  */
 
 namespace uhd { namespace trigger_pv {
 
-enum direction: in, out, not_applicable
-enum polarity: positive, negative
-enum mode: edge, level
-enum active_trigger: none = 0, global_sma = 1, channel_ufl = 2 // OR these to use multiple
-enum gating: dsp, none
+/***********************************************************************
+ * Flag operators
+ **********************************************************************/
+// Defines |, &, ~, |=, &= and has_any() for a flag enum so values combine
+// without casts. All inline and compiled into the caller: no library ABI impact.
+#define UHD_TRIGGER_PV_FLAG_OPERATORS(E)                                          \
+    constexpr E operator|(E a, E b)                                              \
+    {                                                                            \
+        using U = std::underlying_type_t<E>;                                     \
+        return static_cast<E>(static_cast<U>(a) | static_cast<U>(b));            \
+    }                                                                            \
+    constexpr E operator&(E a, E b)                                              \
+    {                                                                            \
+        using U = std::underlying_type_t<E>;                                     \
+        return static_cast<E>(static_cast<U>(a) & static_cast<U>(b));            \
+    }                                                                            \
+    constexpr E operator~(E a)                                                   \
+    {                                                                            \
+        using U = std::underlying_type_t<E>;                                     \
+        return static_cast<E>(~static_cast<U>(a));                               \
+    }                                                                            \
+    constexpr E& operator|=(E& a, E b)                                           \
+    {                                                                            \
+        return a = a | b;                                                        \
+    }                                                                            \
+    constexpr E& operator&=(E& a, E b)                                           \
+    {                                                                            \
+        return a = a & b;                                                        \
+    }                                                                            \
+    /*! True if any bit in f is set, e.g. has_any(sel & E::some_flag) */         \
+    constexpr bool has_any(E f)                                                  \
+    {                                                                            \
+        return static_cast<std::underlying_type_t<E>>(f) != 0;                   \
+    }
+
+/***********************************************************************
+ * Enums
+ **********************************************************************/
+
+//! Direction of a trigger pin.
+enum class direction_t : uint32_t {
+    in             = 0, //!< Pin is an input.
+    out            = 1, //!< Pin is an output.
+    not_applicable = 2, //!< Device has separate input and output pins.
+};
+
+//! Which signal level counts as an active trigger.
+enum class polarity_t : uint32_t {
+    positive = 0, //!< Active high.
+    negative = 1, //!< Active low.
+};
+
+//! How a trigger input is interpreted.
+enum class trigger_mode_t : uint32_t {
+    edge  = 0, //!< Trigger on an edge. TODO: document which edge(s).
+    level = 1, //!< Stream while the trigger is active.
+};
+
+//! Which triggers a channel listens to. Values may be combined with |.
+enum class active_trigger_t : uint32_t {
+    none        = 0,       //!< Listen to no trigger.
+    global_sma  = 1u << 0, //!< Listen to the global SMA trigger.
+    channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
+    // Add new triggers as new bits only.
+};
+UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
+
+//! Trigger gating.
+//! TODO: document what each option gates.
+enum class gating_t : uint32_t {
+    dsp  = 0, //!< TODO: document.
+    none = 1, //!< TODO: document.
+};
+
+//! How to behave while the trigger is being configured.
+enum class setup_mode_t : uint32_t {
+    disable = 0, //!< Disable trigger streaming while setup is occurring.
+    // TODO: add other setup modes.
+};
+
+//! What to do if configuring the trigger fails part way through.
+enum class failure_handling_t : uint32_t {
+    disable_all = 0, //!< Disable triggering on all channels. TODO: confirm.
+    // TODO: add other failure handling modes.
+};
+
+/*!
+ * Categories of strict error checking. Values may be combined with |.
+ *
+ * Unknown bits are ignored rather than rejected, so `all` from an older
+ * header also enables checks added in later library versions.
+ */
+enum class strict_error_t : uint64_t {
+    none = 0,
+    unspecified = 1, // Error when a field that is not not applicable is unspecified.
+    not_applicable = 2, // Error when a value is specified for a field that is not applicable.
+    all = ~uint64_t{0},
+};
+UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
+
+/*!
+ * Categories of warnings that can be disabled. Values may be combined with |.
+ *
+ * Unknown bits are ignored rather than rejected, so `all` from an older
+ * header also disables warnings added in later library versions.
+ */
+enum class warning_t : uint64_t {
+    none = 0,
+    unspecified = 1, // Error when a field that is not not applicable is unspecified.
+    not_applicable = 2, // Error when a value is specified for a field that is not applicable.
+    all = ~uint64_t{0},
+};
+UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
+
+#undef UHD_TRIGGER_PV_FLAG_OPERATORS
+
+/***********************************************************************
+ * Structs
+ **********************************************************************/
 
 /*!
  * How to apply a trigger configuration change
@@ -43,29 +164,34 @@ enum gating: dsp, none
 struct trigger_op_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 12;
+    static constexpr uint32_t min_size = 32;
 
     //! Set automatically to the caller's sizeof(trigger_op_t). Do not modify.
     uint32_t size = sizeof(trigger_op_t);
 
+    //! How to behave while setting up the trigger.
+    setup_mode_t setup_mode = setup_mode_t::disable;
+
+    //! How to handle failures while attempting to configure the trigger.
+    failure_handling_t failure_handling = failure_handling_t::disable_all;
+
     /*!
-     * Ignore all other arguments and attempt to return the device to it's
-     * default non trigger streaming state
+     * Ignore all other arguments and attempt to return the device to its
+     * default non-trigger streaming state.
      */
-    bool restore_default;
-    /*!
-     * How to behave while setting up the trigger
-     * The default 'disable' disables trigger streaming while setup is occuring
-     */
-    setup_mode = dsiable
-    /*!
-     * How to handle failures while attempting to configure the trigger
-     */
-    failure_handling = disable_all;
-    //! OR together flags to enable more strict error checking.
-    uint64_t enable_strict_errors = ~0;
+    bool restore_default = false;
+
+    //! Explicit padding. Must be zero.
+    uint8_t reserved0[3] = {};
+
+    // Enable errors default to off so future breaking changes are not set by
+
+    //! OR together flags to enable stricter error checking.
+    // TODO: enable all errors for V1 ORed together, errors added after V1 default to off
+    strict_error_t enable_strict_errors = strict_error_t::all;
+
     //! OR together flags to disable warnings.
-    uint64_t disable_warnings = 0;
+    warning_t disable_warnings = warning_t::none;
 
     // --- end of v1: append new fields below this line only ---
 };
@@ -76,26 +202,29 @@ struct trigger_op_t
 struct trigger_global_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 12;
+    static constexpr uint32_t min_size = 16;
 
     //! Set automatically to the caller's sizeof(trigger_global_t). Do not modify.
     uint32_t size = sizeof(trigger_global_t);
 
     /*!
-     * Set whether the global trigger pin is an input or output.
-     * Not applicable on devices with separate pins.
-     * When set to output it outputs it's internal PPS, TODO: confirm this
+     * Whether the global trigger pin is an input or output.
+     * Use direction_t::not_applicable on devices with separate pins.
+     * When set to output it outputs its internal PPS. TODO: confirm this.
      */
-    sma_direction = input;
+    direction_t sma_direction = direction_t::in;
+
+    //! Whether the global trigger is active high or active low.
+    polarity_t sma_polarity = polarity_t::negative;
+
     /*!
-     * Set whether the global trigger is active high or active low.
-     */
-    sma_polarity = negative;
-    /*!
-     * Override the global trigger so that it acts as if the input is high.
-     * TODO: verify it does not affect the output
+     * Override the global trigger so that it acts as if the input is active.
+     * TODO: verify it does not affect the output.
      */
     bool sma_override = false;
+
+    //! Explicit padding. Must be zero.
+    uint8_t reserved0[3] = {};
 
     // --- end of v1: append new fields below this line only ---
 };
@@ -106,52 +235,52 @@ struct trigger_global_t
 struct trigger_rx_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 12;
+    static constexpr uint32_t min_size = 40;
 
     //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
     uint32_t size = sizeof(trigger_rx_t);
 
     /*!
-     * The number of samples to send per edge in edge triggered mode.
-     * 0 indicates stream indefinitely after the trigger was received.
-     * It is a 64 bit unsigned int.
-     * TODO: verify this does nothing in level mode
-     */
-    uint64_t edge_sample_num = 0;
-
-    /*!
-     * How many ticks to wait after an edge to avoid triggering again.
-     * It is mainly for debouncing.
-     * It is a 32 bit unsigned int
-     * TODO: check behaviour if a second edge is received before the next one.
+     * How many ticks to wait after an edge before triggering again.
+     * Mainly used for debouncing.
+     * TODO: check behaviour if a second edge is received during the backoff.
      */
     uint32_t edge_backoff = 0;
 
     /*!
-     * Whether to trigger on level or edge on the global sma.
-     * Not applicable if trig_sel does not listen to the global sma
+     * The number of samples to stream per edge in edge triggered mode.
+     * 0 means stream indefinitely after the trigger is received.
+     * TODO: verify this does nothing in level mode.
      */
-    sma_mode = level;
+    uint64_t edge_sample_num = 0;
+
+    //! Which triggers to listen to. OR together to listen to several.
+    active_trigger_t trig_sel = active_trigger_t::none;
 
     /*!
-     * Which triggers to watch.
-     * Switches between none, global sma, per channel ufl, and all
+     * Whether to trigger on level or edge on the global SMA.
+     * Not applicable unless trig_sel includes active_trigger_t::global_sma.
      */
-    trig_sel = 0;
+    trigger_mode_t sma_mode = trigger_mode_t::level;
 
     /*!
-     * Whether to trigger on level or edge on the per channel ufl.
-     * Not applicable when trig_sel is not listening to the per channel ufl
+     * Whether to trigger on level or edge on the per-channel U.FL.
+     * Not applicable unless trig_sel includes active_trigger_t::channel_ufl.
      */
-    ufl_mode = level;
+    trigger_mode_t ufl_mode = trigger_mode_t::level;
 
     /*!
-     * When set to input the per channel ufl is an input used in acc
-     * TODO: verify out is a good default
+     * Direction of the per-channel U.FL.
+     * When set to input, the U.FL is an input used in acc.
+     * TODO: verify out is a good default.
      */
-    ufl_dir = out;
+    direction_t ufl_dir = direction_t::out;
 
-    gating = dsp
+    //! Trigger gating. TODO: document.
+    gating_t gating = gating_t::dsp;
+
+    //! Explicit tail padding (struct is 8-byte aligned). Must be zero.
+    uint32_t reserved0 = 0;
 
     // --- end of v1: append new fields below this line only ---
 };
@@ -162,50 +291,46 @@ struct trigger_rx_t
 struct trigger_tx_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 12;
+    static constexpr uint32_t min_size = 32;
 
-    //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
-    uint32_t size = sizeof(trigger_rx_t);
-
-    /*!
-     * The number of samples to send per edge in edge triggered mode.
-     * 0 indicates stream indefinitely after the trigger was received.
-     * It is a 64 bit unsigned int.
-     * TODO: verify this does nothing in level mode
-     */
-    uint64_t edge_sample_num = 0;
+    //! Set automatically to the caller's sizeof(trigger_tx_t). Do not modify.
+    uint32_t size = sizeof(trigger_tx_t);
 
     /*!
-     * How many ticks to wait after an edge to avoid triggering again.
-     * It is mainly for debouncing.
-     * It is a 32 bit unsigned int
-     * TODO: check behaviour if a second edge is received before the next one.
+     * How many ticks to wait after an edge before triggering again.
+     * Mainly used for debouncing.
+     * TODO: check behaviour if a second edge is received during the backoff.
      */
     uint32_t edge_backoff = 0;
 
     /*!
-     * Whether to trigger on level or edge on the global sma.
-     * Not applicable if trig_sel does not listen to the global sma
+     * The number of samples to stream per edge in edge triggered mode.
+     * 0 means stream indefinitely after the trigger is received.
+     * TODO: verify this does nothing in level mode.
      */
-    sma_mode = level;
+    uint64_t edge_sample_num = 0;
+
+    //! Which triggers to listen to. OR together to listen to several.
+    active_trigger_t trig_sel = active_trigger_t::none;
 
     /*!
-     * Which triggers to watch.
-     * Switches between none, global sma, per channel ufl, and all
+     * Whether to trigger on level or edge on the global SMA.
+     * Not applicable unless trig_sel includes active_trigger_t::global_sma.
      */
-    trig_sel = 0;
+    trigger_mode_t sma_mode = trigger_mode_t::level;
 
     /*!
-     * Whether to trigger on level or edge on the per channel ufl.
-     * Not applicable when trig_sel is not listening to the per channel ufl
+     * Whether to trigger on level or edge on the per-channel U.FL.
+     * Not applicable unless trig_sel includes active_trigger_t::channel_ufl.
      */
-    ufl_mode = level;
+    trigger_mode_t ufl_mode = trigger_mode_t::level;
 
     /*!
-     * When set to input the per channel ufl is an input used in acc
-     * TODO: verify out is a good default
+     * Direction of the per-channel U.FL.
+     * When set to input, the U.FL is an input used in acc.
+     * TODO: verify out is a good default.
      */
-    ufl_dir = out;
+    direction_t ufl_dir = direction_t::out;
 
     // --- end of v1: append new fields below this line only ---
 };
@@ -213,9 +338,12 @@ struct trigger_tx_t
 /***********************************************************************
  * Compile-time checks
  **********************************************************************/
+// bool members assume a 1-byte bool (true on all supported ABIs).
+static_assert(sizeof(bool) == 1, "trigger structs assume a 1-byte bool");
+
 // Required so the library can copy a caller's struct with memcpy and so that
-// offsetof() is well-defined.
-#define UHD_TRIGGER_CHECK_LAYOUT(T)                                              \
+// offsetof() is well-defined. LAST is the last field of the v1 layout.
+#define UHD_TRIGGER_PV_CHECK_LAYOUT(T, LAST)                                      \
     static_assert(std::is_standard_layout_v<T>, #T " must be standard layout");  \
     static_assert(std::is_trivially_copyable_v<T>, #T " must be trivially copyable"); \
     static_assert(offsetof(T, size) == 0, #T "::size must be the first member"); \
@@ -224,15 +352,15 @@ struct trigger_tx_t
      * in the library writing the library's sizeof() into a caller's object. */ \
     static_assert(std::is_aggregate_v<T>, #T " must not declare a constructor"); \
     /* Catches fields inserted or resized inside the v1 region. */               \
-    static_assert(offsetof(T, dummy2) + sizeof(int32_t) <= T::min_size,          \
+    static_assert(offsetof(T, LAST) + sizeof(T::LAST) <= T::min_size,            \
         #T " v1 fields no longer fit in min_size")
 
-UHD_TRIGGER_CHECK_LAYOUT(trigger_op_t);
-UHD_TRIGGER_CHECK_LAYOUT(trigger_global_t);
-UHD_TRIGGER_CHECK_LAYOUT(trigger_rx_t);
-UHD_TRIGGER_CHECK_LAYOUT(trigger_tx_t);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_op_t, disable_warnings);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_global_t, reserved0);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_rx_t, reserved0);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_tx_t, ufl_dir);
 
-#undef UHD_TRIGGER_CHECK_LAYOUT
+#undef UHD_TRIGGER_PV_CHECK_LAYOUT
 
 // Verifies min_size matches the v1 layout.
 // DELETE these once the structs are released: they will (correctly) fail as
@@ -242,4 +370,4 @@ static_assert(sizeof(trigger_global_t) == trigger_global_t::min_size);
 static_assert(sizeof(trigger_rx_t) == trigger_rx_t::min_size);
 static_assert(sizeof(trigger_tx_t) == trigger_tx_t::min_size);
 
-}} // namespace uhd::trigger
+}} // namespace uhd::trigger_pv
