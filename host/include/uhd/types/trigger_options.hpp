@@ -133,6 +133,8 @@ enum class strict_error_t : uint64_t {
     none = 0,
     unspecified = 1, // Error when a field that is not not applicable is unspecified.
     not_applicable = 2, // Error when a value is specified for a field that is not applicable.
+    apromiate_coerced_value = 4, // Error when a value is coerced to a nearby value
+    far_coerced_value = 8, // Error when a value is coerced to a value that is far away
     all = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
@@ -147,6 +149,8 @@ enum class warning_t : uint64_t {
     none = 0,
     unspecified = 1, // Error when a field that is not not applicable is unspecified.
     not_applicable = 2, // Error when a value is specified for a field that is not applicable.
+    appropriate_cooreced_value = 4, // Error when a value is cooreced to a nearby value
+    far_coerced_value = 8, // Error when a value is coerced to a value that is far away
     all = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
