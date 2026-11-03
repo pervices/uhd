@@ -30,6 +30,12 @@
 
 namespace uhd { namespace trigger_pv {
 
+enum direction: in, out, not_applicable
+enum polarity: positive, negative
+enum mode: edge, level
+enum active_trigger: none = 0, global_sma = 1, channel_ufl = 2 // OR these to use multiple
+enum gating: dsp, none
+
 /*!
  * How to apply a trigger configuration change
  * (e.g. whether to disable the trigger while changes are made).
@@ -57,9 +63,9 @@ struct trigger_op_t
      */
     failure_handling = disable_all;
     //! OR together flags to enable more strict error checking.
-    enable_strict_errors = ~0;
+    uint64_t enable_strict_errors = ~0;
     //! OR together flags to disable warnings.
-    disable_warnings = 0;
+    uint64_t disable_warnings = 0;
 
     // --- end of v1: append new fields below this line only ---
 };
@@ -89,7 +95,7 @@ struct trigger_global_t
      * Override the global trigger so that it acts as if the input is high.
      * TODO: verify it does not affect the output
      */
-    sma_override = off;
+    bool sma_override = false;
 
     // --- end of v1: append new fields below this line only ---
 };
@@ -102,9 +108,13 @@ struct trigger_rx_t
     //! sizeof() of the first released version. Never change.
     static constexpr uint32_t min_size = 12;
 
+    //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
+    uint32_t size = sizeof(trigger_rx_t);
+
     /*!
      * The number of samples to send per edge in edge triggered mode.
      * 0 indicates stream indefinitely after the trigger was received.
+     * It is a 64 bit unsigned int.
      * TODO: verify this does nothing in level mode
      */
     uint64_t edge_sample_num = 0;
@@ -112,6 +122,7 @@ struct trigger_rx_t
     /*!
      * How many ticks to wait after an edge to avoid triggering again.
      * It is mainly for debouncing.
+     * It is a 32 bit unsigned int
      * TODO: check behaviour if a second edge is received before the next one.
      */
     uint32_t edge_backoff = 0;
@@ -134,12 +145,14 @@ struct trigger_rx_t
      */
     ufl_mode = level;
 
+    /*!
+     * When set to input the per channel ufl is an input used in acc
+     * TODO: verify out is a good default
+     */
+    ufl_dir = out;
 
-    //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
-    uint32_t size = sizeof(trigger_rx_t);
+    gating = dsp
 
-    int32_t dummy1 = 0;
-    int32_t dummy2 = 0;
     // --- end of v1: append new fields below this line only ---
 };
 
@@ -151,11 +164,49 @@ struct trigger_tx_t
     //! sizeof() of the first released version. Never change.
     static constexpr uint32_t min_size = 12;
 
-    //! Set automatically to the caller's sizeof(trigger_tx_t). Do not modify.
-    uint32_t size = sizeof(trigger_tx_t);
+    //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
+    uint32_t size = sizeof(trigger_rx_t);
 
-    int32_t dummy1 = 0;
-    int32_t dummy2 = 0;
+    /*!
+     * The number of samples to send per edge in edge triggered mode.
+     * 0 indicates stream indefinitely after the trigger was received.
+     * It is a 64 bit unsigned int.
+     * TODO: verify this does nothing in level mode
+     */
+    uint64_t edge_sample_num = 0;
+
+    /*!
+     * How many ticks to wait after an edge to avoid triggering again.
+     * It is mainly for debouncing.
+     * It is a 32 bit unsigned int
+     * TODO: check behaviour if a second edge is received before the next one.
+     */
+    uint32_t edge_backoff = 0;
+
+    /*!
+     * Whether to trigger on level or edge on the global sma.
+     * Not applicable if trig_sel does not listen to the global sma
+     */
+    sma_mode = level;
+
+    /*!
+     * Which triggers to watch.
+     * Switches between none, global sma, per channel ufl, and all
+     */
+    trig_sel = 0;
+
+    /*!
+     * Whether to trigger on level or edge on the per channel ufl.
+     * Not applicable when trig_sel is not listening to the per channel ufl
+     */
+    ufl_mode = level;
+
+    /*!
+     * When set to input the per channel ufl is an input used in acc
+     * TODO: verify out is a good default
+     */
+    ufl_dir = out;
+
     // --- end of v1: append new fields below this line only ---
 };
 
