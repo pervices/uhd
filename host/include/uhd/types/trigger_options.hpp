@@ -113,8 +113,10 @@ enum class gating_t : uint32_t {
 
 //! How to behave while the trigger is being configured.
 enum class setup_mode_t : uint32_t {
-    disable = 0, //!< Disable trigger streaming while setup is occurring.
-    // TODO: add other setup modes.
+    disable_unspecified_tx = 1, //! Disable all tx channels not specified in the trigger_tx_t array
+    disable_unspecified_rx = 2, //! Disable all tx channels not specified in the trigger_rx_t array
+    enable_specified_while_configuring = 4 //! Do not disable channels specified in trigger_rx_t and trigger_tx_t arrays
+    enable_unspecified_while_configuring = 8 //! Do not disable channels not specified in trigger_rx_t and trigger_tx_t arrays
 };
 
 //! What to do if configuring the trigger fails part way through.
@@ -244,6 +246,9 @@ struct trigger_rx_t
     //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
     uint32_t size = sizeof(trigger_rx_t);
 
+    //! The channel to apply this struct to
+    size_t channel = max(size_t)
+
     /*!
      * How many ticks to wait after an edge before triggering again.
      * Mainly used for debouncing.
@@ -299,6 +304,9 @@ struct trigger_tx_t
 
     //! Set automatically to the caller's sizeof(trigger_tx_t). Do not modify.
     uint32_t size = sizeof(trigger_tx_t);
+
+    //! The channel to apply this struct to
+    size_t ch = max(size_t)
 
     /*!
      * How many ticks to wait after an edge before triggering again.
