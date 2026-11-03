@@ -2446,9 +2446,9 @@ public:
         (void) op;
         (void) global;
         (void) rx;
-        (void) num_rx;
+        (void) rx_len;
         (void) tx;
-        (void) num_tx;
+        (void) tx_len;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 };

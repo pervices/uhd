@@ -111,13 +111,19 @@ enum class gating_t : uint32_t {
     none = 1, //!< TODO: document.
 };
 
-//! How to behave while the trigger is being configured.
+//! How to behave while the trigger is being configured. Values may be combined with |.
 enum class setup_mode_t : uint32_t {
-    disable_unspecified_tx = 1, //! Disable all tx channels not specified in the trigger_tx_t array
-    disable_unspecified_rx = 2, //! Disable all tx channels not specified in the trigger_rx_t array
-    enable_specified_while_configuring = 4 //! Do not disable channels specified in trigger_rx_t and trigger_tx_t arrays
-    enable_unspecified_while_configuring = 8 //! Do not disable channels not specified in trigger_rx_t and trigger_tx_t arrays
+    none = 0, //!< Default behaviour. TODO: document.
+    //! Disable all TX channels not specified in the trigger_tx_t array.
+    disable_unspecified_tx = 1u << 0,
+    //! Disable all RX channels not specified in the trigger_rx_t array.
+    disable_unspecified_rx = 1u << 1,
+    //! Do not disable channels specified in the trigger_rx_t and trigger_tx_t arrays while configuring.
+    enable_specified_while_configuring = 1u << 2,
+    //! Do not disable channels not specified in the trigger_rx_t and trigger_tx_t arrays while configuring.
+    enable_unspecified_while_configuring = 1u << 3,
 };
+UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
 //! What to do if configuring the trigger fails part way through.
 enum class failure_handling_t : uint32_t {
@@ -132,12 +138,15 @@ enum class failure_handling_t : uint32_t {
  * header also enables checks added in later library versions.
  */
 enum class strict_error_t : uint64_t {
-    none = 0,
-    unspecified = 1, // Error when a field that is not not applicable is unspecified.
-    not_applicable = 2, // Error when a value is specified for a field that is not applicable.
-    apromiate_coerced_value = 4, // Error when a value is coerced to a nearby value
-    far_coerced_value = 8, // Error when a value is coerced to a value that is far away
-    all = ~uint64_t{0},
+    none                      = 0,
+    unspecified               = 1u << 0, //!< Error when an applicable field is unspecified.
+    not_applicable            = 1u << 1, //!< Error when a value is given for a field that does not apply.
+    approximate_coerced_value = 1u << 2, //!< Error when a value is coerced to a nearby value.
+    far_coerced_value         = 1u << 3, //!< Error when a value is coerced to a distant value.
+    //! Every check that existed in v1. This is the default, so checks added
+    //! later are off unless the caller asks for them (or for `all`).
+    all_v1 = unspecified | not_applicable | approximate_coerced_value | far_coerced_value,
+    all    = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
 
@@ -148,12 +157,12 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
  * header also disables warnings added in later library versions.
  */
 enum class warning_t : uint64_t {
-    none = 0,
-    unspecified = 1, // Error when a field that is not not applicable is unspecified.
-    not_applicable = 2, // Error when a value is specified for a field that is not applicable.
-    appropriate_cooreced_value = 4, // Error when a value is cooreced to a nearby value
-    far_coerced_value = 8, // Error when a value is coerced to a value that is far away
-    all = ~uint64_t{0},
+    none                      = 0,
+    unspecified               = 1u << 0, //!< Warn when an applicable field is unspecified.
+    not_applicable            = 1u << 1, //!< Warn when a value is given for a field that does not apply.
+    approximate_coerced_value = 1u << 2, //!< Warn when a value is coerced to a nearby value.
+    far_coerced_value         = 1u << 3, //!< Warn when a value is coerced to a distant value.
+    all                       = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
 
@@ -176,7 +185,7 @@ struct trigger_op_t
     uint32_t size = sizeof(trigger_op_t);
 
     //! How to behave while setting up the trigger.
-    setup_mode_t setup_mode = setup_mode_t::disable;
+    setup_mode_t setup_mode = setup_mode_t::none;
 
     //! How to handle failures while attempting to configure the trigger.
     failure_handling_t failure_handling = failure_handling_t::disable_all;
@@ -190,11 +199,9 @@ struct trigger_op_t
     //! Explicit padding. Must be zero.
     uint8_t reserved0[3] = {};
 
-    // Enable errors default to off so future breaking changes are not set by
-
     //! OR together flags to enable stricter error checking.
-    // TODO: enable all errors for V1 ORed together, errors added after V1 default to off
-    strict_error_t enable_strict_errors = strict_error_t::all;
+    //! Defaults to every v1 check; checks added after v1 default to off.
+    strict_error_t enable_strict_errors = strict_error_t::all_v1;
 
     //! OR together flags to disable warnings.
     warning_t disable_warnings = warning_t::none;
@@ -241,13 +248,13 @@ struct trigger_global_t
 struct trigger_rx_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 40;
+    static constexpr uint32_t min_size = 48;
+
+    //! Value of `channel` when the caller has not set it. Rejected by the library.
+    static constexpr size_t channel_unset = SIZE_MAX;
 
     //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
     uint32_t size = sizeof(trigger_rx_t);
-
-    //! The channel to apply this struct to
-    size_t channel = max(size_t)
 
     /*!
      * How many ticks to wait after an edge before triggering again.
@@ -255,6 +262,9 @@ struct trigger_rx_t
      * TODO: check behaviour if a second edge is received during the backoff.
      */
     uint32_t edge_backoff = 0;
+
+    //! The physical channel this struct applies to. Must be set by the caller.
+    size_t channel = channel_unset;
 
     /*!
      * The number of samples to stream per edge in edge triggered mode.
@@ -300,13 +310,13 @@ struct trigger_rx_t
 struct trigger_tx_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 32;
+    static constexpr uint32_t min_size = 40;
+
+    //! Value of `channel` when the caller has not set it. Rejected by the library.
+    static constexpr size_t channel_unset = SIZE_MAX;
 
     //! Set automatically to the caller's sizeof(trigger_tx_t). Do not modify.
     uint32_t size = sizeof(trigger_tx_t);
-
-    //! The channel to apply this struct to
-    size_t ch = max(size_t)
 
     /*!
      * How many ticks to wait after an edge before triggering again.
@@ -314,6 +324,9 @@ struct trigger_tx_t
      * TODO: check behaviour if a second edge is received during the backoff.
      */
     uint32_t edge_backoff = 0;
+
+    //! The physical channel this struct applies to. Must be set by the caller.
+    size_t channel = channel_unset;
 
     /*!
      * The number of samples to stream per edge in edge triggered mode.
@@ -352,6 +365,9 @@ struct trigger_tx_t
  **********************************************************************/
 // bool members assume a 1-byte bool (true on all supported ABIs).
 static_assert(sizeof(bool) == 1, "trigger structs assume a 1-byte bool");
+// The size_t `channel` members assume a 64-bit target; on a 32-bit target the
+// layout (and therefore min_size) would differ.
+static_assert(sizeof(size_t) == 8, "trigger structs assume a 64-bit size_t");
 
 // Required so the library can copy a caller's struct with memcpy and so that
 // offsetof() is well-defined. LAST is the last field of the v1 layout.
