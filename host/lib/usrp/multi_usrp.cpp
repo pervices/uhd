@@ -110,7 +110,7 @@ static void freq_error_check(
  **********************************************************************/
 
 static std::string rx_root(const size_t channel, const size_t mboard = 0) {
-    return multi_usrp_impl.mb_root(mboard) + "/rx/" + std::to_string(channels[n]) + "/";
+    return mb_root(mboard) + "/rx/" + std::to_string(channels[n]) + "/";
 }
 static std::string rx_trigger_root(const size_t channel, const size_t mboard = 0) {
     return rx_root(channel, mboard) + "trigger/"
