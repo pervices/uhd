@@ -2874,11 +2874,11 @@ private:
     }
 
     fs_path rx_trigger_root(const size_t channel) {
-        return rx_root(channel) + "/trigger"
+        return rx_root(channel) + "/trigger";
     }
 
     fs_path tx_trigger_root(const size_t channel) {
-       return tx_root(channel) + "/trigger"
+       return tx_root(channel) + "/trigger";
     }
 
     size_t get_radio_index(const std::string slot_name)
@@ -3067,9 +3067,9 @@ public:
 
             // Convert the per channel arrays from the caller's version of the struct
             // to the library's
-            std::vector<trigger_rx_t> lib_rx = copy_array_from_caller(rx, rx_len);
+            std::vector<uhd::trigger_pv::trigger_rx_t> lib_rx = copy_array_from_caller(rx, rx_len);
             // TODO: implement tx
-            std::vector<trigger_tx_t> lib_tx = copy_array_from_caller(tx, tx_len);
+            std::vector<uhd::trigger_pv::trigger_tx_t> lib_tx = copy_array_from_caller(tx, tx_len);
 
             // Lists of unspecified channels
             // TODO: inmplement behaviour for unspecified channels based on trigger_global_t
