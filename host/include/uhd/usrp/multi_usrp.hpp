@@ -2420,6 +2420,10 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
+    // TODO: add these notes to the proper comment:
+    // For null fields the final value will match the existing value
+    // However they may be modified during the function depending on op
+
     /*! Configure triggered streaming for RX and TX channels in one operation.
     *
     * Values the hardware cannot apply exactly are adjusted, and the adjusted

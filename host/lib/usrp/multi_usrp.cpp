@@ -2768,6 +2768,11 @@ private:
         }
     }
 
+    // Directory from trigger options that apply globally
+    fs_path trigger_root() {
+        return mb_root(0) + "trigger";
+    }
+
     fs_path rx_root(const size_t chan)
     {
         return "/mboards/0/rx/" + std::to_string(chan);
@@ -3058,12 +3063,46 @@ public:
         }
     }
 
+private:
+    /*!
+     * Get the current trigger configuration for a channel.
+     *
+     * @param rx The struct to store the existing trigger configuration
+     */
+    // bool get_rx_trigger_config(uhd::trigger_pv::trigger_rx_t* rx, const chan) {
+    //     try {
+    //         rx->edge_backoff = std::stoll(_tree->access<std::string>(rx_trigger_root(chan) + "/edge_backoff").get());
+    //     } catch (...) {
+    //         rx->edge_backoff = -1;
+    //     }
+    //     rx->channel = chan;
+    //     try {
+    //         rx->edge_sample_num = std::stoll(_tree->access<std::string>(rx_trigger_root(chan) + "/edge_sample_num").get());
+    //     } catch (...) {
+    //         rx->edge_sample_num = -1;
+    //     }
+    //     try {
+    //         rx->edge_sample_num = std::stoll(_tree->access<std::string>(rx_trigger_root(chan) + "/edge_sample_num").get());
+    //     } catch (...) {
+    //         rx->edge_sample_num = -1;
+    //     }
+    // }
+public:
+    // Order:
+    // Set trig_sel to none if desired or not hot reconfiguring
+    // Apply global changes except direction
+    // Apply per channel changes other than trig_sel and direction
+    // Apply direction changes
+    // Apply trig_sel
+
     bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
         uhd::trigger_pv::trigger_global_t& global,
         uhd::trigger_pv::trigger_rx_t* rx,
         size_t rx_len,
         uhd::trigger_pv::trigger_tx_t* tx,
         size_t tx_len) {
+            // Return false if any value is adjusted
+            bool value_adjuested = true;
 
             // Convert the per channel arrays from the caller's version of the struct
             // to the library's
@@ -3076,12 +3115,81 @@ public:
             std::vector<size_t> unspecified_rx = uhd::trigger_pv::detail::find_unspecified_channels(lib_rx, get_rx_num_channels());
             std::vector<size_t> unspecified_tx = uhd::trigger_pv::detail::find_unspecified_channels(lib_tx, get_tx_num_channels());
 
+            // DISABLE CHANNELS
+
+            // Disable listening/outputting to the trigger for all channels unless the user wants hot reconfiguration.
+            // Disabling comes first to avoid false activations
+            for(size_t ch_i = 0; ch_i < lib_rx.size(); ch_i++) {
+                if(lib_rx[ch_i]->trig_sel == uhd::trigger_pv::active_trigger_t::none || !lib_rx[ch_i]->hot_configure) {
+                    fspath path = rx_trigger_root(lib_rx[ch_i]->channel) + "/trig_sel";
+                    _tree->access<std::string>(path).set("0");
+                }
+            }
+            for(size_t ch_i = 0; ch_i < lib_tx.size(); ch_i++) {
+                if(lib_tx[ch_i]->trig_sel == uhd::trigger_pv::active_trigger_t::none || !lib_tx[ch_i]->hot_configure) {
+                    fspath path = tx_trigger_root(lib_tx[ch_i]->channel) + "/trig_sel";
+                    _tree->access<std::string>(path).set("0");
+                }
+            }
+
+            // Sore the original value of unspecified channels so we can restore their trig_sel value later
+            std::vector<std::string>  original_unspecified_rx_trig_sel();
+            if(op->setup_mode & (setup_mode_t.disable_unspecified_rx | setup_mode_t.disable_unspecified_rx_while_configuring)) {
+                original_unspecified_rx_trig_sel.resize(unspecified_rx.size());
+                for(size_t ch_i = 0; ch_i < unspecified_rx.size(); ch_i++) {
+                    fspath path = rx_trigger_root(unspecified_rx[ch_i]) + "/trig_sel";
+                    original_unspecified_rx_trig_sel[ch_i] = _tree->access<std::string>(path).get();
+                    _tree->access<std::string>(path).set("0");
+                }
+            }
+            std::vector<std::string>  original_unspecified_tx_trig_sel();
+            if(op->setup_mode & (setup_mode_t.disable_unspecified_tx | setup_mode_t.disable_unspecified_tx_while_configuring)) {
+                original_unspecified_tx_trig_sel.resize(unspecified_tx.size());
+                for(size_t ch_i = 0; ch_i < unspecified_tx.size(); ch_i++) {
+                    fspath path = tx_trigger_root(unspecified_tx[ch_i]) + "/trig_sel";
+                    original_unspecified_tx_trig_sel[ch_i] = _tree->access<std::string>(path).get();
+                    _tree->access<std::string>(path).set("0");
+                }
+            }
+
+            // SET SMA TO INPUT IF DESIRED
+            if(global->sma_dir == direction_t.out) {
+
+            }
+
+            // GLOBAL SMA OVERRIDE
+
+            fspath sma_override_path = trigger_root() + "/sma_override";
+            if(global->sma_override == opt_bool_t.true) {
+                _tree->access<std::string>(sma_override_path).set("1");
+            } else if(global->sma_override == opt_bool_t.false) {
+                _tree->access<std::string>(sma_override_path).set("0");
+            } else if(global->sma_override == opt_bool_t.unpsec) {
+                int sma_override_val = _tree->access<std::string>(sma_override_path).get();
+
+                if(sma_override_val == 1) {
+                    global->sma_override = opt_bool_t.true;
+                } else if(sma_override_val == 0) {
+                    global->sma_override = opt_bool_t.false;
+                } else {
+                    // TODO: throw error
+                }
+            } else {
+                // TODO: throw error
+            }
+
+
+            // Enable all
+
             for(size_t ch_i = 0; ch_i < lib_rx.size(); ch_i++) {
                 // Disable streaming while reconfiguring unless explicitly requested
                 if(!lib_rx[ch_i].enable_while_configuring) {
                     _tree->access<std::string>(rx_root(lib_rx[ch_i].channel) + "stream").set("0");
                 }
             }
+
+            // Apply sma override
+            // Apply direction
 
             // Global TODO:
             // sma_direction

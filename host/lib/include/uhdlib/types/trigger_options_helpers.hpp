@@ -119,4 +119,10 @@ std::vector<size_t> find_unspecified_channels(
 std::vector<size_t> find_unspecified_channels(
     const std::vector<trigger_tx_t>& library, size_t num_channels);
 
+//! Value the SDR expects in the property tree for a pin direction.
+std::string to_device_string(direction_t dir);
+
+//! Inverse, for reading the actual value back from the device.
+direction_t direction_from_device_string(const std::string& str)
+
 }}} // namespace uhd::trigger_pv::detail

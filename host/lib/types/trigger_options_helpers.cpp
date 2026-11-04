@@ -284,4 +284,32 @@ std::vector<size_t> find_unspecified_channels(
     return find_unspecified_channels_impl(library, num_channels);
 }
 
+//! Value the SDR expects in the property tree for a pin direction.
+std::string to_device_string(direction_t dir)
+{
+    switch (dir) {
+        case direction_t::in:
+            return "in";
+        case direction_t::out:
+            return "out";
+        case direction_t::not_applicable:
+            throw uhd::value_error("direction_t::not_applicable has no device equivalent");
+    }
+    // Reached only if the caller cast an out-of-range number to direction_t.
+    throw uhd::value_error(std::format(
+        "invalid direction_t value {}", static_cast<uint32_t>(dir)));
+}
+
+//! Inverse, for reading the actual value back from the device.
+direction_t direction_from_device_string(const std::string& str)
+{
+    if (str == "in") {
+        return direction_t::in;
+    }
+    if (str == "out") {
+        return direction_t::out;
+    }
+    throw uhd::runtime_error(std::format("device reported unknown direction \"{}\"", str));
+}
+
 }}} // namespace uhd::trigger_pv::detail

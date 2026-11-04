@@ -81,12 +81,14 @@ enum class direction_t : uint32_t {
     in             = 0, //!< Pin is an input.
     out            = 1, //!< Pin is an output.
     not_applicable = 2, //!< Device has separate input and output pins.
+    get, //!< Get the direction, do not set
 };
 
 //! Which signal level counts as an active trigger.
 enum class polarity_t : uint32_t {
     positive = 0, //!< Active high.
     negative = 1, //!< Active low.
+    unpsec = 2 //!< Get the existing value
 };
 
 //! How a trigger input is interpreted.
@@ -95,7 +97,15 @@ enum class trigger_mode_t : uint32_t {
     level = 1, //!< Stream while the trigger is active.
 };
 
+//! A bool that can also be left unset.
+enum class opt_bool_t : uint32_t {
+    unset = 0, //!< Not specified by the caller.
+    no    = 1,
+    yes   = 2,
+};
+
 //! Which triggers a channel listens to. Values may be combined with |.
+// Unlike other enums, the raw number is passed to the SDR
 enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
     global_sma  = 1u << 0, //!< Listen to the global SMA trigger.
@@ -129,7 +139,8 @@ enum class setup_mode_t : uint64_t {
      * Overriden by disable_unspecified_tx
      * Throws an error/warning if enable_strict_errors/disable_warnings is set to not_applicable
      */
-    disable_unspecified_tx_while_configuring = 1u << 3
+    disable_unspecified_tx_while_configuring = 1u << 3,
+
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
@@ -242,7 +253,7 @@ struct trigger_global_t
      * Override the global trigger so that it acts as if the input is active.
      * TODO: verify it does not affect the output.
      */
-    bool sma_override = false;
+    opt_bool_t sma_override = unset;
 
     //! Explicit padding. Must be zero.
     uint8_t reserved0[3] = {};
@@ -267,9 +278,11 @@ struct trigger_rx_t
     /*!
      * How many ticks to wait after an edge before triggering again.
      * Mainly used for debouncing.
+     * A negative value passed to UHD indicates get only, do not change.
+     * A negative value returned by UHD indicates an error
      * TODO: check behaviour if a second edge is received during the backoff.
      */
-    uint32_t edge_backoff = 0;
+    int64_t edge_backoff = -1;
 
     //! The physical channel this struct applies to. Must be set by the caller.
     size_t channel = channel_unset;
@@ -277,9 +290,11 @@ struct trigger_rx_t
     /*!
      * The number of samples to stream per edge in edge triggered mode.
      * 0 means stream indefinitely after the trigger is received.
+     * The device takes uint64_t
+     * In UHD negative values are used to indicate errors when returns from UHD and get only when passed to UHD.
      * TODO: verify this does nothing in level mode.
      */
-    uint64_t edge_sample_num = 0;
+    int64_t edge_sample_num = -1;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::none;
@@ -303,7 +318,7 @@ struct trigger_rx_t
      */
     direction_t ufl_dir = direction_t::out;
 
-    bool enable_while_configuring = false;
+    bool hot_configure = false;
 
     //! Explicit tail padding (struct is 8-byte aligned). Must be zero.
     uint32_t reserved0 = 0;
@@ -328,9 +343,11 @@ struct trigger_tx_t
     /*!
      * How many ticks to wait after an edge before triggering again.
      * Mainly used for debouncing.
+     * A negative value passed to UHD indicates get only, do not change.
+     * A negative value returned by UHD indicates an error
      * TODO: check behaviour if a second edge is received during the backoff.
      */
-    uint32_t edge_backoff = 0;
+    int64_t edge_backoff = -1;
 
     //! The physical channel this struct applies to. Must be set by the caller.
     size_t channel = channel_unset;
@@ -338,9 +355,11 @@ struct trigger_tx_t
     /*!
      * The number of samples to stream per edge in edge triggered mode.
      * 0 means stream indefinitely after the trigger is received.
+     * The device takes uint64_t
+     * In UHD negative values are used to indicate errors when returns from UHD and get only when passed to UHD.
      * TODO: verify this does nothing in level mode.
      */
-    uint64_t edge_sample_num = 0;
+    int64_t edge_sample_num = -1;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::none;
@@ -365,7 +384,7 @@ struct trigger_tx_t
     direction_t ufl_dir = direction_t::out;
 
     //! Keep the channel enabled while configuring it
-    bool enable_while_configuring = false;
+    bool hot_configure = false;
 
     //! Trigger gating. TODO: document.
     gating_t gating = gating_t::dsp;
