@@ -109,19 +109,6 @@ static void freq_error_check(
  * Trigger helper functions
  **********************************************************************/
 
-static std::string rx_root(const size_t channel, const size_t mboard = 0) {
-    return mb_root(mboard) + "/rx/" + std::to_string(channels[n]) + "/";
-}
-static std::string rx_trigger_root(const size_t channel, const size_t mboard = 0) {
-    return rx_root(channel, mboard) + "trigger/"
-}
-static std::string tx_root(const size_t channel, const size_t mboard = 0) {
-    return mb_root(mboard) + "/tx/" + std::to_string(channels[n]) + "/";
-}
-static std::string tx_trigger_root(const size_t channel, const size_t mboard = 0) {
-    return rx_root(channel, mboard) + "trigger/"
-}
-
 /***********************************************************************
  * Gain helper functions
  **********************************************************************/
@@ -2884,6 +2871,14 @@ private:
     fs_path tx_link_root(const size_t chan)
     {
         return "/mboards/0/tx_link/" + std::to_string(chan);
+    }
+
+    fs_path rx_trigger_root(const size_t channel) {
+        return rx_root(channel) + "/trigger"
+    }
+
+    fs_path tx_trigger_root(const size_t channel) {
+       return tx_root(channel) + "/trigger"
     }
 
     size_t get_radio_index(const std::string slot_name)
