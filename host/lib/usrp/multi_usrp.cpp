@@ -3067,14 +3067,14 @@ public:
 
             // Convert the per channel arrays from the caller's version of the struct
             // to the library's
-            std::vector<uhd::trigger_pv::trigger_rx_t> lib_rx = copy_array_from_caller(rx, rx_len);
+            std::vector<uhd::trigger_pv::trigger_rx_t> lib_rx = uhd::trigger_pv::detail::copy_array_from_caller(rx, rx_len);
             // TODO: implement tx
-            std::vector<uhd::trigger_pv::trigger_tx_t> lib_tx = copy_array_from_caller(tx, tx_len);
+            std::vector<uhd::trigger_pv::trigger_tx_t> lib_tx = uhd::trigger_pv::detail::copy_array_from_caller(tx, tx_len);
 
             // Lists of unspecified channels
             // TODO: inmplement behaviour for unspecified channels based on trigger_global_t
-            std::vector<size_t> unspecified_rx = find_unspecified_channels(lib_rx, get_rx_num_channels());
-            std::vector<size_t> unspecified_tx = find_unspecified_channels(lib_tx, get_tx_num_channels());
+            std::vector<size_t> unspecified_rx = uhd::trigger_pv::detail::find_unspecified_channels(lib_rx, get_rx_num_channels());
+            std::vector<size_t> unspecified_tx = uhd::trigger_pv::detail::find_unspecified_channels(lib_tx, get_tx_num_channels());
 
             for(size_t ch_i = 0; ch_i < lib_rx.size(); ch_i++) {
                 // Disable streaming while reconfiguring unless explicitly requested
@@ -3097,6 +3097,8 @@ public:
             // ufl_dir
 
             // Re-enable rx
+
+        return false;
     }
 };
 
