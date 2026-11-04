@@ -22,6 +22,7 @@
 #include <uhdlib/rfnoc/rfnoc_device.hpp>
 #include <uhdlib/usrp/gpio_defs.hpp>
 #include <uhdlib/usrp/multi_usrp_utils.hpp>
+#include <uhdlib/types/trigger_options_helpers.hpp>
 #include <boost/algorithm/string.hpp>
 #include <format>
 #include <algorithm>
@@ -107,6 +108,19 @@ static void freq_error_check(
 /***********************************************************************
  * Trigger helper functions
  **********************************************************************/
+
+static std::string rx_root(const size_t channel, const size_t mboard = 0) {
+    mb_root(mboard) + "/rx/" + std::to_string(channels[n]) + "/";
+}
+static std::string rx_trigger_root(const size_t channel, const size_t mboard = 0) {
+    return rx_root(channel, mboard) + "trigger/"
+}
+static std::string tx_root(const size_t channel, const size_t mboard = 0) {
+    mb_root(mboard) + "/tx/" + std::to_string(channels[n]) + "/";
+}
+static std::string tx_trigger_root(const size_t channel, const size_t mboard = 0) {
+    return rx_root(channel, mboard) + "trigger/"
+}
 
 /***********************************************************************
  * Gain helper functions
@@ -3056,13 +3070,38 @@ public:
         uhd::trigger_pv::trigger_tx_t* tx,
         size_t tx_len) {
 
-            if(op.setup_mode == setup_mode_t.disable) {
-                //
-                for(size_t n = 0; n < channels.size(); n++) {
-                    const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
-                    _tree->access<std::string>(root + "stream").set("0");
+            // Convert the per channel arrays from the caller's version of the struct
+            // to the library's
+            std::vector<trigger_rx_t> lib_rx = copy_array_from_caller(rx, rx_len);
+            // TODO: implement tx
+            std::vector<trigger_tx_t> lib_tx = copy_array_from_caller(tx, tx_len);
+
+            // Lists of unspecified channels
+            // TODO: inmplement behaviour for unspecified channels based on trigger_global_t
+            std::vector<size_t> unspecified_rx = find_unspecified_channels(lib_rx, get_rx_num_channels());
+            std::vector<size_t> unspecified_tx = find_unspecified_channels(lib_tx, get_tx_num_channels());
+
+            for(size_t ch_i = 0; ch_i < lib_rx.size(); ch_i++) {
+                // Disable streaming while reconfiguring unless explicitly requested
+                if(!lib_rx[ch_i].enable_while_configuring) {
+                    _tree->access<std::string>(rx_root(lib_rx[ch_i].channel) + "stream").set("0");
                 }
             }
+
+            // Global TODO:
+            // sma_direction
+            // sma_polarity
+            // sma_override
+
+            // Rx TODO:
+            // edge_backoff
+            // edge_sample_num
+            // trig_sel
+            // sma_mode
+            // ufl_mode
+            // ufl_dir
+
+            // Re-enable rx
     }
 };
 

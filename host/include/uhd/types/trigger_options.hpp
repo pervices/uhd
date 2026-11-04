@@ -112,21 +112,29 @@ enum class gating_t : uint32_t {
 };
 
 //! How to behave while the trigger is being configured. Values may be combined with |.
-enum class setup_mode_t : uint32_t {
+enum class setup_mode_t : uint64_t {
     none = 0, //!< Default behaviour. TODO: document.
-    //! Disable all TX channels not specified in the trigger_tx_t array.
-    disable_unspecified_tx = 1u << 0,
-    //! Disable all RX channels not specified in the trigger_rx_t array.
-    disable_unspecified_rx = 1u << 1,
-    //! Do not disable channels specified in the trigger_rx_t and trigger_tx_t arrays while configuring.
-    enable_specified_while_configuring = 1u << 2,
-    //! Do not disable channels not specified in the trigger_rx_t and trigger_tx_t arrays while configuring.
-    enable_unspecified_while_configuring = 1u << 3,
+    //! Disable all RX channels not not specified in the trigger_rx_t array and keep them disabled after.
+    disable_unspecified_rx = 1u << 0,
+    //! Disable all TX channels not specified in the trigger_tx_t array and keep them disabled after.
+    disable_unspecified_tx = 1u << 1,
+    /*!
+     * Disable all RX channels not not specified in the trigger_rx_t array but re-enable them after.
+     * Overriden by disable_unspecified_rx
+     * Throws an error/warning if enable_strict_errors/disable_warnings is set to not_applicable
+     */
+    disable_unspecified_rx_while_configuring = 1u << 2,
+    /*!
+     * Disable all TX channels not not specified in the trigger_tx_t array but re-enable them after.
+     * Overriden by disable_unspecified_tx
+     * Throws an error/warning if enable_strict_errors/disable_warnings is set to not_applicable
+     */
+    disable_unspecified_tx_while_configuring = 1u << 3
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
 //! What to do if configuring the trigger fails part way through.
-enum class failure_handling_t : uint32_t {
+enum class failure_handling_t : uint64_t {
     disable_all = 0, //!< Disable triggering on all channels. TODO: confirm.
     // TODO: add other failure handling modes.
 };
@@ -295,8 +303,7 @@ struct trigger_rx_t
      */
     direction_t ufl_dir = direction_t::out;
 
-    //! Trigger gating. TODO: document.
-    gating_t gating = gating_t::dsp;
+    bool enable_while_configuring = false;
 
     //! Explicit tail padding (struct is 8-byte aligned). Must be zero.
     uint32_t reserved0 = 0;
@@ -356,6 +363,12 @@ struct trigger_tx_t
      * TODO: verify out is a good default.
      */
     direction_t ufl_dir = direction_t::out;
+
+    //! Keep the channel enabled while configuring it
+    bool enable_while_configuring = false;
+
+    //! Trigger gating. TODO: document.
+    gating_t gating = gating_t::dsp;
 
     // --- end of v1: append new fields below this line only ---
 };
