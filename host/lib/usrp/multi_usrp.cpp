@@ -29,9 +29,15 @@
 #include <bitset>
 #include <chrono>
 #include <cmath>
+#include <concepts>
 #include <functional>
+#include <limits>
 #include <memory>
+#include <optional>
+#include <string>
 #include <thread>
+#include <type_traits>
+#include <utility>
 #include <assert.h>
 
 #include <iostream>
@@ -2288,6 +2294,9 @@ public:
         }
     }
 
+    // TODO: convert tx_trigger_setup, tx_trigger_cleanup, rx_trigger_setup and
+    // rx_trigger_cleanup to wrappers for trigger_configure.
+
     // Both tx and rx trigger configurations set the trigger direction. These are used for a warning
     enum which_rxtx { none, rx, tx };
     which_rxtx last_trigger_dir_set_by = none;
@@ -2334,7 +2343,7 @@ public:
         for(size_t n = 0; n < channels.size(); n++) {
             const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
             _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
-            _tree->access<std::string>(root + "trigger/trig_sel").set("1");
+            _tree->access<std::string>(root + "trigger/trig_sel").set("0");
         }
         last_trigger_dir_set_by = none;
     }
@@ -2770,7 +2779,7 @@ private:
 
     // Directory from trigger options that apply globally
     fs_path trigger_root() {
-        return mb_root(0) + "trigger";
+        return mb_root(0) / "trigger";
     }
 
     fs_path rx_root(const size_t chan)
@@ -2879,11 +2888,11 @@ private:
     }
 
     fs_path rx_trigger_root(const size_t channel) {
-        return rx_root(channel) + "/trigger";
+        return rx_root(channel) / "trigger";
     }
 
     fs_path tx_trigger_root(const size_t channel) {
-       return tx_root(channel) + "/trigger";
+        return tx_root(channel) / "trigger";
     }
 
     size_t get_radio_index(const std::string slot_name)
@@ -3064,29 +3073,59 @@ public:
     }
 
 private:
-    // Put sub function for trigger_configure here
+    /***********************************************************************
+     * trigger_configure helpers
+     *
+     * Every set-or-get helper returns true if the value now in effect is the
+     * one requested (a get always counts as exact), and false if the device
+     * coerced it. Values read or coerced are written back through the pointer.
+     **********************************************************************/
+
+    /*!
+     * Handle a trigger setting that the device applied differently from the
+     * request: throw if \p op enables strict coerced_value errors, otherwise log a
+     * warning unless \p op disables coerced_value warnings.
+     */
+    void trigger_handle_coerced_value(const fs_path& path,
+        const std::string& requested,
+        const std::string& actual,
+        const uhd::trigger_pv::trigger_op_t& op)
+    {
+        using namespace uhd::trigger_pv;
+
+        const std::string message = std::format(
+            "{}: requested {} but the device applied {}", std::string(path), requested, actual);
+
+        if (has_any(op.enable_strict_errors & strict_error_t::coerced_value)) {
+            throw uhd::value_error(message);
+        }
+        if (!has_any(op.disable_warnings & warning_t::coerced_value)) {
+            UHD_LOG_WARNING("MULTI_USRP", message);
+        }
+    }
+
     /*!
      * Set or read one enum-valued trigger setting that the device stores as a string.
      *
      * If *value is E::get: read the device's current setting into *value and
-     * return false.
+     * return true.
      *
      * Otherwise: write *value to the device, then read back what it actually applied.
      *  - Matches the request: return true.
-     *  - Differs, and strict_errors includes coerced_value: throw. *value is
-     *    left as requested, but the device setting HAS already changed.
-     *  - Differs otherwise: store the actual value in *value and return false.
+     *  - Differs: call trigger_handle_coerced_value(), store the actual value in
+     *    *value and return false. If it throws, *value is left as requested, but
+     *    the device setting HAS already changed.
      *
      * \param path property tree node holding the setting
      * \param value in: requested value or E::get; out: the value actually in effect
-     * \param strict_errors the caller's trigger_op_t::enable_strict_errors
+     * \param op the (library format) trigger_op_t passed to trigger_configure
      * \param from_device_string converts the device's string to E,
      *        e.g. &detail::polarity_from_device_string
      */
     template <uhd::trigger_pv::detail::enum_with_get E>
     bool trigger_set_or_get_enum_string(const fs_path& path,
         E* value,
-        const uhd::trigger_pv::strict_error_t strict_errors,
+        const uhd::trigger_pv::trigger_op_t& op,
         E (*from_device_string)(const std::string&))
     {
         using namespace uhd::trigger_pv;
@@ -3096,9 +3135,8 @@ private:
         }
 
         if (*value == E::get) {
-            const std::string actual_str = _tree->access<std::string>(path).get();
-            *value = from_device_string(actual_str);
-            return false;
+            *value = from_device_string(_tree->access<std::string>(path).get());
+            return true;
         }
 
         const std::string requested_str = detail::to_device_string(*value);
@@ -3106,53 +3144,75 @@ private:
         const std::string actual_str = _tree->access<std::string>(path).get();
 
         // Compare as enums, not strings, so formatting differences in the
-        // device's reply (e.g. trailing whitespace) aren't treated as coercion.
+        // device's reply (e.g. a trailing newline) aren't treated as coercion.
         const E actual = from_device_string(actual_str);
         if (actual == *value) {
             return true;
         }
 
-        if (has_any(strict_errors & strict_error_t::coerced_value)) {
-            throw uhd::value_error(std::format("{}: requested \"{}\" but the device applied \"{}\"",
-                std::string(path), requested_str, actual_str));
-        }
+        trigger_handle_coerced_value(path, "\"" + requested_str + "\"", "\"" + actual_str + "\"", op);
         *value = actual;
         return false;
     }
 
     /*!
-     * Same as trigger_set_or_get_string(), for a setting the device stores as an
-     * int whose values are the enum's numeric values.
+     * Same as trigger_set_or_get_enum_string(), for a setting the device stores
+     * as the enum's raw number.
+     *
+     * property_t is the type of the property tree node: int, or std::string
+     * holding the number in decimal (e.g. trig_sel).
+     *
+     * The number read back is not checked against the enum's named values.
      */
-    template <uhd::trigger_pv::detail::enum_with_get E>
-    bool trigger_set_or_get_enum_int(const fs_path& path,
-        E* value,
-        const uhd::trigger_pv::strict_error_t strict_errors)
+    template <typename property_t, uhd::trigger_pv::detail::enum_with_get E>
+    bool trigger_set_or_get_enum_number(
+        const fs_path& path, E* value, const uhd::trigger_pv::trigger_op_t& op)
     {
         using namespace uhd::trigger_pv;
+        static_assert(std::is_same_v<property_t, int> || std::is_same_v<property_t, std::string>,
+            "property_t must be int or std::string");
+        using number_t = std::underlying_type_t<E>;
 
         if (value == nullptr) {
             throw uhd::value_error(std::format("{}: null argument", std::string(path)));
         }
 
+        // Write `v`'s raw number to the device in whichever format the property uses.
+        auto write_device = [&](const E v) {
+            const number_t number = static_cast<number_t>(v);
+            if constexpr (std::is_same_v<property_t, int>) {
+                _tree->access<int>(path).set(static_cast<int>(number));
+            } else {
+                _tree->access<std::string>(path).set(std::to_string(number));
+            }
+        };
+
+        // Read the device's raw number as E.
+        auto read_device = [&]() -> E {
+            if constexpr (std::is_same_v<property_t, int>) {
+                return static_cast<E>(_tree->access<int>(path).get());
+            } else {
+                return static_cast<E>(std::stoull(_tree->access<std::string>(path).get()));
+            }
+        };
+
         if (*value == E::get) {
-            *value = static_cast<E>(_tree->access<int>(path).get());
-            return false;
-        }
-
-        const int requested = static_cast<int>(*value);
-        _tree->access<int>(path).set(requested);
-        const int actual = _tree->access<int>(path).get();
-
-        if (actual == requested) {
+            *value = read_device();
             return true;
         }
 
-        if (has_any(strict_errors & strict_error_t::coerced_value)) {
-            throw uhd::value_error(std::format("{}: requested {} but the device applied {}",
-                std::string(path), requested, actual));
+        write_device(*value);
+        const E actual = read_device();
+
+        if (actual == *value) {
+            return true;
         }
-        *value = static_cast<E>(actual);
+
+        trigger_handle_coerced_value(path,
+            std::to_string(static_cast<number_t>(*value)),
+            std::to_string(static_cast<number_t>(actual)),
+            op);
+        *value = actual;
         return false;
     }
 
@@ -3161,14 +3221,14 @@ private:
      *
      * property_t is the type the device stores the setting as: int or std::string.
      *
-     * If *value is -1: read the device's current setting into *value and return false.
+     * If *value is -1: read the device's current setting into *value and return true.
      *
      * Otherwise *value must be in [0, upper_bound]. Write it to the device, then
      * read back what it actually applied.
      *  - Matches the request: return true.
-     *  - Differs, and strict_errors includes coerced_value: throw.
-     *    *value is left as requested, but the device setting HAS already changed.
-     *  - Differs otherwise: store the actual value in *value and return false.
+     *  - Differs: call trigger_handle_coerced_value(), store the actual value in
+     *    *value and return false. If it throws, *value is left as requested, but
+     *    the device setting HAS already changed.
      *
      * Throws if *value is outside [-1, upper_bound], or if the device reports a
      * value outside [0, upper_bound] (negative values from the device are errors).
@@ -3176,7 +3236,7 @@ private:
      * \param path property tree node holding the setting
      * \param value in: requested value or -1; out: the value actually in effect
      * \param upper_bound largest valid value (inclusive)
-     * \param strict_errors the caller's trigger_op_t::enable_strict_errors
+     * \param op the (library format) trigger_op_t passed to trigger_configure
      */
     template <typename property_t, std::signed_integral T>
     bool trigger_set_or_get_integer(const fs_path& path,
@@ -3184,9 +3244,8 @@ private:
         // type_identity_t stops upper_bound from taking part in deducing T, so a
         // literal like UINT32_MAX converts to T instead of causing a type mismatch.
         const std::type_identity_t<T> upper_bound,
-        const uhd::trigger_pv::strict_error_t strict_errors)
+        const uhd::trigger_pv::trigger_op_t& op)
     {
-        using namespace uhd::trigger_pv;
         static_assert(std::is_same_v<property_t, int> || std::is_same_v<property_t, std::string>,
             "property_t must be int or std::string");
 
@@ -3235,7 +3294,7 @@ private:
 
         if (*value == -1) {
             *value = read_device();
-            return false;
+            return true;
         }
 
         const T requested = *value;
@@ -3246,186 +3305,472 @@ private:
             return true;
         }
 
-        if (has_any(strict_errors & strict_error_t::coerced_value)) {
-            throw uhd::value_error(std::format("{}: requested {} but the device applied {}",
-                path_str, requested, actual));
-        }
+        trigger_handle_coerced_value(path, std::to_string(requested), std::to_string(actual), op);
         *value = actual;
         return false;
     }
-public:
-    // Order:
-    // Set trig_sel to none if desired or not hot reconfiguring
-    // Apply global changes except direction
-    // Apply per channel changes other than trig_sel and direction
-    // Apply direction changes
-    // Apply trig_sel
 
+    /*!
+     * Apply the per-channel settings that RX and TX have in common, other than
+     * trig_sel and ufl_dir (those are applied in separate steps).
+     * channel_t is trigger_rx_t or trigger_tx_t.
+     * \return true if any value was coerced
+     */
+    template <typename channel_t>
+    bool trigger_apply_common_channel_settings(
+        channel_t& chan, const fs_path& channel_trigger_root, const uhd::trigger_pv::trigger_op_t& op)
+    {
+        using namespace uhd::trigger_pv;
+
+        // The call goes FIRST in each `||`. Written as `val_changed || trigger_...()`,
+        // the call would be skipped as soon as val_changed became true, because
+        // || short-circuits.
+        bool val_changed = false;
+
+        val_changed = !trigger_set_or_get_integer<std::string>(channel_trigger_root / "edge_backoff",
+                          &chan.edge_backoff,
+                          UINT32_MAX,
+                          op)
+                      || val_changed;
+
+        val_changed = !trigger_set_or_get_integer<std::string>(channel_trigger_root / "edge_sample_num",
+                          &chan.edge_sample_num,
+                          std::numeric_limits<int64_t>::max(),
+                          op)
+                      || val_changed;
+
+        val_changed = !trigger_set_or_get_enum_string(channel_trigger_root / "sma_mode",
+                          &chan.sma_mode,
+                          op,
+                          &detail::trigger_mode_from_device_string)
+                      || val_changed;
+
+        val_changed = !trigger_set_or_get_enum_string(channel_trigger_root / "ufl_mode",
+                          &chan.ufl_mode,
+                          op,
+                          &detail::trigger_mode_from_device_string)
+                      || val_changed;
+
+        val_changed = !trigger_set_or_get_enum_string(channel_trigger_root / "ufl_pol",
+                          &chan.ufl_polarity,
+                          op,
+                          &detail::polarity_from_device_string)
+                      || val_changed;
+
+        return val_changed;
+    }
+
+    /*!
+     * Step 1 for one channel's trig_sel (see trigger_apply()).
+     *
+     * If trig_sel is none, that is also its final value, so it is applied now.
+     * Otherwise, unless the channel is hot configured, trig_sel is set to 0 until
+     * the end; if it was left as get, the current value is read first so it can
+     * be restored at the end and reported back to the caller.
+     * channel_t is trigger_rx_t or trigger_tx_t.
+     * \return true if any value was coerced
+     */
+    template <typename channel_t>
+    bool trigger_begin_trig_sel(
+        channel_t& chan, const fs_path& trig_sel_path, const uhd::trigger_pv::trigger_op_t& op)
+    {
+        using namespace uhd::trigger_pv;
+
+        if (chan.trig_sel == active_trigger_t::none) {
+            return !trigger_set_or_get_enum_number<std::string>(trig_sel_path, &chan.trig_sel, op);
+        }
+        if (!chan.hot_configure) {
+            if (chan.trig_sel == active_trigger_t::get) {
+                // A get is always exact, so the return value carries no information.
+                (void) trigger_set_or_get_enum_number<std::string>(trig_sel_path, &chan.trig_sel, op);
+            }
+            _tree->access<std::string>(trig_sel_path).set("0");
+        }
+        return false;
+    }
+
+    /*!
+     * Step 6 for one channel's trig_sel (see trigger_apply()): apply the final
+     * value. A channel whose trig_sel is none was already finished in step 1. For
+     * a hot configured channel left as get, this is where the value is read.
+     * \return true if any value was coerced
+     */
+    template <typename channel_t>
+    bool trigger_finish_trig_sel(
+        channel_t& chan, const fs_path& trig_sel_path, const uhd::trigger_pv::trigger_op_t& op)
+    {
+        using namespace uhd::trigger_pv;
+
+        if (chan.trig_sel == active_trigger_t::none) {
+            return false;
+        }
+        return !trigger_set_or_get_enum_number<std::string>(trig_sel_path, &chan.trig_sel, op);
+    }
+
+    //! Original values of an unspecified channel that was disabled during configuration.
+    struct trigger_saved_channel_t
+    {
+        size_t channel;
+        std::string trig_sel;
+        std::string stream; //!< RX only; empty for TX
+    };
+
+    /*!
+     * Turn off streaming and triggering on every channel. Used when
+     * trigger_configure fails part way through (failure_handling_t::disable_all).
+     */
+    void trigger_disable_all()
+    {
+        // stream before trig_sel, as in rx_trigger_cleanup.
+        for (size_t channel = 0; channel < get_rx_num_channels(); channel++) {
+            _tree->access<std::string>(rx_root(channel) / "stream").set("0");
+        }
+        for (size_t channel = 0; channel < get_rx_num_channels(); channel++) {
+            _tree->access<std::string>(rx_trigger_root(channel) / "trig_sel").set("0");
+        }
+        for (size_t channel = 0; channel < get_tx_num_channels(); channel++) {
+            _tree->access<std::string>(tx_trigger_root(channel) / "trig_sel").set("0");
+        }
+    }
+
+    /*!
+     * Return every channel to the default non-trigger streaming state
+     * (trigger_op_t::restore_default). Same as rx_trigger_cleanup and
+     * tx_trigger_cleanup applied to all channels.
+     */
+    void trigger_restore_default()
+    {
+        // stream must be set to 0 first, since certain channels share certain properties.
+        for (size_t channel = 0; channel < get_rx_num_channels(); channel++) {
+            _tree->access<std::string>(rx_root(channel) / "stream").set("0");
+        }
+        for (size_t channel = 0; channel < get_rx_num_channels(); channel++) {
+            _tree->access<std::string>(rx_trigger_root(channel) / "edge_sample_num").set("0");
+            _tree->access<std::string>(rx_trigger_root(channel) / "trig_sel").set("0");
+        }
+        for (size_t channel = 0; channel < get_tx_num_channels(); channel++) {
+            _tree->access<std::string>(tx_trigger_root(channel) / "edge_sample_num").set("0");
+            _tree->access<std::string>(tx_trigger_root(channel) / "trig_sel").set("0");
+        }
+        last_trigger_dir_set_by = none;
+    }
+
+    /*!
+     * The body of trigger_configure(), after the caller's structs have been
+     * copied and validated. Applies the settings in this order:
+     *  1. Disable: RX stream, then trig_sel, on channels that are not hot
+     *     configured (and on unspecified channels, unless op.setup_mode says to
+     *     hot configure them)
+     *  2. Directions set to in (or get)
+     *  3. Global settings
+     *  4. Per-channel settings (TX gating last)
+     *  5. Directions set to out
+     *  6. TX rstreq, then trig_sel, then RX stream
+     *  7. Restore unspecified channels that were disabled in step 1
+     *
+     * Values read from the device or coerced are written into the arguments.
+     * \return true if any requested value was coerced
+     */
+    bool trigger_apply(const uhd::trigger_pv::trigger_op_t& op,
+        std::optional<uhd::trigger_pv::trigger_global_t>& global,
+        std::vector<uhd::trigger_pv::trigger_rx_t>& lib_rx,
+        std::vector<uhd::trigger_pv::trigger_tx_t>& lib_tx,
+        const std::vector<size_t>& unspecified_rx,
+        const std::vector<size_t>& unspecified_tx)
+    {
+        using namespace uhd::trigger_pv;
+
+        // The call goes FIRST in each `||`; see trigger_apply_common_channel_settings().
+        bool val_changed = false;
+
+        // ---------------------------------------------------------------
+        // 1. DISABLE
+        // Disabling comes first to avoid false activations while settings
+        // change. stream is turned off before trig_sel because certain
+        // channels share certain properties (as in rx_trigger_cleanup).
+        // ---------------------------------------------------------------
+
+        // Save the original values of unspecified channels that will be disabled,
+        // so they can be restored in step 7.
+        std::vector<trigger_saved_channel_t> saved_rx;
+        if (!has_any(op.setup_mode & setup_mode_t::hot_configure_unspecified_rx)) {
+            for (const size_t channel : unspecified_rx) {
+                saved_rx.push_back({channel,
+                    _tree->access<std::string>(rx_trigger_root(channel) / "trig_sel").get(),
+                    _tree->access<std::string>(rx_root(channel) / "stream").get()});
+            }
+        }
+        std::vector<trigger_saved_channel_t> saved_tx;
+        if (!has_any(op.setup_mode & setup_mode_t::hot_configure_unspecified_tx)) {
+            for (const size_t channel : unspecified_tx) {
+                saved_tx.push_back({channel,
+                    _tree->access<std::string>(tx_trigger_root(channel) / "trig_sel").get(),
+                    ""});
+            }
+        }
+
+        // RX stream: specified channels.
+        for (trigger_rx_t& rx : lib_rx) {
+            const fs_path stream_path = rx_root(rx.channel) / "stream";
+            if (rx.enable == 0) {
+                // Disabled is also the final state, so apply it now.
+                val_changed = !trigger_set_or_get_integer<std::string>(stream_path, &rx.enable, 1, op)
+                              || val_changed;
+            } else if (!rx.hot_configure) {
+                if (rx.enable == -1) {
+                    // Read the current value so it can be restored in step 6.
+                    // A get is always exact, so the return value carries no information.
+                    (void) trigger_set_or_get_integer<std::string>(stream_path, &rx.enable, 1, op);
+                }
+                _tree->access<std::string>(stream_path).set("0");
+            }
+        }
+        // RX stream: unspecified channels.
+        for (const trigger_saved_channel_t& saved : saved_rx) {
+            _tree->access<std::string>(rx_root(saved.channel) / "stream").set("0");
+        }
+
+        // trig_sel: specified channels.
+        for (trigger_rx_t& rx : lib_rx) {
+            val_changed = trigger_begin_trig_sel(rx, rx_trigger_root(rx.channel) / "trig_sel", op)
+                          || val_changed;
+        }
+        for (trigger_tx_t& tx : lib_tx) {
+            val_changed = trigger_begin_trig_sel(tx, tx_trigger_root(tx.channel) / "trig_sel", op)
+                          || val_changed;
+        }
+        // trig_sel: unspecified channels.
+        for (const trigger_saved_channel_t& saved : saved_rx) {
+            _tree->access<std::string>(rx_trigger_root(saved.channel) / "trig_sel").set("0");
+        }
+        for (const trigger_saved_channel_t& saved : saved_tx) {
+            _tree->access<std::string>(tx_trigger_root(saved.channel) / "trig_sel").set("0");
+        }
+
+        // ---------------------------------------------------------------
+        // 2. DIRECTIONS SET TO IN (OR GET)
+        // Outputs are enabled in step 5, after everything else is configured.
+        // ---------------------------------------------------------------
+        // Record which directions were requested as out BEFORE any gets are
+        // resolved: a get that reads back "out" must not be written again in step 5.
+        const bool sma_out_requested =
+            global.has_value() && global->sma_direction == pin_direction_t::out;
+        std::vector<bool> rx_ufl_out_requested;
+        for (const trigger_rx_t& rx : lib_rx) {
+            rx_ufl_out_requested.push_back(rx.ufl_dir == pin_direction_t::out);
+        }
+        std::vector<bool> tx_ufl_out_requested;
+        for (const trigger_tx_t& tx : lib_tx) {
+            tx_ufl_out_requested.push_back(tx.ufl_dir == pin_direction_t::out);
+        }
+
+        if (global.has_value() && !sma_out_requested) {
+            val_changed = !trigger_set_or_get_enum_string(trigger_root() / "sma_dir",
+                              &global->sma_direction,
+                              op,
+                              &detail::direction_from_device_string)
+                          || val_changed;
+        }
+        for (size_t channel_index = 0; channel_index < lib_rx.size(); channel_index++) {
+            trigger_rx_t& rx = lib_rx[channel_index];
+            if (!rx_ufl_out_requested[channel_index]) {
+                val_changed = !trigger_set_or_get_enum_string(rx_trigger_root(rx.channel) / "ufl_dir",
+                                  &rx.ufl_dir,
+                                  op,
+                                  &detail::direction_from_device_string)
+                              || val_changed;
+            }
+        }
+        for (size_t channel_index = 0; channel_index < lib_tx.size(); channel_index++) {
+            trigger_tx_t& tx = lib_tx[channel_index];
+            if (!tx_ufl_out_requested[channel_index]) {
+                val_changed = !trigger_set_or_get_enum_string(tx_trigger_root(tx.channel) / "ufl_dir",
+                                  &tx.ufl_dir,
+                                  op,
+                                  &detail::direction_from_device_string)
+                              || val_changed;
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // 3. GLOBAL SETTINGS
+        // ---------------------------------------------------------------
+        if (global.has_value()) {
+            val_changed = !trigger_set_or_get_integer<int>(trigger_root() / "sma_override",
+                              &global->sma_override,
+                              1,
+                              op)
+                          || val_changed;
+
+            val_changed = !trigger_set_or_get_enum_string(trigger_root() / "sma_pol",
+                              &global->sma_polarity,
+                              op,
+                              &detail::polarity_from_device_string)
+                          || val_changed;
+        }
+
+        // ---------------------------------------------------------------
+        // 4. PER-CHANNEL SETTINGS
+        // ---------------------------------------------------------------
+        for (trigger_rx_t& rx : lib_rx) {
+            val_changed = trigger_apply_common_channel_settings(rx, rx_trigger_root(rx.channel), op)
+                          || val_changed;
+        }
+        for (trigger_tx_t& tx : lib_tx) {
+            val_changed = trigger_apply_common_channel_settings(tx, tx_trigger_root(tx.channel), op)
+                          || val_changed;
+        }
+        // TX gating is applied last.
+        for (trigger_tx_t& tx : lib_tx) {
+            val_changed = !trigger_set_or_get_enum_string(tx_trigger_root(tx.channel) / "gating",
+                              &tx.gating,
+                              op,
+                              &detail::gating_from_device_string)
+                          || val_changed;
+        }
+
+        // ---------------------------------------------------------------
+        // 5. DIRECTIONS SET TO OUT
+        // ---------------------------------------------------------------
+        if (sma_out_requested) {
+            val_changed = !trigger_set_or_get_enum_string(trigger_root() / "sma_dir",
+                              &global->sma_direction,
+                              op,
+                              &detail::direction_from_device_string)
+                          || val_changed;
+        }
+        for (size_t channel_index = 0; channel_index < lib_rx.size(); channel_index++) {
+            trigger_rx_t& rx = lib_rx[channel_index];
+            if (rx_ufl_out_requested[channel_index]) {
+                val_changed = !trigger_set_or_get_enum_string(rx_trigger_root(rx.channel) / "ufl_dir",
+                                  &rx.ufl_dir,
+                                  op,
+                                  &detail::direction_from_device_string)
+                              || val_changed;
+            }
+        }
+        for (size_t channel_index = 0; channel_index < lib_tx.size(); channel_index++) {
+            trigger_tx_t& tx = lib_tx[channel_index];
+            if (tx_ufl_out_requested[channel_index]) {
+                val_changed = !trigger_set_or_get_enum_string(tx_trigger_root(tx.channel) / "ufl_dir",
+                                  &tx.ufl_dir,
+                                  op,
+                                  &detail::direction_from_device_string)
+                              || val_changed;
+            }
+        }
+
+        // ---------------------------------------------------------------
+        // 6. TX RSTREQ, THEN TRIG_SEL, THEN RX STREAM
+        // ---------------------------------------------------------------
+        for (trigger_rx_t& rx : lib_rx) {
+            val_changed = trigger_finish_trig_sel(rx, rx_trigger_root(rx.channel) / "trig_sel", op)
+                          || val_changed;
+
+            // enable == 0 was already applied in step 1. Otherwise this sets
+            // stream to 1, restores the value read in step 1, or (for a hot
+            // configured channel left as -1) reads the current value.
+            if (rx.enable != 0) {
+                val_changed = !trigger_set_or_get_integer<std::string>(
+                                  rx_root(rx.channel) / "stream", &rx.enable, 1, op)
+                              || val_changed;
+            }
+        }
+        for (trigger_tx_t& tx : lib_tx) {
+            // Reset the TX DSP before trig_sel is re-enabled. Skipped for hot
+            // configured channels, which were never disabled. rstreq is write-only.
+            if (!tx.hot_configure) {
+                _tree->access<double>(mb_root(0) / "tx_dsps" / tx.channel / "rstreq").set(1.0);
+            }
+
+            val_changed = trigger_finish_trig_sel(tx, tx_trigger_root(tx.channel) / "trig_sel", op)
+                          || val_changed;
+        }
+
+        // ---------------------------------------------------------------
+        // 7. RESTORE UNSPECIFIED CHANNELS (trig_sel, then stream)
+        // ---------------------------------------------------------------
+        for (const trigger_saved_channel_t& saved : saved_rx) {
+            _tree->access<std::string>(rx_trigger_root(saved.channel) / "trig_sel").set(saved.trig_sel);
+            _tree->access<std::string>(rx_root(saved.channel) / "stream").set(saved.stream);
+        }
+        for (const trigger_saved_channel_t& saved : saved_tx) {
+            _tree->access<std::string>(tx_trigger_root(saved.channel) / "trig_sel").set(saved.trig_sel);
+        }
+
+        return val_changed;
+    }
+
+public:
     bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
-        uhd::trigger_pv::trigger_global_t& global,
+        uhd::trigger_pv::trigger_global_t* global,
         uhd::trigger_pv::trigger_rx_t* rx,
         size_t rx_len,
         uhd::trigger_pv::trigger_tx_t* tx,
-        size_t tx_len) {
-            // TODO: add check if op is nullptr (prevents cryptic seg faults if the user nulls it while trying to null something else)
-            // TODO: skip actions involving global when it is null
-            // TODO: add an error check if rx is null and rx_len is non 0
-            // TODO: add an error check if tx is null and tx_len is non 0
-            // TODO: throw an error if rx/tx->channel == channel_unset
-            // TODO: process values we run get for earlier that we set to disabled for the durable of the configuration to run the get at the end so the decision to enable them kmows to get
+        size_t tx_len) override
+    {
+        using namespace uhd::trigger_pv;
 
-            // Return false if any value is adjusted
-            bool val_changed = false;
+        // Deep copies of the caller's structs, in the library's layout. All work
+        // below is done on these; the caller's structs are only written back on
+        // success, so after an exception they still hold exactly what was requested.
 
-            // Convert the per channel arrays from the caller's version of the struct
-            // to the library's
-            // These copies are deep copies. We edit them as we go then reapply them at the end
-            std::vector<uhd::trigger_pv::trigger_rx_t> lib_rx = uhd::trigger_pv::detail::copy_array_from_caller(rx, rx_len);
-            // TODO: implement tx
-            std::vector<uhd::trigger_pv::trigger_tx_t> lib_tx = uhd::trigger_pv::detail::copy_array_from_caller(tx, tx_len);
+        // A null op means "use the defaults".
+        const trigger_op_t lib_op =
+            (op != nullptr) ? detail::deep_copy_from_caller(*op) : trigger_op_t{};
 
-            // Lists of unspecified channels
-            // TODO: inmplement behaviour for unspecified channels based on trigger_global_t
-            std::vector<size_t> unspecified_rx = uhd::trigger_pv::detail::find_unspecified_channels(lib_rx, get_rx_num_channels());
-            std::vector<size_t> unspecified_tx = uhd::trigger_pv::detail::find_unspecified_channels(lib_tx, get_tx_num_channels());
+        // restore_default ignores all other arguments.
+        if (lib_op.restore_default) {
+            trigger_restore_default();
+            return true;
+        }
 
-            // DISABLE CHANNELS
-            // TODO: change trig_sel to use trigger_set_or_get_enum_string
+        // A null global means "leave the global settings unchanged".
+        std::optional<trigger_global_t> lib_global;
+        if (global != nullptr) {
+            lib_global = detail::deep_copy_from_caller(*global);
+        }
 
-            // Disable listening/outputting to the trigger for all channels unless the user wants hot reconfiguration.
-            // Disabling comes first to avoid false activations
-            for(size_t ch_i = 0; ch_i < lib_rx.size(); ch_i++) {
-                if(enable == -1 or 0 or is not !lib_rx[ch_i]->hot_configure) {
-                    fspath enable_path = rx_root(lib_rx[ch_i]->channel) + "/stream";
-                    // TODO: set stream to 0
-                }
-                if(lib_rx[ch_i]->trig_sel == uhd::trigger_pv::active_trigger_t::none || !lib_rx[ch_i]->hot_configure) {
-                    fspath trig_sel_path = rx_trigger_root(lib_rx[ch_i]->channel) + "/trig_sel";
-                    _tree->access<std::string>(trig_sel_path).set("0");
-                }
+        // Throws if an array is null with a non-zero length, or holds malformed
+        // or mixed-version elements.
+        std::vector<trigger_rx_t> lib_rx = detail::deep_copy_array_from_caller(rx, rx_len);
+        std::vector<trigger_tx_t> lib_tx = detail::deep_copy_array_from_caller(tx, tx_len);
+
+        // Throws if a channel is unset, does not exist, or is specified twice.
+        const std::vector<size_t> unspecified_rx =
+            detail::find_unspecified_channels(lib_rx, get_rx_num_channels());
+        const std::vector<size_t> unspecified_tx =
+            detail::find_unspecified_channels(lib_tx, get_tx_num_channels());
+
+        // Nothing has been changed on the device before this point, so the checks
+        // above can throw without any cleanup.
+        bool val_changed = false;
+        try {
+            val_changed = trigger_apply(
+                lib_op, lib_global, lib_rx, lib_tx, unspecified_rx, unspecified_tx);
+        } catch (...) {
+            // failure_handling_t::disable_all (currently the only mode).
+            try {
+                trigger_disable_all();
+            } catch (const std::exception& e) {
+                UHD_LOG_ERROR("MULTI_USRP",
+                    std::format("trigger_configure: failed to disable triggering after an error: {}",
+                        e.what()));
+            } catch (...) {
+                UHD_LOG_ERROR("MULTI_USRP",
+                    "trigger_configure: failed to disable triggering after an error");
             }
-            for(size_t ch_i = 0; ch_i < lib_tx.size(); ch_i++) {
-                if(lib_tx[ch_i]->trig_sel == uhd::trigger_pv::active_trigger_t::none || !lib_tx[ch_i]->hot_configure) {
-                    fspath path = tx_trigger_root(lib_tx[ch_i]->channel) + "/trig_sel";
-                    _tree->access<std::string>(path).set("0");
-                }
-            }
+            throw; // Rethrow the original exception, not one from trigger_disable_all().
+        }
 
-            // Disable unspecified channels while reconfiguring, unless otherwise specified
+        // Success: deep copy the actual values back to the caller.
+        if (global != nullptr) {
+            detail::deep_copy_to_caller(*lib_global, *global);
+        }
+        detail::deep_copy_array_to_caller(lib_rx, rx, rx_len);
+        detail::deep_copy_array_to_caller(lib_tx, tx, tx_len);
 
-            // Sore the original value of unspecified channels so we can restore their trig_sel value later
-            std::vector<std::string>  original_unspecified_rx_trig_sel();
-            // Disable channels while reconfiguring unless explcitly told not to via hot_configure_unspecified_r/tx flag
-            if(!(op->setup_mode & (setup_mode_t::hot_configure_unspecified_rx))) {
-                // TODO: set stream to 0
-
-                original_unspecified_rx_trig_sel.resize(unspecified_rx.size());
-                for(size_t ch_i = 0; ch_i < unspecified_rx.size(); ch_i++) {
-                    fspath path = rx_trigger_root(unspecified_rx[ch_i]) + "/trig_sel";
-                    original_unspecified_rx_trig_sel[ch_i] = _tree->access<std::string>(path).get();
-                    _tree->access<std::string>(path).set("0");
-                }
-            }
-            std::vector<std::string>  original_unspecified_tx_trig_sel();
-            if(!(op->setup_mode & (setup_mode_t::hot_configure_unspecified_tx))) {
-                original_unspecified_tx_trig_sel.resize(unspecified_tx.size());
-                for(size_t ch_i = 0; ch_i < unspecified_tx.size(); ch_i++) {
-                    fspath path = tx_trigger_root(unspecified_tx[ch_i]) + "/trig_sel";
-                    original_unspecified_tx_trig_sel[ch_i] = _tree->access<std::string>(path).get();
-                    _tree->access<std::string>(path).set("0");
-                }
-            }
-
-            // SET SMA TO INPUT OR GET IF DESIRED
-            // Setting the SMA to output is done near the end
-            if(global != nullptr) {
-                fspath sma_dir_path = trigger_root() + "/sma_dir";
-                if(global->sma_dir == direction_t::in || global->sma_dir == direction_t::get) {
-                    val_changed = val_changed || trigger_set_or_get_enum_string(sma_dir_path, &global->sma_dir, op->enable_strict_errors, &direction_from_device_string);
-                }
-            }
-
-            // SET UFL TO INPUT OR GET IF DESIRED
-            for (size_t channel_index = 0; channel_index < lib_rx.size(); channel_index++) {
-                uhd::trigger_pv::trigger_rx_t& rx = lib_rx[channel_index];
-                fspath ufl_path = rx_trigger_root(rx->channel) + "/ufl_dir";
-
-                val_changed = val_changed || trigger_set_or_get_enum_string(ufl_path, &rx->ufl_dir, op->enable_strict_errors, &direction_from_device_string);
-            }
-            // TODO: implement tx UFL
-
-            // GLOBAL SMA OVERRIDE
-            fspath sma_override_path = trigger_root() + "/sma_dir";
-            val_changed = val_changed || trigger_set_or_get_integer<int>(sma_override_path, &global->sma_override, 1, op->enable_strict_errors);
-
-
-            // GLOBAL SMA POLARITY
-            fspath sma_polarity_path = trigger_root() + "/sma_dir";
-            if(global != nullptr) {
-                val_changed = val_changed || trigger_set_or_get_enum_string(sma_dir_path, &global->sma_dir, op->enable_strict_errors, &direction_from_device_string);
-            }
-
-            for (size_t channel_index = 0; channel_index < lib_rx.size(); channel_index++) {
-                // Reference, not a copy: values read or coerced below are written
-                // straight into lib_rx.
-                uhd::trigger_pv::trigger_rx_t& rx = lib_rx[channel_index];
-                const fs_path channel_path = rx_trigger_root(rx.channel);
-
-                // The call goes FIRST in each `||`. Written as
-                // `val_changed || trigger_...()`, the call would be skipped as soon
-                // as val_changed became true, because || short-circuits.
-                val_changed = !trigger_set_or_get_integer<std::string>(channel_path / "edge_backoff",
-                                  &rx.edge_backoff,
-                                  UINT32_MAX,
-                                  op_args.enable_strict_errors)
-                              || val_changed;
-
-                val_changed = !trigger_set_or_get_integer<std::string>(channel_path / "edge_sample_num",
-                                  &rx.edge_sample_num,
-                                  std::numeric_limits<int64_t>::max(),
-                                  op_args.enable_strict_errors)
-                              || val_changed;
-
-                val_changed = !trigger_set_or_get_string(channel_path / "sma_mode",
-                                  &rx.sma_mode,
-                                  op_args.enable_strict_errors,
-                                  &uhd::trigger_pv::detail::trigger_mode_from_device_string)
-                              || val_changed;
-
-                val_changed = !trigger_set_or_get_string(channel_path / "ufl_mode",
-                                  &rx.ufl_mode,
-                                  op_args.enable_strict_errors,
-                                  &uhd::trigger_pv::detail::trigger_mode_from_device_string)
-                              || val_changed;
-            }
-
-            // TODO: implement per channel for tx like the above rx. The path for for gating is tx_trigger_root() + "/gating", apply it last
-
-            // sma direction (if out) (in and get were already obtained earlier)
-            if(global != nullptr) {
-                fspath sma_dir_path = trigger_root() + "/sma_dir";
-                if(global->sma_dir == direction_t::out) {
-                    val_changed = val_changed || trigger_set_or_get_enum_string(sma_dir_path, &global->sma_dir, op->enable_strict_errors, &direction_from_device_string);
-                }
-            }
-
-            for (size_t channel_index = 0; channel_index < lib_rx.size(); channel_index++) {
-                // TODO set rx ufl direction if the desired is out (in and get were already obtained earlier)
-                // TODO: apply rx trig_sel if it is not none/restore the original value if it was disabled
-                // TODO: enable (set stream to 1) if desired, or it it was originally enabled but got disabled during configuration
-            }
-
-            // TODO: re-enable unspecified rx channels that were disabled (set trig_sel and set stream to their original values)
-
-            for (size_t channel_index = 0; channel_index < lib_rx.size(); channel_index++) {
-                // TODO set tx ufl direction if it is out (in and get were already processed earlier)
-                // TODO: apply tx trig_sel
-            }
-
-            // TODO: re-enable unspecified tx channels that were disabled (set trig_sel original values)
-
-
-            return val_changed;
+        return !val_changed;
     }
 };
 

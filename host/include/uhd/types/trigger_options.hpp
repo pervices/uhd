@@ -77,7 +77,7 @@ namespace uhd { namespace trigger_pv {
  **********************************************************************/
 
 //! Direction of a trigger pin.
-enum class direction_t : uint32_t {
+enum class pin_direction_t : uint32_t {
     get = 0, //!< Get the direction, do not set
     in             = 1, //!< Pin is an input. Does nothing on devices without a toggleable direction
     out            = 2, //!< Pin is an output. Does nothing on devices without a toggleable direction
@@ -103,7 +103,7 @@ enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
     global_sma  = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
-    get = 1u << 31; //! Get the trigger, do not set
+    get         = 1u << 31, //!< Get the current value, do not set.
     // Add new triggers as new bits only.
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
@@ -144,6 +144,8 @@ enum class strict_error_t : uint64_t {
     coerced_value = 1u << 0, //!< Error when a value is coerced
     //! Every check that existed in v1. This is the default, so checks added
     //! later are off unless the caller asks for them (or for `all`).
+    // TODO: before release, remove coerced_value from all_v1 so coercion
+    // errors are off by default. Kept on during development.
     all_v1 = coerced_value,
     all    = ~uint64_t{0},
 };
@@ -218,13 +220,12 @@ struct trigger_global_t
 
     /*!
      * Whether the global trigger pin is an input or output.
-     * Use direction_t::not_applicable on devices with separate pins.
      * When set to output it outputs its internal PPS. TODO: confirm this.
      */
-    direction_t sma_direction = direction_t::in;
+    pin_direction_t sma_direction = pin_direction_t::get;
 
     //! Whether the global trigger is active high or active low.
-    polarity_t sma_polarity = polarity_t::negative;
+    polarity_t sma_polarity = polarity_t::get;
 
     /*!
      * Override the global trigger so that it acts as if the input is active.
@@ -275,26 +276,29 @@ struct trigger_rx_t
     int64_t edge_sample_num = -1;
 
     //! Which triggers to listen to. OR together to listen to several.
-    active_trigger_t trig_sel = active_trigger_t::none;
+    active_trigger_t trig_sel = active_trigger_t::get;
 
     /*!
      * Whether to trigger on level or edge on the global SMA.
      * Not applicable unless trig_sel includes active_trigger_t::global_sma.
      */
-    trigger_mode_t sma_mode = trigger_mode_t::level;
+    trigger_mode_t sma_mode = trigger_mode_t::get;
 
     /*!
      * Whether to trigger on level or edge on the per-channel U.FL.
      * Not applicable unless trig_sel includes active_trigger_t::channel_ufl.
      */
-    trigger_mode_t ufl_mode = trigger_mode_t::level;
+    trigger_mode_t ufl_mode = trigger_mode_t::get;
 
     /*!
      * Direction of the per-channel U.FL.
      * When set to input, the U.FL is an input used in acc.
      * TODO: verify out is a good default.
      */
-    direction_t ufl_dir = direction_t::out;
+    pin_direction_t ufl_dir = pin_direction_t::get;
+
+    //! Whether the per-channel U.FL trigger is active high or active low.
+    polarity_t ufl_polarity = polarity_t::get;
 
     bool hot_configure = false;
 
@@ -352,32 +356,35 @@ struct trigger_tx_t
     int64_t edge_sample_num = -1;
 
     //! Which triggers to listen to. OR together to listen to several.
-    active_trigger_t trig_sel = active_trigger_t::none;
+    active_trigger_t trig_sel = active_trigger_t::get;
 
     /*!
      * Whether to trigger on level or edge on the global SMA.
      * Not applicable unless trig_sel includes active_trigger_t::global_sma.
      */
-    trigger_mode_t sma_mode = trigger_mode_t::level;
+    trigger_mode_t sma_mode = trigger_mode_t::get;
 
     /*!
      * Whether to trigger on level or edge on the per-channel U.FL.
      * Not applicable unless trig_sel includes active_trigger_t::channel_ufl.
      */
-    trigger_mode_t ufl_mode = trigger_mode_t::level;
+    trigger_mode_t ufl_mode = trigger_mode_t::get;
 
     /*!
      * Direction of the per-channel U.FL.
      * When set to input, the U.FL is an input used in acc.
      * TODO: verify out is a good default.
      */
-    direction_t ufl_dir = direction_t::out;
+    pin_direction_t ufl_dir = pin_direction_t::get;
+
+    //! Whether the per-channel U.FL trigger is active high or active low.
+    polarity_t ufl_polarity = polarity_t::get;
 
     //! Keep the channel enabled while configuring it
     bool hot_configure = false;
 
     //! Trigger gating. TODO: document.
-    gating_t gating = gating_t::dsp;
+    gating_t gating = gating_t::get;
 
     // --- end of v1: append new fields below this line only ---
 };

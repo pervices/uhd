@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <format>
+#include <string>
 
 namespace uhd { namespace trigger_pv { namespace detail {
 
@@ -223,51 +224,51 @@ trigger_tx_t* caller_element(trigger_tx_t* caller_array, size_t len, size_t chan
         caller_element_impl<trigger_tx_t>(caller_array, len, channel_index));
 }
 
-trigger_op_t copy_from_caller(const trigger_op_t& caller)
+trigger_op_t deep_copy_from_caller(const trigger_op_t& caller)
 {
     return copy_from_caller_impl(caller);
 }
-trigger_global_t copy_from_caller(const trigger_global_t& caller)
+trigger_global_t deep_copy_from_caller(const trigger_global_t& caller)
 {
     return copy_from_caller_impl(caller);
 }
-trigger_rx_t copy_from_caller(const trigger_rx_t& caller)
+trigger_rx_t deep_copy_from_caller(const trigger_rx_t& caller)
 {
     return copy_from_caller_impl(caller);
 }
-trigger_tx_t copy_from_caller(const trigger_tx_t& caller)
+trigger_tx_t deep_copy_from_caller(const trigger_tx_t& caller)
 {
     return copy_from_caller_impl(caller);
 }
 
-void copy_to_caller(const trigger_global_t& library, trigger_global_t& caller)
+void deep_copy_to_caller(const trigger_global_t& library, trigger_global_t& caller)
 {
     copy_to_caller_impl(library, caller);
 }
-void copy_to_caller(const trigger_rx_t& library, trigger_rx_t& caller)
+void deep_copy_to_caller(const trigger_rx_t& library, trigger_rx_t& caller)
 {
     copy_to_caller_impl(library, caller);
 }
-void copy_to_caller(const trigger_tx_t& library, trigger_tx_t& caller)
+void deep_copy_to_caller(const trigger_tx_t& library, trigger_tx_t& caller)
 {
     copy_to_caller_impl(library, caller);
 }
 
-std::vector<trigger_rx_t> copy_array_from_caller(const trigger_rx_t* caller_array, size_t len)
+std::vector<trigger_rx_t> deep_copy_array_from_caller(const trigger_rx_t* caller_array, size_t len)
 {
     return copy_array_from_caller_impl(caller_array, len);
 }
-std::vector<trigger_tx_t> copy_array_from_caller(const trigger_tx_t* caller_array, size_t len)
+std::vector<trigger_tx_t> deep_copy_array_from_caller(const trigger_tx_t* caller_array, size_t len)
 {
     return copy_array_from_caller_impl(caller_array, len);
 }
 
-void copy_array_to_caller(
+void deep_copy_array_to_caller(
     const std::vector<trigger_rx_t>& library, trigger_rx_t* caller_array, size_t len)
 {
     copy_array_to_caller_impl(library, caller_array, len);
 }
-void copy_array_to_caller(
+void deep_copy_array_to_caller(
     const std::vector<trigger_tx_t>& library, trigger_tx_t* caller_array, size_t len)
 {
     copy_array_to_caller_impl(library, caller_array, len);
@@ -284,58 +285,123 @@ std::vector<size_t> find_unspecified_channels(
     return find_unspecified_channels_impl(library, num_channels);
 }
 
-//! Value the SDR expects in the property tree for a pin direction.
-std::string to_device_string(direction_t dir)
+/***********************************************************************
+ * Enum <-> device string conversion
+ **********************************************************************/
+namespace {
+
+//! Copy of `str` without trailing whitespace, e.g. a newline from the device.
+std::string without_trailing_whitespace(const std::string& str)
 {
-    switch (dir) {
-        case direction_t::in:
-            return "in";
-        case direction_t::out:
-            return "out";
-        case direction_t::not_applicable:
-            throw uhd::value_error("direction_t::not_applicable has no device equivalent");
+    const size_t last = str.find_last_not_of(" \t\r\n");
+    if (last == std::string::npos) {
+        return "";
     }
-    // Reached only if the caller cast an out-of-range number to direction_t.
-    throw uhd::value_error(std::format(
-        "invalid direction_t value {}", static_cast<uint32_t>(dir)));
+    return str.substr(0, last + 1);
 }
 
-//! Inverse, for reading the actual value back from the device.
-direction_t direction_from_device_string(const std::string& str)
+} // namespace
+
+std::string to_device_string(pin_direction_t dir)
 {
-    if (str == "in") {
-        return direction_t::in;
+    switch (dir) {
+        case pin_direction_t::get:
+            throw uhd::value_error("pin_direction_t::get cannot be sent to the device");
+        case pin_direction_t::in:
+            return "in";
+        case pin_direction_t::out:
+            return "out";
     }
-    if (str == "out") {
-        return direction_t::out;
+    // Reached only if the caller cast an out-of-range number to pin_direction_t.
+    throw uhd::value_error(std::format("invalid pin_direction_t value {}", static_cast<uint32_t>(dir)));
+}
+
+pin_direction_t direction_from_device_string(const std::string& str)
+{
+    const std::string trimmed = without_trailing_whitespace(str);
+    if (trimmed == "in") {
+        return pin_direction_t::in;
+    }
+    if (trimmed == "out") {
+        return pin_direction_t::out;
     }
     throw uhd::runtime_error(std::format("device reported unknown direction \"{}\"", str));
 }
 
-//! Value the SDR expects in the property tree for a trigger polarity.
 std::string to_device_string(polarity_t pol)
 {
     switch (pol) {
+        case polarity_t::get:
+            throw uhd::value_error("polarity_t::get cannot be sent to the device");
         case polarity_t::positive:
             return "positive";
         case polarity_t::negative:
             return "negative";
     }
-    // Reached only if the caller cast an out-of-range number to polarity_t.
-    throw uhd::value_error(std::format(
-        "invalid polarity_t value {}", static_cast<uint32_t>(pol)));
+    throw uhd::value_error(std::format("invalid polarity_t value {}", static_cast<uint32_t>(pol)));
 }
 
-//! Inverse, for reading the actual value back from the device.
 polarity_t polarity_from_device_string(const std::string& str)
 {
-    if (str == "positive") {
+    const std::string trimmed = without_trailing_whitespace(str);
+    if (trimmed == "positive") {
         return polarity_t::positive;
     }
-    if (str == "negative") {
+    if (trimmed == "negative") {
         return polarity_t::negative;
     }
     throw uhd::runtime_error(std::format("device reported unknown polarity \"{}\"", str));
+}
+
+std::string to_device_string(trigger_mode_t mode)
+{
+    switch (mode) {
+        case trigger_mode_t::get:
+            throw uhd::value_error("trigger_mode_t::get cannot be sent to the device");
+        case trigger_mode_t::edge:
+            return "edge";
+        case trigger_mode_t::level:
+            return "level";
+    }
+    throw uhd::value_error(
+        std::format("invalid trigger_mode_t value {}", static_cast<uint32_t>(mode)));
+}
+
+trigger_mode_t trigger_mode_from_device_string(const std::string& str)
+{
+    const std::string trimmed = without_trailing_whitespace(str);
+    if (trimmed == "edge") {
+        return trigger_mode_t::edge;
+    }
+    if (trimmed == "level") {
+        return trigger_mode_t::level;
+    }
+    throw uhd::runtime_error(std::format("device reported unknown trigger mode \"{}\"", str));
+}
+
+std::string to_device_string(gating_t gating)
+{
+    switch (gating) {
+        case gating_t::get:
+            throw uhd::value_error("gating_t::get cannot be sent to the device");
+        case gating_t::dsp:
+            return "dsp";
+        case gating_t::output:
+            return "output";
+    }
+    throw uhd::value_error(std::format("invalid gating_t value {}", static_cast<uint32_t>(gating)));
+}
+
+gating_t gating_from_device_string(const std::string& str)
+{
+    const std::string trimmed = without_trailing_whitespace(str);
+    if (trimmed == "dsp") {
+        return gating_t::dsp;
+    }
+    if (trimmed == "output") {
+        return gating_t::output;
+    }
+    throw uhd::runtime_error(std::format("device reported unknown gating \"{}\"", str));
 }
 
 }}} // namespace uhd::trigger_pv::detail

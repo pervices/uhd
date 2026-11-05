@@ -7,7 +7,10 @@
 #pragma once
 
 #include <uhd/types/trigger_options.hpp>
+#include <concepts>
 #include <cstddef>
+#include <string>
+#include <type_traits>
 #include <vector>
 
 /*
@@ -42,7 +45,7 @@ namespace uhd { namespace trigger_pv { namespace detail {
  * least min_size and must match element 0's.
  *
  * Only the first `->size` bytes of the returned element are valid. Read it with
- * copy_from_caller() and write it with copy_to_caller(); do not read fields
+ * deep_copy_from_caller() and write it with deep_copy_to_caller(); do not read fields
  * through the pointer directly, since an older caller's element may not have
  * them.
  */
@@ -57,7 +60,7 @@ trigger_tx_t* caller_element(trigger_tx_t* caller_array, size_t len, size_t chan
  * Single struct conversion
  **********************************************************************/
 /*!
- * Convert one struct from caller format to library format.
+ * Deep copy one struct from caller format to library format.
  *
  * Fields the caller's (older) version lacks keep their default member
  * initializers. Fields from a newer version than the library knows must be
@@ -66,44 +69,42 @@ trigger_tx_t* caller_element(trigger_tx_t* caller_array, size_t len, size_t chan
  * The returned struct's `size` still holds the caller's size, so it records
  * which fields the caller actually provided.
  */
-trigger_op_t copy_from_caller(const trigger_op_t& caller);
-trigger_global_t copy_from_caller(const trigger_global_t& caller);
-trigger_rx_t copy_from_caller(const trigger_rx_t& caller);
-trigger_tx_t copy_from_caller(const trigger_tx_t& caller);
+trigger_op_t deep_copy_from_caller(const trigger_op_t& caller);
+trigger_global_t deep_copy_from_caller(const trigger_global_t& caller);
+trigger_rx_t deep_copy_from_caller(const trigger_rx_t& caller);
+trigger_tx_t deep_copy_from_caller(const trigger_tx_t& caller);
 
 /*!
- * Convert one struct from library format back into the caller's struct.
+ * Deep copy one struct from library format back into the caller's struct.
  *
  * Writes only the bytes that exist in the caller's version (min of the
  * caller's `size` and the library's sizeof()). The caller's `size` field is
  * left untouched.
- * TODO: rename to deep_copy_to_caller/make deep copy if it isn't already
  */
-void copy_to_caller(const trigger_global_t& library, trigger_global_t& caller);
-void copy_to_caller(const trigger_rx_t& library, trigger_rx_t& caller);
-void copy_to_caller(const trigger_tx_t& library, trigger_tx_t& caller);
+void deep_copy_to_caller(const trigger_global_t& library, trigger_global_t& caller);
+void deep_copy_to_caller(const trigger_rx_t& library, trigger_rx_t& caller);
+void deep_copy_to_caller(const trigger_tx_t& library, trigger_tx_t& caller);
 
 /***********************************************************************
  * Whole array conversion
  **********************************************************************/
 /*!
- * Convert an array from caller format to library format.
+ * Deep copy an array from caller format to library format.
  * `caller_array` may be nullptr only if `len` is 0.
- * TODO: rename to deep_copy_to_caller/make deep copy if it isn't already
  */
-std::vector<trigger_rx_t> copy_array_from_caller(const trigger_rx_t* caller_array, size_t len);
-std::vector<trigger_tx_t> copy_array_from_caller(const trigger_tx_t* caller_array, size_t len);
+std::vector<trigger_rx_t> deep_copy_array_from_caller(const trigger_rx_t* caller_array, size_t len);
+std::vector<trigger_tx_t> deep_copy_array_from_caller(const trigger_tx_t* caller_array, size_t len);
 
 /*!
- * Write an array in library format back into the caller's array.
+ * Deep copy an array in library format back into the caller's array.
  *
  * `library` must have exactly `len` elements, in the same order as the caller's
  * array. Every caller element is validated before anything is written, so an
  * exception leaves the caller's array unmodified.
  */
-void copy_array_to_caller(
+void deep_copy_array_to_caller(
     const std::vector<trigger_rx_t>& library, trigger_rx_t* caller_array, size_t len);
-void copy_array_to_caller(
+void deep_copy_array_to_caller(
     const std::vector<trigger_tx_t>& library, trigger_tx_t* caller_array, size_t len);
 
 /***********************************************************************
@@ -121,12 +122,33 @@ std::vector<size_t> find_unspecified_channels(
 std::vector<size_t> find_unspecified_channels(
     const std::vector<trigger_tx_t>& library, size_t num_channels);
 
-//! Value the SDR expects in the property tree for a pin direction.
-std::string to_device_string(direction_t dir);
-std::string to_device_string(polarity_t pol);
+/***********************************************************************
+ * Enum <-> device string conversion
+ **********************************************************************/
+//! An enum type that has an enumerator named `get`.
+template <typename E>
+concept enum_with_get = std::is_enum_v<E> && requires {
+    { E::get } -> std::same_as<E>; // E::get must exist and be one of E's enumerators
+};
 
-//! Inverse, for reading the actual value back from the device.
-direction_t direction_from_device_string(const std::string& str)
+/*!
+ * Value the SDR expects in the property tree for an enum setting.
+ * Throws uhd::value_error for E::get (get is never sent to the device) and for
+ * numbers that are not a named enumerator.
+ */
+std::string to_device_string(pin_direction_t dir);
+std::string to_device_string(polarity_t pol);
+std::string to_device_string(trigger_mode_t mode);
+std::string to_device_string(gating_t gating);
+
+/*!
+ * Inverse of to_device_string(), for reading the actual value back from the
+ * device. Trailing whitespace (e.g. a newline) in the device's reply is ignored.
+ * Throws uhd::runtime_error if the device reports a string with no match.
+ */
+pin_direction_t direction_from_device_string(const std::string& str);
 polarity_t polarity_from_device_string(const std::string& str);
+trigger_mode_t trigger_mode_from_device_string(const std::string& str);
+gating_t gating_from_device_string(const std::string& str);
 
 }}} // namespace uhd::trigger_pv::detail
