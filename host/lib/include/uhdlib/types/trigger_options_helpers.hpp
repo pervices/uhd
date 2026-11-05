@@ -77,6 +77,7 @@ trigger_tx_t copy_from_caller(const trigger_tx_t& caller);
  * Writes only the bytes that exist in the caller's version (min of the
  * caller's `size` and the library's sizeof()). The caller's `size` field is
  * left untouched.
+ * TODO: rename to deep_copy_to_caller/make deep copy if it isn't already
  */
 void copy_to_caller(const trigger_global_t& library, trigger_global_t& caller);
 void copy_to_caller(const trigger_rx_t& library, trigger_rx_t& caller);
@@ -88,6 +89,7 @@ void copy_to_caller(const trigger_tx_t& library, trigger_tx_t& caller);
 /*!
  * Convert an array from caller format to library format.
  * `caller_array` may be nullptr only if `len` is 0.
+ * TODO: rename to deep_copy_to_caller/make deep copy if it isn't already
  */
 std::vector<trigger_rx_t> copy_array_from_caller(const trigger_rx_t* caller_array, size_t len);
 std::vector<trigger_tx_t> copy_array_from_caller(const trigger_tx_t* caller_array, size_t len);
@@ -121,8 +123,10 @@ std::vector<size_t> find_unspecified_channels(
 
 //! Value the SDR expects in the property tree for a pin direction.
 std::string to_device_string(direction_t dir);
+std::string to_device_string(polarity_t pol);
 
 //! Inverse, for reading the actual value back from the device.
 direction_t direction_from_device_string(const std::string& str)
+polarity_t polarity_from_device_string(const std::string& str);
 
 }}} // namespace uhd::trigger_pv::detail

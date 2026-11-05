@@ -78,30 +78,23 @@ namespace uhd { namespace trigger_pv {
 
 //! Direction of a trigger pin.
 enum class direction_t : uint32_t {
-    in             = 0, //!< Pin is an input.
-    out            = 1, //!< Pin is an output.
-    not_applicable = 2, //!< Device has separate input and output pins.
-    get, //!< Get the direction, do not set
+    get = 0, //!< Get the direction, do not set
+    in             = 1, //!< Pin is an input. Does nothing on devices without a toggleable direction
+    out            = 2, //!< Pin is an output. Does nothing on devices without a toggleable direction
 };
 
 //! Which signal level counts as an active trigger.
 enum class polarity_t : uint32_t {
-    positive = 0, //!< Active high.
-    negative = 1, //!< Active low.
-    unpsec = 2 //!< Get the existing value
+    get = 0, //!< Get the existing value
+    positive = 1, //!< Active high.
+    negative = 2, //!< Active low.
 };
 
 //! How a trigger input is interpreted.
 enum class trigger_mode_t : uint32_t {
-    edge  = 0, //!< Trigger on an edge. TODO: document which edge(s).
-    level = 1, //!< Stream while the trigger is active.
-};
-
-//! A bool that can also be left unset.
-enum class opt_bool_t : uint32_t {
-    unset = 0, //!< Not specified by the caller.
-    no    = 1,
-    yes   = 2,
+    get = 0,
+    edge  = 1, //!< Trigger on an edge. TODO: document which edge(s).
+    level = 2, //!< Stream while the trigger is active.
 };
 
 //! Which triggers a channel listens to. Values may be combined with |.
@@ -110,6 +103,7 @@ enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
     global_sma  = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
+    get = 1u << 31; //! Get the trigger, do not set
     // Add new triggers as new bits only.
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
@@ -117,30 +111,19 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
 //! Trigger gating.
 //! TODO: document what each option gates.
 enum class gating_t : uint32_t {
-    dsp  = 0, //!< TODO: document.
-    none = 1, //!< TODO: document.
+    get = 0,
+    dsp  = 1, //!< TODO: document.
+    output = 2, //!< TODO: document.
 };
 
 //! How to behave while the trigger is being configured. Values may be combined with |.
 enum class setup_mode_t : uint64_t {
     none = 0, //!< Default behaviour. TODO: document.
-    //! Disable all RX channels not not specified in the trigger_rx_t array and keep them disabled after.
-    disable_unspecified_rx = 1u << 0,
-    //! Disable all TX channels not specified in the trigger_tx_t array and keep them disabled after.
-    disable_unspecified_tx = 1u << 1,
     /*!
-     * Disable all RX channels not not specified in the trigger_rx_t array but re-enable them after.
-     * Overriden by disable_unspecified_rx
-     * Throws an error/warning if enable_strict_errors/disable_warnings is set to not_applicable
+     * Whe hot configure is not enabled for unspecified channels: they will be disabled by having their trig_sel set to none all other setting are applied.
      */
-    disable_unspecified_rx_while_configuring = 1u << 2,
-    /*!
-     * Disable all TX channels not not specified in the trigger_tx_t array but re-enable them after.
-     * Overriden by disable_unspecified_tx
-     * Throws an error/warning if enable_strict_errors/disable_warnings is set to not_applicable
-     */
-    disable_unspecified_tx_while_configuring = 1u << 3,
-
+    hot_configure_unspecified_rx = 1u << 0,
+    hot_configure_unspecified_tx = 1u << 1,
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
@@ -158,13 +141,10 @@ enum class failure_handling_t : uint64_t {
  */
 enum class strict_error_t : uint64_t {
     none                      = 0,
-    unspecified               = 1u << 0, //!< Error when an applicable field is unspecified.
-    not_applicable            = 1u << 1, //!< Error when a value is given for a field that does not apply.
-    approximate_coerced_value = 1u << 2, //!< Error when a value is coerced to a nearby value.
-    far_coerced_value         = 1u << 3, //!< Error when a value is coerced to a distant value.
+    coerced_value = 1u << 0, //!< Error when a value is coerced
     //! Every check that existed in v1. This is the default, so checks added
     //! later are off unless the caller asks for them (or for `all`).
-    all_v1 = unspecified | not_applicable | approximate_coerced_value | far_coerced_value,
+    all_v1 = coerced_value,
     all    = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
@@ -177,10 +157,7 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
  */
 enum class warning_t : uint64_t {
     none                      = 0,
-    unspecified               = 1u << 0, //!< Warn when an applicable field is unspecified.
-    not_applicable            = 1u << 1, //!< Warn when a value is given for a field that does not apply.
-    approximate_coerced_value = 1u << 2, //!< Warn when a value is coerced to a nearby value.
-    far_coerced_value         = 1u << 3, //!< Warn when a value is coerced to a distant value.
+    coerced_value = 1u << 1, //!< Warn when a value is coerced.
     all                       = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
@@ -253,7 +230,7 @@ struct trigger_global_t
      * Override the global trigger so that it acts as if the input is active.
      * TODO: verify it does not affect the output.
      */
-    opt_bool_t sma_override = unset;
+    int8_t sma_override = -1;
 
     //! Explicit padding. Must be zero.
     uint8_t reserved0[3] = {};
@@ -280,6 +257,7 @@ struct trigger_rx_t
      * Mainly used for debouncing.
      * A negative value passed to UHD indicates get only, do not change.
      * A negative value returned by UHD indicates an error
+     * The value passed to the SDR is a uint32_t
      * TODO: check behaviour if a second edge is received during the backoff.
      */
     int64_t edge_backoff = -1;
@@ -320,6 +298,17 @@ struct trigger_rx_t
 
     bool hot_configure = false;
 
+    /*!
+     *
+     * Valid values:
+     * -1: get
+     * 0: disable
+     * 1: enable
+     * This is only implemented on rx
+     * Must be set to enabled to restore normal streaming without creating a new streamer
+     */
+    int8_t enable = -1;
+
     //! Explicit tail padding (struct is 8-byte aligned). Must be zero.
     uint32_t reserved0 = 0;
 
@@ -345,6 +334,7 @@ struct trigger_tx_t
      * Mainly used for debouncing.
      * A negative value passed to UHD indicates get only, do not change.
      * A negative value returned by UHD indicates an error
+     * The value passed to the SDR is a uint32_t
      * TODO: check behaviour if a second edge is received during the backoff.
      */
     int64_t edge_backoff = -1;

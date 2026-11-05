@@ -312,4 +312,30 @@ direction_t direction_from_device_string(const std::string& str)
     throw uhd::runtime_error(std::format("device reported unknown direction \"{}\"", str));
 }
 
+//! Value the SDR expects in the property tree for a trigger polarity.
+std::string to_device_string(polarity_t pol)
+{
+    switch (pol) {
+        case polarity_t::positive:
+            return "positive";
+        case polarity_t::negative:
+            return "negative";
+    }
+    // Reached only if the caller cast an out-of-range number to polarity_t.
+    throw uhd::value_error(std::format(
+        "invalid polarity_t value {}", static_cast<uint32_t>(pol)));
+}
+
+//! Inverse, for reading the actual value back from the device.
+polarity_t polarity_from_device_string(const std::string& str)
+{
+    if (str == "positive") {
+        return polarity_t::positive;
+    }
+    if (str == "negative") {
+        return polarity_t::negative;
+    }
+    throw uhd::runtime_error(std::format("device reported unknown polarity \"{}\"", str));
+}
+
 }}} // namespace uhd::trigger_pv::detail

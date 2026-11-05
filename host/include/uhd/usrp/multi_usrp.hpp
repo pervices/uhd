@@ -2428,6 +2428,8 @@ public:
     *
     * Values the hardware cannot apply exactly are adjusted, and the adjusted
     * values are written back into \p global, \p rx and \p tx.
+    * By default all channels are disabled while this is being run.
+    * If you want
     *
     * \param op how to apply the change, or nullptr for defaults
     * \param global settings that apply to every channel (updated with actual values)
