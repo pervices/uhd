@@ -2329,7 +2329,7 @@ public:
         for(size_t n = 0; n < channels.size(); n++) {
             const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
             _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
-            _tree->access<std::string>(root + "trigger/trig_sel").set("1");
+            _tree->access<std::string>(root + "trigger/trig_sel").set("0");
         }
         last_trigger_dir_set_by = none;
     }
