@@ -2294,58 +2294,155 @@ public:
         }
     }
 
-    // TODO: convert tx_trigger_setup, tx_trigger_cleanup, rx_trigger_setup and
-    // rx_trigger_cleanup to wrappers for trigger_configure.
-
+    /***********************************************************************
+     * Deprecated trigger functions: wrappers for trigger_configure
+     **********************************************************************/
     // Both tx and rx trigger configurations set the trigger direction. These are used for a warning
     enum which_rxtx { none, rx, tx };
     which_rxtx last_trigger_dir_set_by = none;
     std::string previous_trigger_dir;
+
+    /*!
+     * RX and TX share one trigger port. Warn if rx_trigger_setup and
+     * tx_trigger_setup asked for different directions, and record which side
+     * set it. Same behaviour as the original functions.
+     */
+    void warn_on_trigger_dir_conflict(const which_rxtx setting_from, const std::string& trigger_dir)
+    {
+        const which_rxtx other_side = (setting_from == rx) ? tx : rx;
+        if (last_trigger_dir_set_by == other_side) {
+            if (previous_trigger_dir != trigger_dir) {
+                const char* this_name  = (setting_from == rx) ? "rx" : "tx";
+                const char* other_name = (setting_from == rx) ? "tx" : "rx";
+                UHD_LOGGER_WARNING("MULTI_USRP") << std::format(
+                    "Trigger direction was set to a different value when configuring {}. "
+                    "RX and TX use the same trigger port. Previously set to {}, changing it "
+                    "to {} while setting up the {} trigger",
+                    other_name, previous_trigger_dir, trigger_dir, this_name);
+            }
+        } else {
+            last_trigger_dir_set_by = setting_from;
+            previous_trigger_dir    = trigger_dir;
+        }
+    }
+
+    /*!
+     * Shared body of the deprecated rx_trigger_setup and tx_trigger_setup:
+     * configure `channels` with the get_simple_sma_config preset.
+     * \return actual number of samples per trigger (0 if channels is empty)
+     */
+    uint64_t trigger_setup_wrapper(const which_rxtx setting_from,
+        const std::vector<size_t>& channels,
+        const uint64_t num_samples_per_trigger,
+        const std::string& trigger_dir)
+    {
+        using namespace uhd::trigger_pv;
+
+        if (!std::in_range<int64_t>(num_samples_per_trigger)) {
+            throw uhd::value_error(std::format(
+                "num_samples_per_trigger {} is too large", num_samples_per_trigger));
+        }
+        pin_direction_t sma_direction;
+        if (trigger_dir == "in") {
+            sma_direction = pin_direction_t::in;
+        } else if (trigger_dir == "out") {
+            sma_direction = pin_direction_t::out;
+        } else {
+            throw uhd::value_error(std::format(
+                "trigger_dir must be \"in\" or \"out\", got \"{}\"", trigger_dir));
+        }
+
+        warn_on_trigger_dir_conflict(setting_from, trigger_dir);
+
+        trigger_op_t op;
+        trigger_global_t global;
+        std::vector<trigger_rx_t> rx_args;
+        std::vector<trigger_tx_t> tx_args;
+        const std::vector<size_t> no_channels;
+        if (setting_from == rx) {
+            rx_args.resize(channels.size());
+            get_simple_sma_config(&op, &global, rx_args.data(), rx_args.size(), nullptr, 0,
+                channels, no_channels, sma_direction, static_cast<int64_t>(num_samples_per_trigger));
+        } else {
+            tx_args.resize(channels.size());
+            get_simple_sma_config(&op, &global, nullptr, 0, tx_args.data(), tx_args.size(),
+                no_channels, channels, sma_direction, static_cast<int64_t>(num_samples_per_trigger));
+        }
+
+        // The return value only says whether something was coerced; the actual
+        // values are read from the structs below instead.
+        (void) trigger_configure(
+            &op, &global, rx_args.data(), rx_args.size(), tx_args.data(), tx_args.size());
+
+        if (channels.empty()) {
+            return 0;
+        }
+        // Every channel was given the same request, so they report the same value.
+        if (setting_from == rx) {
+            return static_cast<uint64_t>(rx_args.back().edge_sample_num);
+        } else {
+            return static_cast<uint64_t>(tx_args.back().edge_sample_num);
+        }
+    }
+
+    /*!
+     * Shared body of the deprecated rx_trigger_cleanup and tx_trigger_cleanup:
+     * turn off triggering on `channels` (and, for RX, streaming) and set
+     * edge_sample_num back to 0. Other settings and other channels are untouched.
+     */
+    void trigger_cleanup_wrapper(const which_rxtx setting_from, const std::vector<size_t>& channels)
+    {
+        using namespace uhd::trigger_pv;
+
+        trigger_op_t op;
+        op.setup_mode = setup_mode_t::hot_configure_unspecified_rx
+                        | setup_mode_t::hot_configure_unspecified_tx;
+        // The original functions accepted whatever the device applied.
+        op.enable_strict_errors &= ~strict_error_t::coerced_value;
+
+        // hot_configure only stops trigger_configure from temporarily disabling
+        // the channel (and from sending TX rstreq); trig_sel = none and
+        // enable = 0 are still applied first, stream before trig_sel.
+        // All fields not set here keep their defaults (get), so they are unchanged.
+        std::vector<trigger_rx_t> rx_args;
+        std::vector<trigger_tx_t> tx_args;
+        for (const size_t channel : channels) {
+            if (setting_from == rx) {
+                trigger_rx_t chan;
+                chan.channel         = channel;
+                chan.hot_configure   = true;
+                chan.enable          = 0;
+                chan.trig_sel        = active_trigger_t::none;
+                chan.edge_sample_num = 0;
+                rx_args.push_back(chan);
+            } else {
+                trigger_tx_t chan;
+                chan.channel         = channel;
+                chan.hot_configure   = true;
+                chan.trig_sel        = active_trigger_t::none;
+                chan.edge_sample_num = 0;
+                tx_args.push_back(chan);
+            }
+        }
+
+        (void) trigger_configure(
+            &op, nullptr, rx_args.data(), rx_args.size(), tx_args.data(), tx_args.size());
+
+        last_trigger_dir_set_by = none;
+    }
 
     uint64_t tx_trigger_setup(
         std::vector<size_t> channels,
         uint64_t num_samples_per_trigger,
         std::string trigger_dir
     ) {
-        uint64_t actual_num_samples_per_trigger = 0;
-        for(size_t n = 0; n < channels.size(); n++) {
-            const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
-            _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
-            _tree->access<std::string>(root + "trigger/trig_sel").set("1");
-            _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
-            _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
-            actual_num_samples_per_trigger = std::stoul(_tree->access<std::string>(root + "trigger/edge_sample_num").get(),nullptr,10);
-            _tree->access<std::string>(root + "trigger/gating").set("dsp");
-        }
-        // Prints warning message in case the user set the direction to something different when using rx
-        if(last_trigger_dir_set_by == rx) {
-            if(previous_trigger_dir != trigger_dir) {
-                UHD_LOGGER_WARNING("MULTI_USRP")
-                    << "Warning trigger direction was set to a a different value when configuring rx. RX and TX use the same trigger port. The value from rx is being overwritten Previously set to " + previous_trigger_dir + ", changing it to " + trigger_dir + " while setting up tx trigger\n";
-            }
-        } else {
-            last_trigger_dir_set_by = tx;
-            previous_trigger_dir = trigger_dir;
-        }
-        _tree->access<std::string>("/mboards/0/trigger/sma_dir").set(trigger_dir);
-
-        _tree->access<std::string>("/mboards/0/trigger/sma_pol").set("positive");
-        for(size_t n = 0; n < channels.size(); n++) {
-            const std::string dsp_root { "/mboards/0/tx_dsps/" + std::to_string(channels[n]) + "/" };
-            _tree->access<double>(dsp_root + "rstreq").set(1.0);
-        }
-        return actual_num_samples_per_trigger;
+        return trigger_setup_wrapper(tx, channels, num_samples_per_trigger, trigger_dir);
     }
 
     void tx_trigger_cleanup(
         std::vector<size_t> channels
     ) {
-        for(size_t n = 0; n < channels.size(); n++) {
-            const std::string root { "/mboards/0/tx/" + std::to_string(channels[n]) + "/" };
-            _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
-            _tree->access<std::string>(root + "trigger/trig_sel").set("0");
-        }
-        last_trigger_dir_set_by = none;
+        trigger_cleanup_wrapper(tx, channels);
     }
 
     uint64_t rx_trigger_setup(
@@ -2353,53 +2450,13 @@ public:
         uint64_t num_samples_per_trigger,
         std::string trigger_dir
     ) {
-        uint64_t actual_num_samples_per_trigger = 0;
-        for(size_t n = 0; n < channels.size(); n++) {
-            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
-            _tree->access<std::string>(root + "stream").set("0");
-            _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
-            actual_num_samples_per_trigger = std::stoul(_tree->access<std::string>(root + "trigger/edge_sample_num").get(),nullptr,10);
-            _tree->access<std::string>(root + "trigger/sma_mode").set("edge");
-            _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
-            _tree->access<std::string>(root + "trigger/trig_sel").set("1");
-        }
-        // Prints warning message in case the user set the direction to something different when using rx
-        if(last_trigger_dir_set_by == tx) {
-            if(previous_trigger_dir != trigger_dir) {
-                UHD_LOGGER_WARNING("MULTI_USRP")
-                    << std::format(
-                        "Warning trigger direction was set to a a different value when configuring tx. RX and TX use the same trigger port. The value from tx is being overwritten Previously set to {}, changing it to {} while setting up tx trigger\n",
-                        previous_trigger_dir, trigger_dir);
-            }
-        } else {
-            last_trigger_dir_set_by = rx;
-            previous_trigger_dir = trigger_dir;
-        }
-        _tree->access<std::string>("/mboards/0/trigger/sma_dir").set(trigger_dir);
-
-        _tree->access<std::string>("/mboards/0/trigger/sma_pol").set("positive");
-
-        for(size_t n = 0; n < channels.size(); n++) {
-            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
-            _tree->access<std::string>(root + "stream").set("1");
-        }
-        return actual_num_samples_per_trigger;
+        return trigger_setup_wrapper(rx, channels, num_samples_per_trigger, trigger_dir);
     }
 
     void rx_trigger_cleanup(
         std::vector<size_t> channels
     ) {
-        //Stream needs to be set to 0 first, since certain channels share certain properties
-        for(size_t n = 0; n < channels.size(); n++) {
-            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
-            _tree->access<std::string>(root + "stream").set("0");
-        }
-        for(size_t n = 0; n < channels.size(); n++) {
-            const std::string root { "/mboards/0/rx/" + std::to_string(channels[n]) + "/" };
-            _tree->access<std::string>(root + "trigger/edge_sample_num").set("0");
-            _tree->access<std::string>(root + "trigger/trig_sel").set("0");
-        }
-        last_trigger_dir_set_by = none;
+        trigger_cleanup_wrapper(rx, channels);
     }
 
     void rx_start_force_stream(std::vector<size_t> channels) {
