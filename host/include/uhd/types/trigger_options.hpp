@@ -6,9 +6,12 @@
 
 #pragma once
 
+#include <uhd/exception.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <type_traits>
+#include <vector>
 
 /*
  * Versioned argument structs for the trigger API.
@@ -427,5 +430,199 @@ struct trigger_tx_t
 // static_assert(sizeof(trigger_global_t) == trigger_global_t::min_size);
 // static_assert(sizeof(trigger_rx_t) == trigger_rx_t::min_size);
 // static_assert(sizeof(trigger_tx_t) == trigger_tx_t::min_size);
+
+/***********************************************************************
+ * Preset configurations
+ *
+ * These fill out the arguments for multi_usrp::trigger_configure() in the
+ * caller's struct format.
+ *
+ * They are defined here in the header, not in a .cpp, so that they are
+ * compiled into the caller and fill the structs using the caller's layout. A
+ * version compiled into the library would write the library's layout into the
+ * caller's (possibly smaller) structs.
+ *
+ * `static` gives each file that includes this header its own copy, so two
+ * libraries built against different versions of this header can never end up
+ * sharing one copy (and one struct layout) at runtime.
+ **********************************************************************/
+
+/*!
+ * Fill out arguments that read every trigger setting without changing anything.
+ *
+ * Every setting is set to get, and every channel (specified or not) is hot
+ * configured, so nothing is disabled during the reads. After trigger_configure()
+ * returns, the structs hold the values currently on the device.
+ *
+ * Element i of rx and tx reads physical channel i, so pass arrays with
+ * get_rx_num_channels() and get_tx_num_channels() elements to read every channel.
+ *
+ * When adding a field to a struct, set it to get here.
+ *
+ * \param op filled in; must not be nullptr
+ * \param global filled in, or nullptr to skip reading the global settings
+ * \param rx filled in; may be nullptr if rx_len is 0
+ * \param rx_len number of elements in rx
+ * \param tx filled in; may be nullptr if tx_len is 0
+ * \param tx_len number of elements in tx
+ * 	hrows uhd::value_error if a required pointer is null
+ */
+static inline void get_read_config(trigger_op_t* op,
+    trigger_global_t* global,
+    trigger_rx_t* rx,
+    size_t rx_len,
+    trigger_tx_t* tx,
+    size_t tx_len)
+{
+    if (op == nullptr) {
+        throw uhd::value_error("get_read_config: op must not be null");
+    }
+    if (rx == nullptr && rx_len != 0) {
+        throw uhd::value_error(std::format("get_read_config: rx is null but rx_len is {}", rx_len));
+    }
+    if (tx == nullptr && tx_len != 0) {
+        throw uhd::value_error(std::format("get_read_config: tx is null but tx_len is {}", tx_len));
+    }
+
+    *op            = trigger_op_t{};
+    op->setup_mode = setup_mode_t::hot_configure_unspecified_rx
+                     | setup_mode_t::hot_configure_unspecified_tx;
+
+    if (global != nullptr) {
+        *global               = trigger_global_t{};
+        global->sma_direction = pin_direction_t::get;
+        global->sma_polarity  = polarity_t::get;
+        global->sma_override  = -1;
+    }
+
+    for (size_t channel_index = 0; channel_index < rx_len; channel_index++) {
+        trigger_rx_t& chan   = rx[channel_index];
+        chan                 = trigger_rx_t{};
+        chan.channel         = channel_index;
+        chan.hot_configure   = true;
+        chan.edge_backoff    = -1;
+        chan.edge_sample_num = -1;
+        chan.trig_sel        = active_trigger_t::get;
+        chan.sma_mode        = trigger_mode_t::get;
+        chan.ufl_mode        = trigger_mode_t::get;
+        chan.ufl_dir         = pin_direction_t::get;
+        chan.ufl_polarity    = polarity_t::get;
+        chan.enable          = -1;
+    }
+
+    for (size_t channel_index = 0; channel_index < tx_len; channel_index++) {
+        trigger_tx_t& chan   = tx[channel_index];
+        chan                 = trigger_tx_t{};
+        chan.channel         = channel_index;
+        chan.hot_configure   = true;
+        chan.edge_backoff    = -1;
+        chan.edge_sample_num = -1;
+        chan.trig_sel        = active_trigger_t::get;
+        chan.sma_mode        = trigger_mode_t::get;
+        chan.ufl_mode        = trigger_mode_t::get;
+        chan.ufl_dir         = pin_direction_t::get;
+        chan.ufl_polarity    = polarity_t::get;
+        chan.gating          = gating_t::get;
+    }
+}
+
+/*!
+ * Fill out arguments that do the same as the older rx_trigger_setup() and
+ * tx_trigger_setup() functions:
+ *  - edge triggering on the global SMA, positive polarity, no edge backoff,
+ *    and \p edge_sample_num samples per edge
+ *  - RX channels stream once configured (enable = 1)
+ *  - TX channels use DSP gating
+ *  - the global SMA direction is set to \p sma_direction
+ *
+ * As with the older functions, other settings and unspecified channels are left
+ * unchanged, and coerced values (e.g. edge_sample_num rounded by the device) are
+ * adjusted rather than treated as errors. The actual values are written back
+ * into the structs by trigger_configure().
+ *
+ * \param op filled in; must not be nullptr
+ * \param global filled in; must not be nullptr
+ * \param rx filled in; may be nullptr if rx_len is 0
+ * \param rx_len number of elements in rx
+ * \param tx filled in; may be nullptr if tx_len is 0
+ * \param tx_len number of elements in tx
+ * \param rx_channels physical channel for each element of rx; must have rx_len elements
+ * \param tx_channels physical channel for each element of tx; must have tx_len elements
+ * \param sma_direction pin_direction_t::in or pin_direction_t::out
+ * \param edge_sample_num samples to stream per edge; 0 streams indefinitely; must be >= 0
+ * \throws uhd::value_error on an invalid request
+ */
+static inline void get_simple_sma_config(trigger_op_t* op,
+    trigger_global_t* global,
+    trigger_rx_t* rx,
+    size_t rx_len,
+    trigger_tx_t* tx,
+    size_t tx_len,
+    const std::vector<size_t>& rx_channels,
+    const std::vector<size_t>& tx_channels,
+    const pin_direction_t sma_direction,
+    const int64_t edge_sample_num)
+{
+    if (op == nullptr || global == nullptr) {
+        throw uhd::value_error("get_simple_sma_config: op and global must not be null");
+    }
+    if (rx == nullptr && rx_len != 0) {
+        throw uhd::value_error(
+            std::format("get_simple_sma_config: rx is null but rx_len is {}", rx_len));
+    }
+    if (tx == nullptr && tx_len != 0) {
+        throw uhd::value_error(
+            std::format("get_simple_sma_config: tx is null but tx_len is {}", tx_len));
+    }
+    if (rx_channels.size() != rx_len || tx_channels.size() != tx_len) {
+        throw uhd::value_error(std::format(
+            "get_simple_sma_config: {} rx_channels for {} rx elements, {} tx_channels for {} tx elements",
+            rx_channels.size(), rx_len, tx_channels.size(), tx_len));
+    }
+    if (sma_direction != pin_direction_t::in && sma_direction != pin_direction_t::out) {
+        throw uhd::value_error("get_simple_sma_config: sma_direction must be in or out");
+    }
+    if (edge_sample_num < 0) {
+        throw uhd::value_error(std::format(
+            "get_simple_sma_config: edge_sample_num must be >= 0, got {}", edge_sample_num));
+    }
+
+    *op            = trigger_op_t{};
+    op->setup_mode = setup_mode_t::hot_configure_unspecified_rx
+                     | setup_mode_t::hot_configure_unspecified_tx;
+    // The older functions accepted whatever the device applied.
+    op->enable_strict_errors &= ~strict_error_t::coerced_value;
+
+    *global               = trigger_global_t{};
+    global->sma_direction = sma_direction;
+    global->sma_polarity  = polarity_t::positive;
+    global->sma_override  = -1;
+
+    for (size_t channel_index = 0; channel_index < rx_len; channel_index++) {
+        trigger_rx_t& chan   = rx[channel_index];
+        chan                 = trigger_rx_t{};
+        chan.channel         = rx_channels[channel_index];
+        chan.hot_configure   = false;
+        chan.edge_backoff    = 0;
+        chan.edge_sample_num = edge_sample_num;
+        chan.trig_sel        = active_trigger_t::global_sma;
+        chan.sma_mode        = trigger_mode_t::edge;
+        chan.enable          = 1;
+        // ufl_mode, ufl_dir and ufl_polarity keep their defaults (get).
+    }
+
+    for (size_t channel_index = 0; channel_index < tx_len; channel_index++) {
+        trigger_tx_t& chan   = tx[channel_index];
+        chan                 = trigger_tx_t{};
+        chan.channel         = tx_channels[channel_index];
+        chan.hot_configure   = false;
+        chan.edge_backoff    = 0;
+        chan.edge_sample_num = edge_sample_num;
+        chan.trig_sel        = active_trigger_t::global_sma;
+        chan.sma_mode        = trigger_mode_t::edge;
+        chan.gating          = gating_t::dsp;
+        // ufl_mode, ufl_dir and ufl_polarity keep their defaults (get).
+    }
+}
 
 }} // namespace uhd::trigger_pv
