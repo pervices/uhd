@@ -104,9 +104,6 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
         }
         size_t samples_this_packet = rx_stream->recv(buff_ptrs, samples_per_trigger - num_samples_this_trigger, this_md, timeout, false);
         timeout = 1.5;
-
-        rx_stream->issue_stream_cmd(stream_cmd);
-
         // If this packet has an earlier or the same time stamp as the previous, this packet is from a different trigger call
         if((this_md.time_spec.get_real_secs() <= previous_md.time_spec.get_real_secs() && !first_packet_of_trigger) || samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
             if(samples_this_packet + num_samples_this_trigger >= samples_per_trigger) {
