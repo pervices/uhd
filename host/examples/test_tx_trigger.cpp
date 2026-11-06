@@ -392,9 +392,9 @@ public:
             md.has_time_spec = false;
 
             //send a mini EOB packet
-            md.start_of_burst = false;
-            md.end_of_burst = true;
-            tx->send("", 0, md);
+            // md.start_of_burst = false;
+            // md.end_of_burst = true;
+            // tx->send("", 0, md);
 
             //
             // Print FIFO levels.
