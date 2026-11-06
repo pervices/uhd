@@ -76,7 +76,7 @@ void rx_run(uhd::rx_streamer::sptr rx_stream, double start_time, uint64_t num_tr
     // setup streaming
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
 
-    stream_cmd.num_samps  = samples_per_trigger;
+    stream_cmd.num_samps  = 0;//samples_per_trigger;
     stream_cmd.stream_now = false;
     stream_cmd.time_spec  = uhd::time_spec_t(start_time);
 
