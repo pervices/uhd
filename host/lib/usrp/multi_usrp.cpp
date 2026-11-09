@@ -516,7 +516,7 @@ public:
             issue_stream_cmd(stream_cmd, c);
         }
     }
-    
+
 
     void set_time_source(const std::string& source, const size_t mboard) override
     {
@@ -924,7 +924,7 @@ public:
     {
         _rx_spp[chan] = spp;
     }
-    
+
     double get_rx_rate(size_t chan){
         return get_device()->get_rx_rate(chan);
     }
@@ -1822,22 +1822,22 @@ public:
 
         _tree->access<filter_info_base::sptr>(fs_path(name) / "value").set(filter);
     }
-    
+
     std::string get_tx_sfp(size_t chan) override
     {
         return get_device()->get_tx_sfp(chan);
     }
-    
+
     std::string get_tx_ip(size_t chan) override
     {
         return get_device()->get_tx_ip(chan);
     }
-    
+
     uint16_t get_tx_fc_port(size_t chan) override
     {
         return get_device()->get_tx_fc_port(chan);
     }
-    
+
     uint16_t get_tx_udp_port(size_t chan) override
     {
         return get_device()->get_tx_udp_port(chan);
@@ -1867,7 +1867,7 @@ public:
 
         return ret;
     }
-    
+
     uhd::filter_info_base::sptr get_tx_filter(
         const std::string& name, const size_t chan) override
     {
@@ -2125,7 +2125,7 @@ public:
         (void) chan;
         return {std::string(CURRENT_BAND_GAINS)};
     }
-    
+
     /*!
      * Get the number of samples in the buffer per number reported in packets sent to fif udp port
      */
@@ -2301,7 +2301,7 @@ public:
             _tree->access<std::string>(root + "trigger/edge_backoff").set("0");
             _tree->access<std::string>(root + "trigger/edge_sample_num").set(std::to_string(num_samples_per_trigger));
             actual_num_samples_per_trigger = std::stoul(_tree->access<std::string>(root + "trigger/edge_sample_num").get(),nullptr,10);
-            _tree->access<std::string>(root + "trigger/gating").set("dsp");
+            _tree->access<std::string>(root + "trigger/gating").set("output");
         }
         // Prints warning message in case the user set the direction to something different when using rx
         if(last_trigger_dir_set_by == rx) {
