@@ -334,7 +334,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         uhd::stream_args_t tx_stream_args("fc32");
         tx_stream_args.channels = channel_nums;
         tx_stream = usrp->get_tx_stream(tx_stream_args);
-        tx_stream->enable_blocking_fc(setpoint);
+        //tx_stream->enable_blocking_fc(setpoint);
     }
 
     uhd::rx_streamer::sptr rx_stream;
