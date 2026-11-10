@@ -344,18 +344,27 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         rx_stream = usrp->get_rx_stream(rx_stream_args);
     }
 
+    size_t rx_samples_per_trigger = 0;
     if(use_rx) {
-        size_t actual_samples_per_trigger = usrp->rx_trigger_setup(channel_nums, samples_per_trigger, trigger_direction);
-        if(actual_samples_per_trigger != samples_per_trigger) {
-            std::cout << "Actual samples per trigger: " << actual_samples_per_trigger << std::endl;
-            samples_per_trigger = actual_samples_per_trigger;
+        rx_samples_per_trigger = usrp->rx_trigger_setup(channel_nums, samples_per_trigger, trigger_direction);
+        if(rx_samples_per_trigger != samples_per_trigger) {
+            std::cout << "Rx actual samples per trigger: " << rx_samples_per_trigger << std::endl;
         }
     }
+    size_t tx_samples_per_trigger = 0;
     if(use_tx) {
-        usrp->tx_trigger_setup(channel_nums, samples_per_trigger, trigger_direction);
+        // If rx is present try to adjusted rx value for tx
+        if(use_rx) {
+            tx_samples_per_trigger  = usrp->tx_trigger_setup(channel_nums, rx_samples_per_trigger, trigger_direction);
+        } else {
+            tx_samples_per_trigger  = usrp->tx_trigger_setup(channel_nums, samples_per_trigger, trigger_direction);
+        }
+        if(tx_samples_per_trigger != samples_per_trigger) {
+            std::cout << "Tx actual samples per trigger: " << tx_samples_per_trigger << std::endl;
+        }
     }
 
-    std::vector<std::complex<float> > tx_buff(samples_per_trigger);
+    std::vector<std::complex<float> > tx_buff(tx_samples_per_trigger);
     std::vector<std::complex<float> *> tx_buffs(channel_nums.size(), &tx_buff.front());
 
     if(use_tx) {
@@ -379,11 +388,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::thread tx_thread;
     if(use_tx) {
-        tx_thread = std::thread(tx_run, tx_stream, tx_buffs, start_time, num_trigger, samples_per_trigger);
+        tx_thread = std::thread(tx_run, tx_stream, tx_buffs, start_time, num_trigger, tx_samples_per_trigger);
     }
 
     if(use_rx) {
-        rx_run(rx_stream, start_time, num_trigger, samples_per_trigger, results_directory, channel_nums, overwrite);
+        rx_run(rx_stream, start_time, num_trigger, rx_samples_per_trigger, results_directory, channel_nums, overwrite);
         usrp->rx_trigger_cleanup(channel_nums);
     }
 
