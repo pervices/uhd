@@ -256,19 +256,22 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
 
+    double tx_rate = 0;
+    double rx_rate = 0;
+
     for(size_t ch = 0; ch < channel_nums.size(); ch++) {
         if(use_tx) {
             std::cout << std::format("Setting ch{} TX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6));
             usrp->set_tx_rate(rate, channel_nums[ch]);
             //Adjust the requested rate to match the desired rate
-            rate = usrp->get_tx_rate(channel_nums[ch]);
-            std::cout << std::format("Actual ch{} TX Rate: {} Msps...\n\n", channel_nums[ch], (rate/1e6));
+            tx_rate = usrp->get_tx_rate(channel_nums[ch]);
+            std::cout << std::format("Actual ch{} TX Rate: {} Msps...\n\n", channel_nums[ch], (tx_rate/1e6));
         }
         if(use_rx) {
             std::cout << std::format("Setting ch{} RX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6));
             usrp->set_rx_rate(rate, channel_nums[ch]);
-            rate = usrp->get_rx_rate(channel_nums[ch]);
-            std::cout << std::format("Actual ch{} RX Rate: {} Msps...\n\n", channel_nums[ch], (rate/1e6));
+            rx_rate = usrp->get_rx_rate(channel_nums[ch]);
+            std::cout << std::format("Actual ch{} RX Rate: {} Msps...\n\n", channel_nums[ch], (rx_rate/1e6));
         }
     }
 
@@ -308,14 +311,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     if(use_tx) {
         //for the const wave, set the wave freq for small samples per period
         if (wave_freq == 0 and wave_type == "CONST"){
-            wave_freq = usrp->get_tx_rate()/2;
+            wave_freq = tx_rate/2;
         }
 
         //error when the waveform is not possible to generate
-        if (std::abs(wave_freq) > usrp->get_tx_rate()/2){
+        if (std::abs(wave_freq) > tx_rate/2){
             throw std::runtime_error("wave freq out of Nyquist zone");
         }
-        if (usrp->get_tx_rate()/std::abs(wave_freq) > wave_table_len/2){
+        if (tx_rate/std::abs(wave_freq) > wave_table_len/2){
             throw std::runtime_error("wave freq too small for table");
         }
     }
@@ -325,7 +328,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     size_t step = 0;
     size_t index = 0;
     if(use_tx) {
-        step = boost::math::iround(wave_freq/rate * wave_table_len);
+        step = boost::math::iround(wave_freq/tx_rate * wave_table_len);
     }
 
     //create a transmit streamer
