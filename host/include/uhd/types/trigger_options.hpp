@@ -104,19 +104,20 @@ enum class trigger_mode_t : uint32_t {
 // Unlike other enums, the raw number is passed to the SDR
 enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
-    global_sma  = 1u << 0, //!< Listen to the global SMA trigger.
+    global_sma_in = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
+    global_sma_out = 1u << 1, //!< Output to the the global SMA trigger. Every channel set to output is ORed together.
     get         = 1u << 31, //!< Get the current value, do not set.
     // Add new triggers as new bits only.
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
 
 //! Trigger gating.
-//! TODO: document what each option gates.
+// TODO: document what gating does when sma/ufl set to output, it probably only applies to input triggers
 enum class gating_t : uint32_t {
     get = 0,
-    dsp  = 1, //!< TODO: document.
-    output = 2, //!< TODO: document.
+    dsp  = 1, //!< Consume samples only when the trigger active. Start/stop/time to send are ANDed with the trigger. i.e. if you send a burst with a start time of 5s then the first trigger at or after 5s with consume the first edge_sample_num samples from the burst.
+    output = 2, //!< Consume samples in the same way as normal streaming, except the output is blanked when the trigger is not active.
 };
 
 //! How to behave while the trigger is being configured. Values may be combined with |.
