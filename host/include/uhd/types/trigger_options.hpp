@@ -271,13 +271,27 @@ struct trigger_rx_t
     size_t channel = channel_unset;
 
     /*!
-     * The number of samples to stream per edge in edge triggered mode.
+     * How long to stream in samples when an edge triggered input trigger is activated.
      * 0 means stream indefinitely after the trigger is received.
-     * The device takes uint64_t
-     * In UHD negative values are used to indicate errors when returns from UHD and get only when passed to UHD.
-     * TODO: verify this does nothing in level mode.
+     * -1 indicates get
+     * A negative value in the reply indicates and error.
+     * \internal
+     * The device takes uint64_t, negative values are purely within UHD
+     * \endinternal
      */
     int64_t edge_sample_num = -1;
+
+    /*!
+     * How long to keep the output trigger(s) active while in edge mode in samples.
+     * 0 means keep the trigger active forever.
+     * -1 indicates get.
+     * A negative value in the reply indicates and error.
+     * \internal
+     * The device takes uint64_t, negative values are purely within UHD
+     * TODO: implement when the FPGA is ready
+     * \endinternal
+     */
+    int64_t output_pulse_length = -1;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::get;
@@ -351,13 +365,27 @@ struct trigger_tx_t
     size_t channel = channel_unset;
 
     /*!
-     * The number of samples to stream per edge in edge triggered mode.
+     * How long to stream in samples when an edge triggered input trigger is activated.
      * 0 means stream indefinitely after the trigger is received.
-     * The device takes uint64_t
-     * In UHD negative values are used to indicate errors when returns from UHD and get only when passed to UHD.
-     * TODO: verify this does nothing in level mode.
+     * -1 indicates get
+     * A negative value in the reply indicates and error.
+     * \internal
+     * The device takes uint64_t, negative values are purely within UHD
+     * \endinternal
      */
     int64_t edge_sample_num = -1;
+
+    /*!
+     * How long to keep the output trigger(s) active while in edge mode in samples.
+     * 0 means keep the trigger active forever.
+     * -1 indicates get.
+     * A negative value in the reply indicates and error.
+     * \internal
+     * The device takes uint64_t, negative values are purely within UHD
+     * TODO: implement when the FPGA is ready
+     * \endinternal
+     */
+    int64_t output_pulse_length = -1;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::get;
