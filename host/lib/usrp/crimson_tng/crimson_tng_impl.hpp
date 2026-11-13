@@ -24,7 +24,7 @@
 #include <atomic>
 #include <sys/file.h>
 
-#include "uhd/device.hpp"
+#include <uhdlib/usrp/pv_device/pv_device.hpp>
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
 #include "uhd/usrp/multi_usrp.hpp"
@@ -63,7 +63,7 @@ struct gpio_burst_req {
 namespace uhd {
 namespace usrp {
 
-class crimson_tng_impl : public uhd::device
+class crimson_tng_impl : public uhd::pv_device
 {
 public:
     static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 2;
@@ -270,6 +270,9 @@ private:
     // Full tx is a mode where tx channels C and D operate at full rate, but rx channels C and D are disabled
     // Update the error message in get_rx_stream if the number of rx channels ever changes
     bool is_full_tx = false;
+
+    // The version of the API used by the server. Format: yyyymmdd
+    int server_api_ver = 0;
 };
 
 }
