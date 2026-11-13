@@ -645,6 +645,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         UHD_LOG_ERROR(product_name_c, "Unable to determine if another instance of UHD has already been created with this device.\n" + std::string(e.what()));
     }
 
+    // Attempt to get the server api version
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/server_api_ver", "system/server_api_ver", int, int);
+    try {
+        server_api_ver = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/server_api_ver").get());
+    } catch(uhd::lookup_error &e) {
+        // The server is from before the field was added
+        server_api_ver = 0;
+    }
+
     // Property paths
     const fs_path tx_path   = PV_DEVICE_MB_PATH / "tx";
     const fs_path rx_path   = PV_DEVICE_MB_PATH / "rx";

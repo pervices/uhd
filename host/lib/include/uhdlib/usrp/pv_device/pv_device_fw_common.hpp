@@ -11,3 +11,7 @@
 // fs_path is not a literal type, so it cannot be constexpr.
 inline const uhd::fs_path PV_DEVICE_MB_PATH{"/mboards/0"};
 inline const uhd::fs_path PV_DEVICE_TIME_PATH{PV_DEVICE_MB_PATH / "time"};
+
+// The minimum server version supported by trigger_configure
+// Attempting to use an older server with it is likely to cause issues
+constexpr int TRIGGER_OVERHAUL_SERVER = 20261112;

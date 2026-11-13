@@ -270,9 +270,6 @@ private:
     // Full tx is a mode where tx channels C and D operate at full rate, but rx channels C and D are disabled
     // Update the error message in get_rx_stream if the number of rx channels ever changes
     bool is_full_tx = false;
-
-    // The version of the API used by the server. Format: yyyymmdd
-    int server_api_ver = 0;
 };
 
 }

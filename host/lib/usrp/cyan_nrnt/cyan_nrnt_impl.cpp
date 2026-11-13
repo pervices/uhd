@@ -655,6 +655,15 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to determine if another instance of UHD has already been created with this device.\n" + std::string(e.what()));
     }
 
+    // Attempt to get the server api version
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/server_api_ver", "system/server_api_ver", int, int);
+    try {
+        server_api_ver = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/server_api_ver").get());
+    } catch(uhd::lookup_error &e) {
+        // The server is from before the field was added
+        server_api_ver = 0;
+    }
+
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted
     // The buffer size in number of samples
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/get_max_buffer_level", "system/get_max_buffer_level", double, double);

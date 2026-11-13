@@ -34,6 +34,12 @@ public:
     ~pv_device() override = default;
 
     /*!
+     * The server's API version. Format: yyyymmdd
+     * 0 indicates the server is to older than the property that provides the field
+     */
+    int server_api_ver = 0;
+
+    /*!
      * Device-specific part of multi_usrp::trigger_configure().
      *
      * Validates the request against this device's trigger hardware and fills in
