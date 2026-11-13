@@ -2438,19 +2438,21 @@ public:
     * By default all channels are disabled while this function is running.
     * Assuming nothing trigger related changes on the device: the adjusted value from the end of one call
     * will do nothing if passed to the function again, except for temporarily disabling channels if hot_configure is not set
-    * The recomended way of using this function is set up the structs as you desire at the start
+    * The recommended way of using this function is to set up the structs as you desire at the start
     * then anytime you want to modify something, modify that specific field and call this function again.
     *
     * \param op how to apply the change, or nullptr for defaults
     * \param global settings that apply to every channel (updated with actual
-    *        values), or nullptr to leave the global settings unchanged
+    *        values), or nullptr to leave the global settings unchanged.
+    *        The existing global sma is still checked and will cause an error if it
+    *        conflicts with trig_sel.
     * \param rx array of per-channel RX settings (updated with actual values)
     * \param rx_len number of elements in \p rx; \p rx may be nullptr if 0
     * \param tx array of per-channel TX settings (updated with actual values)
     * \param tx_len number of elements in \p tx; \p tx may be nullptr if 0
     * \return true if every value was applied exactly as requested,
     *         false if any value was adjusted but was otherwise successful
-    * \throws on error; the structs are left unmodified but the device is in an undefined state.
+    * \throws on error; Behaviour (other than the throw itself) on failure are determined by failure_handling within \p op
     */
     [[nodiscard("returns false if any requested value was adjusted")]]
     virtual bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,

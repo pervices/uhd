@@ -44,6 +44,17 @@
 
 namespace uhd { namespace trigger_pv {
 
+/*!
+ * When passed to fields that use a positive integer as a value, and negative value for control
+ * GET_INT indicates get.
+ */
+constexpr GET_INT = -2147483650;
+/*!
+ * When passed to fields that use a positive integer as a value, and negative value for control
+ * SKIP_IF_NOT_RELEVANT indicates do nothing if the field is not relevant, value error if it is.
+ */
+constexpr SKIP_IF_NOT_RELEVANT = -2147483651;
+
 /***********************************************************************
  * Flag operators
  **********************************************************************/
@@ -214,8 +225,8 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
 //! What to do if configuring the trigger fails part way through.
 enum class failure_handling_t : uint64_t {
-    disable_all = 0, //!< Disable triggering on all channels. TODO: confirm.
-    // TODO: add other failure handling modes.
+    disable_all = 0, //!< The structs passed to the function are unmodified. Attempt to disable all channels, set trig_sel to active_trigger_t::none, and all bidirectional triggers are set to input. However this is only attempted, it may still fail if there are communication issues with the server.
+    flexible = 1, //!< The structs passed to the function are unmodified. The requested changes are partially applied. Some or all channels may be disabled is hot_configure was not enabled for them.
 };
 
 /*!
@@ -322,23 +333,31 @@ struct trigger_global_t
 
     /*!
      * Override the global trigger so that it acts as if the input is active.
+     * Supported values: GET_INT, 0 (disable), 1 (enable)
      * TODO: verify it does not affect the output.
+     * \internal
+     * While absurdly large for what is essentailly a bool, this allows us to use
+     * negative values below the 32 bit signed int limit to unambiguously
+     * make requests without risk of them being mistaken for error codes
+     * \endinternal
      */
-    int8_t sma_override = -1;
+    int64_t sma_override = GET_INT;
 
     /*!
      * How long to keep the sma trigger high in units of samples when a channel starts streaming and is edge triggered.
      * This argument applies to all channels
-     * 0 means stream indefinitely after the trigger is received.
-     * -1 indicates get.
-     * -2 is an error if trig_sel has active_trigger_t::sma_input if any channel is set to .
+     * Supported values:
+     * Any positive value is a regular value.
+     * 0 indicates keep the output active forever.
+     * GET_INT.
+     * SKIP_IF_NOT_RELEVANT is an error if trig_sel has active_trigger_t::sma_input if any channel has edge_mode set to edge
      * returned as is if not relevant.
      * A negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
      * \endinternal
      */
-    int64_t sma_output_pulse_length = -2;
+    int64_t sma_output_pulse_length = SKIP_IF_NOT_RELEVANT;
 
     //! Explicit padding. Must be zero.
     uint8_t reserved0[3] = {};
