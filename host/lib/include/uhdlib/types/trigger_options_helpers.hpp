@@ -134,7 +134,10 @@ concept enum_with_get = std::is_enum_v<E> && requires {
 
 /*!
  * Value the SDR expects in the property tree for an enum setting.
- * Throws uhd::value_error for E::get (get is never sent to the device) and for
+ * Throws uhd::value_error for
+ * E::get (which means UHD should get),
+ * E::must_specify_if_applicable (user forgot to specify),
+ * E::derive (UHD should select the value first),
  * numbers that are not a named enumerator.
  */
 std::string to_device_string(pin_direction_t dir);

@@ -316,7 +316,7 @@ std::string to_device_string(pin_direction_t dir)
         case pin_direction_t::derive:
             throw uhd::value_error("pin_direction_t::derive cannot be sent to the device");
         case pin_direction_t::separate:
-            return "out";
+            return "separate";
     }
     // Reached only if the caller cast an out-of-range number to pin_direction_t.
     throw uhd::value_error(std::format("invalid pin_direction_t value {}", static_cast<uint32_t>(dir)));

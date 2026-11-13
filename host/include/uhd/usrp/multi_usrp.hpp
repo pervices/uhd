@@ -2428,15 +2428,18 @@ public:
     }
 
     // TODO: add these notes to the proper comment:
-    // For null fields the final value will match the existing value
+    // For null global, rx, tx the final value will match the existing value
     // However they may be modified during the function depending on op
 
     /*! Configure triggered streaming for RX and TX channels in one operation.
     *
     * Values the hardware cannot apply exactly are adjusted, and the adjusted
     * values are written back into \p global, \p rx and \p tx.
-    * By default all channels are disabled while this is being run.
-    * If you want
+    * By default all channels are disabled while this function is running.
+    * Assuming nothing trigger related changes on the device: the adjusted value from the end of one call
+    * will do nothing if passed to the function again, except for temporarily disabling channels if hot_configure is not set
+    * The recomended way of using this function is set up the structs as you desire at the start
+    * then anytime you want to modify something, modify that specific field and call this function again.
     *
     * \param op how to apply the change, or nullptr for defaults
     * \param global settings that apply to every channel (updated with actual
@@ -2447,7 +2450,7 @@ public:
     * \param tx_len number of elements in \p tx; \p tx may be nullptr if 0
     * \return true if every value was applied exactly as requested,
     *         false if any value was adjusted but was otherwise successful
-    * \throws on error; the structs are left unmodified
+    * \throws on error; the structs are left unmodified but the device is in an undefined state.
     */
     [[nodiscard("returns false if any requested value was adjusted")]]
     virtual bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
