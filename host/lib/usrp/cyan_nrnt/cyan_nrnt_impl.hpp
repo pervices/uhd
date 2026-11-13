@@ -20,6 +20,7 @@
 #define INCLUDED_CYAN_NRNT_IMPL_HPP
 
 #include <set>
+#include <optional>
 #include <vector>
 #include <thread>
 #include <atomic>
@@ -94,6 +95,20 @@ public:
 
     void start_pps_dtc();
     void stop_pps_dtc();
+
+    // Device-specific parts of trigger_configure. See uhd::pv_device.
+    void trigger_derive(const uhd::trigger_pv::trigger_op_t& lib_op,
+        const std::optional<uhd::trigger_pv::trigger_global_t>& lib_global,
+        const std::vector<uhd::trigger_pv::trigger_rx_t>& lib_rx,
+        const std::vector<uhd::trigger_pv::trigger_tx_t>& lib_tx,
+        const std::vector<size_t>& unspecified_rx,
+        const std::vector<size_t>& unspecified_tx,
+        uhd::trigger_pv::trigger_global_t& derived_global,
+        std::vector<uhd::trigger_pv::trigger_rx_t>& derived_rx,
+        std::vector<uhd::trigger_pv::trigger_tx_t>& derived_tx) override;
+    uhd::trigger_pv::active_trigger_t trig_sel_from_device(
+        uhd::trigger_pv::active_trigger_t device_trig_sel,
+        const uhd::trigger_pv::trigger_global_t& derived_global) override;
 
 private:
     // Advisory lock file descriptor for the device
