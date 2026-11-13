@@ -29,7 +29,8 @@
  *  - channel_index: the position of an element within an array. There is no
  *    relationship between channel_index and channel.
  *
- * All functions throw uhd::value_error or uhd::index_error on invalid input.
+ * Functions throw uhd::value_error or uhd::index_error for invalid input, and
+ * uhd::runtime_error if the device reports a value the library does not recognise.s
  */
 
 namespace uhd { namespace trigger_pv { namespace detail {

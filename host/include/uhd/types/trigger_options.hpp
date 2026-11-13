@@ -13,6 +13,10 @@
 #include <type_traits>
 #include <vector>
 
+//TODOS before release:
+// replace -1 for get, and -2 for error if relevant with constexpr that are ngative values  outside the range of int
+// since values in that range might be an error code indicating how the operation failed.
+
 /*
  * Versioned argument structs for the trigger API.
  *
@@ -173,13 +177,21 @@ enum class trigger_mode_t : uint32_t {
     level = 2, //!< Stream while the trigger is active.
 };
 
-//! Which triggers a channel listens to. Values may be combined with |.
-// Unlike other enums, the raw number is passed to the SDR
+/*! Which triggers a channel listens/outputs on. Values may be combined with |.
+ * When both the sma input, and channel_ufl with ufl_dir set to input:
+ * streaming occurs only when both triggers indicate streaming should occur.
+ * i.e. if edge_sample_num is 1000, both are edge triggered, sma input receives ann edge at the time of sample 500, and the ufl received an edge at time 1000, then streaming only occurs from time 1000-1499.
+ * \internal
+ * On Cyan the raw bits can be passed through.
+ * On the device in Crimson sma_output/sma_input are controled by bit 0
+ * and input vs output is control by sma_dir
+ * \endinternal
+ */
 enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
     sma_input = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
-    sma_output = 1u << 2, //!< Output to the the global SMA trigger. Every channel set to output is ORed together.
+    sma_output = 1u << 2, //!< Output to the the global SMA trigger. The final output is every channel's individual output ORed together.
     get         = 1u << 31, //!< Get the current value, do not set.
     // Add new triggers as new bits only.
 };
@@ -197,7 +209,11 @@ enum class gating_t : uint32_t {
 enum class setup_mode_t : uint64_t {
     none = 0, //!< Default behaviour. TODO: document.
     /*!
-     * Whe hot configure is not enabled for unspecified channels: they will be disabled by having their trig_sel set to none all other setting are applied.
+     * When hot configure is not enabled for unspecified channels:
+     * rx and tx will be disabled temporarily having their trig_sel set to none
+     * while the settings are being applied.
+     * rx will also have streaming disabled.
+     * TODO: implement a way of disabling tx.
      */
     hot_configure_unspecified_rx = 1u << 0,
     hot_configure_unspecified_tx = 1u << 1,
@@ -219,7 +235,7 @@ enum class failure_handling_t : uint64_t {
 enum class strict_error_t : uint64_t {
     none                      = 0,
     coerced_value = 1u << 0, //!< Error when a value is coerced
-    pedantic_dir = 2u << 1, //!< Error when the a direction might indicate something is wrong
+    pedantic_dir = 2u << 1, //!< Error when the requested pin direction does not match the pin's type.
     //! Every check that existed in v1. This is the default, so checks added
     //! later are off unless the caller asks for them (or for `all`).
     // TODO: before release, remove coerced_value from all_v1 so coercion
@@ -237,8 +253,8 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
  */
 enum class warning_t : uint64_t {
     none                      = 0,
-    coerced_value = 1u << 0, //!< Error when a value is coerced
-    pedantic_dir = 2u << 1, //!< Error when the a direction might indicate something is wrong
+    coerced_value = 1u << 0, //!< Warn when a value is coerced
+    pedantic_dir = 2u << 1, //!< Warn when the requested pin direction does not match the pin's type.
     all                       = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
@@ -353,33 +369,37 @@ struct trigger_rx_t
 
     /*!
      * How long to stream in samples when an edge triggered input trigger is activated.
+     * Applies to both ufl and sma triggers.
      * 0 means stream indefinitely after the trigger is received.
-     * -1 indicates get
-     * A negative value in the reply indicates and error.
+     * -1 indicates get.
+     * -2 is always an error and returned as is if not relevant.
+     * A negative value in the reply indicates an error.
      * \internal
-     * The device takes uint64_t, negative values are purely within UHD
+     * The device takes uint64_t, negative values are purely within UHD.
      * \endinternal
      */
-    int64_t edge_sample_num = -1;
+    int64_t edge_sample_num = -2;
 
     /*!
-     * How long to keep the output trigger(s) active while in edge mode in samples.
-     * 0 means keep the trigger active forever.
+     * How long keep the ufl trigger high in samples when the channel starts streaming and is edge triggered.
+     * 0 means stream indefinitely after the trigger is received.
      * -1 indicates get.
-     * A negative value in the reply indicates and error.
+     * -2 is always an error if trig_sel has active_trigger_t::channel_ufl, and sma_mode is set to edge.
+     * returned as is if not relevant.
+     * A negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
-     * TODO: implement when the FPGA is ready
      * \endinternal
      */
-    int64_t output_pulse_length = -1;
+    int64_t ufl_output_pulse_length = -2;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::get;
 
     /*!
      * Whether to trigger on level or edge on the global SMA.
-     * Not applicable unless trig_sel includes active_trigger_t::global_sma.
+     * Not relevant unless trig_sel includes active_trigger_t::sma_input or active_trigger_t::sma_output.
+     * Select between edge triggered or output mode.
      */
     trigger_mode_t sma_mode = trigger_mode_t::get;
 
@@ -390,7 +410,8 @@ struct trigger_rx_t
 
     /*!
      * Direction of the per-channel ufl.
-     * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl
+     * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl.
+     * ufl_dir cannot be derrived from other fields. Must be specified, get, or not relevant.
      */
     pin_direction_t ufl_dir = pin_direction_t::must_specify_if_applicable;
 
@@ -445,33 +466,35 @@ struct trigger_tx_t
 
     /*!
      * How long to stream in samples when an edge triggered input trigger is activated.
+     * Applies to both ufl and sma triggers.
      * 0 means stream indefinitely after the trigger is received.
-     * -1 indicates get
-     * A negative value in the reply indicates and error.
+     * -1 indicates get.
+     * -2 is always an error and returned as is if not relevant.
+     * A negative value in the reply indicates an error.
      * \internal
-     * The device takes uint64_t, negative values are purely within UHD
+     * The device takes uint64_t, negative values are purely within UHD.
      * \endinternal
      */
-    int64_t edge_sample_num = -1;
+    int64_t edge_sample_num = -2;
 
     /*!
-     * How long to keep the output trigger(s) active while in edge mode in samples.
-     * 0 means keep the trigger active forever.
+     * How long keep the ufl trigger high in samples when the channel starts streaming and is edge triggered.
+     * 0 means stream indefinitely after the trigger is received.
      * -1 indicates get.
-     * A negative value in the reply indicates and error.
+     * -2 is always an error and returned as is if not relevant.
+     * A negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
-     * TODO: implement when the FPGA is ready
      * \endinternal
      */
-    int64_t output_pulse_length = -1;
+    int64_t ufl_output_pulse_length = -2;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::get;
 
     /*!
      * Whether to trigger on level or edge on the global SMA.
-     * Not applicable unless trig_sel includes active_trigger_t::global_sma.
+     * Not applicable unless trig_sel includes active_trigger_t::sma_input or active_trigger_t::sma_output.
      */
     trigger_mode_t sma_mode = trigger_mode_t::get;
 
@@ -483,9 +506,10 @@ struct trigger_tx_t
 
     /*!
      * Direction of the per-channel ufl.
-     * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl
+     * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl.
+     * ufl_dir cannot be derrived from other fields. Must be specified, get, or not relevant.
      */
-    pin_direction_t ufl_dir = pin_direction_t::get;
+    pin_direction_t ufl_dir = pin_direction_t::must_specify_if_applicable;
 
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
@@ -572,7 +596,7 @@ struct trigger_tx_t
  * \param rx_len number of elements in rx
  * \param tx filled in; may be nullptr if tx_len is 0
  * \param tx_len number of elements in tx
- * 	hrows uhd::value_error if a required pointer is null
+ * \throws uhd::value_error if a required pointer is null
  */
 static inline void get_read_config(trigger_op_t* op,
     trigger_global_t* global,
@@ -655,7 +679,7 @@ static inline void get_read_config(trigger_op_t* op,
  * \param tx_len number of elements in tx
  * \param rx_channels physical channel for each element of rx; must have rx_len elements
  * \param tx_channels physical channel for each element of tx; must have tx_len elements
- * \param sma_direction pin_direction_t::in or pin_direction_t::out
+ * \param sma_direction The direction of the global sma pin. Recomended pin_direction_t::derive for portability between devices with a single bidirectional pin and separate input/output pins
  * \param edge_sample_num samples to stream per edge; 0 streams indefinitely; must be >= 0
  * \throws uhd::value_error on an invalid request
  */
