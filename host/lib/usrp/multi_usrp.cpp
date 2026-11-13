@@ -2396,8 +2396,7 @@ public:
         using namespace uhd::trigger_pv;
 
         trigger_op_t op;
-        op.setup_mode = setup_mode_t::hot_configure_unspecified_rx
-                        | setup_mode_t::hot_configure_unspecified_tx;
+        op.setup_mode = setup_mode_t::standard;
         // The original functions accepted whatever the device applied.
         op.enable_strict_errors &= ~strict_error_t::coerced_value;
 
@@ -3550,22 +3549,23 @@ private:
 
         // Save the original values of unspecified channels that will be disabled,
         // so they can be restored in step 7.
+        // TODO: re-enable and update these sections without hot_configure
         std::vector<trigger_saved_channel_t> saved_rx;
-        if (!has_any(op.setup_mode & setup_mode_t::hot_configure_unspecified_rx)) {
-            for (const size_t channel : unspecified_rx) {
-                saved_rx.push_back({channel,
-                    _tree->access<std::string>(rx_trigger_root(channel) / "trig_sel").get(),
-                    _tree->access<std::string>(rx_root(channel) / "stream").get()});
-            }
-        }
+        // if (!has_any(op.setup_mode & setup_mode_t::hot_configure_unspecified_rx)) {
+        //     for (const size_t channel : unspecified_rx) {
+        //         saved_rx.push_back({channel,
+        //             _tree->access<std::string>(rx_trigger_root(channel) / "trig_sel").get(),
+        //             _tree->access<std::string>(rx_root(channel) / "stream").get()});
+        //     }
+        // }
         std::vector<trigger_saved_channel_t> saved_tx;
-        if (!has_any(op.setup_mode & setup_mode_t::hot_configure_unspecified_tx)) {
-            for (const size_t channel : unspecified_tx) {
-                saved_tx.push_back({channel,
-                    _tree->access<std::string>(tx_trigger_root(channel) / "trig_sel").get(),
-                    ""});
-            }
-        }
+        // if (!has_any(op.setup_mode & setup_mode_t::hot_configure_unspecified_tx)) {
+        //     for (const size_t channel : unspecified_tx) {
+        //         saved_tx.push_back({channel,
+        //             _tree->access<std::string>(tx_trigger_root(channel) / "trig_sel").get(),
+        //             ""});
+        //     }
+        // }
 
         // RX stream: specified channels.
         for (trigger_rx_t& rx : lib_rx) {
