@@ -208,7 +208,7 @@ enum class gating_t : uint32_t {
 
 //! How to behave while the trigger is being configured. Values may be combined with |.
 enum class setup_mode_t : uint64_t {
-    default = 0, //!< Default behaviour. Disable all unspecified channels. Disable all not hot configure channels, set all applicable triggers to input, apply all other settings, set applicable triggers to output, re-enable relevant channels.
+    standard = 0, //!< Default behaviour. Disable all unspecified channels. Disable all not hot configure channels, set all applicable triggers to input, apply all other settings, set applicable triggers to output, re-enable relevant channels.
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
@@ -270,7 +270,7 @@ struct trigger_op_t
     uint32_t size = sizeof(trigger_op_t);
 
     //! How to behave while setting up the trigger.
-    setup_mode_t setup_mode = setup_mode_t::none;
+    setup_mode_t setup_mode = setup_mode_t::standard;
 
     //! How to handle failures while attempting to configure the trigger.
     failure_handling_t failure_handling = failure_handling_t::disable_all;
@@ -723,8 +723,7 @@ static inline void get_simple_sma_config(trigger_op_t* op,
     }
 
     *op            = trigger_op_t{};
-    op->setup_mode = setup_mode_t::hot_configure_unspecified_rx
-                     | setup_mode_t::hot_configure_unspecified_tx;
+    op->setup_mode = setup_mode_t::standard;
     // The older functions accepted whatever the device applied.
     op->enable_strict_errors &= ~strict_error_t::coerced_value;
 
