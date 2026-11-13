@@ -79,11 +79,84 @@ namespace uhd { namespace trigger_pv {
  * Enums
  **********************************************************************/
 
-//! Direction of a trigger pin.
+/*!
+ * Direction of a trigger pin.
+ *
+ * A pin is one of:
+ *  - toggleable: one pin that can be switched between input and output
+ *  - separate: separate input and output pins, so there is no direction to set
+ *  - input-only: a single pin that can only be an input
+ *  - output-only: a single pin that can only be an output
+ * Requesting the configuration a pin already has always succeeds.
+ */
 enum class pin_direction_t : uint32_t {
-    get = 0, //!< Get the direction, do not set
-    in             = 1, //!< Pin is an input. Does nothing on devices without a toggleable direction
-    out            = 2, //!< Pin is an output. Does nothing on devices without a toggleable direction
+    /*!
+     * No direction specified. Always throws an error if other fields in the
+     * request make the pin relevant. See the documentation for each pin for when
+     * it counts as relevant.
+     * If the pin is not relevant, nothing is changed and this value is returned
+     * unchanged.
+     * \internal
+     * Use as the default for pins whose direction cannot always be derived when
+     * they are relevant. Pins that can always be derived when relevant should
+     * default to derive instead.
+     * \endinternal
+     */
+    must_specify_if_applicable = 0,
+
+    //! Get the current direction without changing it.
+    get = 1,
+
+    /*!
+     * The pin is an input.
+     * Always throws an error on an output-only pin.
+     * On an input-only pin, succeeds without changing anything.
+     * On separate pins, throws an error if pedantic_dir is set, and is treated
+     * as get otherwise.
+     * On a toggleable pin, always throws an error if this conflicts with the
+     * direction implied by other fields in the same trigger_configure call.
+     */
+    in = 2,
+
+    /*!
+     * The pin is an output.
+     * Always throws an error on an input-only pin.
+     * On an output-only pin, succeeds without changing anything.
+     * On separate pins, throws an error if pedantic_dir is set, and is treated
+     * as get otherwise.
+     * On a toggleable pin, always throws an error if this conflicts with the
+     * direction implied by other fields in the same trigger_configure call.
+     */
+    out = 3,
+
+    /*!
+     * Derive the direction from the per-channel settings of the channels in the
+     * request. Channels not in the request are ignored.
+     * Only usable for pins whose direction can be determined from other fields.
+     * See the documentation for each pin to check whether derive is recommended
+     * or unsupported. Always throws an error if used for a pin that does not
+     * support derive.
+     * Always throws an error if the fields used to derive the direction
+     * conflict. Separate pins can never conflict.
+     * This value is always returned unchanged, so a struct returned by
+     * trigger_configure can be edited and passed in again without fixing the
+     * direction to whatever was derived this time.
+     * If no direction can be determined from the other fields, or the pin is not
+     * toggleable, nothing is changed.
+     * \internal
+     * Use as the default for pins that can always be derived when they are
+     * relevant.
+     * \endinternal
+     */
+    derive = 4,
+
+    /*!
+     * The device has separate input and output pins.
+     * On separate pins, succeeds without changing anything.
+     * On any other pin, throws an error if pedantic_dir is set, and is treated
+     * as get otherwise.
+     */
+    separate = 5,
 };
 
 //! Which signal level counts as an active trigger.
@@ -104,9 +177,9 @@ enum class trigger_mode_t : uint32_t {
 // Unlike other enums, the raw number is passed to the SDR
 enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
-    global_sma_in = 1u << 0, //!< Listen to the global SMA trigger.
+    sma_input = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
-    global_sma_out = 1u << 1, //!< Output to the the global SMA trigger. Every channel set to output is ORed together.
+    sma_output = 1u << 2, //!< Output to the the global SMA trigger. Every channel set to output is ORed together.
     get         = 1u << 31, //!< Get the current value, do not set.
     // Add new triggers as new bits only.
 };
@@ -146,11 +219,12 @@ enum class failure_handling_t : uint64_t {
 enum class strict_error_t : uint64_t {
     none                      = 0,
     coerced_value = 1u << 0, //!< Error when a value is coerced
+    pedantic_dir = 2u << 1, //!< Error when the a direction might indicate something is wrong
     //! Every check that existed in v1. This is the default, so checks added
     //! later are off unless the caller asks for them (or for `all`).
     // TODO: before release, remove coerced_value from all_v1 so coercion
     // errors are off by default. Kept on during development.
-    all_v1 = coerced_value,
+    all_v1 = coerced_value | pedantic_dir,
     all    = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
@@ -163,7 +237,8 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(strict_error_t)
  */
 enum class warning_t : uint64_t {
     none                      = 0,
-    coerced_value = 1u << 1, //!< Warn when a value is coerced.
+    coerced_value = 1u << 0, //!< Error when a value is coerced
+    pedantic_dir = 2u << 1, //!< Error when the a direction might indicate something is wrong
     all                       = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
@@ -223,10 +298,16 @@ struct trigger_global_t
     uint32_t size = sizeof(trigger_global_t);
 
     /*!
-     * Whether the global trigger pin is an input or output.
-     * When set to output it outputs its internal PPS. TODO: confirm this.
+     * Direction of the global SMA trigger pin.
+     * Crimson and Calamine have a single toggleable SMA pin. Cyan and Chestnut
+     * have separate SMA input and output pins.
+     * Use pin_direction_t::derive to keep code portable between these devices.
+     * Counts as relevant (for pin_direction_t) if any channel in the same
+     * trigger_configure call has active_trigger_t::sma_input or
+     * active_trigger_t::sma_output set in trig_sel. Channels whose trig_sel is
+     * active_trigger_t::get are ignored
      */
-    pin_direction_t sma_direction = pin_direction_t::get;
+    pin_direction_t sma_direction = pin_direction_t::derive;
 
     //! Whether the global trigger is active high or active low.
     polarity_t sma_polarity = polarity_t::get;
@@ -304,16 +385,14 @@ struct trigger_rx_t
 
     /*!
      * Whether to trigger on level or edge on the per-channel U.FL.
-     * Not applicable unless trig_sel includes active_trigger_t::channel_ufl.
      */
     trigger_mode_t ufl_mode = trigger_mode_t::get;
 
     /*!
-     * Direction of the per-channel U.FL.
-     * When set to input, the U.FL is an input used in acc.
-     * TODO: verify out is a good default.
+     * Direction of the per-channel ufl.
+     * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl
      */
-    pin_direction_t ufl_dir = pin_direction_t::get;
+    pin_direction_t ufl_dir = pin_direction_t::must_specify_if_applicable;
 
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
@@ -403,9 +482,8 @@ struct trigger_tx_t
     trigger_mode_t ufl_mode = trigger_mode_t::get;
 
     /*!
-     * Direction of the per-channel U.FL.
-     * When set to input, the U.FL is an input used in acc.
-     * TODO: verify out is a good default.
+     * Direction of the per-channel ufl.
+     * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl
      */
     pin_direction_t ufl_dir = pin_direction_t::get;
 
@@ -634,7 +712,7 @@ static inline void get_simple_sma_config(trigger_op_t* op,
         chan.hot_configure   = false;
         chan.edge_backoff    = 0;
         chan.edge_sample_num = edge_sample_num;
-        chan.trig_sel        = active_trigger_t::global_sma;
+        chan.trig_sel        = active_trigger_t::sma_input;
         chan.sma_mode        = trigger_mode_t::edge;
         chan.enable          = 1;
         // ufl_mode, ufl_dir and ufl_polarity keep their defaults (get).
@@ -647,7 +725,7 @@ static inline void get_simple_sma_config(trigger_op_t* op,
         chan.hot_configure   = false;
         chan.edge_backoff    = 0;
         chan.edge_sample_num = edge_sample_num;
-        chan.trig_sel        = active_trigger_t::global_sma;
+        chan.trig_sel        = active_trigger_t::sma_input;
         chan.sma_mode        = trigger_mode_t::edge;
         chan.gating          = gating_t::dsp;
         // ufl_mode, ufl_dir and ufl_polarity keep their defaults (get).

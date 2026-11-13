@@ -305,11 +305,17 @@ std::string without_trailing_whitespace(const std::string& str)
 std::string to_device_string(pin_direction_t dir)
 {
     switch (dir) {
+        case pin_direction_t::must_specify_if_applicable:
+            throw uhd::value_error("pin_direction_t::must_specify_if_applicable cannot be sent to the device");
         case pin_direction_t::get:
             throw uhd::value_error("pin_direction_t::get cannot be sent to the device");
         case pin_direction_t::in:
             return "in";
         case pin_direction_t::out:
+            return "out";
+        case pin_direction_t::derive:
+            throw uhd::value_error("pin_direction_t::derive cannot be sent to the device");
+        case pin_direction_t::separate:
             return "out";
     }
     // Reached only if the caller cast an out-of-range number to pin_direction_t.
@@ -324,6 +330,9 @@ pin_direction_t direction_from_device_string(const std::string& str)
     }
     if (trimmed == "out") {
         return pin_direction_t::out;
+    }
+    if (trimmed == "separate") {
+        return pin_direction_t::separate;
     }
     throw uhd::runtime_error(std::format("device reported unknown direction \"{}\"", str));
 }
