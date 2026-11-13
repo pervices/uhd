@@ -2336,6 +2336,7 @@ public:
         const uint64_t num_samples_per_trigger,
         const std::string& trigger_dir)
     {
+        // TODO: create a do nothing with hot configure entry for every unspecified channel
         using namespace uhd::trigger_pv;
 
         if (!std::in_range<int64_t>(num_samples_per_trigger)) {

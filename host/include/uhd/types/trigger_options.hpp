@@ -192,6 +192,7 @@ enum class active_trigger_t : uint32_t {
     sma_input = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
     sma_output = 1u << 2, //!< Output to the the global SMA trigger. The final output is every channel's individual output ORed together.
+    bypass = 1u << 30, //!< Skip error checking and always return as is. This is used for compatibility with old rx_trigger_setup and tx_trigger_setup behaviour and should not be used for new programs.
     get         = 1u << 31, //!< Get the current value, do not set.
     // Add new triggers as new bits only.
 };
@@ -201,22 +202,13 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
 // TODO: document what gating does when sma/ufl set to output, it probably only applies to input triggers
 enum class gating_t : uint32_t {
     get = 0,
-    dsp  = 1, //!< Consume samples only when the trigger active. Start/stop/time to send are ANDed with the trigger. i.e. if you send a burst with a start time of 5s then the first trigger at or after 5s with consume the first edge_sample_num samples from the burst.
+    dsp  = 1, //!< Consume samples only when the trigger active. Start/stop/time to send are ANDed with the trigger. i.e. if you send a burst with a start time of 5s then the first trigger at or after 5s with consume the first edge_sample_num samples from the burst if in edge mode.
     output = 2, //!< Consume samples in the same way as normal streaming, except the output is blanked when the trigger is not active.
 };
 
 //! How to behave while the trigger is being configured. Values may be combined with |.
 enum class setup_mode_t : uint64_t {
-    none = 0, //!< Default behaviour. TODO: document.
-    /*!
-     * When hot configure is not enabled for unspecified channels:
-     * rx and tx will be disabled temporarily having their trig_sel set to none
-     * while the settings are being applied.
-     * rx will also have streaming disabled.
-     * TODO: implement a way of disabling tx.
-     */
-    hot_configure_unspecified_rx = 1u << 0,
-    hot_configure_unspecified_tx = 1u << 1,
+    default = 0, //!< Default behaviour. Disable all unspecified channels. Disable all not hot configure channels, set all applicable triggers to input, apply all other settings, set applicable triggers to output, re-enable relevant channels.
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
@@ -334,6 +326,20 @@ struct trigger_global_t
      */
     int8_t sma_override = -1;
 
+    /*!
+     * How long to keep the sma trigger high in units of samples when a channel starts streaming and is edge triggered.
+     * This argument applies to all channels
+     * 0 means stream indefinitely after the trigger is received.
+     * -1 indicates get.
+     * -2 is an error if trig_sel has active_trigger_t::sma_input if any channel is set to .
+     * returned as is if not relevant.
+     * A negative value in the reply indicates an error.
+     * \internal
+     * The device takes uint64_t, negative values are purely within UHD
+     * \endinternal
+     */
+    int64_t sma_output_pulse_length = -2;
+
     //! Explicit padding. Must be zero.
     uint8_t reserved0[3] = {};
 
@@ -368,7 +374,7 @@ struct trigger_rx_t
     size_t channel = channel_unset;
 
     /*!
-     * How long to stream in samples when an edge triggered input trigger is activated.
+     * How long to stream in units of samples when an edge triggered input trigger is activated.
      * Applies to both ufl and sma triggers.
      * 0 means stream indefinitely after the trigger is received.
      * -1 indicates get.
@@ -381,10 +387,10 @@ struct trigger_rx_t
     int64_t edge_sample_num = -2;
 
     /*!
-     * How long keep the ufl trigger high in samples when the channel starts streaming and is edge triggered.
+     * How long to keep the ufl trigger high in units of samples when the channel starts streaming and is edge triggered.
      * 0 means stream indefinitely after the trigger is received.
      * -1 indicates get.
-     * -2 is always an error if trig_sel has active_trigger_t::channel_ufl, and sma_mode is set to edge.
+     * -2 is an error if trig_sel has active_trigger_t::channel_ufl, and ufl_mode is set to edge.
      * returned as is if not relevant.
      * A negative value in the reply indicates an error.
      * \internal
@@ -616,8 +622,6 @@ static inline void get_read_config(trigger_op_t* op,
     }
 
     *op            = trigger_op_t{};
-    op->setup_mode = setup_mode_t::hot_configure_unspecified_rx
-                     | setup_mode_t::hot_configure_unspecified_tx;
 
     if (global != nullptr) {
         *global               = trigger_global_t{};
