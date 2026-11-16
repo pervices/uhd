@@ -389,6 +389,7 @@ public:
                 throw uhd::runtime_error("timeout, the time between triggers is to long");
             }
             total_sent = sent + total_sent;
+            md.start_of_burst = false;
             md.has_time_spec = false;
 
             //send a mini EOB packet
