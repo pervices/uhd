@@ -2452,7 +2452,7 @@ public:
     * \param tx_len number of elements in \p tx; \p tx may be nullptr if 0
     * \return true if every value was applied exactly as requested,
     *         false if any value was adjusted but was otherwise successful
-    * \throws on error; Behaviour (other than the throw itself) on failure are determined by failure_handling within \p op
+    * \throws on error; Behaviour (other than the throw itself) on failure are determined by failure_handling_t within \p op
     */
     [[nodiscard("returns false if any requested value was adjusted")]]
     virtual bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,

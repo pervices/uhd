@@ -232,8 +232,8 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
 //! What to do if configuring the trigger fails part way through.
 enum class failure_handling_t : uint64_t {
-    disable_all = 0, //!< The structs passed to the function are unmodified. Attempt to disable all channels, set trig_sel to active_trigger_t::none, and all bidirectional triggers are set to input. However this is only attempted, it may still fail if there are communication issues with the server.
-    flexible = 1, //!< The structs passed to the function are unmodified. The requested changes are partially applied. Some or all channels may be disabled is hot_configure was not enabled for them.
+    disable_all = 0, //!< The structs passed to the function are unmodified. Attempt to disable all channels (including channels no specified), set trig_sel to active_trigger_t::none, and all bidirectional triggers are set to input. However this is only attempted, it may still fail if there are communication issues with the server.
+    flexible = 1, //!< The structs passed to the function are unmodified. The requested changes are partially applied. Any channel (including channels not specified) may be disabled if hot_configure was not enabled for them.
 };
 
 /*!
@@ -439,13 +439,12 @@ struct trigger_rx_t
      */
     int64_t ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
 
-    //! Which triggers to listen to. OR together to listen to several.
+    //! Which triggers to listen/output to/from. OR together to listen/output to/from several.
     active_trigger_t trig_sel = active_trigger_t::get;
 
     /*!
      * Whether to trigger on level or edge on the global SMA.
      * Not relevant unless trig_sel includes active_trigger_t::sma_input or active_trigger_t::sma_output.
-     * Select between edge triggered or output mode.
      */
     trigger_mode_t sma_mode = trigger_mode_t::get;
 
@@ -464,6 +463,7 @@ struct trigger_rx_t
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
 
+    //! Keep the channel enabled while configuring applying the configuration
     bool hot_configure = false;
 
     /*!
@@ -555,13 +555,13 @@ struct trigger_tx_t
 
     /*!
      * Whether to trigger on level or edge on the global SMA.
-     * Not applicable unless trig_sel includes active_trigger_t::sma_input or active_trigger_t::sma_output.
+     * Not relevant unless trig_sel includes active_trigger_t::sma_input or active_trigger_t::sma_output.
      */
     trigger_mode_t sma_mode = trigger_mode_t::get;
 
     /*!
      * Whether to trigger on level or edge on the per-channel U.FL.
-     * Not applicable unless trig_sel includes active_trigger_t::channel_ufl.
+     * Not relevant unless trig_sel includes active_trigger_t::channel_ufl.
      */
     trigger_mode_t ufl_mode = trigger_mode_t::get;
 
@@ -575,7 +575,7 @@ struct trigger_tx_t
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
 
-    //! Keep the channel enabled while configuring it
+    //! Keep the channel enabled while configuring applying the configuration
     bool hot_configure = false;
 
     //! Trigger gating. TODO: document.
@@ -642,9 +642,9 @@ struct trigger_tx_t
 /*!
  * Fill out arguments that read every trigger setting without changing anything.
  *
- * Every setting is set to get, and every channel (specified or not) is hot
- * configured, so nothing is disabled during the reads. After trigger_configure()
- * returns, the structs hold the values currently on the device.
+ * Every setting is set to get, and every channel specified is hot
+ * configured, so setting are changed. Note that Channels not specified will be disabled.
+ * After trigger_configure() returns, the structs hold the values currently on the device.
  *
  * Element i of rx and tx reads physical channel i, so pass arrays with
  * get_rx_num_channels() and get_tx_num_channels() elements to read every channel.
@@ -736,13 +736,15 @@ static inline void get_read_config(trigger_op_t* op,
  * \param op filled in; must not be nullptr
  * \param global filled in; must not be nullptr
  * \param rx filled in; may be nullptr if rx_len is 0
- * \param rx_len number of elements in rx
+ * \param rx_len number of elements in rx. Must be the legnth of rx_channels + preserved_rx_channels.
  * \param tx filled in; may be nullptr if tx_len is 0
- * \param tx_len number of elements in tx
- * \param rx_channels physical channel for each element of rx; must have rx_len elements
- * \param tx_channels physical channel for each element of tx; must have tx_len elements
+ * \param tx_len number of elements in tx. Must be the length of tx_channels + preserved_tx_channels.
+ * \param rx_channels physical channel for each element of rx
+ * \param tx_channels physical channel for each element of tx
  * \param sma_direction The direction of the global sma pin. Recomended pin_direction_t::derive for portability between devices with a single bidirectional pin and separate input/output pins
  * \param edge_sample_num samples to stream per edge; 0 streams indefinitely; must be >= 0
+ * \param preserved_rx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted.
+ * \param preserved_tx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted.
  * \throws uhd::value_error on an invalid request
  */
 static inline void get_simple_sma_config(trigger_op_t* op,
@@ -754,7 +756,9 @@ static inline void get_simple_sma_config(trigger_op_t* op,
     const std::vector<size_t>& rx_channels,
     const std::vector<size_t>& tx_channels,
     const pin_direction_t sma_direction,
-    const int64_t edge_sample_num)
+    const int64_t edge_sample_num,
+    const std::vector<size_t>* preserved_rx_channels,
+    const std::vector<size_t>* preserved_tx_channels)
 {
     if (op == nullptr || global == nullptr) {
         throw uhd::value_error("get_simple_sma_config: op and global must not be null");
