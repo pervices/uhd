@@ -44,16 +44,22 @@
 
 namespace uhd { namespace trigger_pv {
 
+/*
+ * Fields that use these constants are int64_t, even ones that are essentially a
+ * bool. This allows negative values below the 32 bit signed int limit to
+ * unambiguously make requests without risk of them being mistaken for error codes.
+ */
+
 /*!
- * When passed to fields that use a positive integer as a value, and negative value for control
+ * When passed supported fields
  * GET_INT indicates get.
  */
-constexpr GET_INT = -2147483650;
+constexpr int64_t GET_INT = -2147483649;
 /*!
- * When passed to fields that use a positive integer as a value, and negative value for control
+ * When passed supported fields
  * SKIP_IF_NOT_RELEVANT indicates do nothing if the field is not relevant, value error if it is.
  */
-constexpr SKIP_IF_NOT_RELEVANT = -2147483651;
+constexpr int64_t SKIP_IF_NOT_RELEVANT = -2147483650;
 
 /***********************************************************************
  * Flag operators
@@ -335,11 +341,6 @@ struct trigger_global_t
      * Override the global trigger so that it acts as if the input is active.
      * Supported values: GET_INT, 0 (disable), 1 (enable)
      * TODO: verify it does not affect the output.
-     * \internal
-     * While absurdly large for what is essentailly a bool, this allows us to use
-     * negative values below the 32 bit signed int limit to unambiguously
-     * make requests without risk of them being mistaken for error codes
-     * \endinternal
      */
     int64_t sma_override = GET_INT;
 
@@ -350,9 +351,8 @@ struct trigger_global_t
      * Any positive value is a regular value.
      * 0 indicates keep the output active forever.
      * GET_INT.
-     * SKIP_IF_NOT_RELEVANT is an error if trig_sel has active_trigger_t::sma_input if any channel has edge_mode set to edge
-     * returned as is if not relevant.
-     * A negative value in the reply indicates an error.
+     * Counts as SKIP_IF_NOT_RELEVANT if any channel has active_trigger_t::sma_output in trig_sel and sma_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
      * \endinternal
@@ -380,14 +380,18 @@ struct trigger_rx_t
     uint32_t size = sizeof(trigger_rx_t);
 
     /*!
-     * How many ticks to wait after an edge before triggering again.
-     * Mainly used for debouncing.
-     * A negative value passed to UHD indicates get only, do not change.
-     * A negative value returned by UHD indicates an error
-     * The value passed to the SDR is a uint32_t
-     * TODO: check behaviour if a second edge is received during the backoff.
+     * After an edge, ignore every edge for this many ticks of the device clock.
+     * Exists for trigger sources that bounce. Rarely needs to be changed.
+     * Supported values:
+     * Any non-negative value is a regular value.
+     * GET_INT.
+     * SKIP
+     * TODO: figure out if this does anything in level mode
+     * \internal
+     * The device takes uint32_t, negative values are purely within UHD.
+     * \endinternal
      */
-    int64_t edge_backoff = -1;
+    int64_t edge_backoff = GET_INT;
 
     //! The physical channel this struct applies to. Must be set by the caller.
     size_t channel = channel_unset;
@@ -395,28 +399,32 @@ struct trigger_rx_t
     /*!
      * How long to stream in units of samples when an edge triggered input trigger is activated.
      * Applies to both ufl and sma triggers.
+     * Supported values:
+     * Any positive value is a regular value.
      * 0 means stream indefinitely after the trigger is received.
-     * -1 indicates get.
-     * -2 is always an error and returned as is if not relevant.
+     * GET_INT.
+     * SKIP_IF_NOT_RELEVANT is always an error and returned as is if not relevant.
      * A negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD.
      * \endinternal
      */
-    int64_t edge_sample_num = -2;
+    int64_t edge_sample_num = SKIP_IF_NOT_RELEVANT;
 
     /*!
      * How long to keep the ufl trigger high in units of samples when the channel starts streaming and is edge triggered.
-     * 0 means stream indefinitely after the trigger is received.
-     * -1 indicates get.
-     * -2 is an error if trig_sel has active_trigger_t::channel_ufl, and ufl_mode is set to edge.
+     * Supported values:
+     * Any positive value is a regular value.
+     * 0 indicates keep the output active forever.
+     * GET_INT.
+     * SKIP_IF_NOT_RELEVANT is an error if trig_sel has active_trigger_t::channel_ufl, and ufl_mode is set to edge.
      * returned as is if not relevant.
      * A negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
      * \endinternal
      */
-    int64_t ufl_output_pulse_length = -2;
+    int64_t ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::get;
@@ -446,15 +454,12 @@ struct trigger_rx_t
     bool hot_configure = false;
 
     /*!
-     *
-     * Valid values:
-     * -1: get
-     * 0: disable
-     * 1: enable
-     * This is only implemented on rx
-     * Must be set to enabled to restore normal streaming without creating a new streamer
+     * Whether the channel is enabled.
+     * Only implemented on RX.
+     * Must be set to 1 to restore normal streaming without creating a new streamer.
+     * Supported values: GET_INT, 0 (disable), 1 (enable)
      */
-    int8_t enable = -1;
+    int64_t enable = GET_INT;
 
     //! Explicit tail padding (struct is 8-byte aligned). Must be zero.
     uint32_t reserved0 = 0;
@@ -477,42 +482,51 @@ struct trigger_tx_t
     uint32_t size = sizeof(trigger_tx_t);
 
     /*!
-     * How many ticks to wait after an edge before triggering again.
-     * Mainly used for debouncing.
-     * A negative value passed to UHD indicates get only, do not change.
-     * A negative value returned by UHD indicates an error
-     * The value passed to the SDR is a uint32_t
-     * TODO: check behaviour if a second edge is received during the backoff.
+     * After an edge, ignore every edge for this many ticks of the device clock.
+     * Exists for trigger sources that bounce. Rarely needs to be changed.
+     * Supported values:
+     * Any non-negative value is a regular value.
+     * GET_INT.
+     * A negative value in the reply indicates an error.
+     * TODO: figure out if this does anything in level mode
+     * \internal
+     * The device takes uint32_t, negative values are purely within UHD.
+     * \endinternal
      */
-    int64_t edge_backoff = -1;
+    int64_t edge_backoff = GET_INT;
 
     //! The physical channel this struct applies to. Must be set by the caller.
     size_t channel = channel_unset;
 
     /*!
-     * How long to stream in samples when an edge triggered input trigger is activated.
+     * How long to stream in units of samples when an edge triggered input trigger is activated.
      * Applies to both ufl and sma triggers.
+     * Supported values:
+     * Any positive value is a regular value.
      * 0 means stream indefinitely after the trigger is received.
-     * -1 indicates get.
-     * -2 is always an error and returned as is if not relevant.
+     * GET_INT.
+     * SKIP_IF_NOT_RELEVANT is always an error and returned as is if not relevant.
      * A negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD.
      * \endinternal
      */
-    int64_t edge_sample_num = -2;
+    int64_t edge_sample_num = SKIP_IF_NOT_RELEVANT;
 
     /*!
-     * How long keep the ufl trigger high in samples when the channel starts streaming and is edge triggered.
-     * 0 means stream indefinitely after the trigger is received.
-     * -1 indicates get.
-     * -2 is always an error and returned as is if not relevant.
+     * How long to keep the ufl trigger high in units of samples when the channel starts streaming and is edge triggered.
+     * Supported values:
+     * Any positive value is a regular value.
+     * 0 indicates keep the output active forever.
+     * GET_INT.
+     * SKIP_IF_NOT_RELEVANT is an error if trig_sel has active_trigger_t::channel_ufl, and ufl_mode is set to edge.
+     * returned as is if not relevant.
      * A negative value in the reply indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
      * \endinternal
      */
-    int64_t ufl_output_pulse_length = -2;
+    int64_t ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
 
     //! Which triggers to listen to. OR together to listen to several.
     active_trigger_t trig_sel = active_trigger_t::get;
@@ -646,7 +660,8 @@ static inline void get_read_config(trigger_op_t* op,
         *global               = trigger_global_t{};
         global->sma_direction = pin_direction_t::get;
         global->sma_polarity  = polarity_t::get;
-        global->sma_override  = -1;
+        global->sma_override  = GET_INT;
+        global->sma_output_pulse_length = GET_INT;
     }
 
     for (size_t channel_index = 0; channel_index < rx_len; channel_index++) {
@@ -654,14 +669,15 @@ static inline void get_read_config(trigger_op_t* op,
         chan                 = trigger_rx_t{};
         chan.channel         = channel_index;
         chan.hot_configure   = true;
-        chan.edge_backoff    = -1;
-        chan.edge_sample_num = -1;
+        chan.edge_backoff    = GET_INT;
+        chan.edge_sample_num = GET_INT;
+        chan.ufl_output_pulse_length = GET_INT;
         chan.trig_sel        = active_trigger_t::get;
         chan.sma_mode        = trigger_mode_t::get;
         chan.ufl_mode        = trigger_mode_t::get;
         chan.ufl_dir         = pin_direction_t::get;
         chan.ufl_polarity    = polarity_t::get;
-        chan.enable          = -1;
+        chan.enable          = GET_INT;
     }
 
     for (size_t channel_index = 0; channel_index < tx_len; channel_index++) {
@@ -669,8 +685,9 @@ static inline void get_read_config(trigger_op_t* op,
         chan                 = trigger_tx_t{};
         chan.channel         = channel_index;
         chan.hot_configure   = true;
-        chan.edge_backoff    = -1;
-        chan.edge_sample_num = -1;
+        chan.edge_backoff    = GET_INT;
+        chan.edge_sample_num = GET_INT;
+        chan.ufl_output_pulse_length = GET_INT;
         chan.trig_sel        = active_trigger_t::get;
         chan.sma_mode        = trigger_mode_t::get;
         chan.ufl_mode        = trigger_mode_t::get;
@@ -749,7 +766,7 @@ static inline void get_simple_sma_config(trigger_op_t* op,
     *global               = trigger_global_t{};
     global->sma_direction = sma_direction;
     global->sma_polarity  = polarity_t::positive;
-    global->sma_override  = -1;
+    global->sma_override  = GET_INT;
 
     for (size_t channel_index = 0; channel_index < rx_len; channel_index++) {
         trigger_rx_t& chan   = rx[channel_index];
