@@ -2360,14 +2360,15 @@ public:
         std::vector<trigger_rx_t> rx_args;
         std::vector<trigger_tx_t> tx_args;
         const std::vector<size_t> no_channels;
+        // TODO: replace , nullptr, nullptr with lists of all channels not passed
         if (setting_from == rx) {
             rx_args.resize(channels.size());
             get_simple_sma_config(&op, &global, rx_args.data(), rx_args.size(), nullptr, 0,
-                channels, no_channels, sma_direction, static_cast<int64_t>(num_samples_per_trigger));
+                channels, no_channels, sma_direction, static_cast<int64_t>(num_samples_per_trigger), nullptr, nullptr);
         } else {
             tx_args.resize(channels.size());
             get_simple_sma_config(&op, &global, nullptr, 0, tx_args.data(), tx_args.size(),
-                no_channels, channels, sma_direction, static_cast<int64_t>(num_samples_per_trigger));
+                no_channels, channels, sma_direction, static_cast<int64_t>(num_samples_per_trigger), nullptr, nullptr);
         }
 
         // The return value only says whether something was coerced; the actual
