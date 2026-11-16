@@ -58,6 +58,7 @@ constexpr int64_t GET_INT = -2147483649;
 /*!
  * When passed supported fields
  * SKIP_IF_NOT_RELEVANT indicates do nothing if the field is not relevant, value error if it is.
+ * When deciding whether a field is relevant, dependent field set to get are ignored
  */
 constexpr int64_t SKIP_IF_NOT_RELEVANT = -2147483650;
 
@@ -340,6 +341,7 @@ struct trigger_global_t
     /*!
      * Override the global trigger so that it acts as if the input is active.
      * Supported values: GET_INT, 0 (disable), 1 (enable)
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * TODO: verify it does not affect the output.
      */
     int64_t sma_override = GET_INT;
@@ -351,8 +353,11 @@ struct trigger_global_t
      * Any positive value is a regular value.
      * 0 indicates keep the output active forever.
      * GET_INT.
-     * Counts as SKIP_IF_NOT_RELEVANT if any channel has active_trigger_t::sma_output in trig_sel and sma_mode set to edge.
-     * A returned value between -1 and -2,147,483,648 negative value in the reply indicates an error.
+     * SKIP_IF_NOT_RELEVANT.
+     * Counts as relevant for SKIP_IF_NOT_RELEVANT if any channel in the same
+     * trigger_configure call has active_trigger_t::sma_output in trig_sel and
+     * sma_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
      * \endinternal
@@ -385,7 +390,11 @@ struct trigger_rx_t
      * Supported values:
      * Any non-negative value is a regular value.
      * GET_INT.
-     * SKIP
+     * SKIP_IF_NOT_RELEVANT.
+     * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
+     * active_trigger_t::sma_input with sma_mode set to edge, or
+     * active_trigger_t::channel_ufl with ufl_dir set to in and ufl_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * TODO: figure out if this does anything in level mode
      * \internal
      * The device takes uint32_t, negative values are purely within UHD.
@@ -403,8 +412,11 @@ struct trigger_rx_t
      * Any positive value is a regular value.
      * 0 means stream indefinitely after the trigger is received.
      * GET_INT.
-     * SKIP_IF_NOT_RELEVANT is always an error and returned as is if not relevant.
-     * A negative value in the reply indicates an error.
+     * SKIP_IF_NOT_RELEVANT.
+     * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
+     * active_trigger_t::sma_input with sma_mode set to edge, or
+     * active_trigger_t::channel_ufl with ufl_dir set to in and ufl_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD.
      * \endinternal
@@ -417,9 +429,10 @@ struct trigger_rx_t
      * Any positive value is a regular value.
      * 0 indicates keep the output active forever.
      * GET_INT.
-     * SKIP_IF_NOT_RELEVANT is an error if trig_sel has active_trigger_t::channel_ufl, and ufl_mode is set to edge.
-     * returned as is if not relevant.
-     * A negative value in the reply indicates an error.
+     * SKIP_IF_NOT_RELEVANT.
+     * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
+     * active_trigger_t::channel_ufl with ufl_dir set to out and ufl_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
      * \endinternal
@@ -458,6 +471,7 @@ struct trigger_rx_t
      * Only implemented on RX.
      * Must be set to 1 to restore normal streaming without creating a new streamer.
      * Supported values: GET_INT, 0 (disable), 1 (enable)
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      */
     int64_t enable = GET_INT;
 
@@ -487,7 +501,11 @@ struct trigger_tx_t
      * Supported values:
      * Any non-negative value is a regular value.
      * GET_INT.
-     * A negative value in the reply indicates an error.
+     * SKIP_IF_NOT_RELEVANT.
+     * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
+     * active_trigger_t::sma_input with sma_mode set to edge, or
+     * active_trigger_t::channel_ufl with ufl_dir set to in and ufl_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * TODO: figure out if this does anything in level mode
      * \internal
      * The device takes uint32_t, negative values are purely within UHD.
@@ -505,8 +523,11 @@ struct trigger_tx_t
      * Any positive value is a regular value.
      * 0 means stream indefinitely after the trigger is received.
      * GET_INT.
-     * SKIP_IF_NOT_RELEVANT is always an error and returned as is if not relevant.
-     * A negative value in the reply indicates an error.
+     * SKIP_IF_NOT_RELEVANT.
+     * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
+     * active_trigger_t::sma_input with sma_mode set to edge, or
+     * active_trigger_t::channel_ufl with ufl_dir set to in and ufl_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD.
      * \endinternal
@@ -519,9 +540,10 @@ struct trigger_tx_t
      * Any positive value is a regular value.
      * 0 indicates keep the output active forever.
      * GET_INT.
-     * SKIP_IF_NOT_RELEVANT is an error if trig_sel has active_trigger_t::channel_ufl, and ufl_mode is set to edge.
-     * returned as is if not relevant.
-     * A negative value in the reply indicates an error.
+     * SKIP_IF_NOT_RELEVANT.
+     * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
+     * active_trigger_t::channel_ufl with ufl_dir set to out and ufl_mode set to edge.
+     * A returned value between -1 and -2,147,483,648 indicates an error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
      * \endinternal
