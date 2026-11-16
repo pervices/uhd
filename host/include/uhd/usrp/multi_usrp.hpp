@@ -2444,15 +2444,37 @@ public:
     * \param op how to apply the change, or nullptr for defaults
     * \param global settings that apply to every channel (updated with actual
     *        values), or nullptr to leave the global settings unchanged.
-    *        The existing global sma is still checked and will cause an error if it
-    *        conflicts with trig_sel.
+    *        The current SMA direction is still read and checked against
+    *        trig_sel (see below).
     * \param rx array of per-channel RX settings (updated with actual values)
     * \param rx_len number of elements in \p rx; \p rx may be nullptr if 0
     * \param tx array of per-channel TX settings (updated with actual values)
     * \param tx_len number of elements in \p tx; \p tx may be nullptr if 0
     * \return true if every value was applied exactly as requested,
     *         false if any value was adjusted but was otherwise successful
-    * \throws on error; Behaviour (other than the throw itself) on failure are determined by failure_handling_t within \p op
+    * \throws uhd::value_error if the requested settings are invalid, alone or in
+    *         combination. Thrown during validation, before anything is written to
+    *         the device, so nothing on the device is changed.
+    * \throws uhd::io_error if reading or writing a setting on the device fails.
+    * \throws uhd::lookup_error if the server is incompatible with this version of
+    *         UHD. This should not happen, since the server's API version is checked.
+    * \throws uhd::runtime_error for any other error, e.g. a coerced value when
+    *         strict_error_t::coerced_value is enabled.
+    *
+    * Validation does not read from the device, with one exception, which happens
+    * after all other validation: on devices with a single toggleable SMA pin
+    * (Crimson, Calamine), if \p global is nullptr or its sma_direction is
+    * pin_direction_t::get, and a channel in the request uses the SMA, the current
+    * SMA direction is read and the channels are validated against it. A
+    * uhd::value_error then means the request conflicts with the current direction.
+    * If the read itself fails, uhd::io_error is thrown. Either way nothing on the
+    * device has been changed.
+    *
+    * After any exception the structs are not modified. For exceptions thrown after
+    * validation, the failure_handling field of \p op
+    * (failure_handling_t::disable_all if \p op is nullptr) selects what is
+    * attempted on the device. The attempt is not guaranteed to succeed, so the
+    * device should be considered to be in an undefined state.
     */
     [[nodiscard("returns false if any requested value was adjusted")]]
     virtual bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,

@@ -36,16 +36,24 @@ public:
     /*!
      * The server's API version. Format: yyyymmdd
      * 0 indicates the server is to older than the property that provides the field
+     * Set during the child class's constructor
      */
     int server_api_ver = 0;
+
 
     /*!
      * Device-specific part of multi_usrp::trigger_configure().
      *
      * Validates the request against this device's trigger hardware and fills in
      * the derived_* structs with the values to apply to the device. Called once,
-     * before anything is changed on the device, so an exception leaves the
-     * device untouched.
+     * after all other validation and before anything is changed on the device,
+     * so an exception leaves the device untouched.
+     *
+     * Must not read from the device, except on devices with a single toggleable
+     * SMA pin, which read the current SMA direction when lib_global is empty or
+     * its sma_direction is pin_direction_t::get and a channel uses the SMA.
+     * Devices with separate SMA pins never read it: they always have separate
+     * pins, and if that ever changes, server_api_ver will have changed too.
      *
      * The derived_* structs start as deep copies of the lib_* structs. This
      * function changes them where the device's representation differs from the
@@ -56,8 +64,9 @@ public:
      * Use trig_sel_from_device() to translate them back.
      *
      * If lib_global is empty (the caller passed no global settings), the SMA
-     * direction is never changed. Instead, the current direction is read into
-     * derived_global, and the request is validated against it. Error messages
+     * direction is never changed. Instead, on a toggleable SMA pin, the current
+     * direction is read into derived_global, and the request is validated
+     * against it. Error messages
      * for this case must say that the existing direction was used because no
      * global settings were given.
      *
@@ -71,7 +80,9 @@ public:
      *        even if lib_global is empty.
      * \param derived_rx out: one element per element of lib_rx, in the same order
      * \param derived_tx out: one element per element of lib_tx, in the same order
-     * \throws uhd::value_error if the request is invalid on this device
+     * \throws uhd::value_error if the request is invalid on this device,
+     *         including when it conflicts with the current SMA direction
+     * \throws uhd::io_error if reading the current SMA direction fails
      */
     virtual void trigger_derive(const trigger_pv::trigger_op_t& lib_op,
         const std::optional<trigger_pv::trigger_global_t>& lib_global,

@@ -3137,12 +3137,29 @@ private:
      * Every set-or-get helper returns true if the value now in effect is the
      * one requested (a get always counts as exact), and false if the device
      * coerced it. Values read or coerced are written back through the pointer.
+     *
+     * Error convention for trigger_configure and its helpers:
+     *  - uhd::value_error: the requested settings are invalid, alone, in
+     *    combination, or (for the SMA direction read during validation) given
+     *    the device's current settings. Thrown only during validation.
+     *  - uhd::io_error: reading or writing a property failed. Property get/set
+     *    throw uhd::runtime_error when the network transaction fails; catch it and
+     *    rethrow it as uhd::io_error.
+     *  - uhd::lookup_error: from the property tree when a property does not
+     *    exist, i.e. the server is too old. Log and rethrow unchanged:
+     *        // This error should be impossible since server_api_ver should prevent us from using non existent properties
+     *        UHD_LOG_ERROR("MULTI_USRP", "The server is incompatible with this version of UHD. Update the server and/or UHD");
+     *  - uhd::runtime_error: anything else, e.g. a strict coerced_value error, a
+     *    value from the device that cannot be parsed, or a check that validation
+     *    should have made unreachable.
+     * TODO: implement the io_error and lookup_error handling above.
      **********************************************************************/
 
     /*!
      * Handle a trigger setting that the device applied differently from the
-     * request: throw if \p op enables strict coerced_value errors, otherwise log a
-     * warning unless \p op disables coerced_value warnings.
+     * request: throw uhd::runtime_error if \p op enables strict coerced_value
+     * errors, otherwise log a warning unless \p op disables coerced_value warnings.
+     * Not a uhd::value_error: the setting has already been changed on the device.
      */
     void trigger_handle_coerced_value(const fs_path& path,
         const std::string& requested,
@@ -3173,6 +3190,11 @@ private:
      *  - Differs: call trigger_handle_coerced_value(), store the actual value in
      *    *value and return false. If it throws, *value is left as requested, but
      *    the device setting HAS already changed.
+     *
+     * Throws uhd::io_error if reading or writing the property fails (see the
+     * error convention above).
+     * Throws uhd::runtime_error if the device reports a string with no matching
+     * enumerator.
      *
      * \param path property tree node holding the setting
      * \param value in: requested value or E::get; out: the value actually in effect
@@ -3221,6 +3243,9 @@ private:
      * holding the number in decimal (e.g. trig_sel).
      *
      * The number read back is not checked against the enum's named values.
+     *
+     * Throws uhd::io_error if reading or writing the property fails (see the
+     * error convention above).
      */
     template <typename property_t, uhd::trigger_pv::detail::enum_with_get E>
     bool trigger_set_or_get_enum_number(
@@ -3288,8 +3313,13 @@ private:
      *    *value and return false. If it throws, *value is left as requested, but
      *    the device setting HAS already changed.
      *
-     * Throws if *value is outside [-1, upper_bound], or if the device reports a
-     * value outside [0, upper_bound] (negative values from the device are errors).
+     * Throws uhd::runtime_error if *value is outside [-1, upper_bound], or if the
+     * device reports a value that cannot be parsed or is outside [0, upper_bound]
+     * (negative values from the device are errors). The first check should be
+     * unreachable, since trigger_configure validates the range (throwing
+     * uhd::value_error) before anything is changed, but it is kept as a safeguard.
+     * Throws uhd::io_error if reading or writing the property fails (see the
+     * error convention above).
      *
      * \param path property tree node holding the setting
      * \param value in: requested value or -1; out: the value actually in effect

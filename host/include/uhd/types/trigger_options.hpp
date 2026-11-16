@@ -13,10 +13,6 @@
 #include <type_traits>
 #include <vector>
 
-//TODOS before release:
-// replace -1 for get, and -2 for error if relevant with constexpr that are ngative values  outside the range of int
-// since values in that range might be an error code indicating how the operation failed.
-
 /*
  * Versioned argument structs for the trigger API.
  *
@@ -58,7 +54,7 @@ constexpr int64_t GET_INT = -2147483649;
 /*!
  * When passed supported fields
  * SKIP_IF_NOT_RELEVANT indicates do nothing if the field is not relevant, value error if it is.
- * When deciding whether a field is relevant, dependent field set to get are ignored
+ * When deciding whether a field is relevant, dependent fields set to get are ignored.
  */
 constexpr int64_t SKIP_IF_NOT_RELEVANT = -2147483650;
 
@@ -198,18 +194,18 @@ enum class trigger_mode_t : uint32_t {
 /*! Which triggers a channel listens/outputs on. Values may be combined with |.
  * When both the sma input, and channel_ufl with ufl_dir set to input:
  * streaming occurs only when both triggers indicate streaming should occur.
- * i.e. if edge_sample_num is 1000, both are edge triggered, sma input receives ann edge at the time of sample 500, and the ufl received an edge at time 1000, then streaming only occurs from time 1000-1499.
+ * e.g. if edge_sample_num is 1000, both are edge triggered, sma input receives an edge at the time of sample 500, and the ufl received an edge at time 1000, then streaming only occurs from time 1000-1499.
  * \internal
  * On Cyan the raw bits can be passed through.
- * On the device in Crimson sma_output/sma_input are controled by bit 0
- * and input vs output is control by sma_dir
+ * On the device in Crimson sma_output/sma_input are controlled by bit 0
+ * and input vs output is controlled by sma_dir
  * \endinternal
  */
 enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
     sma_input = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
-    sma_output = 1u << 2, //!< Output to the the global SMA trigger. The final output is every channel's individual output ORed together.
+    sma_output = 1u << 2, //!< Output to the global SMA trigger. The final output is every channel's individual output ORed together.
     bypass = 1u << 30, //!< Skip error checking and always return as is. This is used for compatibility with old rx_trigger_setup and tx_trigger_setup behaviour and should not be used for new programs.
     get         = 1u << 31, //!< Get the current value, do not set.
     // Add new triggers as new bits only.
@@ -220,7 +216,7 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
 // TODO: document what gating does when sma/ufl set to output, it probably only applies to input triggers
 enum class gating_t : uint32_t {
     get = 0,
-    dsp  = 1, //!< Consume samples only when the trigger active. Start/stop/time to send are ANDed with the trigger. i.e. if you send a burst with a start time of 5s then the first trigger at or after 5s with consume the first edge_sample_num samples from the burst if in edge mode.
+    dsp  = 1, //!< Consume samples only while the trigger is active. Start/stop/time to send are ANDed with the trigger. e.g. if you send a burst with a start time of 5s then the first trigger at or after 5s will consume the first edge_sample_num samples from the burst if in edge mode.
     output = 2, //!< Consume samples in the same way as normal streaming, except the output is blanked when the trigger is not active.
 };
 
@@ -230,10 +226,24 @@ enum class setup_mode_t : uint64_t {
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
 
-//! What to do if configuring the trigger fails part way through.
+/*!
+ * What to attempt on the device if trigger_configure fails after validation.
+ * Not used for errors during validation (uhd::value_error, or uhd::io_error if
+ * the SMA direction read during validation fails), since nothing on the device
+ * has been changed at that point. See multi_usrp::trigger_configure.
+ *
+ * In every case the structs passed to trigger_configure are not modified. The
+ * attempt is not guaranteed to succeed, so the device should be considered to be
+ * in an undefined state.
+ */
 enum class failure_handling_t : uint64_t {
-    disable_all = 0, //!< The structs passed to the function are unmodified. Attempt to disable all channels (including channels no specified), set trig_sel to active_trigger_t::none, and all bidirectional triggers are set to input. However this is only attempted, it may still fail if there are communication issues with the server.
-    flexible = 1, //!< The structs passed to the function are unmodified. The requested changes are partially applied. Any channel (including channels not specified) may be disabled if hot_configure was not enabled for them.
+    //! Attempt to disable all channels (including channels not specified), set
+    //! trig_sel to active_trigger_t::none, and set all toggleable pins to input.
+    disable_all = 0,
+    //! Attempt nothing further. The requested changes may be partially applied,
+    //! and any channel (including channels not specified) may be left disabled
+    //! if hot_configure was not set for it.
+    flexible = 1,
 };
 
 /*!
@@ -244,8 +254,12 @@ enum class failure_handling_t : uint64_t {
  */
 enum class strict_error_t : uint64_t {
     none                      = 0,
-    coerced_value = 1u << 0, //!< Error when a value is coerced
-    pedantic_dir = 2u << 1, //!< Error when the requested pin direction does not match the pin's type.
+    //! Throw uhd::runtime_error when the device coerces a value. Detected after
+    //! the value has been applied, so this is not a uhd::value_error.
+    coerced_value = 1u << 0,
+    //! Throw uhd::value_error, before anything is changed on the device, when the
+    //! requested pin direction does not match the pin's type.
+    pedantic_dir = 2u << 1,
     //! Every check that existed in v1. This is the default, so checks added
     //! later are off unless the caller asks for them (or for `all`).
     // TODO: before release, remove coerced_value from all_v1 so coercion
@@ -328,6 +342,9 @@ struct trigger_global_t
      * Crimson and Calamine have a single toggleable SMA pin. Cyan and Chestnut
      * have separate SMA input and output pins.
      * Use pin_direction_t::derive to keep code portable between these devices.
+     * On a toggleable pin, if this is pin_direction_t::get (or no global settings
+     * are passed), the current direction is read and the channels in the request
+     * are validated against it.
      * Counts as relevant (for pin_direction_t) if any channel in the same
      * trigger_configure call has active_trigger_t::sma_input or
      * active_trigger_t::sma_output set in trig_sel. Channels whose trig_sel is
@@ -456,14 +473,14 @@ struct trigger_rx_t
     /*!
      * Direction of the per-channel ufl.
      * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl.
-     * ufl_dir cannot be derrived from other fields. Must be specified, get, or not relevant.
+     * ufl_dir cannot be derived from other fields. Must be specified, get, or not relevant.
      */
     pin_direction_t ufl_dir = pin_direction_t::must_specify_if_applicable;
 
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
 
-    //! Keep the channel enabled while configuring applying the configuration
+    //! Keep the channel enabled while applying the configuration
     bool hot_configure = false;
 
     /*!
@@ -550,7 +567,7 @@ struct trigger_tx_t
      */
     int64_t ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
 
-    //! Which triggers to listen to. OR together to listen to several.
+    //! Which triggers to listen/output to/from. OR together to listen/output to/from several.
     active_trigger_t trig_sel = active_trigger_t::get;
 
     /*!
@@ -568,14 +585,14 @@ struct trigger_tx_t
     /*!
      * Direction of the per-channel ufl.
      * Relevant for the purposes of pin_direction_t if trig_sel is set to channel_ufl.
-     * ufl_dir cannot be derrived from other fields. Must be specified, get, or not relevant.
+     * ufl_dir cannot be derived from other fields. Must be specified, get, or not relevant.
      */
     pin_direction_t ufl_dir = pin_direction_t::must_specify_if_applicable;
 
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
 
-    //! Keep the channel enabled while configuring applying the configuration
+    //! Keep the channel enabled while applying the configuration
     bool hot_configure = false;
 
     //! Trigger gating. TODO: document.
@@ -643,7 +660,7 @@ struct trigger_tx_t
  * Fill out arguments that read every trigger setting without changing anything.
  *
  * Every setting is set to get, and every channel specified is hot
- * configured, so setting are changed. Note that Channels not specified will be disabled.
+ * configured, so no settings are changed. Note that channels not specified will be disabled.
  * After trigger_configure() returns, the structs hold the values currently on the device.
  *
  * Element i of rx and tx reads physical channel i, so pass arrays with
@@ -736,12 +753,12 @@ static inline void get_read_config(trigger_op_t* op,
  * \param op filled in; must not be nullptr
  * \param global filled in; must not be nullptr
  * \param rx filled in; may be nullptr if rx_len is 0
- * \param rx_len number of elements in rx. Must be the legnth of rx_channels + preserved_rx_channels.
+ * \param rx_len number of elements in rx. Must be the length of rx_channels + preserved_rx_channels.
  * \param tx filled in; may be nullptr if tx_len is 0
  * \param tx_len number of elements in tx. Must be the length of tx_channels + preserved_tx_channels.
  * \param rx_channels physical channel for each element of rx
  * \param tx_channels physical channel for each element of tx
- * \param sma_direction The direction of the global sma pin. Recomended pin_direction_t::derive for portability between devices with a single bidirectional pin and separate input/output pins
+ * \param sma_direction The direction of the global sma pin. Recommended pin_direction_t::derive for portability between devices with a single bidirectional pin and separate input/output pins
  * \param edge_sample_num samples to stream per edge; 0 streams indefinitely; must be >= 0
  * \param preserved_rx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted.
  * \param preserved_tx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted.
