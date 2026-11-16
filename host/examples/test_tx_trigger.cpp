@@ -367,7 +367,7 @@ public:
         uint64_t total_sent = 0;
 
         Exit::wait_interrupt();
-
+        md.start_of_burst = true;
         for(uint64_t pulses_sent = 0; ((pulses_sent < num_trigger || num_trigger == 0) && !Exit::get()); pulses_sent++)
         {
             std::vector<int> levels;
@@ -382,8 +382,8 @@ public:
             // The fuzzy bit.
             //
 
-            md.start_of_burst = true;
-            md.end_of_burst = false;
+            // md.start_of_burst = true;
+            // md.end_of_burst = false;
             uint64_t sent = tx->send(buffer.mirrors, samples, md, timeout);
             if(sent != samples) {
                 throw uhd::runtime_error("timeout, the time between triggers is to long");
