@@ -2429,7 +2429,8 @@ public:
 
     /*! Configure triggered streaming for RX and TX channels in one operation.
     *
-    * All channels not passed to this fucntion will be disabled near the start.
+    * All channels not passed to this fucntion will be disabled before any settings (including global
+    * settings) are applied. They will not be re-enabled after.
     * All channels not set to hot_configure will be disabled while the configuration is being applied.
     * RX stream commands will be lost when configuring unless hot_configue is specified in trigger_rx_t for that channel.
     * Samples and SOB in the tx buffer will be lost unless hot_configure is specified in trigger_tx_t for that channel.

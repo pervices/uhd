@@ -3546,14 +3546,13 @@ private:
     /*!
      * The body of trigger_configure(), after the caller's structs have been
      * copied and validated. Applies the settings in this order:
-     *  1. Disable: TX(pwr), RX (stream), then trig_sel, on channels that are not hot
-     *     configured including channels not specified
+     *  1. Disable: TX(pwr), RX (stream), on channels that are not hot
+     *     configured, including channels not specified
      *  2. Directions set to in (or get)
      *  3. Global settings
-     *  4. Per-channel settings (TX gating last)
+     *  4. Per-channel settings
      *  5. Directions set to out
-     *  6. TX rstreq, then trig_sel, then RX stream
-     *  7. Restore unspecified channels that were disabled in step 1
+     *  6. Enable RX (stream), TX (pwr), then trig_sel,
      *
      * Values read from the device or coerced are written into the arguments.
      * \return true if any requested value was coerced

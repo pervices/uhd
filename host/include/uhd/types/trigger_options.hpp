@@ -668,10 +668,11 @@ struct trigger_tx_t
  **********************************************************************/
 
 /*!
- * Fill out arguments that read every trigger setting without changing anything.
+ * Fill out arguments that read every trigger setting without changing anything on listed channels.
+ * Channels on in the list will be disabled.
  *
- * Every setting is set to get, and every channel specified is hot
- * configured, so no settings are changed. Note that channels not specified will be disabled.
+ * Everything is set to get, and every channel specified is hot
+ * configured, so no settings are changed.
  * After trigger_configure() returns, the structs hold the values currently on the device.
  *
  * Element i of rx and tx reads physical channel i, so pass arrays with
