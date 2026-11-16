@@ -2433,16 +2433,21 @@ public:
     * settings) are applied. They will not be re-enabled after.
     * All channels not set to hot_configure will be disabled while the configuration is being applied.
     * RX stream commands will be lost when configuring unless hot_configue is specified in trigger_rx_t for that channel.
-    * Samples and SOB in the tx buffer will be lost unless hot_configure is specified in trigger_tx_t for that channel.
+    * Samples and SOB/EOB in the tx buffer will be lost unless hot_configure is specified in trigger_tx_t for that channel.
     * Values the hardware cannot apply exactly are adjusted, and the adjusted
     * values are written back into \p global, \p rx and \p tx.
     * Assuming nothing trigger related changes on the device: the adjusted value from the end of one call
-    * will do nothing if passed to the function again, except for temporarily disabling channels if hot_configure is not set
+    * will do nothing if passed to the function again, except for resetting all channels if hot_configure is not set
     * The recommended way of using this function is to set up the structs as you desire at the start
-    * then anytime you want to modify something, enable hot_configure for all channels,
+    * then anytime you want to modify something, enable hot_configure for ALL channels (to prevent them being reset while configuring),
     * then modify that specific field you want changed, then call this function again.
+    * You must enable hot_configure for all channels otherwise they will be disabled
     *
-    * After all errors except uhd::value_error the device is in an undefined state.
+    * The device is unchanged after an index_error or value_error.It is in an undefined state after any other error.
+    * \internal
+    * An io_error during validation technically leaves the unit unchanged, but to avoid complicating error handling more
+    * we will treat it as undefined.
+    * \endinternal
     *
     * \param op how to apply the change, or nullptr for defaults
     * \param global settings that apply to every channel (updated with actual
@@ -2455,15 +2460,19 @@ public:
     * \param tx_len number of elements in \p tx; \p tx may be nullptr if 0
     * \return true if every value was applied exactly as requested,
     *         false if any value was adjusted but was otherwise successful
+    * \throws uhd::index_error if a channel that does not exist is requested.
     * \throws uhd::value_error if the requested settings are invalid, alone or in
     *         combination. Thrown during validation, before anything is written to
     *         the device, so nothing on the device is changed.
+    *         The device is always unchanged.
     * \throws uhd::io_error if reading or writing a setting on the device fails.
     * \throws uhd::lookup_error The server is missing a property required by uhd.
     *         This usually is caused by a server/uhd version mismatch.
+    *         Server/UHD combinations that trigger this error are unsupported.
     * \internal
     * lookup_error should be impossible on any server version TRIGGER_OVERHAUL_SERVER
     * or newer.
+    * lookup error should be impossible without unsupported_server set.
     * \endinternal
     * \throws uhd::runtime_error for any other error, e.g. a coerced value when
     *         strict_error_t::coerced_value is enabled.

@@ -192,7 +192,7 @@ enum class polarity_t : uint32_t {
 };
 
 // TODO: document which edge
-//! How a trigger input is interpreted.
+//! How a trigger input/output is interpreted.
 enum class trigger_mode_t : uint32_t {
     get = 0,
     edge  = 1, //!< Activate the trigger when the corresponding input receives and edge. In output an edge means when streaming starts.
@@ -210,11 +210,11 @@ enum class trigger_mode_t : uint32_t {
  * \endinternal
  */
 enum class active_trigger_t : uint32_t {
-    none        = 0,       //!< Listen to no trigger.
+    none        = 0,       //!< Listen to no trigger/send to no output.
     sma_input = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen/output to the per-channel U.FL trigger depending on ufl_dir.
     sma_output = 1u << 2, //!< Output to the global SMA trigger. The final output is every channel's individual output ORed together.
-    bypass = 1u << 30, //!< Skip error checking and always return as is. Invalid if combined with anything else. This is used for compatibility with old rx_trigger_setup and tx_trigger_setup behaviour and should not be used for new programs.
+    bypass = 1u << 30, //!< Skip error checking and always return as is. Invalid if combined with anything else. It is always assumed to be valid for other fields that depend on it. Use for compatibility purposes only.
     get         = 1u << 31, //!< Get the current value, do not set. Invalid if combined with anything else.
     // Add new triggers as new bits only.
 };
@@ -266,8 +266,10 @@ enum class strict_error_t : uint64_t {
     //! the value has been applied, so this is not a uhd::value_error.
     coerced_value = 1u << 0,
     //! Throw uhd::value_error, before anything is changed on the device, when the
-    //! requested pin direction does not match the pin's type.
+    //! requested pin direction does not match the pin's type, and is not a control value.
     pedantic_dir = 2u << 1,
+    //! Prevent unsupported server/UHD combinations
+    unsupported_server = 2u << 2,
     //! Every check that existed in v1. This is the default, so checks added
     //! later are off unless the caller asks for them (or for `all`).
     // TODO: before release, remove coerced_value from all_v1 so coercion
@@ -287,9 +289,11 @@ enum class warning_t : uint64_t {
     none                      = 0,
     coerced_value = 1u << 0, //!< Warn when a value is coerced
     pedantic_dir = 2u << 1, //!< Warn when the requested pin direction does not match the pin's type.
+    unsupported_server = 2u << 2, //!< Warn when an unsupported server version is detected.
     all                       = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
+// TODO allow for unsupported_server (but keep the warning) for legacy trigger functions
 
 #undef UHD_TRIGGER_PV_FLAG_OPERATORS
 
@@ -484,18 +488,21 @@ struct trigger_rx_t
     polarity_t ufl_polarity = polarity_t::get;
 
     /*!
-     * Reset the channel and deactivate it while the configuration is being applied.
-     *
-     * Any stream commands from before will be lost if not set to true.
+     * Keep the channel enabled while the configuration is being applied.
+     * If false, the channel is reset and deactivated during configuration, and
+     * any stream commands from before are lost.
      */
     bool hot_configure = false;
 
     /*!
      * Whether the channel is enabled.
-     * Only implemented on RX.
-     * Must be set to 1 to restore normal streaming without creating a new streamer.
+     * Must be set to 1 enable streaming.
+     * Note that creating/destroying a streamer will have the same effect and enable/disable.
      * Supported values: GET_INT, 0 (disable), 1 (enable)
      * A returned value between -1 and -2,147,483,648 indicates an error.
+     * \internal
+     * Corresponds to tx/<ch>/stream on the server
+     * \endinternal
      */
     int64_t enable = GET_INT;
 
@@ -600,11 +607,23 @@ struct trigger_tx_t
     polarity_t ufl_polarity = polarity_t::get;
 
     /*!
-     * Reset the channel and deactivate it while the configuration is being applied.
-     *
-     * Any samples, SOB, or EOB from before will be lost.
+     * Keep the channel enabled while the configuration is being applied.
+     * If false, the channel is reset and deactivated during configuration, and
+     * any samples, SOB, or EOB from before are lost.
      */
     bool hot_configure = false;
+
+    /*!
+     * Whether the channel is enabled.
+     * Must be set to 1 enable streaming.
+     * Note that creating/destroying a streamer will have the same effect and enable/disable.
+     * Supported values: GET_INT, 0 (disable), 1 (enable)
+     * A returned value between -1 and -2,147,483,648 indicates an error.
+     * \internal
+     * Corresponds to tx/<ch>/pwr on the server
+     * \endinternal
+     */
+    int64_t enable = GET_INT;
 
     //! Trigger gating. TODO: document.
     gating_t gating = gating_t::get;
@@ -757,7 +776,7 @@ static inline void get_read_config(trigger_op_t* op,
  *  - TX channels use DSP gating
  *  - the global SMA direction is set to \p sma_direction
  *
- * Note that channels not included in either \p rx , \p tx ,
+ * Note that channels not included in either \p rx_channels , \p tx_channels ,
  * \p preserved_rx_channels , \p preserved_tx_channels will be disabled
  *
  * \param op filled in; must not be nullptr
@@ -766,8 +785,8 @@ static inline void get_read_config(trigger_op_t* op,
  * \param rx_len number of elements in rx. Must be the length of rx_channels + preserved_rx_channels.
  * \param tx filled in; may be nullptr if tx_len is 0
  * \param tx_len number of elements in tx. Must be the length of tx_channels + preserved_tx_channels.
- * \param rx_channels The rx channels for each element of rx we wish to apply the configuration to.
- * \param tx_channels The rx chanels we wish to apply the configuration to.
+ * \param rx_channels The rx channels we wish to apply the configuration to.
+ * \param tx_channels The tx channels we wish to apply the configuration to.
  * \param sma_direction The direction of the global sma pin. Recommended pin_direction_t::derive for portability between devices with a single bidirectional pin and separate input/output pins
  * \param edge_sample_num samples to stream per edge; 0 streams indefinitely; must be >= 0
  * \param preserved_rx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted.
@@ -851,16 +870,18 @@ static inline void get_simple_sma_config(trigger_op_t* op,
 /*!
  * Fill out arguments to disable streaming and switch back to normal operations.
  *
- * Set trig_sel to input.
+ * Set trig_sel to none.
  * Set sma and ufl_dir to input.
  * All other trigger field are undefined and must be set as desired if you want to re-enable streaming
+ * Channel enable is not modified. You must either set enable to 1 or create a new streamer to
+ * stream again if it not set to 1.
  * \internal
- * Leave all fields as is. The document says to leave all fields as undefined
- * to give us fexlibility
+ * Leave all fields as is. The documentation says to leave all fields as undefined
+ * to give us flexibility
  * \endinternal
  *
  * \param op filled in; must not be nullptr
- * \param global filled in
+ * \param global filled in; may be nullptr
  * \param rx filled in; may be nullptr if rx_len is 0
  * \param rx_len number of elements in rx
  * \param tx filled in; may be nullptr if tx_len is 0
