@@ -3504,8 +3504,8 @@ private:
     };
 
     /*!
-     * Turn off streaming and triggering on every channel. Used when
-     * trigger_configure fails part way through (failure_handling_t::disable_all).
+     * Turn off streaming and triggering on every channel and sets all toggleable pin to input
+      * Used when trigger_configure fails part way through (failure_handling_t::disable_all).
      */
     void trigger_disable_all()
     {
@@ -3546,9 +3546,8 @@ private:
     /*!
      * The body of trigger_configure(), after the caller's structs have been
      * copied and validated. Applies the settings in this order:
-     *  1. Disable: RX stream, then trig_sel, on channels that are not hot
-     *     configured (and on unspecified channels, unless op.setup_mode says to
-     *     hot configure them)
+     *  1. Disable: TX(pwr), RX (stream), then trig_sel, on channels that are not hot
+     *     configured including channels not specified
      *  2. Directions set to in (or get)
      *  3. Global settings
      *  4. Per-channel settings (TX gating last)
@@ -3809,10 +3808,10 @@ public:
             (op != nullptr) ? detail::deep_copy_from_caller(*op) : trigger_op_t{};
 
         // restore_default ignores all other arguments.
-        if (lib_op.restore_default) {
-            trigger_restore_default();
-            return true;
-        }
+        // if (lib_op.restore_default) {
+        //     trigger_restore_default();
+        //     return true;
+        // }
 
         // A null global means "leave the global settings unchanged".
         std::optional<trigger_global_t> lib_global;

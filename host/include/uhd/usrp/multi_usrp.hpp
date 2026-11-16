@@ -1554,7 +1554,7 @@ public:
      */
 
     /*!
-     * Configures the unit for trigger streaming. Note that is will cause the selected channels to stop using buffer level prediction
+     * Configures the unit for trigger streaming. Note that it will cause the selected channels to stop using buffer level prediction
      * \param channels list of channels
      * \param num_samples_per_trigger number of samples to send per trigger event
      * \param trigger_dir direction of the global trigger SMA: "in" or "out"
@@ -2427,28 +2427,30 @@ public:
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
-    // TODO: add these notes to the proper comment:
-    // For null global, rx, tx the final value will match the existing value
-    // However they may be modified during the function depending on op
-
     /*! Configure triggered streaming for RX and TX channels in one operation.
     *
+    * All channels not passed to this fucntion will be disabled near the start.
+    * All channels not set to hot_configure will be disabled while the configuration is being applied.
+    * RX stream commands will be lost when configuring unless hot_configue is specified in trigger_rx_t for that channel.
+    * Samples and SOB in the tx buffer will be lost unless hot_configure is specified in trigger_tx_t for that channel.
     * Values the hardware cannot apply exactly are adjusted, and the adjusted
     * values are written back into \p global, \p rx and \p tx.
-    * By default all channels are disabled while this function is running.
     * Assuming nothing trigger related changes on the device: the adjusted value from the end of one call
     * will do nothing if passed to the function again, except for temporarily disabling channels if hot_configure is not set
     * The recommended way of using this function is to set up the structs as you desire at the start
-    * then anytime you want to modify something, modify that specific field and call this function again.
+    * then anytime you want to modify something, enable hot_configure for all channels,
+    * then modify that specific field you want changed, then call this function again.
+    *
+    * After all errors except uhd::value_error the device is in an undefined state.
     *
     * \param op how to apply the change, or nullptr for defaults
     * \param global settings that apply to every channel (updated with actual
     *        values), or nullptr to leave the global settings unchanged.
     *        The current SMA direction is still read and checked against
     *        trig_sel (see below).
-    * \param rx array of per-channel RX settings (updated with actual values)
+    * \param rx array of per-channel RX settings (updated with actual values unless specified by their passed value)
     * \param rx_len number of elements in \p rx; \p rx may be nullptr if 0
-    * \param tx array of per-channel TX settings (updated with actual values)
+    * \param tx array of per-channel TX settings (updated with actual values unless specified by their passed value)
     * \param tx_len number of elements in \p tx; \p tx may be nullptr if 0
     * \return true if every value was applied exactly as requested,
     *         false if any value was adjusted but was otherwise successful
@@ -2456,8 +2458,12 @@ public:
     *         combination. Thrown during validation, before anything is written to
     *         the device, so nothing on the device is changed.
     * \throws uhd::io_error if reading or writing a setting on the device fails.
-    * \throws uhd::lookup_error if the server is incompatible with this version of
-    *         UHD. This should not happen, since the server's API version is checked.
+    * \throws uhd::lookup_error The server is missing a property required by uhd.
+    *         This usually is caused by a server/uhd version mismatch.
+    * \internal
+    * lookup_error should be impossible on any server version TRIGGER_OVERHAUL_SERVER
+    * or newer.
+    * \endinternal
     * \throws uhd::runtime_error for any other error, e.g. a coerced value when
     *         strict_error_t::coerced_value is enabled.
     *

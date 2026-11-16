@@ -30,7 +30,9 @@
  *    relationship between channel_index and channel.
  *
  * Functions throw uhd::value_error or uhd::index_error for invalid input, and
- * uhd::runtime_error if the device reports a value the library does not recognises
+ * uhd::runtime_error if the device reports a value the library does not recognise.
+ * The exception is to_device_string(), which throws uhd::runtime_error: its input
+ * has already been validated by trigger_configure, so a bad value is a library bug.
  */
 
 namespace uhd { namespace trigger_pv { namespace detail {
@@ -134,7 +136,9 @@ concept enum_with_get = std::is_enum_v<E> && requires {
 
 /*!
  * Value the SDR expects in the property tree for an enum setting.
- * Throws uhd::value_error for
+ * Should only be called after trigger_configure has validated the value, so
+ * these throws should be unreachable.
+ * Throws uhd::runtime_error for
  * E::get (which means UHD should get),
  * pin_direction_t::must_specify_if_applicable (user forgot to specify),
  * pin_direction_t::derive (UHD should select the value first),

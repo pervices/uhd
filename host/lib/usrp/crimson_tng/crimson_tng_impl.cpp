@@ -2082,7 +2082,7 @@ uhd::trigger_pv::trigger_global_t trigger_global_all_get()
 constexpr uhd::trigger_pv::active_trigger_t crimson_trig_sel_sma =
     static_cast<uhd::trigger_pv::active_trigger_t>(1u << 0);
 
-//! Translate an API trig_sel to Crimson's bits. get is passed through.
+//! Translate an API trig_sel to Crimson's bits. Unkown bits are rejects as uhd::value_error
 uhd::trigger_pv::active_trigger_t crimson_trig_sel_to_device(
     const uhd::trigger_pv::active_trigger_t api_trig_sel)
 {

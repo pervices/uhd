@@ -129,8 +129,10 @@ enum class pin_direction_t : uint32_t {
      * The pin is an input.
      * Always throws an error on an output-only pin.
      * On an input-only pin, succeeds without changing anything.
-     * On separate pins, throws an error if pedantic_dir is set, and is treated
-     * as get otherwise.
+     * On separate pins:
+     *     Throws an error if pedantic_dir is set in enable_strict_errors.
+     *     Otherwise it is treated as get.
+     *     Warns if pedantic_dir is not set in disable_warnings
      * On a toggleable pin, always throws an error if this conflicts with the
      * direction implied by other fields in the same trigger_configure call.
      */
@@ -140,8 +142,10 @@ enum class pin_direction_t : uint32_t {
      * The pin is an output.
      * Always throws an error on an input-only pin.
      * On an output-only pin, succeeds without changing anything.
-     * On separate pins, throws an error if pedantic_dir is set, and is treated
-     * as get otherwise.
+     * On separate pins:
+     *     Throws an error if pedantic_dir is set in enable_strict_errors.
+     *     Otherwise it is treated as get.
+     *     Warns if pedantic_dir is not set in disable_warnings
      * On a toggleable pin, always throws an error if this conflicts with the
      * direction implied by other fields in the same trigger_configure call.
      */
@@ -171,8 +175,11 @@ enum class pin_direction_t : uint32_t {
     /*!
      * The device has separate input and output pins.
      * On separate pins, succeeds without changing anything.
-     * On any other pin, throws an error if pedantic_dir is set, and is treated
-     * as get otherwise.
+     * On any other pin, throws a uhd::value_error
+     * \internal
+     * Exception: on Cyan with servers old than TRIGGER_OVERHAUL_SERVER always do nothing.
+     * They are separate but the server doesn't have the concept of separate yet.
+     * \endinternal
      */
     separate = 5,
 };
@@ -184,11 +191,12 @@ enum class polarity_t : uint32_t {
     negative = 2, //!< Active low.
 };
 
+// TODO: document which edge
 //! How a trigger input is interpreted.
 enum class trigger_mode_t : uint32_t {
     get = 0,
-    edge  = 1, //!< Trigger on an edge. TODO: document which edge(s).
-    level = 2, //!< Stream while the trigger is active.
+    edge  = 1, //!< Activate the trigger when the corresponding input receives and edge. In output an edge means when streaming starts.
+    level = 2, //!< Stream while the corresponding input trigger is active. Output an active trigger when streaming.
 };
 
 /*! Which triggers a channel listens/outputs on. Values may be combined with |.
@@ -204,10 +212,10 @@ enum class trigger_mode_t : uint32_t {
 enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger.
     sma_input = 1u << 0, //!< Listen to the global SMA trigger.
-    channel_ufl = 1u << 1, //!< Listen to the per-channel U.FL trigger.
+    channel_ufl = 1u << 1, //!< Listen/output to the per-channel U.FL trigger depending on ufl_dir.
     sma_output = 1u << 2, //!< Output to the global SMA trigger. The final output is every channel's individual output ORed together.
-    bypass = 1u << 30, //!< Skip error checking and always return as is. This is used for compatibility with old rx_trigger_setup and tx_trigger_setup behaviour and should not be used for new programs.
-    get         = 1u << 31, //!< Get the current value, do not set.
+    bypass = 1u << 30, //!< Skip error checking and always return as is. Invalid if combined with anything else. This is used for compatibility with old rx_trigger_setup and tx_trigger_setup behaviour and should not be used for new programs.
+    get         = 1u << 31, //!< Get the current value, do not set. Invalid if combined with anything else.
     // Add new triggers as new bits only.
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(active_trigger_t)
@@ -291,7 +299,7 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
 
 /*!
  * How to apply a trigger configuration change
- * (e.g. whether to disable the trigger while changes are made).
+ * (e.g. how to behave when an error occurs).
  */
 struct trigger_op_t
 {
@@ -306,12 +314,6 @@ struct trigger_op_t
 
     //! How to handle failures while attempting to configure the trigger.
     failure_handling_t failure_handling = failure_handling_t::disable_all;
-
-    /*!
-     * Ignore all other arguments and attempt to return the device to its
-     * default non-trigger streaming state.
-     */
-    bool restore_default = false;
 
     //! Explicit padding. Must be zero.
     uint8_t reserved0[3] = {};
@@ -348,7 +350,7 @@ struct trigger_global_t
      * Counts as relevant (for pin_direction_t) if any channel in the same
      * trigger_configure call has active_trigger_t::sma_input or
      * active_trigger_t::sma_output set in trig_sel. Channels whose trig_sel is
-     * active_trigger_t::get are ignored
+     * active_trigger_t::get are ignored.
      */
     pin_direction_t sma_direction = pin_direction_t::derive;
 
@@ -467,6 +469,7 @@ struct trigger_rx_t
 
     /*!
      * Whether to trigger on level or edge on the per-channel U.FL.
+     * Not relevant unless trig_sel includes active_trigger_t::channel_ufl.
      */
     trigger_mode_t ufl_mode = trigger_mode_t::get;
 
@@ -480,7 +483,11 @@ struct trigger_rx_t
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
 
-    //! Keep the channel enabled while applying the configuration
+    /*!
+     * Reset the channel and deactivate it while the configuration is being applied.
+     *
+     * Any stream commands from before will be lost if not set to true.
+     */
     bool hot_configure = false;
 
     /*!
@@ -592,7 +599,11 @@ struct trigger_tx_t
     //! Whether the per-channel U.FL trigger is active high or active low.
     polarity_t ufl_polarity = polarity_t::get;
 
-    //! Keep the channel enabled while applying the configuration
+    /*!
+     * Reset the channel and deactivate it while the configuration is being applied.
+     *
+     * Any samples, SOB, or EOB from before will be lost.
+     */
     bool hot_configure = false;
 
     //! Trigger gating. TODO: document.
@@ -745,10 +756,8 @@ static inline void get_read_config(trigger_op_t* op,
  *  - TX channels use DSP gating
  *  - the global SMA direction is set to \p sma_direction
  *
- * As with the older functions, other settings and unspecified channels are left
- * unchanged, and coerced values (e.g. edge_sample_num rounded by the device) are
- * adjusted rather than treated as errors. The actual values are written back
- * into the structs by trigger_configure().
+ * Note that channels not included in either \p rx , \p tx ,
+ * \p preserved_rx_channels , \p preserved_tx_channels will be disabled
  *
  * \param op filled in; must not be nullptr
  * \param global filled in; must not be nullptr
@@ -756,8 +765,8 @@ static inline void get_read_config(trigger_op_t* op,
  * \param rx_len number of elements in rx. Must be the length of rx_channels + preserved_rx_channels.
  * \param tx filled in; may be nullptr if tx_len is 0
  * \param tx_len number of elements in tx. Must be the length of tx_channels + preserved_tx_channels.
- * \param rx_channels physical channel for each element of rx
- * \param tx_channels physical channel for each element of tx
+ * \param rx_channels The rx channels for each element of rx we wish to apply the configuration to.
+ * \param tx_channels The rx chanels we wish to apply the configuration to.
  * \param sma_direction The direction of the global sma pin. Recommended pin_direction_t::derive for portability between devices with a single bidirectional pin and separate input/output pins
  * \param edge_sample_num samples to stream per edge; 0 streams indefinitely; must be >= 0
  * \param preserved_rx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted.
@@ -836,6 +845,35 @@ static inline void get_simple_sma_config(trigger_op_t* op,
         chan.gating          = gating_t::dsp;
         // ufl_mode, ufl_dir and ufl_polarity keep their defaults (get).
     }
+}
+
+/*!
+ * Fill out arguments to disable streaming and switch back to normal operations.
+ *
+ * Set trig_sel to input.
+ * Set sma and ufl_dir to input.
+ * All other trigger field are undefined and must be set as desired if you want to re-enable streaming
+ * \internal
+ * Leave all fields as is. The document says to leave all fields as undefined
+ * to give us fexlibility
+ * \endinternal
+ *
+ * \param op filled in; must not be nullptr
+ * \param global filled in
+ * \param rx filled in; may be nullptr if rx_len is 0
+ * \param rx_len number of elements in rx
+ * \param tx filled in; may be nullptr if tx_len is 0
+ * \param tx_len number of elements in tx
+ * \throws uhd::value_error if a required pointer is null
+ */
+static inline void get_non_trigger_config(trigger_op_t* op,
+    trigger_global_t* global,
+    trigger_rx_t* rx,
+    size_t rx_len,
+    trigger_tx_t* tx,
+    size_t tx_len)
+{
+    // TODO: implement
 }
 
 }} // namespace uhd::trigger_pv

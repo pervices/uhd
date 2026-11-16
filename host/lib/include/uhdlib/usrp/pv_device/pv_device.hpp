@@ -35,7 +35,7 @@ public:
 
     /*!
      * The server's API version. Format: yyyymmdd
-     * 0 indicates the server is to older than the property that provides the field
+     * 0 indicates the the server predates the property(s) that provides the field
      * Set during the child class's constructor
      */
     int server_api_ver = 0;
@@ -112,7 +112,8 @@ public:
      *
      * \param device_trig_sel the device's raw trig_sel bits
      * \param derived_global the global settings in effect on the device
-     *        (on Crimson, the SMA direction decides what bit 0 means)
+     *        (on Crimson, the SMA direction decides what bit 0 means).
+     *        The setting must be the real setting (not get or derive).
      * \return trig_sel with the meanings given by trigger_pv::active_trigger_t
      */
     virtual trigger_pv::active_trigger_t trig_sel_from_device(
