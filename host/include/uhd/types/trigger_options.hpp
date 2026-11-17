@@ -737,7 +737,8 @@ static inline size_t preserved_count(const std::vector<size_t>* preserved)
 
 /*!
  * Fill one RX entry so trigger_configure() leaves the channel exactly as it is:
- * every field is get and the channel is hot configured.
+ * the channel is hot configured and every field is get, except
+ * ufl_output_pulse_length, which is SKIP_IF_NOT_RELEVANT.
  */
 static inline void fill_untouched(trigger_rx_t& chan, size_t channel)
 {
@@ -746,7 +747,8 @@ static inline void fill_untouched(trigger_rx_t& chan, size_t channel)
     chan.hot_configure           = true;
     chan.edge_backoff            = GET_INT;
     chan.edge_sample_num         = GET_INT;
-    chan.ufl_output_pulse_length = GET_INT;
+    // Never relevant while trig_sel is get, so the device is not accessed for it.
+    chan.ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
     chan.trig_sel                = active_trigger_t::get;
     chan.sma_mode                = trigger_mode_t::get;
     chan.ufl_mode                = trigger_mode_t::get;
@@ -763,7 +765,8 @@ static inline void fill_untouched(trigger_tx_t& chan, size_t channel)
     chan.hot_configure           = true;
     chan.edge_backoff            = GET_INT;
     chan.edge_sample_num         = GET_INT;
-    chan.ufl_output_pulse_length = GET_INT;
+    // Never relevant while trig_sel is get, so the device is not accessed for it.
+    chan.ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
     chan.trig_sel                = active_trigger_t::get;
     chan.sma_mode                = trigger_mode_t::get;
     chan.ufl_mode                = trigger_mode_t::get;
@@ -835,12 +838,15 @@ static inline void get_read_config(trigger_op_t* op,
         global->sma_output_pulse_length = GET_INT;
     }
 
-    // fill_untouched() sets every field to get and hot configures the channel.
+    // fill_untouched() hot configures the channel and sets every field to get
+    // except ufl_output_pulse_length, which is read here too.
     for (size_t channel_index = 0; channel_index < rx_len; channel_index++) {
         detail::fill_untouched(rx[channel_index], channel_index);
+        rx[channel_index].ufl_output_pulse_length = GET_INT;
     }
     for (size_t channel_index = 0; channel_index < tx_len; channel_index++) {
         detail::fill_untouched(tx[channel_index], channel_index);
+        tx[channel_index].ufl_output_pulse_length = GET_INT;
     }
 }
 
@@ -855,6 +861,8 @@ static inline void get_read_config(trigger_op_t* op,
  *  - global->sma_direction is set to pin_direction_t::derive, so the same
  *    arguments work on devices with a single toggleable SMA pin and on devices
  *    with separate SMA input and output pins
+ *  - sma_output_pulse_length is left unchanged (read back) when the channels
+ *    drive the SMA, and skipped otherwise; ufl_output_pulse_length is skipped
  *  - as with the older functions, coerced values (e.g. edge_sample_num rounded
  *    by the device) are adjusted rather than treated as errors:
  *    strict_error_t::coerced_value is removed from op->enable_strict_errors
@@ -922,8 +930,11 @@ static inline void get_simple_sma_config(trigger_op_t* op,
     global->sma_direction           = pin_direction_t::derive;
     global->sma_polarity            = polarity_t::positive;
     global->sma_override            = GET_INT;
-    // Relevant when the channels drive the SMA in edge mode; keep the device's value.
-    global->sma_output_pulse_length = GET_INT;
+    // Only relevant when the channels drive the SMA (edge mode). There is no
+    // parameter for it, so in that case the device's existing value is kept.
+    global->sma_output_pulse_length = (sma_direction == pin_direction_t::out)
+                                          ? GET_INT
+                                          : SKIP_IF_NOT_RELEVANT;
 
     for (size_t i = 0; i < rx_channels.size(); i++) {
         trigger_rx_t& chan   = rx[i];
