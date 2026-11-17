@@ -3975,6 +3975,9 @@ private:
     }
     fs_path trigger_enable_path(const uhd::trigger_pv::trigger_tx_t& tx)
     {
+        // Reads treat pwr == 1 as enabled. A channel with pwr == 1 could still be
+        // in reset if rstreq was never sent after pwr was set.
+        // TODO: read whether the channel is in reset once the server reports it.
         return tx_root(tx.channel) / "pwr";
     }
 
@@ -4125,11 +4128,20 @@ private:
         // 6. RE-ENABLE: set enable on every specified channel. A disabled
         // channel whose enable was get is restored to the value read in step 1.
         // -----------------------------------------------------------------
-        auto enable = [&](auto& chan) {
-            exact = trigger_apply_integer<std::string>(trigger_enable_path(chan), chan.enable, 1, op) && exact;
-        };
-        std::for_each(request.rx.begin(), request.rx.end(), enable);
-        std::for_each(request.tx.begin(), request.tx.end(), enable);
+        for (trigger_rx_t& rx : request.rx) {
+            exact = trigger_apply_integer<std::string>(trigger_enable_path(rx), rx.enable, 1, op) && exact;
+        }
+        for (trigger_tx_t& tx : request.tx) {
+            // Every TX channel's enable is a real value here except hot
+            // configured channels left as get, which are only read.
+            const bool writes_pwr = (tx.enable != GET_INT);
+            exact = trigger_apply_integer<std::string>(trigger_enable_path(tx), tx.enable, 1, op) && exact;
+            if (writes_pwr && tx.enable == 1) {
+                // Setting pwr to 1 always leaves the channel in reset;
+                // rstreq takes it out of reset. rstreq is write-only.
+                detail::property_set_double(*_tree, tx_dsp_root(tx.channel) / "rstreq", 1.0);
+            }
+        }
 
         return exact;
     }
@@ -4198,6 +4210,21 @@ private:
         }
     }
 
+    /*!
+     * Run failure handling for a uhd::value_error or uhd::index_error only if it
+     * was thrown after validation (which should not happen). During validation
+     * nothing on the device has been changed.
+     */
+    void handle_trigger_failure_if(
+        const bool validated, const trigger_request_t& request, const uhd::pv_device& dev) noexcept
+    {
+        if (validated
+            && request.op.failure_handling
+                   == uhd::trigger_pv::failure_handling_t::disable_all_after_validation) {
+            trigger_disable_all_after_failure(dev);
+        }
+    }
+
 public:
     bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
         uhd::trigger_pv::trigger_global_t* global,
@@ -4227,18 +4254,22 @@ public:
         request.tx = detail::deep_copy_array_from_caller(tx, tx_len);
 
         bool exact = false;
+        // value_error and index_error skip failure handling only while nothing
+        // on the device can have changed.
+        bool validated = false;
         try {
             // Throw if a channel is unset, does not exist, or is specified twice.
             request.unspecified_rx = detail::find_unspecified_channels(request.rx, get_rx_num_channels());
             request.unspecified_tx = detail::find_unspecified_channels(request.tx, get_tx_num_channels());
 
             trigger_validate(request, dev);
-            exact = trigger_apply(request, dev);
+            validated = true;
+            exact     = trigger_apply(request, dev);
         } catch (const uhd::value_error&) {
-            // Thrown during validation: nothing on the device was changed.
+            handle_trigger_failure_if(validated, request, dev);
             throw;
         } catch (const uhd::index_error&) {
-            // Thrown during validation: nothing on the device was changed.
+            handle_trigger_failure_if(validated, request, dev);
             throw;
         } catch (...) {
             if (request.op.failure_handling == failure_handling_t::disable_all_after_validation) {

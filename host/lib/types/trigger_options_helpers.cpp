@@ -465,6 +465,11 @@ void property_set_int(property_tree& tree, const fs_path& path, const int value)
     access_property(path, "write", [&]() { tree.access<int>(path).set(value); });
 }
 
+void property_set_double(property_tree& tree, const fs_path& path, const double value)
+{
+    access_property(path, "write", [&]() { tree.access<double>(path).set(value); });
+}
+
 int64_t parse_device_integer(const std::string& str, const std::string& what)
 {
     const std::string trimmed = without_trailing_whitespace(str);

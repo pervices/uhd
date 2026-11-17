@@ -181,6 +181,7 @@ std::string property_get_string(property_tree& tree, const fs_path& path);
 void property_set_string(property_tree& tree, const fs_path& path, const std::string& value);
 int property_get_int(property_tree& tree, const fs_path& path);
 void property_set_int(property_tree& tree, const fs_path& path, int value);
+void property_set_double(property_tree& tree, const fs_path& path, double value);
 
 /*!
  * Parse a non-negative decimal integer reported by the device. Trailing

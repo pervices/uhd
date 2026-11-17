@@ -636,7 +636,10 @@ struct trigger_tx_t
      * Supported values: GET_INT, 0 (disable), 1 (enable)
      * A returned value between -1 and -2,147,483,648 indicates an error.
      * \internal
-     * Corresponds to tx/<ch>/pwr on the server
+     * Corresponds to tx/<ch>/pwr on the server. Setting pwr to 1 leaves the
+     * channel in reset, so it is followed by tx/<ch>/dsp/rstreq.
+     * Reads currently treat pwr == 1 as enabled, even though the channel could
+     * still be in reset.
      * \endinternal
      */
     int64_t enable = GET_INT;

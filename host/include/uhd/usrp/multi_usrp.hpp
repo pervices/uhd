@@ -2434,6 +2434,8 @@ public:
     * Disabling a channel never changes its trig_sel.
     * \internal
     * Disabling a channel sets RX stream or TX pwr to 0, which resets it.
+    * Enabling a TX channel sets pwr to 1, which leaves it in reset, then sends
+    * rstreq to take it out of reset.
     * \endinternal
     * All channels not set to hot_configure will be disabled while the configuration is being applied.
     * RX stream commands will be lost when configuring unless hot_configure is specified in trigger_rx_t for that channel.
