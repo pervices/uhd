@@ -344,6 +344,8 @@ std::string to_device_string(polarity_t pol)
     switch (pol) {
         case polarity_t::get:
             throw uhd::runtime_error("polarity_t::get cannot be sent to the device");
+        case polarity_t::bypass:
+            throw uhd::runtime_error("polarity_t::bypass cannot be sent to the device");
         case polarity_t::positive:
             return "positive";
         case polarity_t::negative:
@@ -369,6 +371,8 @@ std::string to_device_string(trigger_mode_t mode)
     switch (mode) {
         case trigger_mode_t::get:
             throw uhd::runtime_error("trigger_mode_t::get cannot be sent to the device");
+        case trigger_mode_t::bypass:
+            throw uhd::runtime_error("trigger_mode_t::bypass cannot be sent to the device");
         case trigger_mode_t::edge:
             return "edge";
         case trigger_mode_t::level:

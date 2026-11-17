@@ -187,6 +187,7 @@ enum class polarity_t : uint32_t {
     get = 0, //!< Get the existing value
     positive = 1, //!< Active high.
     negative = 2, //!< Active low.
+    bypass = 1u << 31, //!< Do not read or write this field; it is returned as is. Fields that depend on it do not count as relevant. Use for compatibility purposes only.
 };
 
 // TODO: document which edge
@@ -195,6 +196,7 @@ enum class trigger_mode_t : uint32_t {
     get = 0,
     edge  = 1, //!< Activate the trigger when the corresponding input receives an edge. As an output, an edge is sent when streaming starts.
     level = 2, //!< Stream while the corresponding input trigger is active. Output an active trigger when streaming.
+    bypass = 1u << 31, //!< Do not read or write this field; it is returned as is. Fields that depend on it do not count as relevant. Use for compatibility purposes only.
 };
 
 /*! Which triggers a channel listens/outputs on. Values may be combined with |.

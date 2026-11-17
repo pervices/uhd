@@ -142,6 +142,7 @@ concept enum_with_get = std::is_enum_v<E> && requires {
  * these throws should be unreachable.
  * Throws uhd::runtime_error for
  * E::get (which means UHD should get),
+ * E::bypass (which means UHD should not access the field),
  * pin_direction_t::must_specify_if_applicable (user forgot to specify),
  * pin_direction_t::derive (UHD should select the value first),
  * numbers that are not a named enumerator.

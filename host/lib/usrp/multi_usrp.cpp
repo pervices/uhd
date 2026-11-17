@@ -2353,9 +2353,54 @@ public:
     }
 
     /*!
+     * Fill one entry so trigger_configure() accesses as little of the channel as
+     * possible: everything that supports bypass is bypassed, and the fields that
+     * depend on those are not relevant, so they are skipped. The channel is hot
+     * configured; enable (and TX gating), which have no bypass, are only read.
+     */
+    static void trigger_fill_bypass(uhd::trigger_pv::trigger_rx_t& chan, const size_t channel)
+    {
+        using namespace uhd::trigger_pv;
+        chan               = trigger_rx_t{};
+        chan.channel       = channel;
+        chan.hot_configure = true;
+        chan.trig_sel      = active_trigger_t::bypass;
+        chan.sma_mode      = trigger_mode_t::bypass;
+        chan.ufl_mode      = trigger_mode_t::bypass;
+        chan.ufl_polarity  = polarity_t::bypass;
+        // Not relevant with trig_sel bypassed, so never accessed.
+        chan.edge_backoff            = SKIP_IF_NOT_RELEVANT;
+        chan.edge_sample_num         = SKIP_IF_NOT_RELEVANT;
+        chan.ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
+        chan.ufl_dir                 = pin_direction_t::must_specify_if_applicable;
+        chan.enable                  = GET_INT;
+    }
+    static void trigger_fill_bypass(uhd::trigger_pv::trigger_tx_t& chan, const size_t channel)
+    {
+        using namespace uhd::trigger_pv;
+        chan               = trigger_tx_t{};
+        chan.channel       = channel;
+        chan.hot_configure = true;
+        chan.trig_sel      = active_trigger_t::bypass;
+        chan.sma_mode      = trigger_mode_t::bypass;
+        chan.ufl_mode      = trigger_mode_t::bypass;
+        chan.ufl_polarity  = polarity_t::bypass;
+        // Not relevant with trig_sel bypassed, so never accessed.
+        chan.edge_backoff            = SKIP_IF_NOT_RELEVANT;
+        chan.edge_sample_num         = SKIP_IF_NOT_RELEVANT;
+        chan.ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
+        chan.ufl_dir                 = pin_direction_t::must_specify_if_applicable;
+        chan.enable                  = GET_INT;
+        chan.gating                  = gating_t::get;
+    }
+
+    /*!
      * Shared body of the deprecated rx_trigger_setup and tx_trigger_setup:
      * configure `channels` with the get_simple_sma_config preset. Every other
-     * RX and TX channel is preserved, as the original functions did not touch them.
+     * RX and TX channel is preserved, as the original functions did not touch
+     * them: other channels of the same direction are left untouched (every
+     * field get), and every channel of the other direction is bypassed (see
+     * trigger_fill_bypass()).
      * \return actual number of samples per trigger (0 if channels is empty)
      */
     uint64_t trigger_setup_wrapper(const which_rxtx setting_from,
@@ -2395,6 +2440,17 @@ public:
             tx_args.size(), rx_channels, tx_channels, sma_direction,
             static_cast<int64_t>(num_samples_per_trigger), &preserved_rx, &preserved_tx);
         trigger_make_legacy_op(op);
+        // The other direction's channels are all preserved; bypass them so they
+        // are accessed as little as possible.
+        if (setting_from == rx) {
+            for (size_t i = 0; i < tx_args.size(); i++) {
+                trigger_fill_bypass(tx_args[i], preserved_tx[i]);
+            }
+        } else {
+            for (size_t i = 0; i < rx_args.size(); i++) {
+                trigger_fill_bypass(rx_args[i], preserved_rx[i]);
+            }
+        }
 
         // The return value only says whether something was coerced; the actual
         // values are read from the structs below instead.
@@ -3336,12 +3392,18 @@ private:
      * Validation
      ******************************************************************/
 
-    //! Throw uhd::value_error unless `value` is one of an enum's named values
-    //! (0 to max_value; every trigger enum except the flag enums is contiguous).
+    //! Throw uhd::value_error unless `value` is one of an enum's named values:
+    //! 0 to max_value (every trigger enum except the flag enums is contiguous),
+    //! or E::bypass for enums that have it.
     template <typename E>
     static void trigger_check_enum(const E value, const E max_value, const std::string& name)
     {
         using U = std::underlying_type_t<E>;
+        if constexpr (requires { E::bypass; }) {
+            if (value == E::bypass) {
+                return;
+            }
+        }
         if (static_cast<U>(value) > static_cast<U>(max_value)) {
             throw uhd::value_error(std::format("{}: invalid value {}", name,
                 static_cast<uint64_t>(static_cast<U>(value))));
@@ -3849,6 +3911,11 @@ private:
     {
         using namespace uhd::trigger_pv;
 
+        if constexpr (requires { E::bypass; }) {
+            if (value == E::bypass) {
+                return true; // Never read or written.
+            }
+        }
         if (value == E::get) {
             value = from_device_string(detail::property_get_string(*_tree, path));
             return true;
