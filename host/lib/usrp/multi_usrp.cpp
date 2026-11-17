@@ -2395,12 +2395,57 @@ public:
     }
 
     /*!
+     * In an entry for a channel the deprecated functions configure, replace
+     * fields left as get (or GET_INT) with bypass, or with SKIP_IF_NOT_RELEVANT
+     * for integer fields that support it, so they are not accessed. The
+     * original functions never read them. Fields with no such value (enable,
+     * TX gating, sma_override) are left as they are.
+     */
+    template <typename channel_t>
+    static void trigger_bypass_unset_fields(channel_t& chan)
+    {
+        using namespace uhd::trigger_pv;
+        if (chan.trig_sel == active_trigger_t::get) {
+            chan.trig_sel = active_trigger_t::bypass;
+        }
+        if (chan.sma_mode == trigger_mode_t::get) {
+            chan.sma_mode = trigger_mode_t::bypass;
+        }
+        if (chan.ufl_mode == trigger_mode_t::get) {
+            chan.ufl_mode = trigger_mode_t::bypass;
+        }
+        if (chan.ufl_polarity == polarity_t::get) {
+            chan.ufl_polarity = polarity_t::bypass;
+        }
+        for (int64_t* value :
+            {&chan.edge_backoff, &chan.edge_sample_num, &chan.ufl_output_pulse_length}) {
+            if (*value == GET_INT) {
+                *value = SKIP_IF_NOT_RELEVANT;
+            }
+        }
+    }
+
+    /*!
+     * Fill args[first], args[first + 1], ... with bypass entries for the
+     * channels in `preserved` (see trigger_fill_bypass()).
+     */
+    template <typename channel_t>
+    static void trigger_fill_preserved_bypass(
+        std::vector<channel_t>& args, const size_t first, const std::vector<size_t>& preserved)
+    {
+        for (size_t i = 0; i < preserved.size(); i++) {
+            trigger_fill_bypass(args[first + i], preserved[i]);
+        }
+    }
+
+    /*!
      * Shared body of the deprecated rx_trigger_setup and tx_trigger_setup:
      * configure `channels` with the get_simple_sma_config preset. Every other
      * RX and TX channel is preserved, as the original functions did not touch
-     * them: other channels of the same direction are left untouched (every
-     * field get), and every channel of the other direction is bypassed (see
-     * trigger_fill_bypass()).
+     * them. To access the device as little as possible, every other channel
+     * is bypassed (see trigger_fill_bypass()), and so are the configured
+     * channels' fields that the preset leaves as get (see
+     * trigger_bypass_unset_fields()).
      * \return actual number of samples per trigger (0 if channels is empty)
      */
     uint64_t trigger_setup_wrapper(const which_rxtx setting_from,
@@ -2440,17 +2485,16 @@ public:
             tx_args.size(), rx_channels, tx_channels, sma_direction,
             static_cast<int64_t>(num_samples_per_trigger), &preserved_rx, &preserved_tx);
         trigger_make_legacy_op(op);
-        // The other direction's channels are all preserved; bypass them so they
-        // are accessed as little as possible.
-        if (setting_from == rx) {
-            for (size_t i = 0; i < tx_args.size(); i++) {
-                trigger_fill_bypass(tx_args[i], preserved_tx[i]);
-            }
-        } else {
-            for (size_t i = 0; i < rx_args.size(); i++) {
-                trigger_fill_bypass(rx_args[i], preserved_rx[i]);
-            }
+        // Access as little as possible: the configured channels' remaining get
+        // fields and every preserved channel (both directions) are bypassed.
+        for (size_t i = 0; i < rx_channels.size(); i++) {
+            trigger_bypass_unset_fields(rx_args[i]);
         }
+        for (size_t i = 0; i < tx_channels.size(); i++) {
+            trigger_bypass_unset_fields(tx_args[i]);
+        }
+        trigger_fill_preserved_bypass(rx_args, rx_channels.size(), preserved_rx);
+        trigger_fill_preserved_bypass(tx_args, tx_channels.size(), preserved_tx);
 
         // The return value only says whether something was coerced; the actual
         // values are read from the structs below instead.
@@ -2473,7 +2517,8 @@ public:
      * Shared body of the deprecated rx_trigger_cleanup and tx_trigger_cleanup:
      * stop triggering on `channels` (trig_sel none, and for RX, stream off) and
      * set edge_sample_num back to 0. Other settings are untouched, and every
-     * other RX and TX channel is preserved.
+     * other RX and TX channel is preserved. As in the setup wrapper, fields
+     * that are not set and every other channel are bypassed where possible.
      */
     void trigger_cleanup_wrapper(const which_rxtx setting_from, const std::vector<size_t>& channels)
     {
@@ -2488,8 +2533,8 @@ public:
         const std::vector<size_t> preserved_rx = trigger_other_channels(rx_channels, get_rx_num_channels());
         const std::vector<size_t> preserved_tx = trigger_other_channels(tx_channels, get_tx_num_channels());
 
-        // Fields not set here keep their defaults: get, or skip because nothing
-        // depends on them once trig_sel is none. TX channels are hot configured
+        // Fields not set here are bypassed or skipped below where possible.
+        // TX channels are hot configured
         // because the original tx_trigger_cleanup did not power them off.
         std::vector<trigger_rx_t> rx_args(rx_channels.size() + preserved_rx.size());
         std::vector<trigger_tx_t> tx_args(tx_channels.size() + preserved_tx.size());
@@ -2502,7 +2547,10 @@ public:
             chan.edge_sample_num = 0;
             chan.enable          = 0;
         }
-        detail::fill_preserved(rx_args.data(), rx_channels.size(), &preserved_rx);
+        for (size_t i = 0; i < rx_channels.size(); i++) {
+            trigger_bypass_unset_fields(rx_args[i]);
+        }
+        trigger_fill_preserved_bypass(rx_args, rx_channels.size(), preserved_rx);
         for (size_t i = 0; i < tx_channels.size(); i++) {
             trigger_tx_t& chan   = tx_args[i];
             chan.channel         = tx_channels[i];
@@ -2510,7 +2558,10 @@ public:
             chan.trig_sel        = active_trigger_t::none;
             chan.edge_sample_num = 0;
         }
-        detail::fill_preserved(tx_args.data(), tx_channels.size(), &preserved_tx);
+        for (size_t i = 0; i < tx_channels.size(); i++) {
+            trigger_bypass_unset_fields(tx_args[i]);
+        }
+        trigger_fill_preserved_bypass(tx_args, tx_channels.size(), preserved_tx);
 
         (void) trigger_configure(
             &op, nullptr, rx_args.data(), rx_args.size(), tx_args.data(), tx_args.size());
