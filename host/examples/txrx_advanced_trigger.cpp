@@ -154,7 +154,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string sma_edge_output_s, rx_ufl_edge_output_s, tx_ufl_edge_output_s;
 
     //setup the program options
-    po::options_description desc("Allowed options");
+    // Shown at the top of --help so the per channel list behaviour doesn't need repeating for every argument
+    po::options_description desc(
+        "Allowed options\n"
+        "Arguments that are a list per channel take comma separated values, one per channel in --channels (i.e. \"edge,level\").\n"
+        "Specifying a single value applies it to every channel.");
     desc.add_options()
         ("help", "help message")
         ("args", po::value<std::string>(&args)->default_value(""), "single uhd device address args")
@@ -162,8 +166,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx_sob" , po::value<double >(&tx_sob)->default_value(5.0), "(Seconds) Tx channels will stream after this time. If any trigger is set to input TX will stream after this time AND according to trigger settings.")
         ("rate", po::value<double>(&rate), "rate of incomming/outgoing samples")
         ("freq", po::value<double>(&freq), "RF center frequency in Hz")
-        ("tx_gain", po::value<double>(&tx_gain), "gain for the tx RF chain")
-        ("rx_gain", po::value<double>(&rx_gain), "gain for the rx RF chain")
+        ("tx_gain", po::value<double>(&tx_gain)->default_value(0), "gain for the tx RF chain")
+        ("rx_gain", po::value<double>(&rx_gain)->default_value(0), "gain for the rx RF chain")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
         ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "waveform type (CONST, SQUARE, RAMP, SINE)")
         ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
@@ -223,10 +227,20 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         return ~0;
     }
 
-    // Parse the channels. Whether they exist is checked once the device is created
+    //create a usrp device
+    std::cout << std::endl;
+    std::cout << std::format("Creating the usrp device with: {}...\n", args);
+    uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+    std::cout << std::format("Using Device: {}\n", usrp->get_pp_string());
+
+    //detect which channels to use
     std::vector<size_t> channel_nums;
     for(const std::string& channel_string : split_list(channel_list)) {
-        channel_nums.push_back(std::stoi(channel_string));
+        size_t chan = std::stoi(channel_string);
+        if((chan >= usrp->get_tx_num_channels() && use_tx) || (chan >= usrp->get_rx_num_channels() && use_rx)) {
+            throw std::runtime_error(std::format("Invalid channel {} specified.", chan));
+        }
+        channel_nums.push_back(chan);
     }
     const size_t num_channels = channel_nums.size();
 
@@ -252,11 +266,54 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<int64_t> rx_ufl_edge_output = parse_per_channel<int64_t>(rx_ufl_edge_output_s, "rx_ufl_edge_output", num_channels, parse_non_negative);
     std::vector<int64_t> tx_ufl_edge_output = parse_per_channel<int64_t>(tx_ufl_edge_output_s, "tx_ufl_edge_output", num_channels, parse_non_negative);
 
-    // TODO: Apply frequencies
+    // Rates are applied before frequencies because the frequency tuning depends on the sample rate
+    // The actual rates are needed later to generate the tx waveform
+    double tx_rate = 0;
+    double rx_rate = 0;
+    for(size_t ch = 0; ch < num_channels; ch++) {
+        if(use_tx) {
+            std::cout << std::format("Setting ch{} TX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6));
+            usrp->set_tx_rate(rate, channel_nums[ch]);
+            tx_rate = usrp->get_tx_rate(channel_nums[ch]);
+            std::cout << std::format("Actual ch{} TX Rate: {} Msps...\n\n", channel_nums[ch], (tx_rate/1e6));
+        }
+        if(use_rx) {
+            std::cout << std::format("Setting ch{} RX Rate: {} Msps...\n", channel_nums[ch], (rate/1e6));
+            usrp->set_rx_rate(rate, channel_nums[ch]);
+            rx_rate = usrp->get_rx_rate(channel_nums[ch]);
+            std::cout << std::format("Actual ch{} RX Rate: {} Msps...\n\n", channel_nums[ch], (rx_rate/1e6));
+        }
+    }
 
-    // TODO: Apply gains
+    // Apply frequencies
+    for(size_t ch = 0; ch < num_channels; ch++) {
+        if(use_tx) {
+            std::cout << std::format("Setting ch{} TX Freq: {} MHz...\n", channel_nums[ch], (freq/1e6));
+            uhd::tune_request_t tune_request(freq);
+            usrp->set_tx_freq(tune_request, channel_nums[ch]);
+            std::cout << std::format("Actual ch{} TX Freq: {} MHz...\n\n", channel_nums[ch], (usrp->get_tx_freq(channel_nums[ch])/1e6));
+        }
+        if(use_rx) {
+            std::cout << std::format("Setting ch{} RX Freq: {} MHz...\n", channel_nums[ch], (freq/1e6));
+            uhd::tune_request_t tune_request(freq);
+            usrp->set_rx_freq(tune_request, channel_nums[ch]);
+            std::cout << std::format("Actual ch{} RX Freq: {} MHz...\n\n", channel_nums[ch], (usrp->get_rx_freq(channel_nums[ch])/1e6));
+        }
+    }
 
-    // TODO: Apply rates
+    // Apply gains
+    for(size_t ch = 0; ch < num_channels; ch++) {
+        if(use_tx) {
+            std::cout << std::format("Setting ch{} TX Gain: {} dB...\n", channel_nums[ch], tx_gain);
+            usrp->set_tx_gain(tx_gain, channel_nums[ch]);
+            std::cout << std::format("Actual ch{} TX Gain: {} dB...\n\n", channel_nums[ch], usrp->get_tx_gain(channel_nums[ch]));
+        }
+        if(use_rx) {
+            std::cout << std::format("Setting ch{} RX Gain: {} dB...\n", channel_nums[ch], rx_gain);
+            usrp->set_rx_gain(rx_gain, channel_nums[ch]);
+            std::cout << std::format("Actual ch{} RX Gain: {} dB...\n\n", channel_nums[ch], usrp->get_rx_gain(channel_nums[ch]));
+        }
+    }
 
     // TODO: Configure trigger
 
