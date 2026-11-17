@@ -114,6 +114,19 @@ uhd::trigger_pv::polarity_t parse_polarity(const std::string& value, const std::
 }
 
 /**
+ * Converts "dsp" or "output" to a tx gating mode
+ */
+uhd::trigger_pv::gating_t parse_gating(const std::string& value, const std::string& argument_name) {
+    if(value == "dsp") {
+        return uhd::trigger_pv::gating_t::dsp;
+    } else if(value == "output") {
+        return uhd::trigger_pv::gating_t::output;
+    } else {
+        throw std::runtime_error(std::format("Invalid value \"{}\" for --{}. Valid values: dsp, output", value, argument_name));
+    }
+}
+
+/**
  * Converts a number to a non-negative integer. Used for numbers of samples and ticks
  */
 int64_t parse_non_negative(const std::string& value, const std::string& argument_name) {
@@ -153,6 +166,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string rx_edge_backoff_s, tx_edge_backoff_s;
     std::string rx_edge_sample_num_s, tx_edge_sample_num_s;
     std::string sma_edge_output_s, rx_ufl_edge_output_s, tx_ufl_edge_output_s;
+    std::string tx_gating_s;
 
     //setup the program options
     // Shown at the top of --help so the per channel list behaviour doesn't need repeating for every argument
@@ -189,6 +203,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("sma_edge_output", po::value<std::string>(&sma_edge_output_s)->default_value("0"), "How long in samples after a channel starts streaming the trigger is considered active in edge mode. Applies to every channel. Each individual channel set to sma output will be the output high for sma_edge_output samples. 0 stays active forever. All the individual channel outputs are ORed together.")
         ("rx_ufl_edge_output", po::value<std::string>(&rx_ufl_edge_output_s)->default_value("0"), "A list per channel for how long in samples after a channel starts streaming is considered active in edge mode. 0 stays active forever.")
         ("tx_ufl_edge_output", po::value<std::string>(&tx_ufl_edge_output_s)->default_value("0"), "A list per channel for how long in samples after a channel starts streaming is considered active in edge mode. 0 stays active forever.")
+        ("tx_gating", po::value<std::string>(&tx_gating_s)->default_value("dsp"), "A list per channel for whether to gate at the dsp or output. Gating at the dsp consumes samples when a trigger is received. Gating at the output consumes samples normally but the samples sent to the DAC are set to 0 unless the trigger is active. Applies to input trigger streaming only.")
 
 
         ("num_trigger", po::value<uint64_t>(&num_trigger)->default_value(0), "Number of trigger event results to record. Set to 0 for continuous")
@@ -266,6 +281,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<int64_t> tx_edge_sample_num = parse_per_channel<int64_t>(tx_edge_sample_num_s, "tx_edge_sample_num", num_channels, parse_non_negative);
     std::vector<int64_t> rx_ufl_edge_output = parse_per_channel<int64_t>(rx_ufl_edge_output_s, "rx_ufl_edge_output", num_channels, parse_non_negative);
     std::vector<int64_t> tx_ufl_edge_output = parse_per_channel<int64_t>(tx_ufl_edge_output_s, "tx_ufl_edge_output", num_channels, parse_non_negative);
+
+    std::vector<uhd::trigger_pv::gating_t> tx_gating = parse_per_channel<uhd::trigger_pv::gating_t>(tx_gating_s, "tx_gating", num_channels, parse_gating);
 
     // Rates are applied before frequencies because the frequency tuning depends on the sample rate
     // The actual rates are needed later to generate the tx waveform
