@@ -2429,21 +2429,29 @@ public:
 
     /*! Configure triggered streaming for RX and TX channels in one operation.
     *
-    * All channels not passed to this fucntion will be disabled before any settings (including global
-    * settings) are applied. They will not be re-enabled after.
+    * All channels not passed to this function will be disabled before any settings (including global
+    * settings) are applied. They are not re-enabled afterwards.
     * All channels not set to hot_configure will be disabled while the configuration is being applied.
-    * RX stream commands will be lost when configuring unless hot_configue is specified in trigger_rx_t for that channel.
+    * RX stream commands will be lost when configuring unless hot_configure is specified in trigger_rx_t for that channel.
     * Samples and SOB/EOB in the tx buffer will be lost unless hot_configure is specified in trigger_tx_t for that channel.
     * Values the hardware cannot apply exactly are adjusted, and the adjusted
     * values are written back into \p global, \p rx and \p tx.
+    * If strict_error_t::coerced_value is enabled, a uhd::value_error or
+    * uhd::runtime_error is thrown instead, depending on when the need to coerce the
+    * value was detected. The normal rules for the respective error types apply.
+    * \internal
+    * Every coerced value is currently coerced by the server and results in a
+    * uhd::runtime_error. A uhd::value_error during validation is allowed in case
+    * detection within UHD is added in the future.
+    * \endinternal
     * Assuming nothing trigger related changes on the device: the adjusted value from the end of one call
-    * will do nothing if passed to the function again, except for resetting all channels if hot_configure is not set
+    * will do nothing if passed to the function again, except for resetting channels whose hot_configure is not set.
     * The recommended way of using this function is to set up the structs as you desire at the start
     * then anytime you want to modify something, enable hot_configure for ALL channels (to prevent them being reset while configuring),
     * then modify that specific field you want changed, then call this function again.
-    * You must enable hot_configure for all channels otherwise they will be disabled
+    * You must enable hot_configure for all channels, otherwise they will be reset.
     *
-    * The device is unchanged after an index_error or value_error.It is in an undefined state after any other error.
+    * The device is unchanged after an index_error or value_error. It is in an undefined state after any other error.
     * \internal
     * An io_error during validation technically leaves the unit unchanged, but to avoid complicating error handling more
     * we will treat it as undefined.
@@ -2464,15 +2472,15 @@ public:
     * \throws uhd::value_error if the requested settings are invalid, alone or in
     *         combination. Thrown during validation, before anything is written to
     *         the device, so nothing on the device is changed.
-    *         The device is always unchanged.
     * \throws uhd::io_error if reading or writing a setting on the device fails.
-    * \throws uhd::lookup_error The server is missing a property required by uhd.
-    *         This usually is caused by a server/uhd version mismatch.
+    * \throws uhd::lookup_error if the server is missing a property required by UHD.
+    *         This is usually caused by a server/uhd version mismatch.
     *         Server/UHD combinations that trigger this error are unsupported.
     * \internal
     * lookup_error should be impossible on any server version TRIGGER_OVERHAUL_SERVER
     * or newer.
-    * lookup error should be impossible without unsupported_server set.
+    * lookup_error should be impossible when unsupported_server is set in
+    * enable_strict_errors.
     * \endinternal
     * \throws uhd::runtime_error for any other error, e.g. a coerced value when
     *         strict_error_t::coerced_value is enabled.
@@ -2483,8 +2491,9 @@ public:
     * pin_direction_t::get, and a channel in the request uses the SMA, the current
     * SMA direction is read and the channels are validated against it. A
     * uhd::value_error then means the request conflicts with the current direction.
-    * If the read itself fails, uhd::io_error is thrown. Either way nothing on the
-    * device has been changed.
+    * If the read itself fails, uhd::io_error is thrown and, as with any other
+    * error apart from uhd::index_error and uhd::value_error, the device should be
+    * considered to be in an undefined state.
     *
     * After any exception the structs are not modified. For exceptions thrown after
     * validation, the failure_handling field of \p op
