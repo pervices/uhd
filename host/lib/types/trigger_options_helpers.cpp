@@ -5,8 +5,10 @@
 //
 
 #include <uhd/exception.hpp>
+#include <uhd/utils/log.hpp>
 #include <uhdlib/types/trigger_options_helpers.hpp>
 #include <algorithm>
+#include <charconv>
 #include <cstring>
 #include <format>
 #include <string>
@@ -306,20 +308,20 @@ std::string to_device_string(pin_direction_t dir)
 {
     switch (dir) {
         case pin_direction_t::must_specify_if_applicable:
-            throw uhd::value_error("pin_direction_t::must_specify_if_applicable cannot be sent to the device");
+            throw uhd::runtime_error("pin_direction_t::must_specify_if_applicable cannot be sent to the device");
         case pin_direction_t::get:
-            throw uhd::value_error("pin_direction_t::get cannot be sent to the device");
+            throw uhd::runtime_error("pin_direction_t::get cannot be sent to the device");
         case pin_direction_t::in:
             return "in";
         case pin_direction_t::out:
             return "out";
         case pin_direction_t::derive:
-            throw uhd::value_error("pin_direction_t::derive cannot be sent to the device");
+            throw uhd::runtime_error("pin_direction_t::derive cannot be sent to the device");
         case pin_direction_t::separate:
             return "separate";
     }
     // Reached only if the caller cast an out-of-range number to pin_direction_t.
-    throw uhd::value_error(std::format("invalid pin_direction_t value {}", static_cast<uint32_t>(dir)));
+    throw uhd::runtime_error(std::format("invalid pin_direction_t value {}", static_cast<uint32_t>(dir)));
 }
 
 pin_direction_t direction_from_device_string(const std::string& str)
@@ -341,13 +343,13 @@ std::string to_device_string(polarity_t pol)
 {
     switch (pol) {
         case polarity_t::get:
-            throw uhd::value_error("polarity_t::get cannot be sent to the device");
+            throw uhd::runtime_error("polarity_t::get cannot be sent to the device");
         case polarity_t::positive:
             return "positive";
         case polarity_t::negative:
             return "negative";
     }
-    throw uhd::value_error(std::format("invalid polarity_t value {}", static_cast<uint32_t>(pol)));
+    throw uhd::runtime_error(std::format("invalid polarity_t value {}", static_cast<uint32_t>(pol)));
 }
 
 polarity_t polarity_from_device_string(const std::string& str)
@@ -366,13 +368,13 @@ std::string to_device_string(trigger_mode_t mode)
 {
     switch (mode) {
         case trigger_mode_t::get:
-            throw uhd::value_error("trigger_mode_t::get cannot be sent to the device");
+            throw uhd::runtime_error("trigger_mode_t::get cannot be sent to the device");
         case trigger_mode_t::edge:
             return "edge";
         case trigger_mode_t::level:
             return "level";
     }
-    throw uhd::value_error(
+    throw uhd::runtime_error(
         std::format("invalid trigger_mode_t value {}", static_cast<uint32_t>(mode)));
 }
 
@@ -392,13 +394,13 @@ std::string to_device_string(gating_t gating)
 {
     switch (gating) {
         case gating_t::get:
-            throw uhd::value_error("gating_t::get cannot be sent to the device");
+            throw uhd::runtime_error("gating_t::get cannot be sent to the device");
         case gating_t::dsp:
             return "dsp";
         case gating_t::output:
             return "output";
     }
-    throw uhd::value_error(std::format("invalid gating_t value {}", static_cast<uint32_t>(gating)));
+    throw uhd::runtime_error(std::format("invalid gating_t value {}", static_cast<uint32_t>(gating)));
 }
 
 gating_t gating_from_device_string(const std::string& str)
@@ -411,6 +413,72 @@ gating_t gating_from_device_string(const std::string& str)
         return gating_t::output;
     }
     throw uhd::runtime_error(std::format("device reported unknown gating \"{}\"", str));
+}
+
+
+/***********************************************************************
+ * Device access
+ **********************************************************************/
+namespace {
+
+/*!
+ * Run one property tree access, converting its errors to the trigger_configure
+ * error convention. `action` ("read" or "write") is only used in messages.
+ */
+template <typename F>
+auto access_property(const fs_path& path, const char* action, F&& access) -> decltype(access())
+{
+    try {
+        return access();
+    } catch (const uhd::lookup_error&) {
+        // This error should be impossible since server_api_ver should prevent us from using non existent properties
+        UHD_LOG_ERROR("MULTI_USRP",
+            "The server is incompatible with this version of UHD. Update the server and/or UHD");
+        throw;
+    } catch (const uhd::runtime_error& e) {
+        // Property get/set throw uhd::runtime_error when the network transaction fails.
+        throw uhd::io_error(
+            std::format("Failed to {} {}: {}", action, std::string(path), e.what()));
+    }
+}
+
+} // namespace
+
+std::string property_get_string(property_tree& tree, const fs_path& path)
+{
+    return access_property(
+        path, "read", [&]() { return tree.access<std::string>(path).get(); });
+}
+
+void property_set_string(property_tree& tree, const fs_path& path, const std::string& value)
+{
+    access_property(path, "write", [&]() { tree.access<std::string>(path).set(value); });
+}
+
+int property_get_int(property_tree& tree, const fs_path& path)
+{
+    return access_property(path, "read", [&]() { return tree.access<int>(path).get(); });
+}
+
+void property_set_int(property_tree& tree, const fs_path& path, const int value)
+{
+    access_property(path, "write", [&]() { tree.access<int>(path).set(value); });
+}
+
+int64_t parse_device_integer(const std::string& str, const std::string& what)
+{
+    const std::string trimmed = without_trailing_whitespace(str);
+    int64_t value             = 0;
+    const char* const first   = trimmed.data();
+    const char* const last    = trimmed.data() + trimmed.size();
+    const auto result         = std::from_chars(first, last, value);
+    // The whole string must be a number: "12abc" is rejected.
+    if (trimmed.empty() || result.ec != std::errc() || result.ptr != last || value < 0) {
+        throw uhd::runtime_error(
+            std::format("{}: device reported \"{}\", which is not a non-negative integer",
+                what, str));
+    }
+    return value;
 }
 
 }}} // namespace uhd::trigger_pv::detail

@@ -97,18 +97,11 @@ public:
     void stop_pps_dtc();
 
     // Device-specific parts of trigger_configure. See uhd::pv_device.
-    void trigger_derive(const uhd::trigger_pv::trigger_op_t& lib_op,
-        const std::optional<uhd::trigger_pv::trigger_global_t>& lib_global,
-        const std::vector<uhd::trigger_pv::trigger_rx_t>& lib_rx,
-        const std::vector<uhd::trigger_pv::trigger_tx_t>& lib_tx,
-        const std::vector<size_t>& unspecified_rx,
-        const std::vector<size_t>& unspecified_tx,
-        uhd::trigger_pv::trigger_global_t& derived_global,
-        std::vector<uhd::trigger_pv::trigger_rx_t>& derived_rx,
-        std::vector<uhd::trigger_pv::trigger_tx_t>& derived_tx) override;
+    bool trigger_server_supported() const override;
+    trigger_pin_type_t trigger_sma_pin_type() const override;
+    uint32_t trig_sel_to_device(uhd::trigger_pv::active_trigger_t api_trig_sel) const override;
     uhd::trigger_pv::active_trigger_t trig_sel_from_device(
-        uhd::trigger_pv::active_trigger_t device_trig_sel,
-        const uhd::trigger_pv::trigger_global_t& derived_global) override;
+        uint32_t device_trig_sel, uhd::trigger_pv::pin_direction_t sma_direction) const override;
 
 private:
     // Advisory lock file descriptor for the device

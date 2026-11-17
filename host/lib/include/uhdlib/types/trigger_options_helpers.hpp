@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <uhd/property_tree.hpp>
 #include <uhd/types/trigger_options.hpp>
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -158,5 +160,35 @@ pin_direction_t direction_from_device_string(const std::string& str);
 polarity_t polarity_from_device_string(const std::string& str);
 trigger_mode_t trigger_mode_from_device_string(const std::string& str);
 gating_t gating_from_device_string(const std::string& str);
+
+
+/***********************************************************************
+ * Device access
+ **********************************************************************/
+/*!
+ * Read or write one property tree node for trigger_configure.
+ *
+ * Errors follow the trigger_configure convention:
+ *  - uhd::io_error if the network transaction fails (the property tree throws
+ *    uhd::runtime_error for that)
+ *  - uhd::lookup_error, logged and rethrown, if the property does not exist,
+ *    which means the server is incompatible with this version of UHD
+ *
+ * Only the tree access itself is wrapped, so errors from parsing the value are
+ * never mistaken for I/O errors.
+ */
+std::string property_get_string(property_tree& tree, const fs_path& path);
+void property_set_string(property_tree& tree, const fs_path& path, const std::string& value);
+int property_get_int(property_tree& tree, const fs_path& path);
+void property_set_int(property_tree& tree, const fs_path& path, int value);
+
+/*!
+ * Parse a non-negative decimal integer reported by the device. Trailing
+ * whitespace is ignored; anything else after the number is rejected.
+ * `what` names the setting in the error message.
+ * Throws uhd::runtime_error if the string is not a non-negative integer that
+ * fits in int64_t.
+ */
+int64_t parse_device_integer(const std::string& str, const std::string& what);
 
 }}} // namespace uhd::trigger_pv::detail

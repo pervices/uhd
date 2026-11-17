@@ -211,8 +211,8 @@ enum class active_trigger_t : uint32_t {
     none        = 0,       //!< Listen to no trigger/send to no output.
     sma_input = 1u << 0, //!< Listen to the global SMA trigger.
     channel_ufl = 1u << 1, //!< Listen/output to the per-channel U.FL trigger depending on ufl_dir.
-    sma_output = 1u << 2, //!< Output to the global SMA trigger. The final output is every channel's individual output ORed together.
-    bypass = 1u << 30, //!< Skip error checking and always return as is. Invalid if combined with anything else. Counts as not relevant for other fields that depend on trig_sel, the same as get. Use for compatibility purposes only.
+    sma_output = 1u << 2, //!< Output to the global SMA trigger. The final output is every channel's individual output ORed together. Cannot be combined with sma_input on the same channel.
+    bypass = 1u << 30, //!< Skip error checking and always return as is. Invalid if combined with anything else. Not counted as relevant for fields that depend on it. Use for compatibility purposes only.
     get         = 1u << 31, //!< Get the current value, do not set. Invalid if combined with anything else.
     // Add new triggers as new bits only.
 };
@@ -244,9 +244,9 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(setup_mode_t)
  * in an undefined state.
  */
 enum class failure_handling_t : uint64_t {
-    //! Attempt to disable all channels (including channels not specified), set
-    //! trig_sel to active_trigger_t::none, and set all toggleable pins to input.
-    disable_all = 0,
+    //! Attempt to disable all channels (including channels not specified) and set
+    //! all toggleable pins to input. trig_sel is not changed.
+    disable_all_after_validation = 0,
     //! Attempt nothing further. The requested changes may be partially applied,
     //! and any channel (including channels not specified) may be left disabled
     //! if hot_configure was not set for it.
@@ -301,7 +301,6 @@ enum class warning_t : uint64_t {
     all                       = ~uint64_t{0},
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
-// TODO allow for unsupported_server (but keep the warning) for legacy trigger functions
 
 #undef UHD_TRIGGER_PV_FLAG_OPERATORS
 
@@ -316,19 +315,19 @@ UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
 struct trigger_op_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 32;
+    static constexpr uint32_t min_size = 40;
 
     //! Set automatically to the caller's sizeof(trigger_op_t). Do not modify.
     uint32_t size = sizeof(trigger_op_t);
+
+    //! Explicit padding. Must be zero.
+    uint32_t reserved0 = 0;
 
     //! How to behave while setting up the trigger.
     setup_mode_t setup_mode = setup_mode_t::standard;
 
     //! How to handle failures while attempting to configure the trigger.
-    failure_handling_t failure_handling = failure_handling_t::disable_all;
-
-    //! Explicit padding. Must be zero.
-    uint8_t reserved0[3] = {};
+    failure_handling_t failure_handling = failure_handling_t::disable_all_after_validation;
 
     //! OR together flags to enable stricter error checking.
     //! Defaults to every v1 check; checks added after v1 default to off.
@@ -346,7 +345,7 @@ struct trigger_op_t
 struct trigger_global_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 16;
+    static constexpr uint32_t min_size = 32;
 
     //! Set automatically to the caller's sizeof(trigger_global_t). Do not modify.
     uint32_t size = sizeof(trigger_global_t);
@@ -368,6 +367,9 @@ struct trigger_global_t
 
     //! Whether the global trigger is active high or active low, as an input or an output.
     polarity_t sma_polarity = polarity_t::get;
+
+    //! Explicit padding. Must be zero.
+    uint32_t reserved0 = 0;
 
     /*!
      * Override the global trigger so that it acts as if the input is active.
@@ -395,9 +397,6 @@ struct trigger_global_t
      */
     int64_t sma_output_pulse_length = SKIP_IF_NOT_RELEVANT;
 
-    //! Explicit padding. Must be zero.
-    uint8_t reserved0[3] = {};
-
     // --- end of v1: append new fields below this line only ---
 };
 
@@ -407,13 +406,16 @@ struct trigger_global_t
 struct trigger_rx_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 48;
+    static constexpr uint32_t min_size = 72;
 
     //! Value of `channel` when the caller has not set it. Rejected by the library.
     static constexpr size_t channel_unset = SIZE_MAX;
 
     //! Set automatically to the caller's sizeof(trigger_rx_t). Do not modify.
     uint32_t size = sizeof(trigger_rx_t);
+
+    //! Explicit padding. Must be zero.
+    uint32_t reserved0 = 0;
 
     /*!
      * After an edge, ignore every edge for this many ticks of the device clock.
@@ -497,10 +499,13 @@ struct trigger_rx_t
 
     /*!
      * Keep the channel enabled while the configuration is being applied.
-     * If false, the channel is reset and deactivated during configuration, and
+     * If false, the channel is disabled during configuration, which resets it:
      * any stream commands from before are lost.
      */
     bool hot_configure = false;
+
+    //! Explicit padding. Must be zero.
+    uint8_t reserved1[3] = {};
 
     /*!
      * Whether the channel is enabled.
@@ -514,9 +519,6 @@ struct trigger_rx_t
      */
     int64_t enable = GET_INT;
 
-    //! Explicit tail padding (struct is 8-byte aligned). Must be zero.
-    uint32_t reserved0 = 0;
-
     // --- end of v1: append new fields below this line only ---
 };
 
@@ -526,13 +528,16 @@ struct trigger_rx_t
 struct trigger_tx_t
 {
     //! sizeof() of the first released version. Never change.
-    static constexpr uint32_t min_size = 40;
+    static constexpr uint32_t min_size = 80;
 
     //! Value of `channel` when the caller has not set it. Rejected by the library.
     static constexpr size_t channel_unset = SIZE_MAX;
 
     //! Set automatically to the caller's sizeof(trigger_tx_t). Do not modify.
     uint32_t size = sizeof(trigger_tx_t);
+
+    //! Explicit padding. Must be zero.
+    uint32_t reserved0 = 0;
 
     /*!
      * After an edge, ignore every edge for this many ticks of the device clock.
@@ -616,10 +621,13 @@ struct trigger_tx_t
 
     /*!
      * Keep the channel enabled while the configuration is being applied.
-     * If false, the channel is reset and deactivated during configuration, and
+     * If false, the channel is disabled during configuration, which resets it:
      * any samples, SOB, or EOB from before are lost.
      */
     bool hot_configure = false;
+
+    //! Explicit padding. Must be zero.
+    uint8_t reserved1[3] = {};
 
     /*!
      * Whether the channel is enabled.
@@ -636,47 +644,50 @@ struct trigger_tx_t
     //! Trigger gating. TODO: document.
     gating_t gating = gating_t::get;
 
+    //! Explicit tail padding (struct is 8-byte aligned). Must be zero.
+    uint32_t reserved2 = 0;
+
     // --- end of v1: append new fields below this line only ---
 };
 
 /***********************************************************************
  * Compile-time checks
  **********************************************************************/
- // TODO: re-enable once the struct layout is finalized
-// // bool members assume a 1-byte bool (true on all supported ABIs).
-// static_assert(sizeof(bool) == 1, "trigger structs assume a 1-byte bool");
-// // The size_t `channel` members assume a 64-bit target; on a 32-bit target the
-// // layout (and therefore min_size) would differ.
-// static_assert(sizeof(size_t) == 8, "trigger structs assume a 64-bit size_t");
+// bool members assume a 1-byte bool (true on all supported ABIs).
+static_assert(sizeof(bool) == 1, "trigger structs assume a 1-byte bool");
+// The size_t `channel` members assume a 64-bit target; on a 32-bit target the
+// layout (and therefore min_size) would differ.
+static_assert(sizeof(size_t) == 8, "trigger structs assume a 64-bit size_t");
 
-// // Required so the library can copy a caller's struct with memcpy and so that
-// // offsetof() is well-defined. LAST is the last field of the v1 layout.
-// #define UHD_TRIGGER_PV_CHECK_LAYOUT(T, LAST)
-//     static_assert(std::is_standard_layout_v<T>, #T " must be standard layout");
-//     static_assert(std::is_trivially_copyable_v<T>, #T " must be trivially copyable");
-//     static_assert(offsetof(T, size) == 0, #T "::size must be the first member");
-//     /* Any user-declared constructor (C++20) makes T a non-aggregate. This
-//      * forbids one entirely, which rules out a constructor defined out of line
-//      * in the library writing the library's sizeof() into a caller's object. */
-//     static_assert(std::is_aggregate_v<T>, #T " must not declare a constructor");
-//     /* Catches fields inserted or resized inside the v1 region. */
-//     static_assert(offsetof(T, LAST) + sizeof(T::LAST) <= T::min_size,
-//         #T " v1 fields no longer fit in min_size")
+// Required so the library can copy a caller's struct with memcpy and so that
+// offsetof() is well-defined. LAST is the last field of the v1 layout.
+#define UHD_TRIGGER_PV_CHECK_LAYOUT(T, LAST)                                           \
+    static_assert(std::is_standard_layout_v<T>, #T " must be standard layout");       \
+    static_assert(std::is_trivially_copyable_v<T>, #T " must be trivially copyable"); \
+    static_assert(offsetof(T, size) == 0, #T "::size must be the first member");      \
+    /* Any user-declared constructor (C++20) makes T a non-aggregate. This            \
+     * forbids one entirely, which rules out a constructor defined out of line        \
+     * in the library writing the library's sizeof() into a caller's object. */       \
+    static_assert(std::is_aggregate_v<T>, #T " must not declare a constructor");      \
+    /* Catches fields inserted or resized inside the v1 region. */                    \
+    static_assert(offsetof(T, LAST) + sizeof(T::LAST) <= T::min_size,                 \
+        #T " v1 fields no longer fit in min_size")
 
-// UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_op_t, disable_warnings);
-// UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_global_t, reserved0);
-// UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_rx_t, reserved0);
-// UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_tx_t, gating);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_op_t, disable_warnings);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_global_t, sma_output_pulse_length);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_rx_t, enable);
+UHD_TRIGGER_PV_CHECK_LAYOUT(trigger_tx_t, reserved2);
 
-// #undef UHD_TRIGGER_PV_CHECK_LAYOUT
+#undef UHD_TRIGGER_PV_CHECK_LAYOUT
 
-// // Verifies min_size matches the v1 layout.
-// // DELETE these once the structs are released: they will (correctly) fail as
-// // soon as a field is appended.
-// static_assert(sizeof(trigger_op_t) == trigger_op_t::min_size);
-// static_assert(sizeof(trigger_global_t) == trigger_global_t::min_size);
-// static_assert(sizeof(trigger_rx_t) == trigger_rx_t::min_size);
-// static_assert(sizeof(trigger_tx_t) == trigger_tx_t::min_size);
+// Verifies min_size matches the v1 layout. Together with the explicit reserved
+// fields this also means there is no implicit padding.
+// DELETE these once the structs are released: they will (correctly) fail as
+// soon as a field is appended.
+static_assert(sizeof(trigger_op_t) == trigger_op_t::min_size);
+static_assert(sizeof(trigger_global_t) == trigger_global_t::min_size);
+static_assert(sizeof(trigger_rx_t) == trigger_rx_t::min_size);
+static_assert(sizeof(trigger_tx_t) == trigger_tx_t::min_size);
 
 /***********************************************************************
  * Preset configurations
@@ -693,6 +704,92 @@ struct trigger_tx_t
  * libraries built against different versions of this header can never end up
  * sharing one copy (and one struct layout) at runtime.
  **********************************************************************/
+
+namespace detail {
+
+/*!
+ * Throw uhd::value_error if a preset's array arguments are inconsistent.
+ * `preset` is only used in error messages.
+ */
+template <typename channel_t>
+static inline void check_preset_array(const char* preset,
+    const char* name,
+    const channel_t* array,
+    size_t len,
+    size_t expected_len)
+{
+    if (array == nullptr && len != 0) {
+        throw uhd::value_error(
+            std::format("{}: {} is null but {}_len is {}", preset, name, name, len));
+    }
+    if (len != expected_len) {
+        throw uhd::value_error(std::format(
+            "{}: {}_len is {} but the channel lists have {} channels in total",
+            preset, name, len, expected_len));
+    }
+}
+
+//! Number of channels in an optional list of preserved channels.
+static inline size_t preserved_count(const std::vector<size_t>* preserved)
+{
+    return (preserved == nullptr) ? 0 : preserved->size();
+}
+
+/*!
+ * Fill one RX entry so trigger_configure() leaves the channel exactly as it is:
+ * every field is get and the channel is hot configured.
+ */
+static inline void fill_untouched(trigger_rx_t& chan, size_t channel)
+{
+    chan                         = trigger_rx_t{};
+    chan.channel                 = channel;
+    chan.hot_configure           = true;
+    chan.edge_backoff            = GET_INT;
+    chan.edge_sample_num         = GET_INT;
+    chan.ufl_output_pulse_length = GET_INT;
+    chan.trig_sel                = active_trigger_t::get;
+    chan.sma_mode                = trigger_mode_t::get;
+    chan.ufl_mode                = trigger_mode_t::get;
+    chan.ufl_dir                 = pin_direction_t::get;
+    chan.ufl_polarity            = polarity_t::get;
+    chan.enable                  = GET_INT;
+}
+
+//! TX version of fill_untouched().
+static inline void fill_untouched(trigger_tx_t& chan, size_t channel)
+{
+    chan                         = trigger_tx_t{};
+    chan.channel                 = channel;
+    chan.hot_configure           = true;
+    chan.edge_backoff            = GET_INT;
+    chan.edge_sample_num         = GET_INT;
+    chan.ufl_output_pulse_length = GET_INT;
+    chan.trig_sel                = active_trigger_t::get;
+    chan.sma_mode                = trigger_mode_t::get;
+    chan.ufl_mode                = trigger_mode_t::get;
+    chan.ufl_dir                 = pin_direction_t::get;
+    chan.ufl_polarity            = polarity_t::get;
+    chan.enable                  = GET_INT;
+    chan.gating                  = gating_t::get;
+}
+
+/*!
+ * Fill array[first], array[first + 1], ... with untouched entries for the
+ * channels in `preserved` (which may be nullptr).
+ */
+template <typename channel_t>
+static inline void fill_preserved(
+    channel_t* array, size_t first, const std::vector<size_t>* preserved)
+{
+    if (preserved == nullptr) {
+        return;
+    }
+    for (size_t i = 0; i < preserved->size(); i++) {
+        fill_untouched(array[first + i], (*preserved)[i]);
+    }
+}
+
+} // namespace detail
 
 /*!
  * Fill out arguments that read every trigger setting without changing anything on listed channels.
@@ -725,53 +822,25 @@ static inline void get_read_config(trigger_op_t* op,
     if (op == nullptr) {
         throw uhd::value_error("get_read_config: op must not be null");
     }
-    if (rx == nullptr && rx_len != 0) {
-        throw uhd::value_error(std::format("get_read_config: rx is null but rx_len is {}", rx_len));
-    }
-    if (tx == nullptr && tx_len != 0) {
-        throw uhd::value_error(std::format("get_read_config: tx is null but tx_len is {}", tx_len));
-    }
+    detail::check_preset_array("get_read_config", "rx", rx, rx_len, rx_len);
+    detail::check_preset_array("get_read_config", "tx", tx, tx_len, tx_len);
 
-    *op            = trigger_op_t{};
+    *op = trigger_op_t{};
 
     if (global != nullptr) {
-        *global               = trigger_global_t{};
-        global->sma_direction = pin_direction_t::get;
-        global->sma_polarity  = polarity_t::get;
-        global->sma_override  = GET_INT;
+        *global                         = trigger_global_t{};
+        global->sma_direction           = pin_direction_t::get;
+        global->sma_polarity            = polarity_t::get;
+        global->sma_override            = GET_INT;
         global->sma_output_pulse_length = GET_INT;
     }
 
+    // fill_untouched() sets every field to get and hot configures the channel.
     for (size_t channel_index = 0; channel_index < rx_len; channel_index++) {
-        trigger_rx_t& chan   = rx[channel_index];
-        chan                 = trigger_rx_t{};
-        chan.channel         = channel_index;
-        chan.hot_configure   = true;
-        chan.edge_backoff    = GET_INT;
-        chan.edge_sample_num = GET_INT;
-        chan.ufl_output_pulse_length = GET_INT;
-        chan.trig_sel        = active_trigger_t::get;
-        chan.sma_mode        = trigger_mode_t::get;
-        chan.ufl_mode        = trigger_mode_t::get;
-        chan.ufl_dir         = pin_direction_t::get;
-        chan.ufl_polarity    = polarity_t::get;
-        chan.enable          = GET_INT;
+        detail::fill_untouched(rx[channel_index], channel_index);
     }
-
     for (size_t channel_index = 0; channel_index < tx_len; channel_index++) {
-        trigger_tx_t& chan   = tx[channel_index];
-        chan                 = trigger_tx_t{};
-        chan.channel         = channel_index;
-        chan.hot_configure   = true;
-        chan.edge_backoff    = GET_INT;
-        chan.edge_sample_num = GET_INT;
-        chan.ufl_output_pulse_length = GET_INT;
-        chan.trig_sel        = active_trigger_t::get;
-        chan.sma_mode        = trigger_mode_t::get;
-        chan.ufl_mode        = trigger_mode_t::get;
-        chan.ufl_dir         = pin_direction_t::get;
-        chan.ufl_polarity    = polarity_t::get;
-        chan.gating          = gating_t::get;
+        detail::fill_untouched(tx[channel_index], channel_index);
     }
 }
 
@@ -780,9 +849,19 @@ static inline void get_read_config(trigger_op_t* op,
  * tx_trigger_setup() functions:
  *  - edge triggering on the global SMA, positive polarity, no edge backoff,
  *    and \p edge_sample_num samples per edge
+ *  - the channels use the SMA as an input or output, as set by \p sma_direction
  *  - RX channels stream once configured (enable = 1)
  *  - TX channels use DSP gating
- *  - the global SMA direction is set to \p sma_direction
+ *  - global->sma_direction is set to pin_direction_t::derive, so the same
+ *    arguments work on devices with a single toggleable SMA pin and on devices
+ *    with separate SMA input and output pins
+ *  - as with the older functions, coerced values (e.g. edge_sample_num rounded
+ *    by the device) are adjusted rather than treated as errors:
+ *    strict_error_t::coerced_value is removed from op->enable_strict_errors
+ *
+ * Elements 0 to rx_channels.size() - 1 of \p rx configure \p rx_channels, and
+ * the remaining elements leave \p preserved_rx_channels unchanged. The same
+ * applies to \p tx.
  *
  * Note that channels not included in either \p rx_channels , \p tx_channels ,
  * \p preserved_rx_channels , \p preserved_tx_channels will be disabled.
@@ -795,7 +874,9 @@ static inline void get_read_config(trigger_op_t* op,
  * \param tx_len number of elements in tx. Must be the length of tx_channels + preserved_tx_channels.
  * \param rx_channels The rx channels we wish to apply the configuration to.
  * \param tx_channels The tx channels we wish to apply the configuration to.
- * \param sma_direction The direction of the global sma pin. Recommended pin_direction_t::derive for portability between devices with a single bidirectional pin and separate input/output pins
+ * \param sma_direction pin_direction_t::in for the channels to listen to the SMA
+ *        (active_trigger_t::sma_input), pin_direction_t::out for them to drive it
+ *        (active_trigger_t::sma_output). Any other value is invalid.
  * \param edge_sample_num samples to stream per edge; 0 streams indefinitely; must be >= 0
  * \param preserved_rx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted. May be nullptr.
  * \param preserved_tx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted. May be nullptr.
@@ -817,19 +898,10 @@ static inline void get_simple_sma_config(trigger_op_t* op,
     if (op == nullptr || global == nullptr) {
         throw uhd::value_error("get_simple_sma_config: op and global must not be null");
     }
-    if (rx == nullptr && rx_len != 0) {
-        throw uhd::value_error(
-            std::format("get_simple_sma_config: rx is null but rx_len is {}", rx_len));
-    }
-    if (tx == nullptr && tx_len != 0) {
-        throw uhd::value_error(
-            std::format("get_simple_sma_config: tx is null but tx_len is {}", tx_len));
-    }
-    if (rx_channels.size() != rx_len || tx_channels.size() != tx_len) {
-        throw uhd::value_error(std::format(
-            "get_simple_sma_config: {} rx_channels for {} rx elements, {} tx_channels for {} tx elements",
-            rx_channels.size(), rx_len, tx_channels.size(), tx_len));
-    }
+    detail::check_preset_array("get_simple_sma_config", "rx", rx, rx_len,
+        rx_channels.size() + detail::preserved_count(preserved_rx_channels));
+    detail::check_preset_array("get_simple_sma_config", "tx", tx, tx_len,
+        tx_channels.size() + detail::preserved_count(preserved_tx_channels));
     if (sma_direction != pin_direction_t::in && sma_direction != pin_direction_t::out) {
         throw uhd::value_error("get_simple_sma_config: sma_direction must be in or out");
     }
@@ -838,41 +910,49 @@ static inline void get_simple_sma_config(trigger_op_t* op,
             "get_simple_sma_config: edge_sample_num must be >= 0, got {}", edge_sample_num));
     }
 
-    *op            = trigger_op_t{};
-    op->setup_mode = setup_mode_t::standard;
+    const active_trigger_t sma_trigger = (sma_direction == pin_direction_t::in)
+                                             ? active_trigger_t::sma_input
+                                             : active_trigger_t::sma_output;
+
+    *op = trigger_op_t{};
     // The older functions accepted whatever the device applied.
     op->enable_strict_errors &= ~strict_error_t::coerced_value;
 
-    *global               = trigger_global_t{};
-    global->sma_direction = sma_direction;
-    global->sma_polarity  = polarity_t::positive;
-    global->sma_override  = GET_INT;
+    *global                         = trigger_global_t{};
+    global->sma_direction           = pin_direction_t::derive;
+    global->sma_polarity            = polarity_t::positive;
+    global->sma_override            = GET_INT;
+    // Relevant when the channels drive the SMA in edge mode; keep the device's value.
+    global->sma_output_pulse_length = GET_INT;
 
-    for (size_t channel_index = 0; channel_index < rx_len; channel_index++) {
-        trigger_rx_t& chan   = rx[channel_index];
+    for (size_t i = 0; i < rx_channels.size(); i++) {
+        trigger_rx_t& chan   = rx[i];
         chan                 = trigger_rx_t{};
-        chan.channel         = rx_channels[channel_index];
+        chan.channel         = rx_channels[i];
         chan.hot_configure   = false;
         chan.edge_backoff    = 0;
         chan.edge_sample_num = edge_sample_num;
-        chan.trig_sel        = active_trigger_t::sma_input;
+        chan.trig_sel        = sma_trigger;
         chan.sma_mode        = trigger_mode_t::edge;
         chan.enable          = 1;
-        // ufl_mode, ufl_dir and ufl_polarity keep their defaults (get).
+        // The U.FL fields keep their defaults; they are not relevant without
+        // active_trigger_t::channel_ufl.
     }
+    detail::fill_preserved(rx, rx_channels.size(), preserved_rx_channels);
 
-    for (size_t channel_index = 0; channel_index < tx_len; channel_index++) {
-        trigger_tx_t& chan   = tx[channel_index];
+    for (size_t i = 0; i < tx_channels.size(); i++) {
+        trigger_tx_t& chan   = tx[i];
         chan                 = trigger_tx_t{};
-        chan.channel         = tx_channels[channel_index];
+        chan.channel         = tx_channels[i];
         chan.hot_configure   = false;
         chan.edge_backoff    = 0;
         chan.edge_sample_num = edge_sample_num;
-        chan.trig_sel        = active_trigger_t::sma_input;
+        chan.trig_sel        = sma_trigger;
         chan.sma_mode        = trigger_mode_t::edge;
         chan.gating          = gating_t::dsp;
-        // ufl_mode, ufl_dir and ufl_polarity keep their defaults (get).
+        // enable stays get: the older functions did not change it.
     }
+    detail::fill_preserved(tx, tx_channels.size(), preserved_tx_channels);
 }
 
 /*!
@@ -884,6 +964,14 @@ static inline void get_simple_sma_config(trigger_op_t* op,
  *  - hot_configure is set to false
  * sma_direction is set to input. sma_direction is part of \p global, so it is not
  * set if \p global is nullptr.
+ * On devices with separate SMA input and output pins, requesting input is a
+ * direction mismatch, so strict_error_t::pedantic_dir is removed from
+ * op->enable_strict_errors and warning_t::pedantic_dir is added to
+ * op->disable_warnings. This makes the same arguments work on every device.
+ *
+ * Elements 0 to rx_channels.size() - 1 of \p rx return \p rx_channels to normal
+ * operation, and the remaining elements leave \p preserved_rx_channels
+ * unchanged. The same applies to \p tx.
  *
  * Note that channels not included in either \p rx_channels , \p tx_channels ,
  * \p preserved_rx_channels , \p preserved_tx_channels will be disabled.
@@ -906,7 +994,7 @@ static inline void get_simple_sma_config(trigger_op_t* op,
  * \param tx_channels The tx channels to return to normal operation.
  * \param preserved_rx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted. May be nullptr.
  * \param preserved_tx_channels By default any channel not specified during trigger_configure is disabled. Channels listed here will not be impacted. May be nullptr.
- * \throws uhd::value_error if a required pointer is null
+ * \throws uhd::value_error if a required pointer is null, or the array lengths do not match the channel lists
  */
 static inline void get_non_trigger_config(trigger_op_t* op,
     trigger_global_t* global,
@@ -919,7 +1007,44 @@ static inline void get_non_trigger_config(trigger_op_t* op,
     const std::vector<size_t>* preserved_rx_channels,
     const std::vector<size_t>* preserved_tx_channels)
 {
-    // TODO: implement
+    if (op == nullptr) {
+        throw uhd::value_error("get_non_trigger_config: op must not be null");
+    }
+    detail::check_preset_array("get_non_trigger_config", "rx", rx, rx_len,
+        rx_channels.size() + detail::preserved_count(preserved_rx_channels));
+    detail::check_preset_array("get_non_trigger_config", "tx", tx, tx_len,
+        tx_channels.size() + detail::preserved_count(preserved_tx_channels));
+
+    *op = trigger_op_t{};
+    op->enable_strict_errors &= ~strict_error_t::pedantic_dir;
+    op->disable_warnings |= warning_t::pedantic_dir;
+
+    if (global != nullptr) {
+        // Every other global field keeps its default (get or skip if not relevant).
+        *global               = trigger_global_t{};
+        global->sma_direction = pin_direction_t::in;
+    }
+
+    // Every field not set here keeps its default: get, or skip if not relevant.
+    for (size_t i = 0; i < rx_channels.size(); i++) {
+        trigger_rx_t& chan = rx[i];
+        chan               = trigger_rx_t{};
+        chan.channel       = rx_channels[i];
+        chan.hot_configure = false;
+        chan.trig_sel      = active_trigger_t::none;
+        chan.ufl_dir       = pin_direction_t::in;
+    }
+    detail::fill_preserved(rx, rx_channels.size(), preserved_rx_channels);
+
+    for (size_t i = 0; i < tx_channels.size(); i++) {
+        trigger_tx_t& chan = tx[i];
+        chan               = trigger_tx_t{};
+        chan.channel       = tx_channels[i];
+        chan.hot_configure = false;
+        chan.trig_sel      = active_trigger_t::none;
+        chan.ufl_dir       = pin_direction_t::in;
+    }
+    detail::fill_preserved(tx, tx_channels.size(), preserved_tx_channels);
 }
 
 }} // namespace uhd::trigger_pv

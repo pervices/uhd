@@ -875,6 +875,8 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_override", "fpga/trigger/sma_override", int, int);
+    // String is used because this is a 64 bit number and won't fit in int
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_output_edge_sample_num", "fpga/trigger/sma_output_edge_sample_num", std::string, string);
 
     // String is used because this is a 64 bit number and won't fit in int
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "gps_time", "fpga/board/gps_time", std::string, string);
@@ -1031,6 +1033,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(rx_path / dspno / "/trigger/trig_sel"       , "rx_" + lc_num + "/trigger/trig_sel"       , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/edge_backoff"   , "rx_" + lc_num + "/trigger/edge_backoff"   , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/edge_sample_num", "rx_" + lc_num + "/trigger/edge_sample_num", std::string, string);
+        TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_output_edge_sample_num", "rx_" + lc_num + "/trigger/ufl_output_edge_sample_num", std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_mode"       , "rx_" + lc_num + "/trigger/ufl_mode"       , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_dir"        , "rx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_pol"        , "rx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
@@ -1160,6 +1163,7 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         TREE_CREATE_RW(tx_path / dspno / "/trigger/trig_sel"       , "tx_" + lc_num + "/trigger/trig_sel"       , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_backoff"   , "tx_" + lc_num + "/trigger/edge_backoff"   , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/edge_sample_num", "tx_" + lc_num + "/trigger/edge_sample_num", std::string, string);
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_output_edge_sample_num", "tx_" + lc_num + "/trigger/ufl_output_edge_sample_num", std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_mode"       , "tx_" + lc_num + "/trigger/ufl_mode"       , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"        , "tx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"        , "tx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
@@ -2020,218 +2024,48 @@ double crimson_tng_impl::get_link_rate() {
  **********************************************************************/
 namespace {
 
-//! How the channels in a trigger_configure request use the SMA.
-struct trigger_sma_usage_t
-{
-    bool input  = false; //!< At least one channel listens to the SMA input
-    bool output = false; //!< At least one channel drives the SMA output
-};
-
-/*!
- * Record how the channels in a request use the SMA. Channels whose trig_sel is
- * get are ignored. Throws if a channel uses the SMA as both an input and an output.
- * channel_t is trigger_rx_t or trigger_tx_t; direction_name ("rx" or "tx") is
- * only used in error messages.
- */
-template <typename channel_t>
-void add_trigger_sma_usage(const std::vector<channel_t>& channels,
-    const char* direction_name,
-    trigger_sma_usage_t& usage)
-{
-    using namespace uhd::trigger_pv;
-
-    for (size_t channel_index = 0; channel_index < channels.size(); channel_index++) {
-        const active_trigger_t trig_sel = channels[channel_index].trig_sel;
-        if (trig_sel == active_trigger_t::get) {
-            continue;
-        }
-        const bool input  = has_any(trig_sel & active_trigger_t::sma_input);
-        const bool output = has_any(trig_sel & active_trigger_t::sma_output);
-        if (input && output) {
-            throw uhd::value_error(std::format(
-                "{}[{}] (channel {}): trig_sel cannot use the SMA as both an input "
-                "and an output",
-                direction_name, channel_index, channels[channel_index].channel));
-        }
-        usage.input  = usage.input || input;
-        usage.output = usage.output || output;
-    }
-}
-
-/*!
- * Global settings to use when the caller gave none: every field is get, so
- * nothing global is changed. When adding a field to trigger_global_t, set it
- * to get here.
- */
-uhd::trigger_pv::trigger_global_t trigger_global_all_get()
-{
-    using namespace uhd::trigger_pv;
-
-    trigger_global_t global;
-    global.sma_direction = pin_direction_t::get;
-    global.sma_polarity  = polarity_t::get;
-    global.sma_override  = -1;
-    return global;
-}
-
 /*!
  * On Crimson, trig_sel bit 0 means the SMA: listen to it if sma_dir is in,
  * drive it if sma_dir is out. The API instead has separate sma_input and
  * sma_output bits (Cyan's meanings).
  */
-constexpr uhd::trigger_pv::active_trigger_t crimson_trig_sel_sma =
-    static_cast<uhd::trigger_pv::active_trigger_t>(1u << 0);
+constexpr uint32_t crimson_trig_sel_sma = 1u << 0;
 
-//! Translate an API trig_sel to Crimson's bits. Unkown bits are rejects as uhd::value_error
-uhd::trigger_pv::active_trigger_t crimson_trig_sel_to_device(
-    const uhd::trigger_pv::active_trigger_t api_trig_sel)
+} // namespace
+
+bool crimson_tng_impl::trigger_server_supported() const
+{
+    return server_api_ver >= TRIGGER_OVERHAUL_SERVER;
+}
+
+uhd::pv_device::trigger_pin_type_t crimson_tng_impl::trigger_sma_pin_type() const
+{
+    return trigger_pin_type_t::toggleable;
+}
+
+uint32_t crimson_tng_impl::trig_sel_to_device(
+    const uhd::trigger_pv::active_trigger_t api_trig_sel) const
 {
     using namespace uhd::trigger_pv;
 
-    if (api_trig_sel == active_trigger_t::get) {
-        return api_trig_sel;
-    }
     const active_trigger_t sma_bits = active_trigger_t::sma_input | active_trigger_t::sma_output;
-    // Other bits (e.g. channel_ufl) mean the same on both. Unknown bits are kept
-    // so the server can reject them.
-    active_trigger_t device_trig_sel = api_trig_sel & ~sma_bits;
+    // Other bits (e.g. channel_ufl) mean the same on both.
+    uint32_t device_trig_sel = static_cast<uint32_t>(api_trig_sel & ~sma_bits);
     if (has_any(api_trig_sel & sma_bits)) {
         device_trig_sel |= crimson_trig_sel_sma;
     }
     return device_trig_sel;
 }
 
-} // namespace
-
-void crimson_tng_impl::trigger_derive(const uhd::trigger_pv::trigger_op_t& lib_op,
-    const std::optional<uhd::trigger_pv::trigger_global_t>& lib_global,
-    const std::vector<uhd::trigger_pv::trigger_rx_t>& lib_rx,
-    const std::vector<uhd::trigger_pv::trigger_tx_t>& lib_tx,
-    const std::vector<size_t>& unspecified_rx,
-    const std::vector<size_t>& unspecified_tx,
-    uhd::trigger_pv::trigger_global_t& derived_global,
-    std::vector<uhd::trigger_pv::trigger_rx_t>& derived_rx,
-    std::vector<uhd::trigger_pv::trigger_tx_t>& derived_tx)
-{
-    using namespace uhd::trigger_pv;
-
-    // Channels not in the request are ignored when working out the SMA
-    // direction (see pin_direction_t), so these are not needed.
-    (void) unspecified_rx;
-    (void) unspecified_tx;
-
-    // Deep copies; the device-specific values are filled in below.
-    derived_rx     = lib_rx;
-    derived_tx     = lib_tx;
-    derived_global = lib_global.has_value() ? *lib_global : trigger_global_all_get();
-
-    trigger_sma_usage_t usage;
-    add_trigger_sma_usage(lib_rx, "rx", usage);
-    add_trigger_sma_usage(lib_tx, "tx", usage);
-    if (usage.input && usage.output) {
-        throw uhd::value_error(
-            "Crimson has a single SMA pin whose direction applies to every channel, but "
-            "channels in this request use it both as an input and as an output");
-    }
-
-    // The direction the channels in the request need, or get if none use the SMA.
-    const pin_direction_t implied = usage.input    ? pin_direction_t::in
-                                    : usage.output ? pin_direction_t::out
-                                                   : pin_direction_t::get;
-
-    const pin_direction_t current = detail::direction_from_device_string(
-        _tree->access<std::string>(PV_DEVICE_MB_PATH / "trigger/sma_dir").get());
-
-    // With no global settings, the direction is never changed (treated as get).
-    const pin_direction_t requested =
-        lib_global.has_value() ? lib_global->sma_direction : pin_direction_t::get;
-
-    // Decide what trigger_apply will do with sma_dir. get means leave it unchanged.
-    switch (requested) {
-        case pin_direction_t::must_specify_if_applicable:
-            if (implied != pin_direction_t::get) {
-                throw uhd::value_error("sma_direction must be specified: channels in "
-                                       "this request use the SMA");
-            }
-            derived_global.sma_direction = pin_direction_t::get;
-            break;
-
-        case pin_direction_t::separate:
-            if (has_any(lib_op.enable_strict_errors & strict_error_t::pedantic_dir)) {
-                throw uhd::value_error("sma_direction is separate, but Crimson has a "
-                                       "single toggleable SMA pin");
-            }
-            derived_global.sma_direction = pin_direction_t::get;
-            break;
-
-        case pin_direction_t::get:
-            derived_global.sma_direction = pin_direction_t::get;
-            break;
-
-        case pin_direction_t::in:
-        case pin_direction_t::out:
-            if (implied != pin_direction_t::get && implied != requested) {
-                throw uhd::value_error(std::format(
-                    "sma_direction is {}, but channels in this request use the SMA as "
-                    "{}. Use derive to set it from the channels",
-                    detail::to_device_string(requested), detail::to_device_string(implied)));
-            }
-            derived_global.sma_direction = requested;
-            break;
-
-        case pin_direction_t::derive:
-            // get (no change) if no channel in the request uses the SMA.
-            derived_global.sma_direction = implied;
-            break;
-
-        default:
-            throw uhd::value_error(std::format(
-                "invalid sma_direction value {}", static_cast<uint32_t>(requested)));
-    }
-
-    // When the direction is not being changed, the channels must match the
-    // direction already on the device.
-    const pin_direction_t final_direction =
-        (derived_global.sma_direction == pin_direction_t::get) ? current
-                                                               : derived_global.sma_direction;
-    if (implied != pin_direction_t::get && implied != final_direction) {
-        if (!lib_global.has_value()) {
-            throw uhd::value_error(std::format(
-                "No global settings were given, so the existing SMA direction ({}) was "
-                "kept, but channels in this request use the SMA as {}. Pass global "
-                "settings with sma_direction set to derive to change it",
-                detail::to_device_string(current), detail::to_device_string(implied)));
-        }
-        throw uhd::value_error(std::format(
-            "The SMA direction is {} and is not being changed, but channels in this "
-            "request use the SMA as {}. Set sma_direction to derive to change it",
-            detail::to_device_string(current), detail::to_device_string(implied)));
-    }
-
-    // trig_sel: from here on derived_*.trig_sel holds Crimson's bits.
-    for (trigger_rx_t& rx : derived_rx) {
-        rx.trig_sel = crimson_trig_sel_to_device(rx.trig_sel);
-    }
-    for (trigger_tx_t& tx : derived_tx) {
-        tx.trig_sel = crimson_trig_sel_to_device(tx.trig_sel);
-    }
-}
-
 uhd::trigger_pv::active_trigger_t crimson_tng_impl::trig_sel_from_device(
-    const uhd::trigger_pv::active_trigger_t device_trig_sel,
-    const uhd::trigger_pv::trigger_global_t& derived_global)
+    const uint32_t device_trig_sel, const uhd::trigger_pv::pin_direction_t sma_direction) const
 {
     using namespace uhd::trigger_pv;
 
-    if (device_trig_sel == active_trigger_t::get) {
-        return device_trig_sel;
-    }
-
-    active_trigger_t api_trig_sel = device_trig_sel & ~crimson_trig_sel_sma;
-    if (has_any(device_trig_sel & crimson_trig_sel_sma)) {
-        // derived_global.sma_direction must hold the direction in effect on the
-        // device (trigger_apply replaces get with the value read).
-        switch (derived_global.sma_direction) {
+    active_trigger_t api_trig_sel =
+        static_cast<active_trigger_t>(device_trig_sel & ~crimson_trig_sel_sma);
+    if ((device_trig_sel & crimson_trig_sel_sma) != 0) {
+        switch (sma_direction) {
             case pin_direction_t::in:
                 api_trig_sel |= active_trigger_t::sma_input;
                 break;

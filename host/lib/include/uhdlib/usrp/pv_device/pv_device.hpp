@@ -8,10 +8,8 @@
 
 #include <uhd/device.hpp>
 #include <uhd/types/trigger_options.hpp>
-#include <cstddef>
-#include <optional>
+#include <cstdint>
 #include <stdexcept>
-#include <vector>
 
 namespace uhd {
 
@@ -35,93 +33,71 @@ public:
 
     /*!
      * The server's API version. Format: yyyymmdd
-     * 0 indicates the the server predates the property(s) that provides the field
-     * Set during the child class's constructor
+     * 0 indicates the server predates the property that provides this value.
+     * Set during the child class's constructor.
      */
     int server_api_ver = 0;
 
+    /***********************************************************************
+     * Trigger hooks for multi_usrp::trigger_configure()
+     *
+     * The rules for pin directions, relevance and validation are implemented
+     * once in multi_usrp_impl. These hooks only describe how this device's
+     * hardware differs. None of them may access the device.
+     **********************************************************************/
 
-    /*!
-     * Device-specific part of multi_usrp::trigger_configure().
-     *
-     * Validates the request against this device's trigger hardware and fills in
-     * the derived_* structs with the values to apply to the device. Called once,
-     * after all other validation and before anything is changed on the device,
-     * so an exception leaves the device untouched.
-     *
-     * Must not read from the device, except on devices with a single toggleable
-     * SMA pin, which read the current SMA direction when lib_global is empty or
-     * its sma_direction is pin_direction_t::get and a channel uses the SMA.
-     * Devices with separate SMA pins never read it: they always have separate
-     * pins, and if that ever changes, server_api_ver will have changed too.
-     *
-     * The derived_* structs start as deep copies of the lib_* structs. This
-     * function changes them where the device's representation differs from the
-     * API's. In particular, after this call derived_rx[i].trig_sel and
-     * derived_tx[i].trig_sel hold the device's raw trig_sel bits, which do not
-     * necessarily have the meanings given by trigger_pv::active_trigger_t (on
-     * Crimson, bit 0 means SMA input or output depending on the SMA direction).
-     * Use trig_sel_from_device() to translate them back.
-     *
-     * If lib_global is empty (the caller passed no global settings), the SMA
-     * direction is never changed. Instead, on a toggleable SMA pin, the current
-     * direction is read into derived_global, and the request is validated
-     * against it. Error messages
-     * for this case must say that the existing direction was used because no
-     * global settings were given.
-     *
-     * \param lib_op how to apply the change (library format)
-     * \param lib_global global settings, or empty if the caller gave none
-     * \param lib_rx per-channel RX settings (library format)
-     * \param lib_tx per-channel TX settings (library format)
-     * \param unspecified_rx physical RX channels not in lib_rx
-     * \param unspecified_tx physical TX channels not in lib_tx
-     * \param derived_global out: global settings to apply. Always filled in,
-     *        even if lib_global is empty.
-     * \param derived_rx out: one element per element of lib_rx, in the same order
-     * \param derived_tx out: one element per element of lib_tx, in the same order
-     * \throws uhd::value_error if the request is invalid on this device,
-     *         including when it conflicts with the current SMA direction
-     * \throws uhd::io_error if reading the current SMA direction fails
-     */
-    virtual void trigger_derive(const trigger_pv::trigger_op_t& lib_op,
-        const std::optional<trigger_pv::trigger_global_t>& lib_global,
-        const std::vector<trigger_pv::trigger_rx_t>& lib_rx,
-        const std::vector<trigger_pv::trigger_tx_t>& lib_tx,
-        const std::vector<size_t>& unspecified_rx,
-        const std::vector<size_t>& unspecified_tx,
-        trigger_pv::trigger_global_t& derived_global,
-        std::vector<trigger_pv::trigger_rx_t>& derived_rx,
-        std::vector<trigger_pv::trigger_tx_t>& derived_tx)
+    //! The kinds of trigger pin described by trigger_pv::pin_direction_t.
+    enum class trigger_pin_type_t {
+        toggleable, //!< One pin that can be switched between input and output
+        separate, //!< Separate input and output pins
+        input_only, //!< A single pin that can only be an input
+        output_only, //!< A single pin that can only be an output
+    };
+
+    //! Whether the server is new enough for trigger_configure().
+    virtual bool trigger_server_supported() const
     {
-        (void) lib_op;
-        (void) lib_global;
-        (void) lib_rx;
-        (void) lib_tx;
-        (void) unspecified_rx;
-        (void) unspecified_tx;
-        (void) derived_global;
-        (void) derived_rx;
-        (void) derived_tx;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    //! The type of the global SMA trigger pin.
+    virtual trigger_pin_type_t trigger_sma_pin_type() const
+    {
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 
     /*!
-     * Translate a raw trig_sel value read from the device (as stored in the
-     * derived_* structs) back to its trigger_pv::active_trigger_t meaning.
+     * Translate a validated trig_sel to the raw bits the device expects.
+     *
+     * \param api_trig_sel trig_sel with the meanings given by
+     *        trigger_pv::active_trigger_t. Never active_trigger_t::get or
+     *        active_trigger_t::bypass, and never contains unknown bits.
+     * \return the device's raw trig_sel bits
+     */
+    virtual uint32_t trig_sel_to_device(trigger_pv::active_trigger_t api_trig_sel) const
+    {
+        (void) api_trig_sel;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
+
+    /*!
+     * Translate raw trig_sel bits read from the device back to their
+     * trigger_pv::active_trigger_t meaning.
      *
      * \param device_trig_sel the device's raw trig_sel bits
-     * \param derived_global the global settings in effect on the device
-     *        (on Crimson, the SMA direction decides what bit 0 means).
-     *        The setting must be the real setting (not get or derive).
-     * \return trig_sel with the meanings given by trigger_pv::active_trigger_t
+     * \param sma_direction the SMA direction in effect on the device: in or out on
+     *        a toggleable SMA pin (it can decide what the bits mean), ignored for
+     *        other pin types
+     * \return trig_sel with the meanings given by trigger_pv::active_trigger_t.
+     *         May contain unknown bits if the device reported them; the caller
+     *         rejects those.
+     * \throws uhd::runtime_error if sma_direction is needed but is not in or out
      */
     virtual trigger_pv::active_trigger_t trig_sel_from_device(
-        trigger_pv::active_trigger_t device_trig_sel,
-        const trigger_pv::trigger_global_t& derived_global)
+        uint32_t device_trig_sel, trigger_pv::pin_direction_t sma_direction) const
     {
         (void) device_trig_sel;
-        (void) derived_global;
+        (void) sma_direction;
         throw std::runtime_error("concrete classes are expected to override this method");
     }
 };
