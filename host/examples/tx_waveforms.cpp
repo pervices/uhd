@@ -459,71 +459,72 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     for(double time = first; ((ignore_last && first_loop ) || time <= last) && !stop_signal_called ; time += increment)
     {
-        first_loop = false;
-        // Set up metadata. We start streaming a bit in the future
-        // to allow MIMO operation:
-        uhd::tx_metadata_t md;
-        md.start_of_burst = true;
-        md.end_of_burst   = false;
-        md.has_time_spec  = true;
-        md.time_spec = uhd::time_spec_t(time);
+        sleep(1);
+//         first_loop = false;
+//         // Set up metadata. We start streaming a bit in the future
+//         // to allow MIMO operation:
+//         uhd::tx_metadata_t md;
+//         md.start_of_burst = true;
+//         md.end_of_burst   = false;
+//         md.has_time_spec  = true;
+//         md.time_spec = uhd::time_spec_t(time);
 
-        // Initialize rng
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> uniform_distribution(0, spb);
+//         // Initialize rng
+//         std::random_device rd;
+//         std::mt19937 gen(rd());
+//         std::uniform_int_distribution<> uniform_distribution(0, spb);
 
-        //send data until the signal handler gets called
-        //or if we accumulate the number of samples specified (unless it's 0)
-        uint64_t num_acc_samps = 0;
-        while(true){
+//         //send data until the signal handler gets called
+//         //or if we accumulate the number of samples specified (unless it's 0)
+//         uint64_t num_acc_samps = 0;
+//         while(true){
 
-            if (stop_signal_called)
-                break;
+//             if (stop_signal_called)
+//                 break;
 
-            if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
-                break;
+//             if (total_num_samps > 0 and num_acc_samps >= total_num_samps)
+//                 break;
 
-            // Locates where in the buffer to use samples from
-            for(auto& buff_ptr : buffs) {
-                if(fundamental_period != 0) {
-                    buff_ptr = &buff[num_acc_samps % fundamental_period];
-                } else {
-                    buff_ptr = &buff.front();
-                }
-            }
+//             // Locates where in the buffer to use samples from
+//             for(auto& buff_ptr : buffs) {
+//                 if(fundamental_period != 0) {
+//                     buff_ptr = &buff[num_acc_samps % fundamental_period];
+//                 } else {
+//                     buff_ptr = &buff.front();
+//                 }
+//             }
 
-            size_t max_samples_to_send;
-            if(random_spb) [[unlikely]] {
-                // Send up to a random number of samples
-                max_samples_to_send = uniform_distribution(gen);
-            } else {
-                // Send up to spb
-                max_samples_to_send = spb;
-            }
-            // Determine how many samples to send
-            size_t nsamps_this_send;
-            if(total_num_samps != 0) {
-                nsamps_this_send = std::min(max_samples_to_send, total_num_samps - num_acc_samps);
-            } else {
-                nsamps_this_send = max_samples_to_send;
-            }
+//             size_t max_samples_to_send;
+//             if(random_spb) [[unlikely]] {
+//                 // Send up to a random number of samples
+//                 max_samples_to_send = uniform_distribution(gen);
+//             } else {
+//                 // Send up to spb
+//                 max_samples_to_send = spb;
+//             }
+//             // Determine how many samples to send
+//             size_t nsamps_this_send;
+//             if(total_num_samps != 0) {
+//                 nsamps_this_send = std::min(max_samples_to_send, total_num_samps - num_acc_samps);
+//             } else {
+//                 nsamps_this_send = max_samples_to_send;
+//             }
 
-#ifdef DEBUG_TX_WAVE
-            std::cout << "Sending samples" << std::endl;
-#endif
-            //this statement will block until the data is sent
-            //send the entire contents of the buffer
-            num_acc_samps += tx_stream->send(buffs, nsamps_this_send, md);
-#ifdef DEBUG_TX_WAVE
-            std::cout << "Sent samples" << std::endl;
-#endif
-            md.start_of_burst = false;
-            md.has_time_spec = false;
-        }
-        //send a mini EOB packet
-        md.end_of_burst = true;
-        tx_stream->send("", 0, md);
+// #ifdef DEBUG_TX_WAVE
+//             std::cout << "Sending samples" << std::endl;
+// #endif
+//             //this statement will block until the data is sent
+//             //send the entire contents of the buffer
+//             num_acc_samps += tx_stream->send(buffs, nsamps_this_send, md);
+// #ifdef DEBUG_TX_WAVE
+//             std::cout << "Sent samples" << std::endl;
+// #endif
+//             md.start_of_burst = false;
+//             md.has_time_spec = false;
+//         }
+//         //send a mini EOB packet
+//         md.end_of_burst = true;
+//         tx_stream->send("", 0, md);
     }
 #ifdef DELAYED_EXIT
 //waits until told to stop before continuing (allows closing tasks to be delayed)
