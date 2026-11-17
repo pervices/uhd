@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#include "wavetable.hpp"
+#include "wave_generator.hpp"
 #include <uhd/utils/thread.hpp>
 #include <uhd/utils/safe_main.hpp>
 #include <uhd/utils/static.hpp>
@@ -26,6 +26,7 @@
 #include <filesystem>
 #include <atomic>
 #include <vector>
+#include <memory>
 
 #include <uhd/types/tune_request.hpp>
 
@@ -165,12 +166,12 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rx_sob" , po::value<double >(&rx_sob)->default_value(5.0), "(Seconds) Rx channels will stream after this time. If any trigger is set to input RX will stream after this time AND according to trigger settings.")
         ("tx_sob" , po::value<double >(&tx_sob)->default_value(5.0), "(Seconds) Tx channels will stream after this time. If any trigger is set to input TX will stream after this time AND according to trigger settings.")
         ("rate", po::value<double>(&rate), "rate of incomming/outgoing samples")
-        ("freq", po::value<double>(&freq), "RF center frequency in Hz")
+        ("freq", po::value<double>(&freq), "RF center frequency in Hz. The device's DSP/RF shifts the samples by this frequency. Not the frequency of the waveform in the samples (see --wave-freq)")
         ("tx_gain", po::value<double>(&tx_gain)->default_value(0), "gain for the tx RF chain")
         ("rx_gain", po::value<double>(&rx_gain)->default_value(0), "gain for the rx RF chain")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
-        ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "waveform type (CONST, SQUARE, RAMP, SINE)")
-        ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "waveform frequency in Hz")
+        ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "Baseband waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q, COMB)")
+        ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "Frequency in Hz of the waveform in the samples sent to the device (before the shift by --freq). Comb spacing for COMB waves. Ignored for CONST waves")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
         ("global_trigpol", po::value<std::string>(&global_trigpol_s)->default_value("positive"), "Whether the global trigger is active high or low. Valid values: positive, negative")
         ("rx_sma_mode", po::value<std::string>(&rx_sma_mode_s)->default_value("edge"), "A list per channel for whether the sma trigger activates on edge or level.")
@@ -313,6 +314,19 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             usrp->set_rx_gain(rx_gain, channel_nums[ch]);
             std::cout << std::format("Actual ch{} RX Gain: {} dB...\n\n", channel_nums[ch], usrp->get_rx_gain(channel_nums[ch]));
         }
+    }
+
+    // Create the tx waveform
+    // Note: wave_freq is the frequency of the waveform in the samples sent to the device.
+    // freq (set above) is how far the device's DSP/RF shifts those samples. They are unrelated.
+    // Every tx channel uses the same rate, wave type, wave frequency and amplitude, so they share one generator.
+    std::unique_ptr<wave_generator<short>> tx_wave;
+    if(use_tx) {
+        //error when the waveform is not possible to generate
+        if (std::abs(wave_freq) > tx_rate/2){
+            throw std::runtime_error("wave freq out of Nyquist zone");
+        }
+        tx_wave = std::make_unique<wave_generator<short>>(wave_type, ampl, tx_rate, wave_freq);
     }
 
     // TODO: Configure trigger
