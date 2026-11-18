@@ -475,7 +475,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rx_burst_lengths", po::value<std::string>(&rx_burst_length_s)->default_value("0"), "A list per channel of how many samples to receive per rx burst. Set to 0 for continuous. When not using continuous mode samples will only received when all input triggers are active AND the burst command says samples should be received. The actual number of samples received per burst will be much lower.")
         ("tx_burst_lengths", po::value<std::string>(&tx_burst_length_s)->default_value("0"), "A list per channel of how many samples to send per tx burst. Set to 0 for continuous. Recomendation: If using exactly one edge input trigger match tx_edge_sample_num for keep phase consistent between triggers Otherwise use continuous mode to keep interactions between commands and triggers simple.")
         ("burst_increment", po::value<double>(&burst_increment)->default_value(2), "How many seconds between the start of bursts. Does nothing for channels whose burst length is 0 (continuous).")
-        ("tx_setpoint", po::value<uint64_t>(&setpoint)->default_value(30000000), "Target buffer level when using edge input triggers and dsp gating. Does nothing otherwise. Setting the setpoint to low will result in underflows.")
+        ("tx_setpoint", po::value<uint64_t>(&setpoint)->default_value(30000), "Target buffer level when using edge input triggers and dsp gating. Does nothing otherwise. Setting the setpoint to low will result in underflows.")
         ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
