@@ -416,6 +416,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     double rx_sob, tx_sob, rate, freq, tx_gain, rx_gain, wave_freq;
     float ampl;
     uint64_t total_samples;
+    uint64_t setpoint;
     double burst_increment;
 
     // Trigger arguments as entered by the user. Parsed into the variables below
@@ -474,6 +475,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("rx_burst_lengths", po::value<std::string>(&rx_burst_length_s)->default_value("0"), "A list per channel of how many samples to receive per rx burst. Set to 0 for continuous. When not using continuous mode samples will only received when all input triggers are active AND the burst command says samples should be received. The actual number of samples received per burst will be much lower.")
         ("tx_burst_lengths", po::value<std::string>(&tx_burst_length_s)->default_value("0"), "A list per channel of how many samples to send per tx burst. Set to 0 for continuous. Recomendation: If using exactly one edge input trigger match tx_edge_sample_num for keep phase consistent between triggers Otherwise use continuous mode to keep interactions between commands and triggers simple.")
         ("burst_increment", po::value<double>(&burst_increment)->default_value(2), "How many seconds between the start of bursts. Does nothing for channels whose burst length is 0 (continuous).")
+        ("tx_setpoint", po::value<uint64_t>(&setpoint)->default_value(30000000), "Target buffer level when using edge input triggers and dsp gating. Does nothing otherwise. Setting the setpoint to low will result in underflows.")
         ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
@@ -746,12 +748,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             bool any_input_trigger = tx_sma_sel[ch] == trigger_sel::input || tx_ufl_sel[ch] == trigger_sel::input;
             bool use_blocking_fc = any_input_trigger && tx_gating[ch] == uhd::trigger_pv::gating_t::dsp;
             if(use_blocking_fc) {
-                // Same as txrx_trigger_loopback: keep 10 triggers worth of samples buffered on the device
-                uint64_t setpoint = 10 * tx_edge_sample_num[ch];
-                if(setpoint == 0) {
-                    // edge_sample_num 0 streams indefinitely after a trigger, so buffer 10 sends worth instead
-                    setpoint = 10 * 10 * tx_stream->get_max_num_samps();
-                }
+                // Keep the device's buffer filled to the setpoint
                 tx_stream->enable_blocking_fc(setpoint);
             }
 
