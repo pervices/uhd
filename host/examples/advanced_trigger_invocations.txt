@@ -1,0 +1,108 @@
+# 1. continuous, no triggers, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel none --rx_ufl_sel none
+
+# 2. continuous, no triggers, tx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel none --tx_ufl_sel none
+
+# 3. bursty, no triggers, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel none --rx_ufl_sel none --rx_burst_lengths 50000
+
+# 4. bursty, no triggers, tx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel none --tx_ufl_sel none --tx_burst_lengths 50000
+
+# 5. continuous, sma input, edge, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel input --rx_ufl_sel none --rx_sma_mode edge --rx_edge_sample_num 5000
+
+# 6. continuous, sma input, edge, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel input --tx_ufl_sel none --tx_sma_mode edge --tx_edge_sample_num 5000 --tx_gating dsp
+
+# 7. continuous, sma input, edge, tx, output gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel input --tx_ufl_sel none --tx_sma_mode edge --tx_edge_sample_num 5000 --tx_gating output
+
+# 8. continuous, sma input, level, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel input --rx_ufl_sel none --rx_sma_mode level
+
+# 9. continuous, sma input, level, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel input --tx_ufl_sel none --tx_sma_mode level --tx_gating dsp
+
+# 10. continuous, ufl input, edge, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel none --rx_ufl_sel input --rx_ufl_mode edge --rx_edge_sample_num 5000
+
+# 11. continuous, ufl input, edge, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel none --tx_ufl_sel input --tx_ufl_mode edge --tx_edge_sample_num 5000 --tx_gating dsp
+
+# 12. continuous, ufl input, edge, tx, output gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel none --tx_ufl_sel input --tx_ufl_mode edge --tx_edge_sample_num 5000 --tx_gating output
+
+# 13. continuous, ufl input, level, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel none --rx_ufl_sel input --rx_ufl_mode level
+
+# 14. continuous, ufl input, level, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel none --tx_ufl_sel input --tx_ufl_mode level --tx_gating dsp
+
+# 15. continuous, sma and ufl input, edge, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel input --rx_ufl_sel input --rx_sma_mode edge --rx_ufl_mode edge --rx_edge_sample_num 5000
+
+# 16. continuous, sma and ufl input, edge, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel input --tx_ufl_sel input --tx_sma_mode edge --tx_ufl_mode edge --tx_edge_sample_num 5000 --tx_gating dsp
+
+# 17. continuous, sma and ufl input, edge, tx, output gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel input --tx_ufl_sel input --tx_sma_mode edge --tx_ufl_mode edge --tx_edge_sample_num 5000 --tx_gating output
+
+# 18. continuous, sma and ufl input, level, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_sma_sel input --rx_ufl_sel input --rx_sma_mode level --rx_ufl_mode level
+
+# 19. continuous, sma and ufl input, level, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_sma_sel input --tx_ufl_sel input --tx_sma_mode level --tx_ufl_mode level --tx_gating dsp
+
+# 20. bursty, sma output, edge, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_burst_lengths 50000 --rx_sma_sel output --rx_ufl_sel none --rx_sma_mode edge --sma_edge_output 8000
+
+# 21. bursty, sma output, edge, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel output --tx_ufl_sel none --tx_sma_mode edge --sma_edge_output 8000 --tx_gating dsp
+
+# 22. bursty, sma output, edge, tx, output gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel output --tx_ufl_sel none --tx_sma_mode edge --sma_edge_output 8000 --tx_gating output
+
+# 23. bursty, sma output, level, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_burst_lengths 50000 --rx_sma_sel output --rx_ufl_sel none --rx_sma_mode level
+
+# 24. bursty, sma output, level, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel output --tx_ufl_sel none --tx_sma_mode level --tx_gating dsp
+
+# 25. bursty, ufl output, edge, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_burst_lengths 50000 --rx_sma_sel none --rx_ufl_sel output --rx_ufl_mode edge --rx_ufl_edge_output 8000
+
+# 26. bursty, ufl output, edge, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel none --tx_ufl_sel output --tx_ufl_mode edge --tx_ufl_edge_output 8000 --tx_gating dsp
+
+# 27. bursty, ufl output, edge, tx, output gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel none --tx_ufl_sel output --tx_ufl_mode edge --tx_ufl_edge_output 8000 --tx_gating output
+
+# 28. bursty, ufl output, level, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_burst_lengths 50000 --rx_sma_sel none --rx_ufl_sel output --rx_ufl_mode level
+
+# 29. bursty, ufl output, level, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel none --tx_ufl_sel output --tx_ufl_mode level --tx_gating dsp
+
+# 30. bursty, sma and ufl output, edge, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_burst_lengths 50000 --rx_sma_sel output --rx_ufl_sel output --rx_sma_mode edge --sma_edge_output 8000 --rx_ufl_mode edge --rx_ufl_edge_output 8000
+
+# 31. bursty, sma and ufl output, edge, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel output --tx_ufl_sel output --tx_sma_mode edge --sma_edge_output 8000 --tx_ufl_mode edge --tx_ufl_edge_output 8000 --tx_gating dsp
+
+# 32. bursty, sma and ufl output, edge, tx, output gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel output --tx_ufl_sel output --tx_sma_mode edge --sma_edge_output 8000 --tx_ufl_mode edge --tx_ufl_edge_output 8000 --tx_gating output
+
+# 33. bursty, sma and ufl output, level, rx
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_only --rx_burst_lengths 50000 --rx_sma_sel output --rx_ufl_sel output --rx_sma_mode level --rx_ufl_mode level
+
+# 34. bursty, sma and ufl output, level, tx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --tx_only --tx_burst_lengths 50000 --tx_sma_sel output --tx_ufl_sel output --tx_sma_mode level --tx_ufl_mode level --tx_gating dsp
+
+# 35. continuous, sma input, ufl output, edge, tx and rx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_sma_sel input --rx_ufl_sel output --rx_sma_mode edge --rx_ufl_mode edge --rx_edge_sample_num 5000 --rx_ufl_edge_output 8000 --tx_sma_sel input --tx_ufl_sel output --tx_sma_mode edge --tx_ufl_mode edge --tx_edge_sample_num 5000 --tx_ufl_edge_output 8000 --tx_gating dsp
+
+# 36. continuous, sma output, ufl input, edge, tx and rx, dsp gating
+./txrx_advanced_trigger --channels 0,1,2,3 --rate 50e6 --freq 10e6 --tx_gain 20 --rx_gain 20 --wave_type SINE --wave-freq 10e6 --overwrite --rx_sma_sel output --rx_ufl_sel input --rx_sma_mode edge --rx_ufl_mode edge --rx_edge_sample_num 5000 --sma_edge_output 8000 --tx_sma_sel output --tx_ufl_sel input --tx_sma_mode edge --tx_ufl_mode edge --tx_edge_sample_num 5000 --tx_gating dsp
+
