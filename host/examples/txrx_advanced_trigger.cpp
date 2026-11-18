@@ -182,6 +182,35 @@ uhd::trigger_pv::pin_direction_t ufl_direction(trigger_sel ufl_sel) {
     }
 }
 
+// Performas send for this channel
+tx_function(size_t channel) {
+
+    tx_streamer streamer =...
+
+    if(any trigger is input AND gating is set to dsp) {
+       streamer->enable_blocking_fc(/* TODO: copy setpoint from txrx_trigger_loopback */)
+    }
+
+    Create buff for samples with a length of streamer->get_max_num_samps() * 10 + fundamental_period (see tx_waveforms)
+
+
+    while(total_samples_sent < total_samples) {
+        Fill out tx metadata to start of burst enabled and time set to init_time + tx_sob + (num_bursts * burst_increment)
+        while((samples_sent_this_trigger < burst_length || burst_length == 0) && total_samples_sent < total_samples) {
+            samples_this_send = streamer->send
+
+            if(samples_this_send > 0) {
+                set sob and has timestamp flags to false
+            }
+        }
+        Send end of burst
+
+        num_bursts++;
+    }
+
+    Print total_samples_sent
+}
+
 /***********************************************************************
  * Main function
  **********************************************************************/
@@ -244,7 +273,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx_gating", po::value<std::string>(&tx_gating_s)->default_value("dsp"), "A list per channel for whether to gate at the dsp or output. Gating at the dsp consumes samples when a trigger is received. Gating at the output consumes samples normally but the samples sent to the DAC are set to 0 unless the trigger is active. Applies to input trigger streaming only.")
 
 
-        ("num_trigger", po::value<uint64_t>(&num_trigger)->default_value(0), "Number of trigger event results to record. Set to 0 for continuous")
+        ("total_samples", po::value<uint64_t>(&total_samples)->default_value(0), "How many samples in total to send/receive before exiting.")
+        // TODO: explain that streaming only occurs when time conditions (rx/tx_sob, burst_length, burst_increment) AND ufl trigger (if input) AND sma trigger (if input) without duplicating the message for each argument
+        ("burst_length", po::value<uint64_t>(&burst_length)->default_value(0), "How many samples to send per tx burst, or receive per rx burst. Set to 0 for continuous. Recomended to use 0 for continuous if using input triggers.")
+        ("burst_increment", po::value<double>(&burst_increment)->default_value(2), "How many seconds between the start of bursts. Does nothing if burst_length is 0 (continuous).")
         ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
