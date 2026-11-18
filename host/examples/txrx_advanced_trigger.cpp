@@ -238,6 +238,9 @@ std::string rx_result_path(const std::string& results_directory, size_t channel,
     }
 }
 
+// The maximum number of samples in the rx buffer
+constexpr size_t MAX_RX_BUFFER = 100e6;
+
 /**
  * Receives samples on one rx channel in continuous mode (rx_burst_lengths 0). A different function handles burst mode.
  * Samples that arrive close together are batched and each batch is saved to its own file.
@@ -252,8 +255,6 @@ std::string rx_result_path(const std::string& results_directory, size_t channel,
  * @param overwrite Use the same file for every batch instead of a new file per batch
  */
 void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t start_time, double rate, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite) {
-    // The maximum number of samples in the rx buffer
-    constexpr size_t MAX_RX_BUFFER = 100e6;
 
     if(burst_length != 0) {
         throw std::runtime_error(std::format("RX ch{}: rx_continous_function only supports continuous mode (burst length 0), got a burst length of {}. Burst mode is handled by rx_burst_function", channel, burst_length));
@@ -337,11 +338,145 @@ void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd:
 }
 
 /**
- * Receives samples on one rx channel in burst mode (rx_burst_lengths not 0)
- * Takes the same parameters as rx_continous_function
+ * Issues the stream command for the first burst that starts after the current device time.
+ * Bursts start at first_burst_time + n * burst_increment. Bursts that have already started are skipped.
+ * i.e. with the first burst at 5, burst_increment 2 and the current time 9.5, the burst at 11 is requested
+ * @param streamer The streamer to issue the command to
+ * @param device_now The current device time
+ * @param first_burst_time The device time of the first burst
+ * @param burst_increment Seconds between the start of each burst
+ * @param burst_length Samples per burst
+ * @param rate The channel's actual rx sample rate
+ * @return The device time the requested burst finishes at
  */
-void rx_burst_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t start_time, double rate, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite) {
-    // STUB
+uhd::time_spec_t issue_next_burst_cmd(uhd::rx_streamer::sptr streamer, uhd::time_spec_t device_now, uhd::time_spec_t first_burst_time, double burst_increment, uint64_t burst_length, double rate) {
+    // Which burst to request
+    uint64_t burst_number = 0;
+    if(device_now >= first_burst_time) {
+        burst_number = static_cast<uint64_t>((device_now - first_burst_time).get_real_secs() / burst_increment) + 1;
+    }
+    uhd::time_spec_t burst_start_time = first_burst_time + uhd::time_spec_t(burst_number * burst_increment);
+
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_NUM_SAMPS_AND_DONE);
+    stream_cmd.num_samps = burst_length;
+    stream_cmd.stream_now = false;
+    stream_cmd.time_spec = burst_start_time;
+    streamer->issue_stream_cmd(stream_cmd);
+
+    // The burst lasts as long as burst_length samples take, even if input triggers mean fewer samples are received
+    return burst_start_time + uhd::time_spec_t(burst_length / rate);
+}
+
+/**
+ * Receives samples on one rx channel in burst mode (rx_burst_lengths not 0). A different function handles continuous mode.
+ * Batches and saving work the same as rx_continous_function: samples that arrive close together are batched and
+ * each batch is saved to its own file. A burst may contain several batches if input triggers are used.
+ * The next burst is requested once the previous one has finished.
+ * @param usrp The device. Used to get the current device time
+ * @param streamer The streamer for this channel only
+ * @param channel The channel number, used in messages and file names
+ * @param first_burst_time The device time to start the first burst at
+ * @param rate The channel's actual rx sample rate. Used to choose the recv timeout and burst durations
+ * @param burst_increment Seconds between the start of each burst
+ * @param burst_length Samples per burst. Must not be 0 (continuous)
+ * @param total_samples Samples to receive in total. 0 receives until Ctrl + C is pressed
+ * @param results_directory The directory to save results into. Must already exist
+ * @param overwrite Use the same file for every batch instead of a new file per batch
+ */
+void rx_burst_function(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t first_burst_time, double rate, double burst_increment, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite) {
+
+    if(burst_length == 0) {
+        throw std::runtime_error(std::format("RX ch{}: rx_burst_function only supports burst mode (burst length not 0). Continuous mode is handled by rx_continous_function", channel));
+    }
+
+    // Only allocate as much as is needed if the total is small
+    size_t buffer_size = MAX_RX_BUFFER;
+    if(total_samples != 0) {
+        buffer_size = std::min<uint64_t>(MAX_RX_BUFFER, total_samples);
+    }
+    rx_buffer_t buff(buffer_size);
+
+    // How long it would take to receive 50e3 samples
+    // Once a batch has started, going this long without samples ends the batch
+    const double timeout = 50e3 / rate;
+
+    // Request the first burst
+    uhd::time_spec_t device_now = usrp->get_time_now();
+    uhd::time_spec_t burst_end_time = issue_next_burst_cmd(streamer, device_now, first_burst_time, burst_increment, burst_length, rate);
+
+    // Getting the device time requires communicating with the device, so avoid doing it every timeout.
+    // Instead estimate when the burst will finish using the host's clock and only check the device time after that.
+    std::chrono::steady_clock::time_point next_time_check = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>((burst_end_time - device_now).get_real_secs()));
+
+    uint64_t total_samples_recv = 0;
+    uint64_t batch_number = 0;
+    // Batch loop
+    while((total_samples == 0 || total_samples_recv < total_samples) && !stop_signal_called) {
+        // Opened once the batch's first samples arrive. Opening it earlier would leave an empty file if Ctrl + C is pressed
+        // while waiting, and with overwrite would erase the previous batch
+        std::ofstream outfile;
+
+        uint64_t samples_this_batch = 0;
+        bool batch_in_progress = true;
+        while(batch_in_progress) {
+            // Fill the buffer until it is full, the batch ends, or the total is reached
+            size_t samples_in_buffer = 0;
+            bool timed_out = false;
+            do {
+                // Receive up to the space left in the buffer, without going past the total
+                uint64_t samples_to_recv = buff.size() - samples_in_buffer;
+                if(total_samples != 0) {
+                    samples_to_recv = std::min(samples_to_recv, total_samples - total_samples_recv);
+                }
+
+                uhd::rx_metadata_t md;
+                size_t samples_this_recv = streamer->recv(&buff[samples_in_buffer], samples_to_recv, md, timeout);
+                samples_in_buffer += samples_this_recv;
+                samples_this_batch += samples_this_recv;
+                total_samples_recv += samples_this_recv;
+
+                timed_out = samples_this_recv == 0 && md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT;
+                if(md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE && md.error_code != uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
+                    std::cerr << std::format("RX ch{}: {}\n", channel, md.strerror());
+                }
+
+                // A timeout means we are between bursts (or waiting for a trigger). Request the next burst once the previous one has finished
+                if(timed_out && std::chrono::steady_clock::now() >= next_time_check) {
+                    device_now = usrp->get_time_now();
+                    if(device_now >= burst_end_time) {
+                        burst_end_time = issue_next_burst_cmd(streamer, device_now, first_burst_time, burst_increment, burst_length, rate);
+                    }
+                    next_time_check = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>((burst_end_time - device_now).get_real_secs()));
+                }
+            // Timeouts before the batch's first sample are waiting for the batch to start, so keep receiving
+            } while((total_samples == 0 || total_samples_recv < total_samples) && samples_in_buffer < buff.size() && !stop_signal_called && (!timed_out || samples_this_batch == 0));
+
+            if(samples_in_buffer > 0) {
+                if(!outfile.is_open()) {
+                    outfile.open(rx_result_path(results_directory, channel, batch_number, overwrite), std::ofstream::binary);
+                }
+                outfile.write(reinterpret_cast<const char*>(buff.data()), samples_in_buffer * sizeof(buff[0]));
+            }
+
+            // The batch ends when samples stop arriving, the total is reached, or Ctrl + C is pressed
+            bool total_reached = total_samples != 0 && total_samples_recv >= total_samples;
+            batch_in_progress = !(stop_signal_called || total_reached || (timed_out && samples_this_batch > 0));
+        }
+
+        // A batch with no samples only happens when Ctrl + C is pressed while waiting for it to start
+        if(samples_this_batch > 0) {
+            outfile.close();
+            std::cout << std::format("RX ch{}: received {} samples in batch {}\n", channel, samples_this_batch, batch_number);
+            batch_number++;
+        }
+    }
+
+    // Cancel the burst in progress or waiting to start, if any
+    uhd::stream_cmd_t stop_cmd(uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS);
+    stop_cmd.stream_now = true;
+    streamer->issue_stream_cmd(stop_cmd);
+
+    std::cout << std::format("RX ch{}: received {} samples\n", channel, total_samples_recv);
 }
 
 /**
@@ -805,8 +940,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     // Channels with a burst length of 0 receive continuously, the others receive in bursts
     std::vector<std::thread> rx_threads;
     for(size_t ch = 0; ch < rx_streamers.size(); ch++) {
-        auto rx_function = (rx_burst_length[ch] == 0) ? rx_continous_function : rx_burst_function;
-        rx_threads.emplace_back(rx_function, rx_streamers[ch], channel_nums[ch], init_time + uhd::time_spec_t(rx_sob), usrp->get_rx_rate(channel_nums[ch]), rx_burst_length[ch], total_samples, results_directory, overwrite);
+        uhd::time_spec_t rx_start_time = init_time + uhd::time_spec_t(rx_sob);
+        double this_rx_rate = usrp->get_rx_rate(channel_nums[ch]);
+        if(rx_burst_length[ch] == 0) {
+            rx_threads.emplace_back(rx_continous_function, rx_streamers[ch], channel_nums[ch], rx_start_time, this_rx_rate, rx_burst_length[ch], total_samples, results_directory, overwrite);
+        } else {
+            rx_threads.emplace_back(rx_burst_function, usrp, rx_streamers[ch], channel_nums[ch], rx_start_time, this_rx_rate, burst_increment, rx_burst_length[ch], total_samples, results_directory, overwrite);
+        }
     }
 
     // Wait for tx and rx to finish
