@@ -27,6 +27,10 @@
 #include <atomic>
 #include <vector>
 #include <memory>
+#include <new>
+#include <algorithm>
+#include <complex>
+#include <functional>
 
 #include <uhd/types/tune_request.hpp>
 
@@ -182,33 +186,223 @@ uhd::trigger_pv::pin_direction_t ufl_direction(trigger_sel ufl_sel) {
     }
 }
 
-// Performas send for this channel
-tx_function(size_t channel) {
+// Cache line size
+// Assume it is 64, which is the case for virtually all AMD64 systems
+constexpr size_t CACHE_LINE_SIZE = 64;
 
-    tx_streamer streamer =...
+/**
+ * Allocator for std::vector that starts the memory on a cache line boundary
+ */
+template <typename T>
+struct cache_aligned_allocator {
+    using value_type = T;
 
-    if(any trigger is input AND gating is set to dsp) {
-       streamer->enable_blocking_fc(/* TODO: copy setpoint from txrx_trigger_loopback */)
+    cache_aligned_allocator() = default;
+    template <typename U>
+    cache_aligned_allocator(const cache_aligned_allocator<U>&) {}
+
+    T* allocate(size_t n) {
+        return static_cast<T*>(::operator new(n * sizeof(T), std::align_val_t(CACHE_LINE_SIZE)));
+    }
+    void deallocate(T* p, size_t) {
+        ::operator delete(p, std::align_val_t(CACHE_LINE_SIZE));
     }
 
-    Create buff for samples with a length of streamer->get_max_num_samps() * 10 + fundamental_period (see tx_waveforms)
+    template <typename U>
+    bool operator==(const cache_aligned_allocator<U>&) const { return true; }
+};
+
+// Samples to send, shared between every tx thread
+using tx_buffer_t = std::vector<std::complex<short>, cache_aligned_allocator<std::complex<short>>>;
+// Samples received by one rx thread
+using rx_buffer_t = std::vector<std::complex<short>, cache_aligned_allocator<std::complex<short>>>;
+
+static std::atomic<bool> stop_signal_called(false);
+void sig_int_handler(int){
+    stop_signal_called = true;
+}
 
 
-    while(total_samples_sent < total_samples) {
-        Fill out tx metadata to start of burst enabled and time set to init_time + tx_sob + (num_bursts * burst_increment)
-        while((samples_sent_this_trigger < burst_length || burst_length == 0) && total_samples_sent < total_samples) {
-            samples_this_send = streamer->send
+/**
+ * The path of the file to save a batch of rx samples to. Same naming as txrx_trigger_loopback, with an underscore added between the batch and channel numbers
+ * @param results_directory The directory to save results into
+ * @param channel The channel number
+ * @param batch_number Which batch the file is for. Ignored when overwrite is set
+ * @param overwrite Use the same file for every batch instead of a new file per batch
+ */
+std::string rx_result_path(const std::string& results_directory, size_t channel, uint64_t batch_number, bool overwrite) {
+    if(overwrite) {
+        return std::format("{}/ch_{}_result.dat", results_directory, channel);
+    } else {
+        return std::format("{}/burst_{}_ch_{}_result.dat", results_directory, batch_number, channel);
+    }
+}
 
+/**
+ * Receives samples on one rx channel in continuous mode (rx_burst_lengths 0). A different function handles burst mode.
+ * Samples that arrive close together are batched and each batch is saved to its own file.
+ * For common edge trigger settings each batch will be one trigger.
+ * @param streamer The streamer for this channel only
+ * @param channel The channel number, used in messages and file names
+ * @param start_time The device time to start receiving at
+ * @param rate The channel's actual rx sample rate. Used to choose the recv timeout
+ * @param burst_length Must be 0 (continuous)
+ * @param total_samples Samples to receive in total. 0 receives until Ctrl + C is pressed
+ * @param results_directory The directory to save results into. Must already exist
+ * @param overwrite Use the same file for every batch instead of a new file per batch
+ */
+void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t start_time, double rate, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite) {
+    // The maximum number of samples in the rx buffer
+    constexpr size_t MAX_RX_BUFFER = 100e6;
+
+    if(burst_length != 0) {
+        throw std::runtime_error(std::format("RX ch{}: rx_continous_function only supports continuous mode (burst length 0), got a burst length of {}. Burst mode is handled by rx_burst_function", channel, burst_length));
+    }
+
+    // Only allocate as much as is needed if the total is small
+    size_t buffer_size = MAX_RX_BUFFER;
+    if(total_samples != 0) {
+        buffer_size = std::min<uint64_t>(MAX_RX_BUFFER, total_samples);
+    }
+    rx_buffer_t buff(buffer_size);
+
+    // How long it would take to receive 50e3 samples
+    // Once a batch has started, going this long without samples ends the batch
+    const double timeout = 50e3 / rate;
+
+    uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
+    stream_cmd.stream_now = false;
+    stream_cmd.time_spec = start_time;
+    streamer->issue_stream_cmd(stream_cmd);
+
+    uint64_t total_samples_recv = 0;
+    uint64_t batch_number = 0;
+    // Batch loop
+    while((total_samples == 0 || total_samples_recv < total_samples) && !stop_signal_called) {
+        // Opened once the batch's first samples arrive. Opening it earlier would leave an empty file if Ctrl + C is pressed
+        // while waiting, and with overwrite would erase the previous batch
+        std::ofstream outfile;
+
+        uint64_t samples_this_batch = 0;
+        bool batch_in_progress = true;
+        while(batch_in_progress) {
+            // Fill the buffer until it is full, the batch ends, or the total is reached
+            size_t samples_in_buffer = 0;
+            bool timed_out = false;
+            do {
+                // Receive up to the space left in the buffer, without going past the total
+                uint64_t samples_to_recv = buff.size() - samples_in_buffer;
+                if(total_samples != 0) {
+                    samples_to_recv = std::min(samples_to_recv, total_samples - total_samples_recv);
+                }
+
+                uhd::rx_metadata_t md;
+                size_t samples_this_recv = streamer->recv(&buff[samples_in_buffer], samples_to_recv, md, timeout);
+                samples_in_buffer += samples_this_recv;
+                samples_this_batch += samples_this_recv;
+                total_samples_recv += samples_this_recv;
+
+                timed_out = samples_this_recv == 0 && md.error_code == uhd::rx_metadata_t::ERROR_CODE_TIMEOUT;
+                if(md.error_code != uhd::rx_metadata_t::ERROR_CODE_NONE && md.error_code != uhd::rx_metadata_t::ERROR_CODE_TIMEOUT) {
+                    std::cerr << std::format("RX ch{}: {}\n", channel, md.strerror());
+                }
+            // Timeouts before the batch's first sample are waiting for the batch to start, so keep receiving
+            } while((total_samples == 0 || total_samples_recv < total_samples) && samples_in_buffer < buff.size() && !stop_signal_called && (!timed_out || samples_this_batch == 0));
+
+            if(samples_in_buffer > 0) {
+                if(!outfile.is_open()) {
+                    outfile.open(rx_result_path(results_directory, channel, batch_number, overwrite), std::ofstream::binary);
+                }
+                outfile.write(reinterpret_cast<const char*>(buff.data()), samples_in_buffer * sizeof(buff[0]));
+            }
+
+            // The batch ends when samples stop arriving, the total is reached, or Ctrl + C is pressed
+            bool total_reached = total_samples != 0 && total_samples_recv >= total_samples;
+            batch_in_progress = !(stop_signal_called || total_reached || (timed_out && samples_this_batch > 0));
+        }
+
+        // A batch with no samples only happens when Ctrl + C is pressed while waiting for it to start
+        if(samples_this_batch > 0) {
+            outfile.close();
+            std::cout << std::format("RX ch{}: received {} samples in batch {}\n", channel, samples_this_batch, batch_number);
+            batch_number++;
+        }
+    }
+
+    stream_cmd.stream_mode = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
+    stream_cmd.stream_now = true;
+    streamer->issue_stream_cmd(stream_cmd);
+
+    std::cout << std::format("RX ch{}: received {} samples\n", channel, total_samples_recv);
+}
+
+/**
+ * Receives samples on one rx channel in burst mode (rx_burst_lengths not 0)
+ * Takes the same parameters as rx_continous_function
+ */
+void rx_burst_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t start_time, double rate, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite) {
+    // STUB
+}
+
+/**
+ * Sends samples on one tx channel
+ * @param streamer The streamer for this channel only
+ * @param channel The channel number, used in messages
+ * @param buff The samples to send. Must hold at least the streamer's spb + fundamental_period samples. Only read, so every channel's thread can share it
+ * @param fundamental_period How many samples the wave takes to repeat exactly (see wave_generator::get_fundamental_period)
+ * @param first_burst_time The device time to start the first burst at
+ * @param burst_increment Seconds between the start of each burst
+ * @param burst_length Samples per burst. 0 sends one continuous burst
+ * @param total_samples Samples to send in total. 0 sends until Ctrl + C is pressed
+ */
+void tx_function(uhd::tx_streamer::sptr streamer, size_t channel, const tx_buffer_t& buff, size_t fundamental_period, uhd::time_spec_t first_burst_time, double burst_increment, uint64_t burst_length, uint64_t total_samples) {
+    // Send 10 packets worth of samples at a time
+    const size_t spb = streamer->get_max_num_samps() * 10;
+
+    uint64_t total_samples_sent = 0;
+    uint64_t num_bursts = 0;
+    while((total_samples == 0 || total_samples_sent < total_samples) && !stop_signal_called) {
+        uhd::tx_metadata_t md;
+        md.start_of_burst = true;
+        md.end_of_burst = false;
+        md.has_time_spec = true;
+        md.time_spec = first_burst_time + uhd::time_spec_t(num_bursts * burst_increment);
+
+        uint64_t samples_sent_this_burst = 0;
+        while((burst_length == 0 || samples_sent_this_burst < burst_length) && (total_samples == 0 || total_samples_sent < total_samples) && !stop_signal_called) {
+            // Send up to spb samples, without going past the end of the burst or the total
+            uint64_t samples_to_send = spb;
+            if(burst_length != 0) {
+                samples_to_send = std::min(samples_to_send, burst_length - samples_sent_this_burst);
+            }
+            if(total_samples != 0) {
+                samples_to_send = std::min(samples_to_send, total_samples - total_samples_sent);
+            }
+
+            // Start where the previous send left off in the wave. Every burst starts at the start of the wave
+            const std::complex<short>* buff_ptr = &buff[samples_sent_this_burst % fundamental_period];
+
+            size_t samples_this_send = streamer->send(buff_ptr, samples_to_send, md);
+            samples_sent_this_burst += samples_this_send;
+            total_samples_sent += samples_this_send;
+
+            // Only the first packet of a burst is the start of burst and has the start time
             if(samples_this_send > 0) {
-                set sob and has timestamp flags to false
+                md.start_of_burst = false;
+                md.has_time_spec = false;
             }
         }
-        Send end of burst
+
+        // Send a mini EOB (end of burst) packet to indicate that the burst is over
+        md.start_of_burst = false;
+        md.has_time_spec = false;
+        md.end_of_burst = true;
+        streamer->send("", 0, md);
 
         num_bursts++;
     }
 
-    Print total_samples_sent
+    std::cout << std::format("TX ch{}: sent {} samples\n", channel, total_samples_sent);
 }
 
 /***********************************************************************
@@ -221,7 +415,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string args, wave_type, channel_list, results_directory;
     double rx_sob, tx_sob, rate, freq, tx_gain, rx_gain, wave_freq;
     float ampl;
-    uint64_t num_trigger;
+    uint64_t total_samples;
+    double burst_increment;
 
     // Trigger arguments as entered by the user. Parsed into the variables below
     std::string sma_trigpol_s;
@@ -232,6 +427,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::string sma_edge_output_s, rx_ufl_edge_output_s, tx_ufl_edge_output_s;
     std::string tx_gating_s;
     std::string rx_ufl_trigpol_s, tx_ufl_trigpol_s;
+    std::string rx_burst_length_s, tx_burst_length_s;
 
     //setup the program options
     // Shown at the top of --help so the per channel list behaviour doesn't need repeating for every argument
@@ -273,10 +469,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx_gating", po::value<std::string>(&tx_gating_s)->default_value("dsp"), "A list per channel for whether to gate at the dsp or output. Gating at the dsp consumes samples when a trigger is received. Gating at the output consumes samples normally but the samples sent to the DAC are set to 0 unless the trigger is active. Applies to input trigger streaming only.")
 
 
-        ("total_samples", po::value<uint64_t>(&total_samples)->default_value(0), "How many samples in total to send/receive before exiting.")
+        ("total_samples", po::value<uint64_t>(&total_samples)->default_value(0), "How many samples in total to send/receive before exiting. 0 sends/receives until Ctrl+C is pressed.")
         // TODO: explain that streaming only occurs when time conditions (rx/tx_sob, burst_length, burst_increment) AND ufl trigger (if input) AND sma trigger (if input) without duplicating the message for each argument
-        ("burst_length", po::value<uint64_t>(&burst_length)->default_value(0), "How many samples to send per tx burst, or receive per rx burst. Set to 0 for continuous. Recomended to use 0 for continuous if using input triggers.")
-        ("burst_increment", po::value<double>(&burst_increment)->default_value(2), "How many seconds between the start of bursts. Does nothing if burst_length is 0 (continuous).")
+        ("rx_burst_lengths", po::value<std::string>(&rx_burst_length_s)->default_value("0"), "A list per channel of how many samples to receive per rx burst. Set to 0 for continuous. When not using continuous mode samples will only received when all input triggers are active AND the burst command says samples should be received. The actual number of samples received per burst will be much lower.")
+        ("tx_burst_lengths", po::value<std::string>(&tx_burst_length_s)->default_value("0"), "A list per channel of how many samples to send per tx burst. Set to 0 for continuous. Recomendation: If using exactly one edge input trigger match tx_edge_sample_num for keep phase consistent between triggers Otherwise use continuous mode to keep interactions between commands and triggers simple.")
+        ("burst_increment", po::value<double>(&burst_increment)->default_value(2), "How many seconds between the start of bursts. Does nothing for channels whose burst length is 0 (continuous).")
         ("results_dir", po::value<std::string>(&results_directory)->default_value("results"), "Directory to save results into")
         ("tx_only", "Do not use rx")
         ("rx_only", "Do not use tx")
@@ -357,6 +554,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     std::vector<uhd::trigger_pv::gating_t> tx_gating = parse_per_channel<uhd::trigger_pv::gating_t>(tx_gating_s, "tx_gating", num_channels, parse_gating);
 
+    // Per channel streaming settings
+    std::vector<uint64_t> rx_burst_length = parse_per_channel<uint64_t>(rx_burst_length_s, "rx_burst_lengths", num_channels, parse_non_negative);
+    std::vector<uint64_t> tx_burst_length = parse_per_channel<uint64_t>(tx_burst_length_s, "tx_burst_lengths", num_channels, parse_non_negative);
+
     // Rates are applied before frequencies because the frequency tuning depends on the sample rate
     // The actual rates are needed later to generate the tx waveform
     double tx_rate = 0;
@@ -373,6 +574,17 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             usrp->set_rx_rate(rate, channel_nums[ch]);
             rx_rate = usrp->get_rx_rate(channel_nums[ch]);
             std::cout << std::format("Actual ch{} RX Rate: {} Msps...\n\n", channel_nums[ch], (rx_rate/1e6));
+        }
+    }
+
+    // Every tx channel shares one sample buffer, so they must all have the same rate
+    if(use_tx) {
+        double first_tx_rate = usrp->get_tx_rate(channel_nums[0]);
+        for(size_t ch = 0; ch < num_channels; ch++) {
+            double this_tx_rate = usrp->get_tx_rate(channel_nums[ch]);
+            if(this_tx_rate != first_tx_rate) {
+                throw std::runtime_error(std::format("TX ch{} has a rate of {} Msps but TX ch{} has a rate of {} Msps. Every tx channel must have the same rate", channel_nums[ch], this_tx_rate/1e6, channel_nums[0], first_tx_rate/1e6));
+            }
         }
     }
 
@@ -411,12 +623,24 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     // freq (set above) is how far the device's DSP/RF shifts those samples. They are unrelated.
     // Every tx channel uses the same rate, wave type, wave frequency and amplitude, so they share one generator.
     std::unique_ptr<wave_generator<short>> tx_wave;
+    // How many samples the wave takes to repeat exactly. Each tx thread's buffer is this much longer than it sends at once
+    size_t fundamental_period = 0;
     if(use_tx) {
         //error when the waveform is not possible to generate
         if (std::abs(wave_freq) > tx_rate/2){
             throw std::runtime_error("wave freq out of Nyquist zone");
         }
         tx_wave = std::make_unique<wave_generator<short>>(wave_type, ampl, tx_rate, wave_freq);
+
+        // Limit the size of the sample buffer to avoid excessive resource use (same limits as tx_waveforms)
+        // Most waves are limited to 2e9 samples (8Gb of RAM)
+        // Comb waves are limited to 100e3 samples due to how long lookup table generation takes
+        fundamental_period = tx_wave->get_fundamental_period();
+        const size_t max_lut_size = (wave_type == "COMB") ? 100000 : 2000000000;
+        if(fundamental_period > max_lut_size) {
+            std::cout << std::format("The fundamental period of the wave is very large. The lookup table will be limited to {} samples. This will cause a discontinuity every {} seconds.\n", max_lut_size, max_lut_size / tx_rate);
+            fundamental_period = max_lut_size;
+        }
     }
 
     // Configure trigger
@@ -506,7 +730,100 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     // Streaming start of this + rx_sob or tx_sob
     uhd::time_spec_t init_time = usrp->get_time_now();
 
-    // TODO: Create rx and tx threads. Give each channel it's own streamer to avoid conflicts in the number of samples
+    // Create the tx streamers. Each channel gets its own streamer so channels don't have to send the same number of samples
+    // Streamers are created here, one at a time, rather than inside the threads, to avoid creating several at once
+    // Creating a streamer enables its channel (trigger_configure left them disabled)
+    std::vector<uhd::tx_streamer::sptr> tx_streamers;
+    std::vector<bool> tx_uses_blocking_fc;
+    if(use_tx) {
+        for(size_t ch = 0; ch < num_channels; ch++) {
+            uhd::stream_args_t tx_stream_args("sc16");
+            tx_stream_args.channels = {channel_nums[ch]};
+            uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(tx_stream_args);
+
+            // With dsp gating an input trigger decides when samples are consumed, so blocking flow control is needed
+            // to avoid sending samples faster than they are used
+            bool any_input_trigger = tx_sma_sel[ch] == trigger_sel::input || tx_ufl_sel[ch] == trigger_sel::input;
+            bool use_blocking_fc = any_input_trigger && tx_gating[ch] == uhd::trigger_pv::gating_t::dsp;
+            if(use_blocking_fc) {
+                // Same as txrx_trigger_loopback: keep 10 triggers worth of samples buffered on the device
+                uint64_t setpoint = 10 * tx_edge_sample_num[ch];
+                if(setpoint == 0) {
+                    // edge_sample_num 0 streams indefinitely after a trigger, so buffer 10 sends worth instead
+                    setpoint = 10 * 10 * tx_stream->get_max_num_samps();
+                }
+                tx_stream->enable_blocking_fc(setpoint);
+            }
+
+            tx_streamers.push_back(tx_stream);
+            tx_uses_blocking_fc.push_back(use_blocking_fc);
+        }
+    }
+
+    // Create the sample buffer shared by every tx thread
+    // Each thread sends up to 10 packets worth (spb) at a time, starting anywhere in the first fundamental period.
+    // Holding one fundamental period more than the largest spb lets every send continue the wave without a discontinuity (see tx_waveforms)
+    tx_buffer_t tx_buff;
+    if(use_tx) {
+        size_t largest_spb = 0;
+        for(uhd::tx_streamer::sptr& tx_stream : tx_streamers) {
+            largest_spb = std::max(largest_spb, tx_stream->get_max_num_samps() * 10);
+        }
+
+        // Pad the end to a whole number of cache lines
+        const size_t samples_per_cache_line = CACHE_LINE_SIZE / sizeof(std::complex<short>);
+        size_t buffer_length = largest_spb + fundamental_period;
+        buffer_length = ((buffer_length + samples_per_cache_line - 1) / samples_per_cache_line) * samples_per_cache_line;
+
+        tx_buff.resize(buffer_length);
+        for (size_t n = 0; n < tx_buff.size(); n++) {
+            tx_buff[n] = (*tx_wave)(n);
+        }
+    }
+
+    std::signal(SIGINT, &sig_int_handler);
+    std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
+
+    // Create the tx threads, one per channel
+    std::vector<std::thread> tx_threads;
+    for(size_t ch = 0; ch < tx_streamers.size(); ch++) {
+        tx_threads.emplace_back(tx_function, tx_streamers[ch], channel_nums[ch], std::cref(tx_buff), fundamental_period, init_time + uhd::time_spec_t(tx_sob), burst_increment, tx_burst_length[ch], total_samples);
+    }
+
+    // Create the rx streamers. Each channel gets its own streamer to avoid conflicts in the number of samples
+    // Streamers are created here, one at a time, rather than inside the threads, to avoid creating several at once
+    // Creating a streamer enables its channel (trigger_configure left them disabled)
+    std::vector<uhd::rx_streamer::sptr> rx_streamers;
+    if(use_rx) {
+        std::filesystem::create_directories(results_directory);
+
+        for(size_t ch = 0; ch < num_channels; ch++) {
+            uhd::stream_args_t rx_stream_args("sc16");
+            rx_stream_args.channels = {channel_nums[ch]};
+            rx_streamers.push_back(usrp->get_rx_stream(rx_stream_args));
+        }
+    }
+
+    // Create the rx threads, one per channel
+    // Channels with a burst length of 0 receive continuously, the others receive in bursts
+    std::vector<std::thread> rx_threads;
+    for(size_t ch = 0; ch < rx_streamers.size(); ch++) {
+        auto rx_function = (rx_burst_length[ch] == 0) ? rx_continous_function : rx_burst_function;
+        rx_threads.emplace_back(rx_function, rx_streamers[ch], channel_nums[ch], init_time + uhd::time_spec_t(rx_sob), usrp->get_rx_rate(channel_nums[ch]), rx_burst_length[ch], total_samples, results_directory, overwrite);
+    }
+
+    // Wait for tx and rx to finish
+    for(std::thread& tx_thread : tx_threads) {
+        tx_thread.join();
+    }
+    for(std::thread& rx_thread : rx_threads) {
+        rx_thread.join();
+    }
+    for(size_t ch = 0; ch < tx_streamers.size(); ch++) {
+        if(tx_uses_blocking_fc[ch]) {
+            tx_streamers[ch]->disable_blocking_fc();
+        }
+    }
 
     // TODO: cleanup trigger
 
