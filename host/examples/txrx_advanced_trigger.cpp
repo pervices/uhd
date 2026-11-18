@@ -147,6 +147,41 @@ int64_t parse_non_negative(const std::string& value, const std::string& argument
     return number;
 }
 
+/**
+ * Combines a channel's sma and ufl selections into its trig_sel
+ */
+uhd::trigger_pv::active_trigger_t make_trig_sel(trigger_sel sma_sel, trigger_sel ufl_sel) {
+    using namespace uhd::trigger_pv;
+
+    active_trigger_t trig_sel = active_trigger_t::none;
+    if(sma_sel == trigger_sel::input) {
+        trig_sel |= active_trigger_t::sma_input;
+    } else if(sma_sel == trigger_sel::output) {
+        trig_sel |= active_trigger_t::sma_output;
+    }
+    // Whether the ufl is an input or output is set by ufl_dir (see ufl_direction)
+    if(ufl_sel != trigger_sel::none) {
+        trig_sel |= active_trigger_t::channel_ufl;
+    }
+    return trig_sel;
+}
+
+/**
+ * The ufl direction for a channel's ufl selection
+ */
+uhd::trigger_pv::pin_direction_t ufl_direction(trigger_sel ufl_sel) {
+    using namespace uhd::trigger_pv;
+
+    if(ufl_sel == trigger_sel::input) {
+        return pin_direction_t::in;
+    } else if(ufl_sel == trigger_sel::output) {
+        return pin_direction_t::out;
+    } else {
+        // The ufl isn't used, so leave its direction as is
+        return pin_direction_t::get;
+    }
+}
+
 /***********************************************************************
  * Main function
  **********************************************************************/
@@ -160,13 +195,14 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     uint64_t num_trigger;
 
     // Trigger arguments as entered by the user. Parsed into the variables below
-    std::string global_trigpol_s;
+    std::string sma_trigpol_s;
     std::string rx_sma_mode_s, tx_sma_mode_s, rx_ufl_mode_s, tx_ufl_mode_s;
     std::string rx_sma_sel_s, tx_sma_sel_s, rx_ufl_sel_s, tx_ufl_sel_s;
     std::string rx_edge_backoff_s, tx_edge_backoff_s;
     std::string rx_edge_sample_num_s, tx_edge_sample_num_s;
     std::string sma_edge_output_s, rx_ufl_edge_output_s, tx_ufl_edge_output_s;
     std::string tx_gating_s;
+    std::string rx_ufl_trigpol_s, tx_ufl_trigpol_s;
 
     //setup the program options
     // Shown at the top of --help so the per channel list behaviour doesn't need repeating for every argument
@@ -184,25 +220,27 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         ("tx_gain", po::value<double>(&tx_gain)->default_value(0), "gain for the tx RF chain")
         ("rx_gain", po::value<double>(&rx_gain)->default_value(0), "gain for the rx RF chain")
         ("ampl", po::value<float>(&ampl)->default_value(float(0.3)), "amplitude of the waveform [0 to 0.7]")
-        ("wave-type", po::value<std::string>(&wave_type)->default_value("CONST"), "Baseband waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q, COMB)")
+        ("wave_type", po::value<std::string>(&wave_type)->default_value("CONST"), "Baseband waveform type (CONST, SQUARE, RAMP, SINE, SINE_NO_Q, COMB)")
         ("wave-freq", po::value<double>(&wave_freq)->default_value(0), "Frequency in Hz of the waveform in the samples sent to the device (before the shift by --freq). Comb spacing for COMB waves. Ignored for CONST waves")
         ("channels", po::value<std::string>(&channel_list)->default_value("0"), "which channels to use (specify \"0\", \"1\", \"0,1\", etc)")
-        ("global_trigpol", po::value<std::string>(&global_trigpol_s)->default_value("positive"), "Whether the global trigger is active high or low. Valid values: positive, negative")
-        ("rx_sma_mode", po::value<std::string>(&rx_sma_mode_s)->default_value("edge"), "A list per channel for whether the sma trigger activates on edge or level.")
-        ("tx_sma_mode", po::value<std::string>(&tx_sma_mode_s)->default_value("edge"), "A list per channel for whether the sma trigger activates on edge or level.")
+        ("sma_trigpol", po::value<std::string>(&sma_trigpol_s)->default_value("positive"), "Whether the global trigger is active high or low. Valid values: positive, negative")
+        ("rx_ufl_trigpol", po::value<std::string>(&rx_ufl_trigpol_s)->default_value("positive"), "Whether the channel's ufl is active high or low. Valid values: positive, negative")
+        ("tx_ufl_trigpol", po::value<std::string>(&tx_ufl_trigpol_s)->default_value("positive"), "Whether the channel's ufl is active high or low. Valid values: positive, negative")
+        ("rx_sma_mode", po::value<std::string>(&rx_sma_mode_s)->default_value("edge"), "A list per channel for whether the sma trigger activates/is active on edge or level.")
+        ("tx_sma_mode", po::value<std::string>(&tx_sma_mode_s)->default_value("edge"), "A list per channel for whether the sma trigger activates/is active on edge or level.")
         ("rx_ufl_mode", po::value<std::string>(&rx_ufl_mode_s)->default_value("edge"), "A list per channel for whether the ufl trigger activates on edge or level.")
         ("tx_ufl_mode", po::value<std::string>(&tx_ufl_mode_s)->default_value("edge"), "A list per channel for whether the ufl trigger activates on edge or level.")
-        ("rx_sma_sel", po::value<std::string>(&rx_sma_sel_s)->default_value("input"), "A list per channel for whether the the channel is inputting or outputing to the trigger. A single channel can only do one of input or output on the sma at a time regardless of whether the device support have separate input and output pins. Valid values: input, output, none")
-        ("tx_sma_sel", po::value<std::string>(&tx_sma_sel_s)->default_value("input"), "A list per channel for whether the the channel is inputting or outputing to the trigger. A single channel can only do one of input or output on the sma at a time regardless of whether the device support have separate input and output pins. Valid values: input, output, none")
+        ("rx_sma_sel", po::value<std::string>(&rx_sma_sel_s)->default_value("input"), "A list per channel for whether the the channel is inputting or outputing to the trigger. A single channel can only do one of input or output on the sma at a time regardless of whether the device support have separate input and output pins. On units with bidirectional sma pins all channels' sma setting must either match or be none. Valid values: input, output, none")
+        ("tx_sma_sel", po::value<std::string>(&tx_sma_sel_s)->default_value("input"), "A list per channel for whether the the channel is inputting or outputing to the trigger. A single channel can only do one of input or output on the sma at a time regardless of whether the device support have separate input and output pins. On units with bidirectional sma pins all channels' sma setting must either match or be none. Valid values: input, output, none")
         ("rx_ufl_sel", po::value<std::string>(&rx_ufl_sel_s)->default_value("none"), "A list per channel for whether the the channel is inputting or outputing to the trigger. Valid values: input, output, none")
         ("tx_ufl_sel", po::value<std::string>(&tx_ufl_sel_s)->default_value("none"), "A list per channel for whether the the channel is inputting or outputing to the trigger. Valid values: input, output, none")
         ("rx_edge_backoff", po::value<std::string>(&rx_edge_backoff_s)->default_value("0"), "A list per channel for how long in ticks edges should be ignored after receiving an edge. Does nothing for triggers in level mode.")
         ("tx_edge_backoff", po::value<std::string>(&tx_edge_backoff_s)->default_value("0"), "A list per channel for how long in ticks edges should be ignored after receiving an edge. Does nothing for triggers in level mode.")
         ("rx_edge_sample_num", po::value<std::string>(&rx_edge_sample_num_s)->default_value("0"), "A list per channel for how long in samples after edges an input trigger is considered active. Streaming only occurs when all input triggers and time commands say to stream.")
         ("tx_edge_sample_num", po::value<std::string>(&tx_edge_sample_num_s)->default_value("0"), "A list per channel for how long in samples after edges an input trigger is considered active. Streaming only occurs when all input triggers and time commands say to stream.")
-        ("sma_edge_output", po::value<std::string>(&sma_edge_output_s)->default_value("0"), "How long in samples after a channel starts streaming the trigger is considered active in edge mode. Applies to every channel. Each individual channel set to sma output will be the output high for sma_edge_output samples. 0 stays active forever. All the individual channel outputs are ORed together.")
-        ("rx_ufl_edge_output", po::value<std::string>(&rx_ufl_edge_output_s)->default_value("0"), "A list per channel for how long in samples after a channel starts streaming is considered active in edge mode. 0 stays active forever.")
-        ("tx_ufl_edge_output", po::value<std::string>(&tx_ufl_edge_output_s)->default_value("0"), "A list per channel for how long in samples after a channel starts streaming is considered active in edge mode. 0 stays active forever.")
+        ("sma_edge_output", po::value<std::string>(&sma_edge_output_s)->default_value("0"), "How long in samples after a channel starts streaming the output trigger is active in edge mode. Each channel tracks their output pulse separately and the final result is ORed together. 0 stays active forever")
+        ("rx_ufl_edge_output", po::value<std::string>(&rx_ufl_edge_output_s)->default_value("0"), "A list per channel for how long in samples after a channel starts streaming the output trigger is active in edge mode. 0 stays active forever.")
+        ("tx_ufl_edge_output", po::value<std::string>(&tx_ufl_edge_output_s)->default_value("0"), "A list per channel for how long in samples after a channel starts streaming the output trigger is active in edge mode. 0 stays active forever.")
         ("tx_gating", po::value<std::string>(&tx_gating_s)->default_value("dsp"), "A list per channel for whether to gate at the dsp or output. Gating at the dsp consumes samples when a trigger is received. Gating at the output consumes samples normally but the samples sent to the DAC are set to 0 unless the trigger is active. Applies to input trigger streaming only.")
 
 
@@ -261,7 +299,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     const size_t num_channels = channel_nums.size();
 
     // Settings that apply to every channel
-    uhd::trigger_pv::polarity_t global_trigpol = parse_polarity(global_trigpol_s, "global_trigpol");
+    uhd::trigger_pv::polarity_t sma_trigpol = parse_polarity(sma_trigpol_s, "sma_trigpol");
     int64_t sma_edge_output = parse_non_negative(sma_edge_output_s, "sma_edge_output");
 
     // Per channel trigger settings. Each vector has one element per channel in channel_nums
@@ -281,6 +319,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<int64_t> tx_edge_sample_num = parse_per_channel<int64_t>(tx_edge_sample_num_s, "tx_edge_sample_num", num_channels, parse_non_negative);
     std::vector<int64_t> rx_ufl_edge_output = parse_per_channel<int64_t>(rx_ufl_edge_output_s, "rx_ufl_edge_output", num_channels, parse_non_negative);
     std::vector<int64_t> tx_ufl_edge_output = parse_per_channel<int64_t>(tx_ufl_edge_output_s, "tx_ufl_edge_output", num_channels, parse_non_negative);
+
+    std::vector<uhd::trigger_pv::polarity_t> rx_ufl_trigpol = parse_per_channel<uhd::trigger_pv::polarity_t>(rx_ufl_trigpol_s, "rx_ufl_trigpol", num_channels, parse_polarity);
+    std::vector<uhd::trigger_pv::polarity_t> tx_ufl_trigpol = parse_per_channel<uhd::trigger_pv::polarity_t>(tx_ufl_trigpol_s, "tx_ufl_trigpol", num_channels, parse_polarity);
 
     std::vector<uhd::trigger_pv::gating_t> tx_gating = parse_per_channel<uhd::trigger_pv::gating_t>(tx_gating_s, "tx_gating", num_channels, parse_gating);
 
@@ -346,7 +387,92 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         tx_wave = std::make_unique<wave_generator<short>>(wave_type, ampl, tx_rate, wave_freq);
     }
 
-    // TODO: Configure trigger
+    // Configure trigger
+    // Channels not passed to trigger_configure will be disabled. Every channel used by this program is passed.
+    {
+        using namespace uhd::trigger_pv;
+
+        trigger_op_t op;
+        // Let the device adjust values it can't apply exactly (i.e. edge_sample_num rounded up to a multiple of 2).
+        // The adjusted values are written back into the structs and printed below.
+        op.enable_strict_errors &= ~strict_error_t::coerced_value;
+
+        trigger_global_t global;
+        // derive sets the sma direction from the channels, so the same arguments work on devices with a single
+        // bidirectional sma pin and on devices with separate sma input and output pins
+        global.sma_direction = pin_direction_t::derive;
+        global.sma_polarity = sma_trigpol;
+        global.sma_override = 0;
+        global.sma_output_pulse_length = sma_edge_output;
+
+        std::vector<trigger_rx_t> rx_trigger;
+        if(use_rx) {
+            for(size_t ch = 0; ch < num_channels; ch++) {
+                trigger_rx_t chan;
+                chan.channel = channel_nums[ch];
+                chan.trig_sel = make_trig_sel(rx_sma_sel[ch], rx_ufl_sel[ch]);
+                chan.sma_mode = rx_sma_mode[ch];
+                chan.ufl_mode = rx_ufl_mode[ch];
+                chan.ufl_dir = ufl_direction(rx_ufl_sel[ch]);
+                chan.ufl_polarity = rx_ufl_trigpol[ch];
+                chan.edge_backoff = rx_edge_backoff[ch];
+                chan.edge_sample_num = rx_edge_sample_num[ch];
+                chan.ufl_output_pulse_length = rx_ufl_edge_output[ch];
+                // Everything is configured before streaming starts, so the channel doesn't need to stay enabled
+                chan.hot_configure = false;
+                // Leave the channel disabled. Creating a streamer enables it
+                chan.enable = 0;
+                rx_trigger.push_back(chan);
+            }
+        }
+
+        std::vector<trigger_tx_t> tx_trigger;
+        if(use_tx) {
+            for(size_t ch = 0; ch < num_channels; ch++) {
+                trigger_tx_t chan;
+                chan.channel = channel_nums[ch];
+                chan.trig_sel = make_trig_sel(tx_sma_sel[ch], tx_ufl_sel[ch]);
+                chan.sma_mode = tx_sma_mode[ch];
+                chan.ufl_mode = tx_ufl_mode[ch];
+                chan.ufl_dir = ufl_direction(tx_ufl_sel[ch]);
+                chan.ufl_polarity = tx_ufl_trigpol[ch];
+                chan.edge_backoff = tx_edge_backoff[ch];
+                chan.edge_sample_num = tx_edge_sample_num[ch];
+                chan.ufl_output_pulse_length = tx_ufl_edge_output[ch];
+                chan.gating = tx_gating[ch];
+                // Everything is configured before streaming starts, so the channel doesn't need to stay enabled
+                chan.hot_configure = false;
+                // Leave the channel disabled. Creating a streamer enables it
+                chan.enable = 0;
+                tx_trigger.push_back(chan);
+            }
+        }
+
+        std::cout << "Configuring trigger...\n";
+        bool exact = usrp->trigger_configure(&op, &global, rx_trigger.data(), rx_trigger.size(), tx_trigger.data(), tx_trigger.size());
+
+        // Use the values the device actually applied from here on
+        for(size_t ch = 0; ch < rx_trigger.size(); ch++) {
+            rx_edge_sample_num[ch] = rx_trigger[ch].edge_sample_num;
+        }
+        for(size_t ch = 0; ch < tx_trigger.size(); ch++) {
+            tx_edge_sample_num[ch] = tx_trigger[ch].edge_sample_num;
+        }
+
+        if(!exact) {
+            std::cout << "Some trigger settings were adjusted by the device. Actual edge_sample_num values:\n";
+            for(size_t ch = 0; ch < rx_trigger.size(); ch++) {
+                std::cout << std::format("    RX ch{}: {}\n", channel_nums[ch], rx_edge_sample_num[ch]);
+            }
+            for(size_t ch = 0; ch < tx_trigger.size(); ch++) {
+                std::cout << std::format("    TX ch{}: {}\n", channel_nums[ch], tx_edge_sample_num[ch]);
+            }
+        }
+    }
+
+    // The time on the device as of the end of configuring
+    // Streaming start of this + rx_sob or tx_sob
+    uhd::time_spec_t init_time = usrp->get_time_now();
 
     // TODO: Create rx and tx threads. Give each channel it's own streamer to avoid conflicts in the number of samples
 
