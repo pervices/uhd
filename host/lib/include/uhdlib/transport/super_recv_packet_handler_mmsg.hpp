@@ -213,10 +213,46 @@ public:
                 }
             }
 
+            bool rejected_packet = false;
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
+
+                // With the workaround for http://korbin.pv/issues/19527#note-26 we will sometimes get an all 0s packet
+                // Drop packets that are all 0
+                // Remove this workaround once that is fixed
+
+                bool all_zero = true;
+                uint64_t* word_check;
+                for(word_check =(uint64_t*) (next_packet[ch].samples + HEADER_SIZE); (uint8_t*) word_check <= next_packet[ch].samples + next_packet[ch].length - sizeof(uint64_t); word_check++) {
+                    if( *word_check != 0 ) {
+                        // We detected a non 0 sample, the packet does not need to be dropped
+                        all_zero = false;
+                        break;
+                    }
+                }
+                uint8_t* byte_check = (uint8_t*) word_check;
+                while(byte_check < next_packet[ch].samples + next_packet[ch].length && all_zero) {
+                    if(*byte_check != 0) {
+                        all_zero = false;
+                    }
+                    byte_check++;
+                }
+                if(all_zero) {
+                    // Drop the packet
+                    recv_manager->advance_packet(ch);
+                    rejected_packet = true;
+                    // Advance the sequence number to account for the dropped packet
+                    previous_sequence_number[ch]++;
+                }
+            }
+            // Get another batch of packets (will reget the same packet for every packet that advance_packet wasn't called for)
+            if(rejected_packet) {
+                continue;
+            }
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
