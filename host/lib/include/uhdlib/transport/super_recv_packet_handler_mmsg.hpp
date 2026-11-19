@@ -213,10 +213,33 @@ public:
                 }
             }
 
+            bool rejected_packet = false;
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
+
+                // Drop packets that are all 0 (assume packets with samples 23 and 24 all 0 are all 0 to avoid checking to much data)
+                // With the workaround for http://korbin.pv/issues/19527#note-26 we will sometimes get an all 0s packet
+                // We look at words (samples) 32 and 24 because 0-21 of every burst will be all 0.
+                // Skip dropping for packets with less than 23 samples
+                // This workaround assumes sc16, it will check later samples for sc12
+                if(next_packet[ch].length >= (int64_t) HEADER_SIZE + 96) {
+                    uint64_t samples_23_24;
+                    std::memcpy(&samples_23_24, next_packet[ch].samples + 23 * sizeof(uint32_t), sizeof(samples_23_24));
+                    if(samples_23_24 == 0) {
+                        recv_manager->advance_packet(ch);
+                        rejected_packet = true;
+                        // Advance the sequence number to account for the dropped packet
+                        previous_sequence_number[ch]++;
+                    }
+                }
+            }
+            if(rejected_packet) {
+                continue;
+            }
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
