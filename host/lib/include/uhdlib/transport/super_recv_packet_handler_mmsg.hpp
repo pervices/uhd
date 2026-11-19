@@ -213,10 +213,32 @@ public:
                 }
             }
 
+            bool rejected_packet = false;
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
                 // Extract Vita metadata
                 if_hdr_unpack((uint32_t*) next_packet[ch].vita_header, vita_md[ch]);
+
+                if(next_packet[ch].length >= (int64_t) HEADER_SIZE + 96) {
+                    // Drop packets that are all 0 (assume packets with samples 16 and 17 all 0 are all 0 to avoid checking to much data)
+                    // With the workaround for http://korbin.pv/issues/19527#note-26 we will sometimes get an all 0s packet
+                    // We look at words (samples) 22 and 23 because 0-21 of every burst will be all 0.
+                    // Skip dropping for packets with less than 23 samples
+                    // This workaround assumes sc16, will not work with sc12
+                    // FOR DEBUG/DEMO ONLY, DO NOT MERGE TO MASTER
+                    uint64_t samples_23_24;
+                    std::memcpy(&samples_23_24, next_packet[ch].samples + 23 * sizeof(uint32_t), sizeof(samples_23_24));
+                    if(samples_23_24 == 0) {
+                        recv_manager->advance_packet(ch);
+                        rejected_packet = true;
+                    }
+                }
+            }
+            if(rejected_packet) {
+                continue;
+            }
+
+            for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
 
                 // TODO: enable this once eob flag is properly implement in packets && cache it in the eve
                 // Currently Crimson will always have eob and Cyan will never have
@@ -242,12 +264,15 @@ public:
                 // Set the flag for realignment required if there is a mismatch in timestamps between packets
                 realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
 
-                // Detect and warn user of overflow error
-                if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
-                    metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
-                    _overflow_occured = true;
-                    overflow_detected = true;
-                }
+                // Disabled as workaround for http://korbin.pv/issues/19527#note-26 do not merge to master.
+                // // Detect and warn user of overflow error
+                // if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
+                //     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
+                //     _overflow_occured = true;
+                //     overflow_detected = true;
+                // }
+                // End of workaround for http://korbin.pv/issues/19527#note-31
+
             }
 
             if(overflow_detected && !oflow_message_printed) [[unlikely]] {
