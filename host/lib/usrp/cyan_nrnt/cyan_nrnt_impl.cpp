@@ -1207,6 +1207,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         // Power status
         TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
+        // Enables/disables the channel without powering down its RF chain (same as rx)
+        // Only exists on servers TRIGGER_OVERHAUL_SERVER_R3_S or newer
+        TREE_CREATE_RW(tx_path / dspno / "stream", "tx_"+lc_num+"/stream", std::string, string);
+
         // Codecs, phony properties for Crimson
         TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
         TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
@@ -2019,11 +2023,6 @@ double cyan_nrnt_impl::get_link_rate() {
 /***********************************************************************
  * Trigger configuration (device-specific parts, see uhd::pv_device)
  **********************************************************************/
-bool cyan_nrnt_impl::trigger_server_supported() const
-{
-    return server_api_ver >= TRIGGER_OVERHAUL_SERVER;
-}
-
 uhd::pv_device::trigger_pin_type_t cyan_nrnt_impl::trigger_sma_pin_type() const
 {
     // Cyan has separate SMA input and output pins.

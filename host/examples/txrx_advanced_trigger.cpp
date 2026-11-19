@@ -715,92 +715,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::vector<uint64_t> rx_burst_length = parse_per_channel<uint64_t>(rx_burst_length_s, "rx_burst_lengths", num_channels, parse_non_negative);
     std::vector<uint64_t> tx_burst_length = parse_per_channel<uint64_t>(tx_burst_length_s, "tx_burst_lengths", num_channels, parse_non_negative);
 
-    // Configure trigger
-    // Channels not passed to trigger_configure will be disabled. Every channel used by this program is passed.
-    // This must happen before setting rates, frequencies and gains: channels are disabled during configuration
-    // (hot_configure is false), and disabling a tx channel powers down its RF chain. The RF settings applied
-    // before that are not restored when the channel is re-enabled, even though the state tree still shows them.
-    {
-        using namespace uhd::trigger_pv;
-
-        trigger_op_t op;
-        // Let the device adjust values it can't apply exactly (i.e. edge_sample_num rounded up to a multiple of 2).
-        // The adjusted values are written back into the structs and printed below.
-        op.enable_strict_errors &= ~strict_error_t::coerced_value;
-
-        trigger_global_t global;
-        // derive sets the sma direction from the channels, so the same arguments work on devices with a single
-        // bidirectional sma pin and on devices with separate sma input and output pins
-        global.sma_direction = pin_direction_t::derive;
-        global.sma_polarity = sma_trigpol;
-        global.sma_override = 0;
-        global.sma_output_pulse_length = sma_edge_output;
-
-        std::vector<trigger_rx_t> rx_trigger;
-        if(use_rx) {
-            for(size_t ch = 0; ch < num_channels; ch++) {
-                trigger_rx_t chan;
-                chan.channel = channel_nums[ch];
-                chan.trig_sel = make_trig_sel(rx_sma_sel[ch], rx_ufl_sel[ch]);
-                chan.sma_mode = rx_sma_mode[ch];
-                chan.ufl_mode = rx_ufl_mode[ch];
-                chan.ufl_dir = ufl_direction(rx_ufl_sel[ch]);
-                chan.ufl_polarity = rx_ufl_trigpol[ch];
-                chan.edge_backoff = rx_edge_backoff[ch];
-                chan.edge_sample_num = rx_edge_sample_num[ch];
-                chan.ufl_output_pulse_length = rx_ufl_edge_output[ch];
-                // Everything is configured before streaming starts, so the channel doesn't need to stay enabled
-                chan.hot_configure = false;
-                // Leave the channel disabled. Creating a streamer enables it
-                chan.enable = 0;
-                rx_trigger.push_back(chan);
-            }
-        }
-
-        std::vector<trigger_tx_t> tx_trigger;
-        if(use_tx) {
-            for(size_t ch = 0; ch < num_channels; ch++) {
-                trigger_tx_t chan;
-                chan.channel = channel_nums[ch];
-                chan.trig_sel = make_trig_sel(tx_sma_sel[ch], tx_ufl_sel[ch]);
-                chan.sma_mode = tx_sma_mode[ch];
-                chan.ufl_mode = tx_ufl_mode[ch];
-                chan.ufl_dir = ufl_direction(tx_ufl_sel[ch]);
-                chan.ufl_polarity = tx_ufl_trigpol[ch];
-                chan.edge_backoff = tx_edge_backoff[ch];
-                chan.edge_sample_num = tx_edge_sample_num[ch];
-                chan.ufl_output_pulse_length = tx_ufl_edge_output[ch];
-                chan.gating = tx_gating[ch];
-                // Everything is configured before streaming starts, so the channel doesn't need to stay enabled
-                chan.hot_configure = false;
-                // Leave the channel disabled. Creating a streamer enables it
-                chan.enable = 0;
-                tx_trigger.push_back(chan);
-            }
-        }
-
-        std::cout << "Configuring trigger...\n";
-        bool exact = usrp->trigger_configure(&op, &global, rx_trigger.data(), rx_trigger.size(), tx_trigger.data(), tx_trigger.size());
-
-        // Use the values the device actually applied from here on
-        for(size_t ch = 0; ch < rx_trigger.size(); ch++) {
-            rx_edge_sample_num[ch] = rx_trigger[ch].edge_sample_num;
-        }
-        for(size_t ch = 0; ch < tx_trigger.size(); ch++) {
-            tx_edge_sample_num[ch] = tx_trigger[ch].edge_sample_num;
-        }
-
-        if(!exact) {
-            std::cout << "Some trigger settings were adjusted by the device. Actual edge_sample_num values:\n";
-            for(size_t ch = 0; ch < rx_trigger.size(); ch++) {
-                std::cout << std::format("    RX ch{}: {}\n", channel_nums[ch], rx_edge_sample_num[ch]);
-            }
-            for(size_t ch = 0; ch < tx_trigger.size(); ch++) {
-                std::cout << std::format("    TX ch{}: {}\n", channel_nums[ch], tx_edge_sample_num[ch]);
-            }
-        }
-    }
-
     // Rates are applied before frequencies because the frequency tuning depends on the sample rate
     // The actual rates are needed later to generate the tx waveform
     double tx_rate = 0;
@@ -883,6 +797,89 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         if(fundamental_period > max_lut_size) {
             std::cout << std::format("The fundamental period of the wave is very large. The lookup table will be limited to {} samples. This will cause a discontinuity every {} seconds.\n", max_lut_size, max_lut_size / tx_rate);
             fundamental_period = max_lut_size;
+        }
+    }
+
+    // Configure trigger
+    // Channels not passed to trigger_configure will be disabled. Every channel used by this program is passed.
+    {
+        using namespace uhd::trigger_pv;
+
+        trigger_op_t op;
+        // Let the device adjust values it can't apply exactly (i.e. edge_sample_num rounded up to a multiple of 2).
+        // The adjusted values are written back into the structs and printed below.
+        op.enable_strict_errors &= ~strict_error_t::coerced_value;
+
+        trigger_global_t global;
+        // derive sets the sma direction from the channels, so the same arguments work on devices with a single
+        // bidirectional sma pin and on devices with separate sma input and output pins
+        global.sma_direction = pin_direction_t::derive;
+        global.sma_polarity = sma_trigpol;
+        global.sma_override = 0;
+        global.sma_output_pulse_length = sma_edge_output;
+
+        std::vector<trigger_rx_t> rx_trigger;
+        if(use_rx) {
+            for(size_t ch = 0; ch < num_channels; ch++) {
+                trigger_rx_t chan;
+                chan.channel = channel_nums[ch];
+                chan.trig_sel = make_trig_sel(rx_sma_sel[ch], rx_ufl_sel[ch]);
+                chan.sma_mode = rx_sma_mode[ch];
+                chan.ufl_mode = rx_ufl_mode[ch];
+                chan.ufl_dir = ufl_direction(rx_ufl_sel[ch]);
+                chan.ufl_polarity = rx_ufl_trigpol[ch];
+                chan.edge_backoff = rx_edge_backoff[ch];
+                chan.edge_sample_num = rx_edge_sample_num[ch];
+                chan.ufl_output_pulse_length = rx_ufl_edge_output[ch];
+                // Everything is configured before streaming starts, so the channel doesn't need to stay enabled
+                chan.hot_configure = false;
+                // Leave the channel disabled. Creating a streamer enables it
+                chan.enable = 0;
+                rx_trigger.push_back(chan);
+            }
+        }
+
+        std::vector<trigger_tx_t> tx_trigger;
+        if(use_tx) {
+            for(size_t ch = 0; ch < num_channels; ch++) {
+                trigger_tx_t chan;
+                chan.channel = channel_nums[ch];
+                chan.trig_sel = make_trig_sel(tx_sma_sel[ch], tx_ufl_sel[ch]);
+                chan.sma_mode = tx_sma_mode[ch];
+                chan.ufl_mode = tx_ufl_mode[ch];
+                chan.ufl_dir = ufl_direction(tx_ufl_sel[ch]);
+                chan.ufl_polarity = tx_ufl_trigpol[ch];
+                chan.edge_backoff = tx_edge_backoff[ch];
+                chan.edge_sample_num = tx_edge_sample_num[ch];
+                chan.ufl_output_pulse_length = tx_ufl_edge_output[ch];
+                chan.gating = tx_gating[ch];
+                // Everything is configured before streaming starts, so the channel doesn't need to stay enabled
+                chan.hot_configure = false;
+                // Leave the channel disabled. Creating a streamer enables it
+                chan.enable = 0;
+                tx_trigger.push_back(chan);
+            }
+        }
+
+        std::cout << "Configuring trigger...\n";
+        bool exact = usrp->trigger_configure(&op, &global, rx_trigger.data(), rx_trigger.size(), tx_trigger.data(), tx_trigger.size());
+
+        // Use the values the device actually applied from here on
+        for(size_t ch = 0; ch < rx_trigger.size(); ch++) {
+            rx_edge_sample_num[ch] = rx_trigger[ch].edge_sample_num;
+        }
+        for(size_t ch = 0; ch < tx_trigger.size(); ch++) {
+            tx_edge_sample_num[ch] = tx_trigger[ch].edge_sample_num;
+        }
+
+        if(!exact) {
+            std::cout << "Some trigger settings were adjusted by the device. Actual edge_sample_num values:\n";
+            for(size_t ch = 0; ch < rx_trigger.size(); ch++) {
+                std::cout << std::format("    RX ch{}: {}\n", channel_nums[ch], rx_edge_sample_num[ch]);
+            }
+            for(size_t ch = 0; ch < tx_trigger.size(); ch++) {
+                std::cout << std::format("    TX ch{}: {}\n", channel_nums[ch], tx_edge_sample_num[ch]);
+            }
         }
     }
 

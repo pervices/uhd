@@ -24,10 +24,12 @@
 #include <uhdlib/usrp/multi_usrp_utils.hpp>
 #include <uhdlib/types/trigger_options_helpers.hpp>
 #include <uhdlib/usrp/pv_device/pv_device.hpp>
+#include <uhdlib/usrp/pv_device/pv_device_fw_common.hpp>
 #include <boost/algorithm/string.hpp>
 #include <format>
 #include <algorithm>
 #include <bitset>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <concepts>
@@ -3332,6 +3334,11 @@ private:
         //! One element per element of rx / tx: what to do with ufl_dir
         std::vector<trigger_pin_plan_t> rx_ufl;
         std::vector<trigger_pin_plan_t> tx_ufl;
+
+        //! Whether the server has the TX stream property (TRIGGER_OVERHAUL_SERVER_R3_S).
+        //! Without it TX channels cannot be disabled without powering down their RF chain,
+        //! so they are not disabled.
+        bool tx_stream_supported = false;
     };
 
     /*******************************************************************
@@ -3817,6 +3824,36 @@ private:
      * Stage 1: validate the request. See the error convention above.
      * Fills in the plans in `request`.
      */
+    /*!
+     * Handle an output pulse length on a server older than
+     * TRIGGER_OVERHAUL_SERVER_R2_S, which does not have the property.
+     * Called after the field has been validated, so a SKIP_IF_NOT_RELEVANT value
+     * here is not relevant.
+     *  - SKIP_IF_NOT_RELEVANT: nothing to do.
+     *  - GET_INT with strict_error_t::unsupported_server enabled: reported as
+     *    -ENOSYS without accessing the device.
+     *  - Anything else (a value to set, or GET_INT without the flag): uhd::runtime_error.
+     */
+    static void trigger_check_pulse_length_supported(int64_t& value,
+        const uhd::trigger_pv::trigger_op_t& op,
+        const std::string& name,
+        const int server_api_ver)
+    {
+        using namespace uhd::trigger_pv;
+
+        if (value == SKIP_IF_NOT_RELEVANT) {
+            return;
+        }
+        if (value == GET_INT && has_any(op.enable_strict_errors & strict_error_t::unsupported_server)) {
+            value = -ENOSYS;
+            return;
+        }
+        throw uhd::runtime_error(std::format(
+            "{}: Setting the trigger output pulse duration is not supported if unsupported_server "
+            "warnings are not suppressed. The server's API version ({}) is older than {}.",
+            name, server_api_ver, TRIGGER_OVERHAUL_SERVER_R2_S));
+    }
+
     void trigger_validate(trigger_request_t& request, const uhd::pv_device& dev)
     {
         using namespace uhd::trigger_pv;
@@ -3856,7 +3893,7 @@ private:
 
         // Not an argument error, so checked after the arguments, but before the
         // SMA direction read so an unsupported server is not accessed.
-        if (!dev.trigger_server_supported()) {
+        if (dev.server_api_ver < TRIGGER_OVERHAUL_SERVER_R1_S) {
             const std::string message = std::format(
                 "The server's API version ({}) is not supported by trigger_configure. Update "
                 "the server.",
@@ -3866,6 +3903,25 @@ private:
             }
             trigger_warn(op, warning_t::unsupported_server, message);
         }
+
+        // The output pulse length properties were added in TRIGGER_OVERHAUL_SERVER_R2_S
+        if (dev.server_api_ver < TRIGGER_OVERHAUL_SERVER_R2_S) {
+            for (size_t i = 0; i < request.rx.size(); i++) {
+                trigger_check_pulse_length_supported(request.rx[i].ufl_output_pulse_length, op,
+                    trigger_element_name(request.rx[i], i) + ".ufl_output_pulse_length", dev.server_api_ver);
+            }
+            for (size_t i = 0; i < request.tx.size(); i++) {
+                trigger_check_pulse_length_supported(request.tx[i].ufl_output_pulse_length, op,
+                    trigger_element_name(request.tx[i], i) + ".ufl_output_pulse_length", dev.server_api_ver);
+            }
+            if (request.global.has_value()) {
+                trigger_check_pulse_length_supported(request.global->sma_output_pulse_length, op,
+                    "global.sma_output_pulse_length", dev.server_api_ver);
+            }
+        }
+
+        // The TX stream property was added in TRIGGER_OVERHAUL_SERVER_R3_S
+        request.tx_stream_supported = (dev.server_api_ver >= TRIGGER_OVERHAUL_SERVER_R3_S);
 
         // Last: may read the current SMA direction.
         trigger_plan_sma(request, dev.trigger_sma_pin_type());
@@ -3928,6 +3984,11 @@ private:
         using namespace uhd::trigger_pv;
 
         if (value == SKIP_IF_NOT_RELEVANT) {
+            return true;
+        }
+        if (value == -ENOSYS) {
+            // The server does not have this property. Set by validation, see
+            // trigger_check_pulse_length_supported().
             return true;
         }
         if (value == GET_INT) {
@@ -4086,16 +4147,21 @@ private:
         return false;
     }
 
-    //! The property that enables a channel: RX stream, TX pwr.
-    fs_path trigger_enable_path(const uhd::trigger_pv::trigger_rx_t& rx)
+    /*!
+     * The property that enables a channel: stream for RX, and for TX stream if the
+     * server has it (TRIGGER_OVERHAUL_SERVER_R3_S), otherwise pwr.
+     */
+    fs_path trigger_enable_path(const uhd::trigger_pv::trigger_rx_t& rx, const trigger_request_t&)
     {
         return rx_root(rx.channel) / "stream";
     }
-    fs_path trigger_enable_path(const uhd::trigger_pv::trigger_tx_t& tx)
+    fs_path trigger_enable_path(const uhd::trigger_pv::trigger_tx_t& tx, const trigger_request_t& request)
     {
-        // Reads treat pwr == 1 as enabled. A channel with pwr == 1 could still be
-        // in reset if rstreq was never sent after pwr was set.
-        // TODO: read whether the channel is in reset once the server reports it.
+        if (request.tx_stream_supported) {
+            return tx_root(tx.channel) / "stream";
+        }
+        // Older servers. Reads treat pwr == 1 as enabled. A channel with pwr == 1
+        // could still be in reset if rstreq was never sent after pwr was set.
         return tx_root(tx.channel) / "pwr";
     }
 
@@ -4145,26 +4211,45 @@ private:
         // trig_sel is never changed to disable a channel: with no trigger
         // selected, a channel streams on normal SOB/EOB.
         // -----------------------------------------------------------------
+        // Servers without the TX stream property can only disable TX by powering
+        // down the RF chain, which is not restored when the channel is re-enabled.
+        // TX channels are left enabled on those servers.
+        bool tx_disable_skipped = false;
+
         for (const size_t channel : request.unspecified_rx) {
             detail::property_set_string(*_tree, rx_root(channel) / "stream", "0");
         }
         for (const size_t channel : request.unspecified_tx) {
-            detail::property_set_string(*_tree, tx_root(channel) / "pwr", "0");
+            if (request.tx_stream_supported) {
+                detail::property_set_string(*_tree, tx_root(channel) / "stream", "0");
+            } else {
+                tx_disable_skipped = true;
+            }
         }
         // For a disabled channel whose enable is get, the value read here is
-        // both the result of the get and the value restored in step 5.
+        // both the result of the get and the value restored in step 6.
         auto disable = [&](auto& chan) {
             if (chan.hot_configure) {
                 return;
             }
-            const fs_path path = trigger_enable_path(chan);
+            const fs_path path = trigger_enable_path(chan, request);
             if (chan.enable == GET_INT) {
                 chan.enable = trigger_read_integer<std::string>(path, 1);
             }
             detail::property_set_string(*_tree, path, "0");
         };
         std::for_each(request.rx.begin(), request.rx.end(), disable);
-        std::for_each(request.tx.begin(), request.tx.end(), disable);
+        for (trigger_tx_t& tx : request.tx) {
+            if (request.tx_stream_supported) {
+                disable(tx);
+            } else if (!tx.hot_configure) {
+                tx_disable_skipped = true;
+            }
+        }
+        if (tx_disable_skipped) {
+            trigger_warn(op, warning_t::unsupported_server,
+                "Disabling tx while configuring is not supported. Spurious activations may occur.");
+        }
 
         // -----------------------------------------------------------------
         // 2. PINS TO INPUT: every pin being set starts as an input, so nothing
@@ -4247,17 +4332,33 @@ private:
         // channel whose enable was get is restored to the value read in step 1.
         // -----------------------------------------------------------------
         for (trigger_rx_t& rx : request.rx) {
-            exact = trigger_apply_integer<std::string>(trigger_enable_path(rx), rx.enable, 1, op) && exact;
+            exact = trigger_apply_integer<std::string>(trigger_enable_path(rx, request), rx.enable, 1, op) && exact;
         }
         for (trigger_tx_t& tx : request.tx) {
-            // Every TX channel's enable is a real value here except hot
-            // configured channels left as get, which are only read.
-            const bool writes_pwr = (tx.enable != GET_INT);
-            exact = trigger_apply_integer<std::string>(trigger_enable_path(tx), tx.enable, 1, op) && exact;
-            if (writes_pwr && tx.enable == 1) {
-                // Setting pwr to 1 always leaves the channel in reset;
-                // rstreq takes it out of reset. rstreq is write-only.
-                detail::property_set_double(*_tree, tx_dsp_root(tx.channel) / "rstreq", 1.0);
+            const fs_path path = trigger_enable_path(tx, request);
+            if (request.tx_stream_supported) {
+                exact = trigger_apply_integer<std::string>(path, tx.enable, 1, op) && exact;
+            } else if (tx.enable == 0) {
+                // Older servers: disabling would power down the RF chain, so the
+                // channel is left as is and its actual state is reported.
+                tx.enable = trigger_read_integer<std::string>(path, 1);
+                if (tx.enable != 0) {
+                    trigger_warn(op, warning_t::unsupported_server,
+                        std::format("TX channel {}: disabling tx is not supported by this server. "
+                                    "The channel was left enabled.",
+                            tx.channel));
+                    exact = false;
+                }
+            } else {
+                // Every TX channel's enable is a real value here except hot
+                // configured channels left as get, which are only read.
+                const bool writes_pwr = (tx.enable != GET_INT);
+                exact = trigger_apply_integer<std::string>(path, tx.enable, 1, op) && exact;
+                if (writes_pwr && tx.enable == 1) {
+                    // Setting pwr to 1 always leaves the channel in reset;
+                    // rstreq takes it out of reset. rstreq is write-only.
+                    detail::property_set_double(*_tree, tx_dsp_root(tx.channel) / "rstreq", 1.0);
+                }
             }
         }
 
@@ -4306,8 +4407,12 @@ private:
         for (size_t channel = 0; channel < num_rx; channel++) {
             attempt([&]() { return rx_root(channel) / "stream"; }, "0");
         }
-        for (size_t channel = 0; channel < num_tx; channel++) {
-            attempt([&]() { return tx_root(channel) / "pwr"; }, "0");
+        // Servers without the TX stream property can only disable TX by powering
+        // down the RF chain, so TX channels are left enabled on them.
+        if (dev.server_api_ver >= TRIGGER_OVERHAUL_SERVER_R3_S) {
+            for (size_t channel = 0; channel < num_tx; channel++) {
+                attempt([&]() { return tx_root(channel) / "stream"; }, "0");
+            }
         }
 
         bool sma_toggleable = false;

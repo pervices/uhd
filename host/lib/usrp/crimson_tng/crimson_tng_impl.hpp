@@ -97,7 +97,6 @@ public:
     void stop_pps_dtc();
 
     // Device-specific parts of trigger_configure. See uhd::pv_device.
-    bool trigger_server_supported() const override;
     trigger_pin_type_t trigger_sma_pin_type() const override;
     uint32_t trig_sel_to_device(uhd::trigger_pv::active_trigger_t api_trig_sel) const override;
     uhd::trigger_pv::active_trigger_t trig_sel_from_device(

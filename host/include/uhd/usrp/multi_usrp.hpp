@@ -2483,7 +2483,7 @@ public:
     *         This is usually caused by a server/uhd version mismatch.
     *         Server/UHD combinations that trigger this error are unsupported.
     * \internal
-    * lookup_error should be impossible on any server version TRIGGER_OVERHAUL_SERVER
+    * lookup_error should be impossible on any server version TRIGGER_OVERHAUL_SERVER_R1_S
     * or newer.
     * lookup_error should be impossible when unsupported_server is set in
     * enable_strict_errors.

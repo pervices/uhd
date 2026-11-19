@@ -54,12 +54,6 @@ public:
         output_only, //!< A single pin that can only be an output
     };
 
-    //! Whether the server is new enough for trigger_configure().
-    virtual bool trigger_server_supported() const
-    {
-        throw std::runtime_error("concrete classes are expected to override this method");
-    }
-
     //! The type of the global SMA trigger pin.
     virtual trigger_pin_type_t trigger_sma_pin_type() const
     {

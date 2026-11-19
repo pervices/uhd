@@ -393,8 +393,13 @@ struct trigger_global_t
      * trigger_configure call has active_trigger_t::sma_output in trig_sel and
      * sma_mode set to edge.
      * A returned value between -1 and -2,147,483,648 indicates an error.
+     * Servers with an API version older than 20261112 do not support this field.
+     * With them a SKIP_IF_NOT_RELEVANT value that is not relevant is still skipped,
+     * GET_INT returns -ENOSYS if strict_error_t::unsupported_server is enabled,
+     * and anything else throws uhd::runtime_error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
+     * The version is TRIGGER_OVERHAUL_SERVER_R2_S.
      * \endinternal
      */
     int64_t sma_output_pulse_length = SKIP_IF_NOT_RELEVANT;
@@ -468,8 +473,13 @@ struct trigger_rx_t
      * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
      * active_trigger_t::channel_ufl with ufl_dir set to out and ufl_mode set to edge.
      * A returned value between -1 and -2,147,483,648 indicates an error.
+     * Servers with an API version older than 20261112 do not support this field.
+     * With them a SKIP_IF_NOT_RELEVANT value that is not relevant is still skipped,
+     * GET_INT returns -ENOSYS if strict_error_t::unsupported_server is enabled,
+     * and anything else throws uhd::runtime_error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
+     * The version is TRIGGER_OVERHAUL_SERVER_R2_S.
      * \endinternal
      */
     int64_t ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
@@ -590,8 +600,13 @@ struct trigger_tx_t
      * Counts as relevant for SKIP_IF_NOT_RELEVANT if trig_sel includes
      * active_trigger_t::channel_ufl with ufl_dir set to out and ufl_mode set to edge.
      * A returned value between -1 and -2,147,483,648 indicates an error.
+     * Servers with an API version older than 20261112 do not support this field.
+     * With them a SKIP_IF_NOT_RELEVANT value that is not relevant is still skipped,
+     * GET_INT returns -ENOSYS if strict_error_t::unsupported_server is enabled,
+     * and anything else throws uhd::runtime_error.
      * \internal
      * The device takes uint64_t, negative values are purely within UHD
+     * The version is TRIGGER_OVERHAUL_SERVER_R2_S.
      * \endinternal
      */
     int64_t ufl_output_pulse_length = SKIP_IF_NOT_RELEVANT;
@@ -625,6 +640,13 @@ struct trigger_tx_t
      * Keep the channel enabled while the configuration is being applied.
      * If false, the channel is disabled during configuration, which resets it:
      * any samples, SOB, or EOB from before are lost.
+     * Servers with an API version older than 20261119 cannot disable TX channels
+     * without losing their RF settings, so TX channels are never disabled with
+     * them (false behaves like true) and a warning_t::unsupported_server
+     * warning is logged. Spurious activations may occur while configuring.
+     * \internal
+     * The version is TRIGGER_OVERHAUL_SERVER_R3_S.
+     * \endinternal
      */
     bool hot_configure = false;
 
@@ -637,11 +659,17 @@ struct trigger_tx_t
      * Note that creating/destroying a streamer has the same effect as enable/disable.
      * Supported values: GET_INT, 0 (disable), 1 (enable)
      * A returned value between -1 and -2,147,483,648 indicates an error.
+     * Servers with an API version older than 20261119 cannot disable TX channels:
+     * 0 leaves the channel as is and its actual state is returned. If the channel
+     * was enabled, a warning_t::unsupported_server warning is logged and
+     * trigger_configure returns false.
      * \internal
-     * Corresponds to tx/<ch>/pwr on the server. Setting pwr to 1 leaves the
-     * channel in reset, so it is followed by tx/<ch>/dsp/rstreq.
-     * Reads currently treat pwr == 1 as enabled, even though the channel could
-     * still be in reset.
+     * Corresponds to tx/<ch>/stream on servers TRIGGER_OVERHAUL_SERVER_R3_S or newer.
+     * On older servers it corresponds to tx/<ch>/pwr: setting pwr to 1 leaves the
+     * channel in reset, so it is followed by tx/<ch>/dsp/rstreq. Reads treat
+     * pwr == 1 as enabled, even though the channel could still be in reset.
+     * pwr is never set to 0, since that powers down the RF chain and its
+     * settings are not restored when it is powered back up.
      * \endinternal
      */
     int64_t enable = GET_INT;

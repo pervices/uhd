@@ -1184,6 +1184,10 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         // Power status
         TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
 
+        // Enables/disables the channel without powering down its RF chain (same as rx)
+        // Only exists on servers TRIGGER_OVERHAUL_SERVER_R3_S or newer
+        TREE_CREATE_RW(tx_path / dspno / "stream", "tx_"+lc_num+"/stream", std::string, string);
+
         // Codecs, phony properties for Crimson
         TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
         TREE_CREATE_ST(tx_codec_path / "name", std::string, "TX Codec");
@@ -2032,11 +2036,6 @@ namespace {
 constexpr uint32_t crimson_trig_sel_sma = 1u << 0;
 
 } // namespace
-
-bool crimson_tng_impl::trigger_server_supported() const
-{
-    return server_api_ver >= TRIGGER_OVERHAUL_SERVER;
-}
 
 uhd::pv_device::trigger_pin_type_t crimson_tng_impl::trigger_sma_pin_type() const
 {
