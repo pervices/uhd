@@ -252,29 +252,6 @@ std::string rx_result_path(const std::string& results_directory, size_t channel,
 // The maximum number of samples in the rx buffer
 constexpr size_t MAX_RX_BUFFER = 100e6;
 
-// Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
-/**
- * Waits until the device time is within 0.01 seconds of target_time, or Ctrl + C is pressed.
- * A bug in the FPGA causes edges received while waiting for a stream command's start time to send packets at the
- * start time. With edge input triggers, rx stream commands are issued to start immediately once the device is close
- * to the start time instead of being issued early with the start time.
- * @param usrp The device. Used to get the current device time
- * @param target_time The device time to wait for
- */
-void tmp_wait_for_device_time(uhd::usrp::multi_usrp::sptr usrp, uhd::time_spec_t target_time) {
-    constexpr double MARGIN = 0.01;
-    while(!stop_signal_called) {
-        double remaining = (target_time - usrp->get_time_now()).get_real_secs();
-        if(remaining <= MARGIN) {
-            return;
-        }
-        // Aim for the middle of the margin, since getting the device time takes time.
-        // Sleep at most 0.1 seconds at a time so Ctrl + C is noticed.
-        std::this_thread::sleep_for(std::chrono::duration<double>(std::min(remaining - MARGIN / 2, 0.1)));
-    }
-}
-// End of TMP workaround for http://korbin.pv/issues/19527#note-31
-
 /**
  * Receives samples on one rx channel in continuous mode (rx_burst_lengths 0). A different function handles burst mode.
  * Samples that arrive close together are batched and each batch is saved to its own file.
@@ -287,14 +264,8 @@ void tmp_wait_for_device_time(uhd::usrp::multi_usrp::sptr usrp, uhd::time_spec_t
  * @param total_samples Samples to receive in total. 0 receives until Ctrl + C is pressed
  * @param results_directory The directory to save results into. Must already exist
  * @param overwrite Use the same file for every batch instead of a new file per batch
- * @param usrp The device. Used to get the current device time (TMP workaround, see tmp_wait_for_device_time)
- * @param edge_input_trigger Whether the channel has an edge input trigger (TMP workaround, see tmp_wait_for_device_time)
  */
-void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t start_time, double rate, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite,
-    // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
-    uhd::usrp::multi_usrp::sptr usrp, bool edge_input_trigger
-    // End of TMP workaround for http://korbin.pv/issues/19527#note-31
-    ) {
+void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t start_time, double rate, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite) {
 
     if(burst_length != 0) {
         throw std::runtime_error(std::format("RX ch{}: rx_continous_function only supports continuous mode (burst length 0), got a burst length of {}. Burst mode is handled by rx_burst_function", channel, burst_length));
@@ -314,12 +285,6 @@ void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd:
     uhd::stream_cmd_t stream_cmd(uhd::stream_cmd_t::STREAM_MODE_START_CONTINUOUS);
     stream_cmd.stream_now = false;
     stream_cmd.time_spec = start_time;
-    // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
-    if(edge_input_trigger) {
-        tmp_wait_for_device_time(usrp, start_time);
-        stream_cmd.stream_now = true;
-    }
-    // End of TMP workaround for http://korbin.pv/issues/19527#note-31
     streamer->issue_stream_cmd(stream_cmd);
 
     uint64_t total_samples_recv = 0;
@@ -395,15 +360,9 @@ void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd:
  * @param burst_increment Seconds between the start of each burst
  * @param burst_length Samples per burst
  * @param rate The channel's actual rx sample rate
- * @param usrp The device. Used to get the current device time (TMP workaround, see tmp_wait_for_device_time)
- * @param edge_input_trigger Whether the channel has an edge input trigger (TMP workaround, see tmp_wait_for_device_time)
  * @return The device time the requested burst finishes at
  */
-uhd::time_spec_t issue_next_burst_cmd(uhd::rx_streamer::sptr streamer, uhd::time_spec_t device_now, uhd::time_spec_t first_burst_time, double burst_increment, uint64_t burst_length, double rate,
-    // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
-    uhd::usrp::multi_usrp::sptr usrp, bool edge_input_trigger
-    // End of TMP workaround for http://korbin.pv/issues/19527#note-31
-    ) {
+uhd::time_spec_t issue_next_burst_cmd(uhd::rx_streamer::sptr streamer, uhd::time_spec_t device_now, uhd::time_spec_t first_burst_time, double burst_increment, uint64_t burst_length, double rate) {
     // Which burst to request
     uint64_t burst_number = 0;
     if(device_now >= first_burst_time) {
@@ -415,12 +374,6 @@ uhd::time_spec_t issue_next_burst_cmd(uhd::rx_streamer::sptr streamer, uhd::time
     stream_cmd.num_samps = burst_length;
     stream_cmd.stream_now = false;
     stream_cmd.time_spec = burst_start_time;
-    // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
-    if(edge_input_trigger) {
-        tmp_wait_for_device_time(usrp, burst_start_time);
-        stream_cmd.stream_now = true;
-    }
-    // End of TMP workaround for http://korbin.pv/issues/19527#note-31
     streamer->issue_stream_cmd(stream_cmd);
 
     // The burst lasts as long as burst_length samples take, even if input triggers mean fewer samples are received
@@ -442,13 +395,8 @@ uhd::time_spec_t issue_next_burst_cmd(uhd::rx_streamer::sptr streamer, uhd::time
  * @param total_samples Samples to receive in total. 0 receives until Ctrl + C is pressed
  * @param results_directory The directory to save results into. Must already exist
  * @param overwrite Use the same file for every batch instead of a new file per batch
- * @param edge_input_trigger Whether the channel has an edge input trigger (TMP workaround, see tmp_wait_for_device_time)
  */
-void rx_burst_function(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t first_burst_time, double rate, double burst_increment, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite,
-    // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
-    bool edge_input_trigger
-    // End of TMP workaround for http://korbin.pv/issues/19527#note-31
-    ) {
+void rx_burst_function(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streamer::sptr streamer, size_t channel, uhd::time_spec_t first_burst_time, double rate, double burst_increment, uint64_t burst_length, uint64_t total_samples, std::string results_directory, bool overwrite) {
 
     if(burst_length == 0) {
         throw std::runtime_error(std::format("RX ch{}: rx_burst_function only supports burst mode (burst length not 0). Continuous mode is handled by rx_continous_function", channel));
@@ -467,7 +415,7 @@ void rx_burst_function(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streamer::sptr 
 
     // Request the first burst
     uhd::time_spec_t device_now = usrp->get_time_now();
-    uhd::time_spec_t burst_end_time = issue_next_burst_cmd(streamer, device_now, first_burst_time, burst_increment, burst_length, rate, usrp, edge_input_trigger);
+    uhd::time_spec_t burst_end_time = issue_next_burst_cmd(streamer, device_now, first_burst_time, burst_increment, burst_length, rate);
 
     // Getting the device time requires communicating with the device, so avoid doing it every timeout.
     // Instead estimate when the burst will finish using the host's clock and only check the device time after that.
@@ -509,7 +457,7 @@ void rx_burst_function(uhd::usrp::multi_usrp::sptr usrp, uhd::rx_streamer::sptr 
                 if(timed_out && std::chrono::steady_clock::now() >= next_time_check) {
                     device_now = usrp->get_time_now();
                     if(device_now >= burst_end_time) {
-                        burst_end_time = issue_next_burst_cmd(streamer, device_now, first_burst_time, burst_increment, burst_length, rate, usrp, edge_input_trigger);
+                        burst_end_time = issue_next_burst_cmd(streamer, device_now, first_burst_time, burst_increment, burst_length, rate);
                     }
                     next_time_check = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>((burst_end_time - device_now).get_real_secs()));
                 }
@@ -1015,15 +963,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
         for(size_t ch = 0; ch < rx_streamers.size(); ch++) {
             uhd::time_spec_t rx_start_time = init_time + uhd::time_spec_t(rx_sob);
             double this_rx_rate = usrp->get_rx_rate(channel_nums[ch]);
-            // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
-            bool sma_edge_input = rx_sma_sel[ch] == trigger_sel::input && rx_sma_mode[ch] == uhd::trigger_pv::trigger_mode_t::edge;
-            bool ufl_edge_input = rx_ufl_sel[ch] == trigger_sel::input && rx_ufl_mode[ch] == uhd::trigger_pv::trigger_mode_t::edge;
-            bool edge_input_trigger = sma_edge_input || ufl_edge_input;
-            // End of TMP workaround for http://korbin.pv/issues/19527#note-31
             if(rx_burst_length[ch] == 0) {
-                rx_threads.emplace_back(rx_continous_function, rx_streamers[ch], channel_nums[ch], rx_start_time, this_rx_rate, rx_burst_length[ch], total_samples, results_directory, overwrite, usrp, edge_input_trigger);
+                rx_threads.emplace_back(rx_continous_function, rx_streamers[ch], channel_nums[ch], rx_start_time, this_rx_rate, rx_burst_length[ch], total_samples, results_directory, overwrite);
             } else {
-                rx_threads.emplace_back(rx_burst_function, usrp, rx_streamers[ch], channel_nums[ch], rx_start_time, this_rx_rate, burst_increment, rx_burst_length[ch], total_samples, results_directory, overwrite, edge_input_trigger);
+                rx_threads.emplace_back(rx_burst_function, usrp, rx_streamers[ch], channel_nums[ch], rx_start_time, this_rx_rate, burst_increment, rx_burst_length[ch], total_samples, results_directory, overwrite);
             }
         }
     } catch(...) {
