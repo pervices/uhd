@@ -318,7 +318,6 @@ void rx_continous_function(uhd::rx_streamer::sptr streamer, size_t channel, uhd:
     // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
     if(edge_input_trigger) {
         tmp_wait_for_device_time(usrp, start_time);
-        stream_cmd.stream_now = true;
     }
     // End of TMP workaround for http://korbin.pv/issues/19527#note-31
     streamer->issue_stream_cmd(stream_cmd);
@@ -419,7 +418,6 @@ uhd::time_spec_t issue_next_burst_cmd(uhd::rx_streamer::sptr streamer, uhd::time
     // Start TMP workaround for http://korbin.pv/issues/19527#note-31 do not merge to master.
     if(edge_input_trigger) {
         tmp_wait_for_device_time(usrp, burst_start_time);
-        stream_cmd.stream_now = true;
     }
     // End of TMP workaround for http://korbin.pv/issues/19527#note-31
     streamer->issue_stream_cmd(stream_cmd);
