@@ -4174,6 +4174,86 @@ private:
         return tx_trigger_root(tx.channel);
     }
 
+    // Start TMP workaround for http://korbin.pv/issues/19527#note-26 do not merge to master. Will not work on Cyan.
+    /*!
+     * Samples per packet on the channel's SFP: (pay_len - 16) / 4.
+     * Assumes channels 0 and 2 are on SFP A and channels 1 and 3 are on SFP B.
+     * \throws uhd::runtime_error if pay_len - 16 is not a positive multiple of 4
+     */
+    int64_t trigger_tmp_samples_per_packet(const size_t channel)
+    {
+        const std::string sfp = (channel % 2 == 0) ? "sfpa" : "sfpb";
+        const int payload_len = _tree->access<int>("/mboards/0/link/" + sfp + "/pay_len").get();
+        // 16 byte header, 4 bytes per sample
+        if (payload_len <= 16 || (payload_len - 16) % 4 != 0) {
+            throw uhd::runtime_error(std::format(
+                "Channel {}: {} pay_len {} is not 16 plus a multiple of 4", channel, sfp, payload_len));
+        }
+        return (payload_len - 16) / 4;
+    }
+
+    /*!
+     * Apply an rx channel's edge_sample_num with the workaround:
+     *  - Values to set are rounded up to a multiple of samples per packet, then one
+     *    packet's worth of samples is added before writing.
+     *  - That packet is subtracted from values read back.
+     *  - 0 (stream indefinitely) is written and read as is.
+     * Rounding counts as coercion (see trigger_handle_coerced_value).
+     */
+    template <typename channel_t>
+    bool trigger_tmp_apply_edge_sample_num(
+        channel_t& chan, const fs_path& path, const uhd::trigger_pv::trigger_op_t& op)
+    {
+        using namespace uhd::trigger_pv;
+
+        if (chan.edge_sample_num == SKIP_IF_NOT_RELEVANT) {
+            return true;
+        }
+        const int64_t samples_per_packet = trigger_tmp_samples_per_packet(chan.channel);
+
+        // Device value -> API value
+        auto from_device = [&](const int64_t device_value) -> int64_t {
+            if (device_value == 0) {
+                return 0;
+            }
+            if (device_value < samples_per_packet) {
+                throw uhd::runtime_error(std::format(
+                    "{}: device value {} is less than one packet ({} samples), so it was not set with the workaround",
+                    std::string(path), device_value, samples_per_packet));
+            }
+            return device_value - samples_per_packet;
+        };
+
+        if (chan.edge_sample_num == GET_INT) {
+            chan.edge_sample_num = from_device(trigger_read_integer<std::string>(path, INT64_MAX));
+            return true;
+        }
+
+        const int64_t requested = chan.edge_sample_num;
+        int64_t rounded         = requested;
+        if (rounded % samples_per_packet != 0) {
+            rounded += samples_per_packet - (rounded % samples_per_packet);
+        }
+        int64_t device_value = 0;
+        if (rounded != 0) {
+            if (rounded > INT64_MAX - samples_per_packet) {
+                throw uhd::runtime_error(std::format(
+                    "{}: {} is too large for the workaround", std::string(path), requested));
+            }
+            device_value = rounded + samples_per_packet;
+        }
+
+        trigger_write_integer<std::string>(path, device_value);
+        chan.edge_sample_num = from_device(trigger_read_integer<std::string>(path, INT64_MAX));
+        if (chan.edge_sample_num == requested) {
+            return true;
+        }
+        trigger_handle_coerced_value(
+            path, std::to_string(requested), std::to_string(chan.edge_sample_num), op);
+        return false;
+    }
+    // End of TMP workaround for http://korbin.pv/issues/19527#note-26
+
     //! Apply the per-channel settings other than trig_sel, ufl_dir and enable.
     template <typename channel_t>
     bool trigger_apply_channel_settings(channel_t& chan, const uhd::trigger_pv::trigger_op_t& op)
@@ -4185,7 +4265,14 @@ private:
         // call would be skipped as soon as exact became false, because && short-circuits.
         bool exact = true;
         exact = trigger_apply_integer<std::string>(root / "edge_backoff", chan.edge_backoff, UINT32_MAX, op) && exact;
-        exact = trigger_apply_integer<std::string>(root / "edge_sample_num", chan.edge_sample_num, INT64_MAX, op) && exact;
+        // Start TMP workaround for http://korbin.pv/issues/19527#note-26 do not merge to master. Will not work on Cyan.
+        // Only rx needs the workaround
+        if constexpr (std::is_same_v<channel_t, uhd::trigger_pv::trigger_rx_t>) {
+            exact = trigger_tmp_apply_edge_sample_num(chan, root / "edge_sample_num", op) && exact;
+        } else {
+            exact = trigger_apply_integer<std::string>(root / "edge_sample_num", chan.edge_sample_num, INT64_MAX, op) && exact;
+        }
+        // End of TMP workaround for http://korbin.pv/issues/19527#note-26
         exact = trigger_apply_integer<std::string>(root / "ufl_output_edge_sample_num", chan.ufl_output_pulse_length, INT64_MAX, op) && exact;
         exact = trigger_apply_enum(root / "sma_mode", chan.sma_mode, op, &detail::trigger_mode_from_device_string) && exact;
         exact = trigger_apply_enum(root / "ufl_mode", chan.ufl_mode, op, &detail::trigger_mode_from_device_string) && exact;
