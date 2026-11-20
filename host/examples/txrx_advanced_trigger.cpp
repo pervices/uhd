@@ -262,6 +262,7 @@ constexpr size_t MAX_RX_BUFFER = 100e6;
  * @param target_time The device time to wait for
  */
 void tmp_wait_for_device_time(uhd::usrp::multi_usrp::sptr usrp, uhd::time_spec_t target_time) {
+    std::cout << "waiting for device time\n";
     constexpr double MARGIN = 0.01;
     while(!stop_signal_called) {
         double remaining = (target_time - usrp->get_time_now()).get_real_secs();
