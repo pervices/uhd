@@ -1,3 +1,11 @@
+uhdpv (4.10.0.14-0ubuntu1) ubuntu_release; urgency=low
+
+  * Adding new trigger API with an interim example. The
+  * The new API is used via #include <uhd/types/trigger_options.hpp> and
+    the new trigger_configure function added to multi_usrp
+
+ -- Per Vices <packages@pervices.com>  Mon, 23 Nov 2026 17:28:55 -0500
+
 uhdpv (4.10.0.13-0ubuntu1) ubuntu_release; urgency=low
 
   * Update RPM packaging for Oracle 9
@@ -75,7 +83,7 @@ uhdpv (4.10.0.4-0ubuntu1) ubuntu_release; urgency=low
 
 uhdpv (4.10.0.3-0ubuntu1) ubuntu_release; urgency=low
 
-  * Lower the default transition frequency for low to mid band for Cyan/Chestnut to 250MHz from 400MHz 
+  * Lower the default transition frequency for low to mid band for Cyan/Chestnut to 250MHz from 400MHz
   * Fix compliation issue with RPM packages
   * Turn of static linking of boost on Arch due to issues it was causing with GNU Radio compilation
 
@@ -181,10 +189,10 @@ uhdpv (4.8.0.23-0ubuntu1) ubuntu_release; urgency=low
   * Removes linking of the Boost.System stub library for compatibility with Boost 1.89
 
  -- Per Vices <packages@pervices.com>  Wed, 22 Oct 2025 09:57:48 -0400
- 
+
 uhdpv (4.8.0.22-0ubuntu1) ubuntu_release; urgency=low
 
-  * Improved the warning message for a full recv buffer 
+  * Improved the warning message for a full recv buffer
   * Specified bubblewrap as a make dependency in PKGBUILD
 
  -- Per Vices <packages@pervices.com>  Thu, 09 Oct 2025 14:43:11 -0400
@@ -718,6 +726,6 @@ uhdpv (4.4.0.1-0ubuntu1) ubuntu_release; urgency=medium
 
 uhdpv (4.4.0.0-0ubuntu1) ubuntu_release; urgency=medium
 
-  * Initial release 
+  * Initial release
 
  -- Per Vices <packages@pervices.com>  Wed, 28 Feb 2024 16:45:03 -0500
