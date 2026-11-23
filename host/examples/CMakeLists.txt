@@ -30,6 +30,7 @@ set(example_sources
     tx_timed_samples.cpp
     tx_waveforms.cpp
     tx_ramp_test.cpp
+    txrx_advanced_trigger.cpp
     txrx_loopback_to_file.cpp
     txrx_complex_gain.cpp
     usrp_list_sensors.cpp
