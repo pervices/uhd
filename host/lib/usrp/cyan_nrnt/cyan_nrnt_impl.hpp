@@ -26,7 +26,7 @@
 #include <sys/file.h>
 #include <filesystem>
 
-#include "uhd/device.hpp"
+#include <uhdlib/usrp/pv_device/pv_device.hpp>
 #include "uhd/usrp/dboard_eeprom.hpp"
 #include "uhd/usrp/mboard_eeprom.hpp"
 #include "uhd/usrp/multi_usrp.hpp"
@@ -63,7 +63,7 @@ struct gpio_burst_req {
 namespace uhd {
 namespace usrp {
 
-class cyan_nrnt_impl : public uhd::device
+class cyan_nrnt_impl : public uhd::pv_device
 {
 public:
     static constexpr uint_fast8_t NUMBER_OF_XG_CONTROL_INTF = 4;
