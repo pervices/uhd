@@ -890,6 +890,11 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_dir", "fpga/trigger/sma_dir",  std::string, string);
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_pol", "fpga/trigger/sma_pol",  std::string, string);
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_override", "fpga/trigger/sma_override", int, int);
+    // String is used because this is a 64 bit number and won't fit in int
+    // Requires server version TRIGGER_OVERHAUL_SERVER_R2_S or later
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "trigger/sma_output_edge_sample_num", "fpga/trigger/sma_output_edge_sample_num", std::string, string);
+
 
     // String is used because this is a 64 bit number and won't fit in int
     TREE_CREATE_RW(PV_DEVICE_MB_PATH / "gps_time", "fpga/board/gps_time", std::string, string);
@@ -1051,6 +1056,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_mode"       , "rx_" + lc_num + "/trigger/ufl_mode"       , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_dir"        , "rx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_pol"        , "rx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
+        // Requires server version TRIGGER_OVERHAUL_SERVER_R2_S or later
+        TREE_CREATE_RW(rx_path / dspno / "/trigger/ufl_output_edge_sample_num", "rx_" + lc_num + "/trigger/ufl_output_edge_sample_num", std::string, string);
 
         // About information
         TREE_CREATE_RW(rx_path / dspno / "fw_version", "rx_"+lc_num+"/about/fw_ver", std::string, string);
@@ -1187,6 +1194,8 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_dir"        , "tx_" + lc_num + "/trigger/ufl_dir"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_pol"        , "tx_" + lc_num + "/trigger/ufl_pol"        , std::string, string);
         TREE_CREATE_RW(tx_path / dspno / "/trigger/gating"         , "tx_" + lc_num + "/trigger/gating"         , std::string, string);
+        // Requires server version TRIGGER_OVERHAUL_SERVER_R2_S or later
+        TREE_CREATE_RW(tx_path / dspno / "/trigger/ufl_output_edge_sample_num", "tx_" + lc_num + "/trigger/ufl_output_edge_sample_num", std::string, string);
 
         // About information
         TREE_CREATE_RW(tx_path / dspno / "fw_version", "tx_"+lc_num+"/about/fw_ver", std::string, string);
@@ -1199,6 +1208,10 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
 
         // Power status
         TREE_CREATE_RW(tx_path / dspno / "pwr", "tx_"+lc_num+"/pwr", std::string, string);
+
+        // Enables/disables the channel without powering down its RF chain (same as rx)
+        // Requires server version TRIGGER_OVERHAUL_SERVER_R3_S or later
+        TREE_CREATE_RW(tx_path / dspno / "stream", "tx_"+lc_num+"/stream", std::string, string);
 
         // Codecs, phony properties for Crimson
         TREE_CREATE_RW(tx_codec_path / "gains", "tx_"+lc_num+"/dsp/gain", int, int);
