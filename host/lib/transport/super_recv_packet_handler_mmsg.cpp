@@ -84,6 +84,9 @@ recv_packet_handler_mmsg:: recv_packet_handler_mmsg(
     // Initialize active channel tracker
     _channel_active = std::vector<bool>(_NUM_CHANNELS, false);
 
+    // Initialize sequence number detection
+    previous_sequence_number = std::vector<size_t>(_NUM_CHANNELS, 0);
+
     // Performs socket setup
     // Sockets passed to this constructor must already be bound
     for(size_t n = 0; n < _NUM_CHANNELS; n++) {

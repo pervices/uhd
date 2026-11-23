@@ -243,7 +243,7 @@ public:
                 realignment_required = vita_md[ch].tsf != vita_md[0].tsf || realignment_required;
 
                 // Detect and warn user of overflow error
-                if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
+                if(vita_md[ch].packet_count != (SEQUENCE_NUMBER_MASK & (previous_sequence_number[ch] + 1))  && vita_md[ch].tsf != 0) [[unlikely]] {
                     metadata.error_code = rx_metadata_t::ERROR_CODE_OVERFLOW;
                     _overflow_occured = true;
                     overflow_detected = true;
@@ -336,6 +336,9 @@ public:
 
                 // Moves to the next packet
                 recv_manager->advance_packet(ch);
+
+                // Update the sequence number
+                previous_sequence_number[ch] = vita_md[ch].packet_count;
             }
 
             // Set the timepec to that of the first packet received if not already set from the cache
@@ -345,9 +348,6 @@ public:
                 // No need to check for has_tsf since our FPGAs always include tsf
                 metadata.time_spec = time_spec_t::from_ticks(vita_md[0].tsf, _sample_rate);
             }
-
-            // Update the sequence number
-            previous_sequence_number = vita_md[0].packet_count;
 
             // Update tsf cache to most recent (this packet)
             tsf_cache = vita_md[0].tsf;
@@ -433,7 +433,8 @@ private:
     // Maximum sequence number
     static constexpr size_t SEQUENCE_NUMBER_MASK = 0xf;
 
-    size_t previous_sequence_number = 0;
+    // The sequence number of a 4 bit value that increments every packet
+    std::vector<size_t> previous_sequence_number;
 
     // Converts samples between wire and cpu formats
     uhd::convert::converter::sptr _converter;
