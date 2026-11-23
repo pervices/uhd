@@ -34,6 +34,7 @@
 #include "uhd/utils/static.hpp"
 
 #include <uhdlib/transport/udp_common.hpp>
+#include <uhdlib/types/trigger_options_helpers.hpp>
 #include <uhd/exception.hpp>
 #include <format>
 #include <optional>
@@ -2020,4 +2021,28 @@ double cyan_nrnt_impl::get_link_rate() {
     } else {
         return link_rate_cache;
     }
+}
+
+/***********************************************************************
+ * Trigger configuration (device-specific parts, see uhd::pv_device)
+ **********************************************************************/
+uhd::pv_device::trigger_pin_type_t cyan_nrnt_impl::trigger_sma_pin_type() const
+{
+    // Cyan has separate SMA input and output pins.
+    return trigger_pin_type_t::separate;
+}
+
+uint32_t cyan_nrnt_impl::trig_sel_to_device(
+    const uhd::trigger_pv::active_trigger_t api_trig_sel) const
+{
+    // Cyan's trig_sel bits are the API's.
+    return static_cast<uint32_t>(api_trig_sel);
+}
+
+uhd::trigger_pv::active_trigger_t cyan_nrnt_impl::trig_sel_from_device(
+    const uint32_t device_trig_sel, const uhd::trigger_pv::pin_direction_t sma_direction) const
+{
+    // Cyan's trig_sel bits are the API's, and its SMA pins are separate.
+    (void) sma_direction;
+    return static_cast<uhd::trigger_pv::active_trigger_t>(device_trig_sel);
 }

@@ -33,6 +33,7 @@
 #include <uhd/utils/log.hpp>
 
 #include <uhdlib/transport/udp_common.hpp>
+#include <uhdlib/types/trigger_options_helpers.hpp>
 #include <uhd/exception.hpp>
 #include <format>
 #include <optional>
@@ -2023,4 +2024,60 @@ double crimson_tng_impl::get_link_rate() {
     } else {
         return link_rate_cache;
     }
+}
+
+/***********************************************************************
+ * Trigger configuration (device-specific parts, see uhd::pv_device)
+ **********************************************************************/
+namespace {
+
+/*!
+ * On Crimson, trig_sel bit 0 means the SMA: listen to it if sma_dir is in,
+ * drive it if sma_dir is out. The API instead has separate sma_input and
+ * sma_output bits (Cyan's meanings).
+ */
+constexpr uint32_t crimson_trig_sel_sma = 1u << 0;
+
+} // namespace
+
+uhd::pv_device::trigger_pin_type_t crimson_tng_impl::trigger_sma_pin_type() const
+{
+    return trigger_pin_type_t::toggleable;
+}
+
+uint32_t crimson_tng_impl::trig_sel_to_device(
+    const uhd::trigger_pv::active_trigger_t api_trig_sel) const
+{
+    using namespace uhd::trigger_pv;
+
+    const active_trigger_t sma_bits = active_trigger_t::sma_input | active_trigger_t::sma_output;
+    // Other bits (e.g. channel_ufl) mean the same on both.
+    uint32_t device_trig_sel = static_cast<uint32_t>(api_trig_sel & ~sma_bits);
+    if (has_any(api_trig_sel & sma_bits)) {
+        device_trig_sel |= crimson_trig_sel_sma;
+    }
+    return device_trig_sel;
+}
+
+uhd::trigger_pv::active_trigger_t crimson_tng_impl::trig_sel_from_device(
+    const uint32_t device_trig_sel, const uhd::trigger_pv::pin_direction_t sma_direction) const
+{
+    using namespace uhd::trigger_pv;
+
+    active_trigger_t api_trig_sel =
+        static_cast<active_trigger_t>(device_trig_sel & ~crimson_trig_sel_sma);
+    if ((device_trig_sel & crimson_trig_sel_sma) != 0) {
+        switch (sma_direction) {
+            case pin_direction_t::in:
+                api_trig_sel |= active_trigger_t::sma_input;
+                break;
+            case pin_direction_t::out:
+                api_trig_sel |= active_trigger_t::sma_output;
+                break;
+            default:
+                throw uhd::runtime_error(
+                    "Cannot translate trig_sel: the SMA direction in effect is not known");
+        }
+    }
+    return api_trig_sel;
 }

@@ -19,6 +19,7 @@
 #define INCLUDED_CRIMSON_TNG_IMPL_HPP
 
 #include <set>
+#include <optional>
 #include <vector>
 #include <thread>
 #include <atomic>
@@ -94,6 +95,12 @@ public:
 
     void start_pps_dtc();
     void stop_pps_dtc();
+
+    // Device-specific parts of trigger_configure. See uhd::pv_device.
+    trigger_pin_type_t trigger_sma_pin_type() const override;
+    uint32_t trig_sel_to_device(uhd::trigger_pv::active_trigger_t api_trig_sel) const override;
+    uhd::trigger_pv::active_trigger_t trig_sel_from_device(
+        uint32_t device_trig_sel, uhd::trigger_pv::pin_direction_t sma_direction) const override;
 
 private:
     // The product name in all capitals
