@@ -34,6 +34,9 @@
 #include "uhd/utils/static.hpp"
 
 #include <uhdlib/transport/udp_common.hpp>
+#include <uhd/exception.hpp>
+#include <format>
+#include <optional>
 #ifdef HAVE_DPDK
 #    include <uhdlib/transport/dpdk_simple.hpp>
 #endif
@@ -653,6 +656,15 @@ cyan_nrnt_impl::cyan_nrnt_impl(const device_addr_t &_device_addr, bool use_dpdk,
     } catch(uhd::runtime_error &e) {
         // Catch and log any runtime errors we threw since we still want to proceed even if the device may be locked
         UHD_LOG_ERROR(CYAN_NRNT_DEBUG_NAME_C, "Unable to determine if another instance of UHD has already been created with this device.\n" + std::string(e.what()));
+    }
+
+    // Attempt to get the server api version
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/server_api_ver", "system/server_api_ver", int, int);
+    try {
+        server_api_ver = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/server_api_ver").get());
+    } catch(uhd::lookup_error &e) {
+        // The server is from before the field was added
+        server_api_ver = 0;
     }
 
     // The state tree functions do not have 64 bit ints, so the properties are called using doubles then converted

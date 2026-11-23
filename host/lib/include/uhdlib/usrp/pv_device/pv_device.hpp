@@ -32,6 +32,14 @@ class pv_device : public device
 {
 public:
     ~pv_device() override = default;
+
+    /*!
+     * The server's API version. Format: yyyymmdd
+     * 0 indicates the server predates the property that provides this value.
+     * Set during the child class's constructor.
+     */
+    int server_api_ver = 0;
+
 };
 
 } // namespace uhd

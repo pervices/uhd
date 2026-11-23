@@ -33,6 +33,9 @@
 #include <uhd/utils/log.hpp>
 
 #include <uhdlib/transport/udp_common.hpp>
+#include <uhd/exception.hpp>
+#include <format>
+#include <optional>
 
 namespace link_crimson {
     const char *mtu_ref = "9000";
@@ -643,6 +646,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
     } catch(uhd::runtime_error &e) {
         // Catch and log any runtime errors we threw since we still want to proceed even if the device may be locked
         UHD_LOG_ERROR(product_name_c, "Unable to determine if another instance of UHD has already been created with this device.\n" + std::string(e.what()));
+    }
+
+    // Attempt to get the server api version
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "system/server_api_ver", "system/server_api_ver", int, int);
+    try {
+        server_api_ver = (_tree->access<int>(PV_DEVICE_MB_PATH / "system/server_api_ver").get());
+    } catch(uhd::lookup_error &e) {
+        // The server is from before the field was added
+        server_api_ver = 0;
     }
 
     // Property paths
