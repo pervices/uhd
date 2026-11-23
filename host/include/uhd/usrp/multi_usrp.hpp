@@ -41,6 +41,7 @@
 #include <uhd/usrp/dboard_iface.hpp>
 #include <uhd/usrp/subdev_spec.hpp>
 #include <uhd/utils/noncopyable.hpp>
+#include <uhd/types/trigger_options.hpp>
 #include <complex>
 #include <memory>
 #include <string>
@@ -2417,7 +2418,91 @@ public:
         (void) name;
         (void) chan;
         throw std::runtime_error("concrete classes are expected to override this method");
-    };
+    }
+
+    /*! Configure triggered streaming for RX and TX channels in one operation.
+    *
+    * All channels not passed to this function will be disabled before any settings (including global
+    * settings) are applied. They are not re-enabled afterwards.
+    * \internal
+    * Disabling a channel sets RX stream or TX stream to 0, which resets it.
+    * \endinternal
+    * All channels not set to hot_configure will be disabled while the configuration is being applied.
+    * RX stream commands will be lost when configuring unless hot_configure is specified in trigger_rx_t for that channel.
+    * Samples and SOB/EOB in the tx buffer will be lost unless hot_configure is specified in trigger_tx_t for that channel.
+    * Values the hardware cannot apply exactly are adjusted, and the adjusted
+    * values are written back into \p global, \p rx and \p tx.
+    *
+    * Assuming no errors and nothing trigger related changes on the device: the adjusted value from the end of one call
+    * will do nothing if passed to the function again, except for resetting channels whose hot_configure is not set.
+    * The recommended way of using this function is to set up the structs as you desire at the start
+    * then anytime you want to modify something, enable hot_configure for ALL channels (to prevent them being reset while configuring),
+    * then modify that specific field you want changed, then call this function again.
+    * You must enable hot_configure for all channels, otherwise they will be reset.
+    *
+    * After any exception the structs are not modified. Nothing happened on an index_error or value_error.
+    * After any other error the device is in an undefined state and will attempt (but not necessarily succeed)
+    * at following \p op -> failure_handling
+    *
+    * \internal
+    * An io_error during validation technically leaves the unit unchanged, but to avoid complicating error handling more
+    * we will treat it as undefined.
+    * \endinternal
+    *
+    * \param op how to apply the change, or nullptr for defaults
+    * \param global settings that apply to every channel (updated with actual
+    *        values), or nullptr to leave the global settings unchanged.
+    *        The current SMA direction is still read and checked against
+    *        trig_sel (see below).
+    * \param rx array of per-channel RX settings (updated with actual values unless specified by their passed value)
+    * \param rx_len number of elements in \p rx; \p rx may be nullptr if 0
+    * \param tx array of per-channel TX settings (updated with actual values unless specified by their passed value)
+    * \param tx_len number of elements in \p tx; \p tx may be nullptr if 0
+    * \return true if every value was applied exactly as requested,
+    *         false if any value was adjusted but was otherwise successful
+    * \throws uhd::index_error if a channel that does not exist is requested.
+    * \throws uhd::value_error if the requested settings are invalid.
+    * \throws uhd::io_error if reading or writing a setting on the device fails.
+    * \throws uhd::lookup_error if the server is missing a property required by UHD.
+    *         This is usually caused by a server/uhd version mismatch.
+    *         Server/UHD combinations that trigger this error are unsupported.
+    * \internal
+    * lookup_error should be impossible on any server version TRIGGER_OVERHAUL_SERVER_R1_S
+    * or newer.
+    * lookup_error should be impossible when unsupported_server is set in
+    * enable_strict_errors.
+    * \endinternal
+    * \throws uhd::runtime_error for any other error, e.g. a coerced value when
+    *         strict_error_t::coerced_value is enabled.
+    *
+    * \internal
+    * Validation does not read from the device, with one exception, which happens
+    * after all other validation: on devices with a single toggleable SMA pin
+    * (Crimson, Calamine), if \p global is nullptr or its sma_direction is
+    * pin_direction_t::get, and a channel in the request uses the SMA, the current
+    * SMA direction is read and the channels are validated against it. A
+    * uhd::value_error then means the request conflicts with the current direction.
+    * If the read itself fails, uhd::io_error is thrown and, as with any other
+    * error apart from uhd::index_error and uhd::value_error, the device should be
+    * considered to be in an undefined state.
+    * \endinternal
+    */
+    [[nodiscard("returns false if any requested value was adjusted")]]
+    virtual bool trigger_configure(const uhd::trigger_pv::trigger_op_t* op,
+        uhd::trigger_pv::trigger_global_t* global,
+        uhd::trigger_pv::trigger_rx_t* rx,
+        size_t rx_len,
+        uhd::trigger_pv::trigger_tx_t* tx,
+        size_t tx_len)
+    {
+        (void) op;
+        (void) global;
+        (void) rx;
+        (void) rx_len;
+        (void) tx;
+        (void) tx_len;
+        throw std::runtime_error("concrete classes are expected to override this method");
+    }
 };
 
 }} // namespace uhd::usrp
