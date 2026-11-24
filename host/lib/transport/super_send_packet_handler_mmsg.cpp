@@ -224,7 +224,7 @@ void send_packet_handler_mmsg::send_eob_packet(const uhd::tx_metadata_t &metadat
     specified_time = false;
 
     // How many dummy samples to send in the eob
-    constexpr size_t dummy_samples_in_eob = 1;
+    constexpr size_t dummy_samples_in_eob = 0;
 
     // Create vector of dummy samples, since the FPGA cannot handle 0 sample packets
     std::vector<std::vector<int8_t>> dummy_buffs(_NUM_CHANNELS, std::vector<int8_t>(_BYTES_PER_SAMPLE * dummy_samples_in_eob, 0));
