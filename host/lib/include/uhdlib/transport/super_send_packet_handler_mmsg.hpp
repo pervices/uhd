@@ -336,8 +336,8 @@ private:
         const bool is_eob_send = false
     ) {
 
-        // Number of packets to send
-        int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
+        // Number of packets to send. Will always be at least 1 so the header is still sent when nsamps_to_send=0.
+        int num_packets = std::max<double>(std::ceil(((double)nsamps_to_send)/_max_samples_per_packet), 1);
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
 
@@ -637,12 +637,13 @@ private:
         if(!is_eob_send) [[likely]] {
             return samples_sent;
         } else {
-            if(!samples_sent) {
-                // The EOB was not send, remove it from the list for buffer level calculations
-                for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-                    ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
-                }
-            }
+            // Commenting out for testing
+            // if(!samples_sent) {
+            //     // The EOB was not send, remove it from the list for buffer level calculations
+            //     for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+            //         ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
+            //     }
+            // }
             // EOB packets have a dummy sample, ignore them when reporting the number of samples sent
             return 0;
         }
