@@ -637,13 +637,12 @@ private:
         if(!is_eob_send) [[likely]] {
             return samples_sent;
         } else {
-            // Commenting out for testing
-            // if(!samples_sent) {
-            //     // The EOB was not send, remove it from the list for buffer level calculations
-            //     for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-            //         ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
-            //     }
-            // }
+            if(!samples_sent) {
+                // The EOB was not send, remove it from the list for buffer level calculations
+                for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
+                    ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
+                }
+            }
             // EOB packets have a dummy sample, ignore them when reporting the number of samples sent
             return 0;
         }
