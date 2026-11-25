@@ -400,8 +400,16 @@ private:
         }
 
         //Set payload size info for last packet
-        packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
-        packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3/*round up*/)/sizeof(uint32_t);
+        size_t num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
+        // packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
+        // packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3/*round up*/)/sizeof(uint32_t);
+        packet_header_infos[num_packets - 1].num_payload_bytes = num_payload_bytes;
+        // Round up (+3) if there are any samples
+        if (num_payload_bytes > 0) {
+            packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3)/sizeof(uint32_t);
+        } else {
+            packet_header_infos[num_packets - 1].num_payload_words32 = (samples_in_last_packet*_bytes_per_sample)/sizeof(uint32_t);
+        }
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
