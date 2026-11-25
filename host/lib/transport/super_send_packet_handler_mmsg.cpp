@@ -224,15 +224,15 @@ void send_packet_handler_mmsg::send_eob_packet(const uhd::tx_metadata_t &metadat
     specified_time = false;
 
     // How many dummy samples to send in the eob
-    // constexpr size_t dummy_samples_in_eob = 0;
+    constexpr size_t dummy_samples_in_eob = 0;
 
     // Create vector of dummy samples, since the FPGA cannot handle 0 sample packets
-    // std::vector<std::vector<int8_t>> dummy_buffs(_NUM_CHANNELS, std::vector<const void*>(_BYTES_PER_SAMPLE * dummy_samples_in_eob, 0));
+    std::vector<std::vector<int8_t>> dummy_buffs(_NUM_CHANNELS, std::vector<int8_t>(_BYTES_PER_SAMPLE * dummy_samples_in_eob, 0));
     std::vector<const void *> dummy_buff_ptrs;
-    // for(size_t n = 0; n < _NUM_CHANNELS; n++) {
-        // dummy_buff_ptrs.push_back(dummy_buffs[n].data());
-    // }
-    dummy_buff_ptrs.resize(_NUM_CHANNELS, 0);
+    for(size_t n = 0; n < _NUM_CHANNELS; n++) {
+        dummy_buff_ptrs.push_back(dummy_buffs[n].data());
+    }
+    // dummy_buff_ptrs.resize(_NUM_CHANNELS, 0);
 
     // Clear cached sob flag, to handle edge case of where user sends 0 sample sob, followed by eob
     cached_sob = false;
