@@ -604,7 +604,7 @@ private:
             samples_sent += samples_sent_now;
 
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                UHD_LOG_INFO("SEND_PACKET_HANDLER", std::format("SAMPLES_SENT_NOW: ", samples_sent_now));
+                UHD_LOG_INFO("SEND_PACKET_HANDLER", std::format("SAMPLES_SENT_NOW: {}", samples_sent_now));
                 ch_send_buffer_info_group[ch_i].buffer_level_manager.update((size_t) samples_sent_now);
             }
 
