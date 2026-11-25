@@ -340,6 +340,7 @@ private:
         int num_packets = std::max<double>(std::ceil(((double)nsamps_to_send)/_max_samples_per_packet), 1);
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
+        UHD_LOG_INFO("SEND_PACKET_HANDELER", std::format("num_packets: {}\nsamples_in_last_packet: {}\n", num_packets, samples_in_last_packet));
 
         // Expands size of buffers used to store data to be sent
         expand_send_buffer_info(num_packets);
@@ -406,9 +407,9 @@ private:
         packet_header_infos[num_packets - 1].num_payload_bytes = num_payload_bytes;
         // Round up (+3) if there are any samples
         if (num_payload_bytes > 0) {
-            packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3)/sizeof(uint32_t);
+            packet_header_infos[num_packets - 1].num_payload_words32 = (num_payload_bytes + 3)/sizeof(uint32_t);
         } else {
-            packet_header_infos[num_packets - 1].num_payload_words32 = (samples_in_last_packet*_bytes_per_sample)/sizeof(uint32_t);
+            packet_header_infos[num_packets - 1].num_payload_words32 = num_payload_bytes/sizeof(uint32_t);
         }
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
@@ -595,6 +596,8 @@ private:
             // Assuming success is not ideal, but proper error handling will have too much of a performance impact
             packets_sent += packets_sent_now;
 
+            UHD_LOG_INFO("SEND_PACKET_HANDELER", std::format("packets_sent: {}\n", packets_sent));
+
             // Calculate the number of samples sent in this send
             // Every packet except the last of the command will be of max length
             size_t samples_sent_now;
@@ -609,6 +612,8 @@ private:
 
             // Add the samples sent from this sendmmsg to the total for this function
             samples_sent += samples_sent_now;
+
+            UHD_LOG_INFO("SEND_PACKET_HANDELER", std::format("samples_sent: {}\n", samples_sent));
 
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
                 ch_send_buffer_info_group[ch_i].buffer_level_manager.update((size_t) samples_sent_now);
