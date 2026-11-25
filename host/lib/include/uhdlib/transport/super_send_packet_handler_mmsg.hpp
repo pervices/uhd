@@ -651,6 +651,7 @@ private:
             return samples_sent;
         } else {
             if(!samples_sent) {
+                UHD_LOG_INFO("SEND_PACKET_HANDELER", "Removing EOB from buffer level calc");
                 // The EOB was not send, remove it from the list for buffer level calculations
                 for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
                     ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
