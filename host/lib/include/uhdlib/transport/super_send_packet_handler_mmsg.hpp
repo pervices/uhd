@@ -337,7 +337,7 @@ private:
     ) {
 
         // Number of packets to send. Will always be at least 1 so the header is still sent when nsamps_to_send=0.
-        int num_packets = std::max<double>(std::ceil(((double)nsamps_to_send)/_max_samples_per_packet), 1);
+        int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
         UHD_LOG_INFO("SEND_PACKET_HANDELER", std::format("num_packets: {}\nsamples_in_last_packet: {}\n", num_packets, samples_in_last_packet));
@@ -555,6 +555,7 @@ private:
                 packets_sent_now = 0;
 
                 for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
+                    UHD_LOG_INFO("SEND_PACKET_HANDLER", "iovecs_length:" + std::to_string(ch_send_buffer_info_group[ch_i].iovecs[packets_sent].iov_len));
                     // Send packets
                     packets_sent_now = sendmmsg(send_sockets[ch_i], &ch_send_buffer_info_group[ch_i].msgs[packets_sent], packets_to_send_now, MSG_CONFIRM);
 
