@@ -604,7 +604,6 @@ private:
             samples_sent += samples_sent_now;
 
             for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
-                UHD_LOG_INFO("SEND_PACKET_HANDLER", std::format("SAMPLES_SENT_NOW: {}", samples_sent_now));
                 ch_send_buffer_info_group[ch_i].buffer_level_manager.update((size_t) samples_sent_now);
             }
 
@@ -643,7 +642,7 @@ private:
                 UHD_LOG_INFO("SEND_PACKET_HANDELER", "Removing EOB from buffer level calc");
                 // The EOB was not send, remove it from the list for buffer level calculations
                 for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-                    ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
+                    // ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
                 }
             }
             // EOB packets have a dummy sample, ignore them when reporting the number of samples sent
