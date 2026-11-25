@@ -337,7 +337,7 @@ private:
     ) {
 
         // Number of packets to send. Will always be at least 1 so the header is still sent when nsamps_to_send=0.
-        int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
+        int num_packets = std::max<int>(std::ceil(((double)nsamps_to_send)/_max_samples_per_packet), 1);
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
         UHD_LOG_INFO("SEND_PACKET_HANDELER", std::format("num_packets: {}\nsamples_in_last_packet: {}\n", num_packets, samples_in_last_packet));
