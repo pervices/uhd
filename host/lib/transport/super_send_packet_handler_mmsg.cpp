@@ -253,7 +253,7 @@ void send_packet_handler_mmsg::send_eob_packet(const uhd::tx_metadata_t &metadat
 
     // Sends the eob packet
     // send_multiple_packets(dummy_buff_ptrs, dummy_samples_in_eob, eob_md, timeout, true);
-    send_multiple_packets(dummy_buff_ptrs, 0, eob_md, timeout, true);
+    send_multiple_packets(dummy_buff_ptrs, dummy_samples_in_eob, eob_md, timeout, true);
 
     // Unlock the streaming lockfiles for each channel
     for (size_t n = 0; n < _NUM_CHANNELS; n++) {
