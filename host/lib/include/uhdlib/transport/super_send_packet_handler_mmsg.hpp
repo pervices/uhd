@@ -337,7 +337,7 @@ private:
     ) {
 
         // Number of packets to send
-        int num_packets = std::ceil(((double)nsamps_to_send)/_max_samples_per_packet);
+        int num_packets = std::max<int>(std::ceil(((double)nsamps_to_send)/_max_samples_per_packet), 1);
 
         size_t samples_in_last_packet = nsamps_to_send - (_max_samples_per_packet * (num_packets - 1));
 
@@ -402,6 +402,10 @@ private:
         //Set payload size info for last packet
         packet_header_infos[num_packets - 1].num_payload_bytes = samples_in_last_packet * _bytes_per_sample;
         packet_header_infos[num_packets - 1].num_payload_words32 = ((samples_in_last_packet*_bytes_per_sample) + 3/*round up*/)/sizeof(uint32_t);
+
+        if (samples_in_last_packet == 0) {
+            packet_header_infos[num_packets - 1].num_payload_words32 = 0;
+        }
 
         for(size_t ch_i = 0; ch_i < _NUM_CHANNELS; ch_i++) {
             for(int n = 0; n < num_packets; n++) {
@@ -640,7 +644,7 @@ private:
             if(!samples_sent) {
                 // The EOB was not send, remove it from the list for buffer level calculations
                 for(auto& ch_send_buffer_info_i : ch_send_buffer_info_group) {
-                    ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
+                    // ch_send_buffer_info_i.buffer_level_manager.pop_back_end_of_burst_time();
                 }
             }
             // EOB packets have a dummy sample, ignore them when reporting the number of samples sent
