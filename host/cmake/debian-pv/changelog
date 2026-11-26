@@ -1,3 +1,9 @@
+uhdpv (4.10.0.15-0ubuntu1) ubuntu_release; urgency=low
+
+  * Removing std::format from new trigger API headers for compatibility with older C++ versions
+
+ -- Per Vices <packages@pervices.com>  Thu, 26 Nov 2026 18:44:40 -0500
+
 uhdpv (4.10.0.14-0ubuntu1) ubuntu_release; urgency=low
 
   * Adding new trigger API with an interim example. The
