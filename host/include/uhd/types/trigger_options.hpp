@@ -9,9 +9,9 @@
 #include <uhd/exception.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <format>
 #include <type_traits>
 #include <vector>
+#include <string>
 
 /*
  * Versioned argument structs for the trigger API.
@@ -807,13 +807,13 @@ static inline void check_preset_array(const char* preset,
     size_t expected_len)
 {
     if (array == nullptr && len != 0) {
-        throw uhd::value_error(
-            std::format("{}: {} is null but {}_len is {}", preset, name, name, len));
+        throw uhd::value_error(std::string(preset) + ": " + name + " is null but " + name
+                + "_len is " + std::to_string(len));
     }
     if (len != expected_len) {
-        throw uhd::value_error(std::format(
-            "{}: {}_len is {} but the channel lists have {} channels in total",
-            preset, name, len, expected_len));
+        throw uhd::value_error(std::string(preset) + ": " + name + "_len is "
+                + std::to_string(len) + " but the channel lists have "
+                + std::to_string(expected_len) + " channels in total");
     }
 }
 
@@ -1007,8 +1007,8 @@ static inline void get_simple_sma_config(trigger_op_t* op,
         throw uhd::value_error("get_simple_sma_config: sma_direction must be in or out");
     }
     if (edge_sample_num < 0) {
-        throw uhd::value_error(std::format(
-            "get_simple_sma_config: edge_sample_num must be >= 0, got {}", edge_sample_num));
+        throw uhd::value_error("get_simple_sma_config: edge_sample_num must be >= 0, got "
+                + std::to_string(edge_sample_num));
     }
 
     const active_trigger_t sma_trigger = (sma_direction == pin_direction_t::in)
