@@ -41,6 +41,13 @@ public:
      */
     int server_api_ver = 0;
 
+    /*!
+     * How many FPGA commits have been made in the FPGA.
+     *
+     * Used to track the FPGA version to check for features and bugs
+     */
+    int fpga_ver = 0;
+
     /***********************************************************************
      * Trigger hooks for multi_usrp::trigger_configure()
      *
