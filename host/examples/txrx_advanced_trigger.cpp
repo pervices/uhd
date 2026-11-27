@@ -900,7 +900,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     // The time on the device as of the end of configuring
     // Streaming start of this + rx_sob or tx_sob
-    uhd::time_spec_t init_time = 0.0;//usrp->get_time_now();
+    uhd::time_spec_t init_time = usrp->get_time_now();
 
     // Create the tx streamers. Each channel gets its own streamer so channels don't have to send the same number of samples
     // Streamers are created here, one at a time, rather than inside the threads, to avoid creating several at once
