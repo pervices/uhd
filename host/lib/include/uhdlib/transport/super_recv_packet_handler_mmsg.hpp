@@ -326,6 +326,9 @@ public:
             }
 
             for(size_t ch = 0; ch < _NUM_CHANNELS; ch++) {
+                if(samples_to_cache[ch] != 0) {
+                    std::cout << "samples to cache\n";
+                }
                 // Update number of cached samples
                 _num_cached_samples[ch] = samples_to_cache[ch];
                 if(samples_to_cache[ch]) {
