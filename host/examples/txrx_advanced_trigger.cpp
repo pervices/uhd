@@ -845,7 +845,7 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 chan.input_edge_sample_num = rx_edge_sample_num[ch];
                 chan.ufl_output_pulse_length = rx_ufl_edge_output[ch];
                 // Everything is configured before streaming starts, so the channel doesn't need to stay enabled
-                chan.hot_configure = false;
+                chan.hot_configure = true;
                 // Leave the channel disabled. Creating a streamer enables it
                 chan.enable = 0;
                 rx_trigger.push_back(chan);
