@@ -17,3 +17,8 @@ inline const uhd::fs_path PV_DEVICE_TIME_PATH{PV_DEVICE_MB_PATH / "time"};
 constexpr int TRIGGER_OVERHAUL_SERVER_R3_S = 20261119;
 constexpr int TRIGGER_OVERHAUL_SERVER_R2_S = 20261112;
 constexpr int TRIGGER_OVERHAUL_SERVER_R1_S = 20261111;
+
+// TODO: update this to the correct value once the fixes are merged
+// It is set to the current master (without the fixes) + 1
+// Version with the fix for http://korbin.pv/issues/19527#note-26
+constexpr int TRIGGER_SAMPLE_FIX_FPGA = 5710;

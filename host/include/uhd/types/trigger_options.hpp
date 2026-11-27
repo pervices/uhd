@@ -336,6 +336,11 @@ enum class strict_error_t : uint64_t {
      */
     unsupported_server = 2u << 2,
     /*!
+     * Throw a uhd::value_error if the fpga is missing features, or has known bugs
+     * affecting the request.
+     */
+    unsupported_fpga = 2u << 4,
+    /*!
      * Default error flags for the initial release version.
      * Flags added later are not enabled by default for compatibility.
      * \internal
@@ -370,6 +375,11 @@ enum class warning_t : uint64_t {
      * be missing and you lose the guarantees that prevent accidental trigger activations.
      */
     unsupported_server = 2u << 2,
+    /*!
+     * Warn if the fpga is missing features, or has known bugs affecting the
+     * request.
+     */
+    unsupported_fpga = 2u << 4,
 };
 UHD_TRIGGER_PV_FLAG_OPERATORS(warning_t)
 

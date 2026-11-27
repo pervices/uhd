@@ -3662,12 +3662,14 @@ private:
         return plan;
     }
 
+    bool input_edge_sample_num_fpga_warning_printed = false;
+
     /*!
      * Validate everything in one channel's request that does not involve the
      * SMA direction, and plan its U.FL direction.
      */
     template <typename channel_t>
-    static trigger_pin_plan_t trigger_validate_channel(const channel_t& chan,
+    trigger_pin_plan_t trigger_validate_channel(const channel_t& chan,
         const size_t channel_index,
         const uhd::trigger_pv::trigger_op_t& op)
     {
@@ -3689,10 +3691,37 @@ private:
         constexpr const char* edge_input_relevance =
             "trig_sel includes sma_input with sma_mode set to edge, or channel_ufl with "
             "ufl_dir set to in and ufl_mode set to edge";
+
         trigger_check_integer(chan.edge_backoff, UINT32_MAX, true,
             trigger_edge_input_relevant(chan), edge_input_relevance, name + ".edge_backoff");
         trigger_check_integer(chan.input_edge_sample_num, INT64_MAX, true,
             trigger_edge_input_relevant(chan), edge_input_relevance, name + ".edge_sample_num");
+
+        // Check if the FPGA is from after rx was fixed to give the correct number of samples
+        // on an edge input trigger
+        if constexpr (std::is_same_v<std::decay_t<channel_t>, trigger_rx_t>) {
+            uhd::pv_device& dev = trigger_pv_device();
+            // If the FPGA does not have fixes the number of samples sent
+            // AND input_edge_sample_num is requested
+            if(dev.fpga_ver < TRIGGER_SAMPLE_FIX_FPGA
+                    && chan.input_edge_sample_num != SKIP_IF_NOT_RELEVANT
+                    && chan.input_edge_sample_num != GET_INT)
+            {
+                std::string message = std::format(
+                        "FPGA {} has known issues affecting input_edge_sample_num. "
+                        "Update to {} or later.", dev.fpga_ver, TRIGGER_SAMPLE_FIX_FPGA);
+                if(has_any(op.enable_strict_errors & strict_error_t::unsupported_fpga)) {
+                    throw uhd::value_error(message);
+                } else if( (!input_edge_sample_num_fpga_warning_printed)
+                        && (!has_any(op.disable_warnings & warning_t::unsupported_fpga)) )
+                {
+                    UHD_LOG_WARNING("MULTI_USRP", message);
+                    input_edge_sample_num_fpga_warning_printed = true;
+                }
+            }
+        }
+
+
         trigger_check_integer(chan.ufl_output_pulse_length, INT64_MAX, true,
             trigger_ufl_output_relevant(chan),
             "trig_sel includes channel_ufl with ufl_dir set to out and ufl_mode set to edge",
