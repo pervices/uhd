@@ -895,6 +895,8 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             }
         }
     }
+    std::cout << "Setting time to 0\n";
+    usrp->set_time_now(0.0);
 
     // The time on the device as of the end of configuring
     // Streaming start of this + rx_sob or tx_sob
@@ -970,10 +972,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
                 rx_streamers.push_back(usrp->get_rx_stream(rx_stream_args));
             }
         }
-
-        // std::cout << "Setting time to 0\n";
-        // usrp->set_time_now(0.0);
-        ::sleep(3);
 
         // Create the rx threads, one per channel
         // Channels with a burst length of 0 receive continuously, the others receive in bursts
