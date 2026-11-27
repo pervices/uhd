@@ -971,8 +971,9 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
             }
         }
 
-        std::cout << "Setting time to 0\n";
-        usrp->set_time_now(0.0);
+        // std::cout << "Setting time to 0\n";
+        // usrp->set_time_now(0.0);
+        ::sleep(3);
 
         // Create the rx threads, one per channel
         // Channels with a burst length of 0 receive continuously, the others receive in bursts
