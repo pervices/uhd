@@ -658,6 +658,15 @@ crimson_tng_impl::crimson_tng_impl(const device_addr_t &_device_addr)
         server_api_ver = 0;
     }
 
+    // Attempt to get the FPGA version
+    TREE_CREATE_RW(PV_DEVICE_MB_PATH / "commit_counter", "fpga/about/commit_counter", int, int);
+    try {
+        fpga_ver = (_tree->access<int>(PV_DEVICE_MB_PATH / "commit_counter").get());
+    } catch(uhd::lookup_error &e) {
+        // The server is from before the field was added
+        fpga_ver = 0;
+    }
+
     // Property paths
     const fs_path tx_path   = PV_DEVICE_MB_PATH / "tx";
     const fs_path rx_path   = PV_DEVICE_MB_PATH / "rx";
