@@ -4490,9 +4490,7 @@ public:
         // Throws uhd::not_implemented_error before anything else for non Per Vices devices.
         uhd::pv_device& dev = trigger_pv_device();
 
-        // Deep copies of the caller's structs, in the library's layout. All work
-        // below is done on these; the caller's structs are only written back on
-        // success, so after an exception they still hold exactly what was requested.
+        // Deep copy the caller's structs and convert them from host to library format
         trigger_request_t request;
         // A null op means "use the defaults".
         request.op = (op != nullptr) ? detail::deep_copy_from_caller(*op) : trigger_op_t{};
@@ -4511,11 +4509,17 @@ public:
         bool validated = false;
         try {
             // Throw if a channel is unset, does not exist, or is specified twice.
+            // Get a list of unspecified channels
+            // and validate if all specified channels are im
             request.unspecified_rx = detail::find_unspecified_channels(request.rx, get_rx_num_channels());
             request.unspecified_tx = detail::find_unspecified_channels(request.tx, get_tx_num_channels());
 
+            // Validate the settings
+            // throws errors if validation fails
             trigger_validate(request, dev);
             validated = true;
+
+            // Apply settings
             exact     = trigger_apply(request, dev);
         } catch (const uhd::value_error&) {
             handle_trigger_failure_if(validated, request, dev);
